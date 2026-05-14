@@ -168,6 +168,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── OVERSEAS BANNER ─────────────────────────────────────────────────────────
   Widget _buildOverseasBanner() {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/overseas-order'),
+      child: _overseasBannerInner(),
+    );
+  }
+
+  Widget _overseasBannerInner() {
     return Container(
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
@@ -512,7 +519,11 @@ class _HomeScreenState extends State<HomeScreen> {
           final active = _selectedNav == i;
           return Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _selectedNav = i),
+              onTap: () {
+                setState(() => _selectedNav = i);
+                if (i == 2) Navigator.pushNamed(context, '/order-history');
+                if (i == 3) Navigator.pushNamed(context, '/profile');
+              },
               behavior: HitTestBehavior.opaque,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

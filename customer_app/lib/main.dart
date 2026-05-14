@@ -10,6 +10,11 @@ import 'screens/cart_screen.dart';
 import 'screens/checkout_screen.dart';
 import 'screens/payment_screen.dart';
 import 'screens/order_confirmed_screen.dart';
+import 'screens/order_status_screen.dart';
+import 'screens/order_history_screen.dart';
+import 'screens/overseas_order_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/rate_driver_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -39,6 +44,11 @@ class ShipEastApp extends StatelessWidget {
         '/checkout': (_) => const CheckoutScreen(),
         '/payment': (_) => const PaymentScreen(),
         '/order-confirmed': (_) => const OrderConfirmedScreen(),
+        '/order-status': (_) => const OrderStatusScreen(),
+        '/order-history': (_) => const OrderHistoryScreen(),
+        '/overseas-order': (_) => const OverseasOrderScreen(),
+        '/profile': (_) => const ProfileScreen(),
+        '/rate-driver': (_) => const RateDriverScreen(),
       },
     );
   }

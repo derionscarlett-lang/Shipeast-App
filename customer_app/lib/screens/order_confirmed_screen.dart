@@ -208,17 +208,8 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                 const SizedBox(height: 18),
                 // Track My Order button
                 ElevatedButton(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Order tracking coming soon!',
-                          style: GoogleFonts.nunito(
-                              fontWeight: FontWeight.w700)),
-                      backgroundColor: AppTheme.primary,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/order-status'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
