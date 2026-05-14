@@ -194,9 +194,9 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   // ── INFO BAR ──────────────────────────────────────────────────────────────
   Widget _buildInfoBar() {
     return Container(
-      color: Colors.white,
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
       decoration: const BoxDecoration(
+        color: Colors.white,
         border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
       ),
       child: Column(
