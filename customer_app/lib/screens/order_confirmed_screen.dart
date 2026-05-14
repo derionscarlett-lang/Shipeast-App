@@ -16,6 +16,15 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
   late Animation<double> _scaleAnim;
   late Animation<double> _fadeAnim;
 
+  static const _items = [
+    {'name': 'Full Jerk Chicken', 'qty': 1, 'price': 1200},
+    {'name': 'Sorrel Punch', 'qty': 1, 'price': 350},
+  ];
+  static const _deliveryFee = 250;
+  static const _serviceFee = 125;
+  static const _subtotal = 1550;
+  static const _total = 1925;
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +45,13 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
   void dispose() {
     _animCtrl.dispose();
     super.dispose();
+  }
+
+  String _fmt(int price) {
+    if (price >= 1000) {
+      return '${price ~/ 1000},${(price % 1000).toString().padLeft(3, '0')}';
+    }
+    return '$price';
   }
 
   @override
@@ -76,7 +92,6 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                   ),
                 ),
                 const SizedBox(height: 18),
-                // Title
                 Text(
                   'Order Placed!',
                   textAlign: TextAlign.center,
@@ -87,7 +102,6 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                   ),
                 ),
                 const SizedBox(height: 7),
-                // Subtitle
                 Text(
                   'Your order is confirmed & sent to Island Jerk Palace. We\'ll notify you at every step.',
                   textAlign: TextAlign.center,
@@ -98,7 +112,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                   ),
                 ),
                 const SizedBox(height: 22),
-                // Order ID box
+                // Order ID
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -131,7 +145,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                // ETA box
+                // ETA
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -174,7 +188,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Delivery address box
+                // Delivery address
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -213,8 +227,11 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
+                // Receipt card
+                _buildReceiptCard(),
                 const SizedBox(height: 18),
-                // Track My Order button
+                // Track button
                 ElevatedButton(
                   onPressed: () =>
                       Navigator.pushNamed(context, '/order-status'),
@@ -233,7 +250,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                   ),
                 ),
                 const SizedBox(height: 9),
-                // Back to Home button
+                // Back to home
                 ElevatedButton(
                   onPressed: () => Navigator.pushNamedAndRemoveUntil(
                     context,
@@ -261,4 +278,153 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
       ),
     );
   }
+
+  Widget _buildReceiptCard() => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9F9F9),
+          border: Border.all(color: const Color(0xFFEEEEEE), width: 1.5),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            // Receipt header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+              decoration: const BoxDecoration(
+                border:
+                    Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.receipt_long,
+                      size: 16, color: Color(0xFF666666)),
+                  const SizedBox(width: 7),
+                  Text(
+                    'Order Receipt',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.dark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Items
+            ..._items.map((item) => Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 15, vertical: 9),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                        bottom: BorderSide(color: Color(0xFFF2F2F2))),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${item['name']} × ${item['qty']}',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF444444),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '\$${_fmt(item['price'] as int)}',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: const Color(0xFF444444),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+            // Subtotal, delivery, service
+            _receiptRow('Subtotal', '\$$_subtotal', false),
+            _receiptRow('Delivery fee', '\$$_deliveryFee', false),
+            _receiptRow('Service fee', '\$$_serviceFee', false),
+            // Total
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF0F2),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Total Paid',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.dark,
+                    ),
+                  ),
+                  Text(
+                    '\$${_fmt(_total)}',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Payment method
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+              child: Row(
+                children: [
+                  const Text('💵', style: TextStyle(fontSize: 14)),
+                  const SizedBox(width: 7),
+                  Text(
+                    'Paid via Cash on Delivery',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: const Color(0xFF777777),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _receiptRow(String label, String value, bool isBold) => Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+        decoration: const BoxDecoration(
+          border:
+              Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label,
+                style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: const Color(0xFF666666),
+                    fontWeight:
+                        isBold ? FontWeight.w700 : FontWeight.w400)),
+            Text(value,
+                style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: const Color(0xFF666666),
+                    fontWeight:
+                        isBold ? FontWeight.w700 : FontWeight.w400)),
+          ],
+        ),
+      );
 }

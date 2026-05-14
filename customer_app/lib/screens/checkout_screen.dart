@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import 'saved_addresses_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -12,19 +13,8 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   int _selectedAddress = 0;
-
-  static const List<Map<String, dynamic>> _addresses = [
-    {
-      'icon': Icons.home,
-      'label': 'Home',
-      'text': '14 Yallahs Main Road, St. Thomas',
-    },
-    {
-      'icon': Icons.work,
-      'label': 'Work',
-      'text': '45 King Street, Kingston',
-    },
-  ];
+  List<Map<String, String>> _addresses = [];
+  bool _loading = true;
 
   @override
   void initState() {
@@ -33,11 +23,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ));
+    _loadAddresses();
+  }
+
+  Future<void> _loadAddresses() async {
+    final addresses = await SavedAddressesScreen.loadAddresses();
+    setState(() {
+      _addresses = addresses;
+      _selectedAddress = 0;
+      _loading = false;
+    });
+  }
+
+  String get selectedAddressText {
+    if (_addresses.isEmpty) return '';
+    return _addresses[_selectedAddress]['text'] ?? '';
   }
 
   void _showSnackbar(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+      content:
+          Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
       backgroundColor: AppTheme.primary,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -55,20 +61,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           children: [
             _buildHeader(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildAddressCard(),
-                    const SizedBox(height: 10),
-                    _buildOrderSummaryCard(),
-                    const SizedBox(height: 10),
-                    _buildChoosePaymentButton(),
-                    const SizedBox(height: 12),
-                  ],
-                ),
-              ),
+              child: _loading
+                  ? const Center(
+                      child:
+                          CircularProgressIndicator(color: AppTheme.primary))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildAddressCard(),
+                          const SizedBox(height: 10),
+                          _buildOrderSummaryCard(),
+                          const SizedBox(height: 10),
+                          _buildChoosePaymentButton(),
+                          const SizedBox(height: 12),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -94,8 +104,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: Icon(Icons.arrow_back_ios, size: 16,
-                      color: Color(0xFF444444)),
+                  child: Icon(Icons.arrow_back_ios,
+                      size: 16, color: Color(0xFF444444)),
                 ),
               ),
             ),
@@ -115,95 +125,143 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _buildAddressCard() => _coCard(
         child: Column(
           children: [
-            _coHead('Delivery Address',
-                actionLabel: '+ Add New',
-                onAction: () => _showSnackbar('Add address coming soon!')),
-            ..._addresses.asMap().entries.map((e) {
-              final i = e.key;
-              final addr = e.value;
-              final selected = _selectedAddress == i;
-              final isLast = i == _addresses.length - 1;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedAddress = i),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 15, vertical: 11),
-                  decoration: BoxDecoration(
-                    border: isLast
-                        ? null
-                        : const Border(
-                            bottom:
-                                BorderSide(color: Color(0xFFF8F8F8))),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: selected
-                                ? AppTheme.primary
-                                : const Color(0xFFDDDDDD),
-                            width: 2,
+            _coHead(
+              'Delivery Address',
+              actionLabel: '+ Manage',
+              onAction: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const SavedAddressesScreen()),
+                );
+                _loadAddresses();
+              },
+            ),
+            if (_addresses.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    const Icon(Icons.location_off,
+                        size: 32, color: Color(0xFFDDDDDD)),
+                    const SizedBox(height: 8),
+                    Text('No addresses saved',
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: const Color(0xFFAAAAAA))),
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const SavedAddressesScreen()),
+                        );
+                        _loadAddresses();
+                      },
+                      child: Text('+ Add an address',
+                          style: GoogleFonts.nunito(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.primary)),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ..._addresses.asMap().entries.map((e) {
+                final i = e.key;
+                final addr = e.value;
+                final selected = _selectedAddress == i;
+                final isLast = i == _addresses.length - 1;
+                final label = addr['label'] ?? '';
+                final iconData = label == 'Home'
+                    ? Icons.home
+                    : label == 'Work'
+                        ? Icons.work
+                        : Icons.location_on;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedAddress = i),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 15, vertical: 11),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? const Color(0xFFFFF8F8)
+                          : Colors.transparent,
+                      border: isLast
+                          ? null
+                          : const Border(
+                              bottom: BorderSide(color: Color(0xFFF8F8F8))),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: selected
+                                  ? AppTheme.primary
+                                  : const Color(0xFFDDDDDD),
+                              width: 2,
+                            ),
                           ),
-                        ),
-                        child: selected
-                            ? Center(
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: AppTheme.primary,
-                                    shape: BoxShape.circle,
+                          child: selected
+                              ? Center(
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: AppTheme.primary,
+                                      shape: BoxShape.circle,
+                                    ),
                                   ),
-                                ),
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 11),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                addr['icon'] as IconData,
-                                size: 12,
-                                color: selected
-                                    ? AppTheme.primary
-                                    : const Color(0xFF888888),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                addr['label'] as String,
-                                style: GoogleFonts.nunito(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 11),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  iconData,
+                                  size: 12,
                                   color: selected
                                       ? AppTheme.primary
                                       : const Color(0xFF888888),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            addr['text'] as String,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF666666),
+                                const SizedBox(width: 4),
+                                Text(
+                                  label,
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: selected
+                                        ? AppTheme.primary
+                                        : const Color(0xFF888888),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            const SizedBox(height: 2),
+                            Text(
+                              addr['text'] ?? '',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF666666),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
           ],
         ),
       );
@@ -262,7 +320,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
   Widget _buildChoosePaymentButton() => ElevatedButton(
-        onPressed: () => Navigator.pushNamed(context, '/payment'),
+        onPressed: () {
+          if (_addresses.isEmpty) {
+            _showSnackbar('Please add a delivery address first');
+            return;
+          }
+          Navigator.pushNamed(context, '/payment');
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.primary,
           foregroundColor: Colors.white,
@@ -273,8 +337,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
         child: Text(
           'Choose Payment →',
-          style: GoogleFonts.nunito(
-              fontSize: 14, fontWeight: FontWeight.w900),
+          style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w900),
         ),
       );
 

@@ -15,6 +15,7 @@ import 'screens/order_history_screen.dart';
 import 'screens/overseas_order_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/rate_driver_screen.dart';
+import 'screens/saved_addresses_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -49,6 +50,7 @@ class ShipEastApp extends StatelessWidget {
         '/overseas-order': (_) => const OverseasOrderScreen(),
         '/profile': (_) => const ProfileScreen(),
         '/rate-driver': (_) => const RateDriverScreen(),
+        '/saved-addresses': (_) => const SavedAddressesScreen(),
       },
     );
   }

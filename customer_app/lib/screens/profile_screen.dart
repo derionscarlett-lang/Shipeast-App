@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
+import 'saved_addresses_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,33 +15,13 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final int _navIndex = 3;
 
-  static const List<Map<String, dynamic>> _menuItems = [
-    {
-      'icon': Icons.location_on,
-      'label': 'Saved Addresses',
-      'sub': 'Manage your delivery locations',
-    },
-    {
-      'icon': Icons.notifications,
-      'label': 'Notifications',
-      'sub': 'Push alerts & order updates',
-    },
-    {
-      'icon': Icons.credit_card,
-      'label': 'Payment Methods',
-      'sub': 'Cards, PayPal & Cash',
-    },
-    {
-      'icon': Icons.lock,
-      'label': 'Privacy & Security',
-      'sub': 'Password, data & permissions',
-    },
-    {
-      'icon': Icons.help_outline,
-      'label': 'Help & Support',
-      'sub': 'FAQs, chat with us',
-    },
-  ];
+  String _name = 'Marcus Brown';
+  String _phone = '+1 876 432 1987';
+  String _email = 'marcus@email.com';
+
+  static const _keyName = 'shipeast_user_name';
+  static const _keyPhone = 'shipeast_user_phone';
+  static const _keyEmail = 'shipeast_user_email';
 
   @override
   void initState() {
@@ -47,6 +29,174 @@ class _ProfileScreenState extends State<ProfileScreen> {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
+    ));
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _name = prefs.getString(_keyName) ?? 'Marcus Brown';
+      _phone = prefs.getString(_keyPhone) ?? '+1 876 432 1987';
+      _email = prefs.getString(_keyEmail) ?? 'marcus@email.com';
+    });
+  }
+
+  Future<void> _saveProfile(String name, String phone, String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyName, name);
+    await prefs.setString(_keyPhone, phone);
+    await prefs.setString(_keyEmail, email);
+    setState(() {
+      _name = name;
+      _phone = phone;
+      _email = email;
+    });
+  }
+
+  void _showEditDialog() {
+    final nameCtrl = TextEditingController(text: _name);
+    final phoneCtrl = TextEditingController(text: _phone);
+    final emailCtrl = TextEditingController(text: _email);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDDDDDD),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Edit Profile',
+              style: GoogleFonts.montserrat(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.dark),
+            ),
+            const SizedBox(height: 18),
+            _editField(nameCtrl, 'Full Name', Icons.person,
+                TextInputType.name),
+            const SizedBox(height: 12),
+            _editField(phoneCtrl, 'Phone Number', Icons.phone,
+                TextInputType.phone),
+            const SizedBox(height: 12),
+            _editField(emailCtrl, 'Email Address', Icons.email,
+                TextInputType.emailAddress),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                final name = nameCtrl.text.trim();
+                final phone = phoneCtrl.text.trim();
+                final email = emailCtrl.text.trim();
+                if (name.isEmpty) return;
+                _saveProfile(name, phone, email);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Profile saved!',
+                      style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+                  backgroundColor: const Color(0xFF16A34A),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(13)),
+                elevation: 0,
+              ),
+              child: Text('Save Changes',
+                  style: GoogleFonts.nunito(
+                      fontSize: 14, fontWeight: FontWeight.w900)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _editField(TextEditingController ctrl, String label, IconData icon,
+      TextInputType type) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF666666))),
+        const SizedBox(height: 6),
+        TextField(
+          controller: ctrl,
+          keyboardType: type,
+          style: GoogleFonts.inter(
+              fontSize: 13, color: const Color(0xFF333333)),
+          decoration: InputDecoration(
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(left: 12, right: 8),
+              child: Icon(icon, size: 17, color: const Color(0xFF888888)),
+            ),
+            prefixIconConstraints:
+                const BoxConstraints(minWidth: 0, minHeight: 0),
+            filled: true,
+            fillColor: const Color(0xFFF5F5F7),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: AppTheme.primary, width: 1.5),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+            isDense: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showSnackbar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content:
+          Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+      backgroundColor: AppTheme.primary,
+      behavior: SnackBarBehavior.floating,
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      duration: const Duration(seconds: 2),
     ));
   }
 
@@ -114,7 +264,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Marcus Brown',
+                    _name,
                     style: GoogleFonts.montserrat(
                       fontSize: 17,
                       fontWeight: FontWeight.w900,
@@ -123,18 +273,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '+1 876 432 1987',
+                    _phone,
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: Colors.white.withValues(alpha: 0.8),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                  if (_email.isNotEmpty) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      _email,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
             GestureDetector(
-              onTap: () {},
+              onTap: _showEditDialog,
               child: Container(
                 width: 34,
                 height: 34,
@@ -143,7 +304,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Center(
-                  child: Text('✏️', style: TextStyle(fontSize: 16)),
+                  child: Icon(Icons.edit, size: 17, color: Colors.white),
                 ),
               ),
             ),
@@ -236,85 +397,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: const Color(0xFFF2F2F2),
       );
 
-  Widget _buildMenuCard(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+  Widget _buildMenuCard(BuildContext context) {
+    final menuItems = [
+      {
+        'icon': Icons.location_on,
+        'label': 'Saved Addresses',
+        'sub': 'Manage your delivery locations',
+        'action': () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const SavedAddressesScreen()),
             ),
-          ],
-        ),
-        child: Column(
-          children: _menuItems.asMap().entries.map((entry) {
-            final i = entry.key;
-            final item = entry.value;
-            final isLast = i == _menuItems.length - 1;
-            return GestureDetector(
-              onTap: () {},
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
-                decoration: BoxDecoration(
-                  border: isLast
-                      ? null
-                      : const Border(
-                          bottom: BorderSide(color: Color(0xFFF8F8F8))),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F7),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          item['icon'] as IconData,
-                          size: 19,
-                          color: const Color(0xFF666666),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item['label'] as String,
-                            style: GoogleFonts.montserrat(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.dark,
-                            ),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            item['sub'] as String,
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              color: const Color(0xFFAAAAAA),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.arrow_forward_ios,
-                        size: 14, color: Color(0xFFCCCCCC)),
-                  ],
-                ),
+      },
+      {
+        'icon': Icons.notifications,
+        'label': 'Notifications',
+        'sub': 'Push alerts & order updates',
+        'action': () => _showSnackbar('Notifications coming soon!'),
+      },
+      {
+        'icon': Icons.credit_card,
+        'label': 'Payment Methods',
+        'sub': 'Cards, PayPal & Cash',
+        'action': () => _showSnackbar('Payment methods coming soon!'),
+      },
+      {
+        'icon': Icons.lock,
+        'label': 'Privacy & Security',
+        'sub': 'Password, data & permissions',
+        'action': () => _showSnackbar('Privacy settings coming soon!'),
+      },
+      {
+        'icon': Icons.help_outline,
+        'label': 'Help & Support',
+        'sub': 'FAQs, chat with us',
+        'action': () => _showSnackbar('Support chat coming soon!'),
+      },
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: menuItems.asMap().entries.map((entry) {
+          final i = entry.key;
+          final item = entry.value;
+          final isLast = i == menuItems.length - 1;
+          return GestureDetector(
+            onTap: item['action'] as VoidCallback,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+              decoration: BoxDecoration(
+                border: isLast
+                    ? null
+                    : const Border(
+                        bottom: BorderSide(color: Color(0xFFF8F8F8))),
               ),
-            );
-          }).toList(),
-        ),
-      );
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F5F7),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        item['icon'] as IconData,
+                        size: 19,
+                        color: const Color(0xFF666666),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['label'] as String,
+                          style: GoogleFonts.montserrat(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.dark,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          item['sub'] as String,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: const Color(0xFFAAAAAA),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios,
+                      size: 14, color: Color(0xFFCCCCCC)),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 
   Widget _buildSignOutButton(BuildContext context) => GestureDetector(
         onTap: () => Navigator.pushNamedAndRemoveUntil(
@@ -327,13 +527,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(13),
           ),
           child: Center(
-            child: Text(
-              '🚪  Sign Out',
-              style: GoogleFonts.nunito(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.primary,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.logout, size: 16, color: AppTheme.primary),
+                const SizedBox(width: 7),
+                Text(
+                  'Sign Out',
+                  style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.primary,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
