@@ -331,6 +331,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _merchantCard(Map<String, dynamic> m) {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/merchant'),
+      child: _merchantCardInner(m),
+    );
+  }
+
+  Widget _merchantCardInner(Map<String, dynamic> m) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(

@@ -5,6 +5,8 @@ import 'screens/welcome_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/merchant_menu_screen.dart';
+import 'screens/cart_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -29,6 +31,8 @@ class ShipEastApp extends StatelessWidget {
         '/login': (_) => const LoginScreen(),
         '/register': (_) => const RegisterScreen(),
         '/home': (_) => const HomeScreen(),
+        '/merchant': (_) => const MerchantMenuScreen(),
+        '/cart': (_) => const CartScreen(),
       },
     );
   }
