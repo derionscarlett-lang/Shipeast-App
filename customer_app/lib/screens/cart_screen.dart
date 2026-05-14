@@ -425,16 +425,7 @@ class _CartScreenState extends State<CartScreen> {
 
   // ── CHECKOUT BUTTON ───────────────────────────────────────────────────────
   Widget _buildCheckoutButton() => GestureDetector(
-        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Proceeding to checkout…',
-                style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-            backgroundColor: AppTheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        ),
+        onTap: () => Navigator.pushNamed(context, '/checkout'),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
