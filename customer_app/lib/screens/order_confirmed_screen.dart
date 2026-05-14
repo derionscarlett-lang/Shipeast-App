@@ -69,7 +69,8 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                         ],
                       ),
                       child: const Center(
-                        child: Text('✅', style: TextStyle(fontSize: 44)),
+                        child: Icon(Icons.check_circle,
+                            size: 44, color: Colors.white),
                       ),
                     ),
                   ),
@@ -143,8 +144,8 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                   ),
                   child: Row(
                     children: [
-                      const Text('⏱️',
-                          style: TextStyle(fontSize: 28)),
+                      const Icon(Icons.timer,
+                          size: 28, color: AppTheme.primary),
                       const SizedBox(width: 11),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,13 +186,20 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '📍 Delivering to',
-                        style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.dark,
-                        ),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on,
+                              size: 12, color: AppTheme.dark),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Delivering to',
+                            style: GoogleFonts.nunito(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.dark,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(

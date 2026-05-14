@@ -29,7 +29,6 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: AppTheme.primary,
       body: Stack(
         children: [
-          // Decorative circles
           Positioned(
             top: -50,
             right: -50,
@@ -45,15 +44,14 @@ class _SplashScreenState extends State<SplashScreen> {
             left: -30,
             child: _circle(130, Colors.white.withValues(alpha: 0.04)),
           ),
-          // Center: logo card + tagline
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // White logo card
+                // Logo card with real image
                 Container(
                   width: 236,
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -65,35 +63,13 @@ class _SplashScreenState extends State<SplashScreen> {
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'Ship',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.dark,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          TextSpan(
-                            text: 'East',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.primary,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: Image.asset(
+                    'assets/logo.png',
+                    height: 48,
+                    fit: BoxFit.contain,
                   ),
                 ),
                 const SizedBox(height: 18),
-                // Tagline in Dancing Script
                 Text(
                   'Fast · Reliable · Yours',
                   style: GoogleFonts.dancingScript(
@@ -106,7 +82,6 @@ class _SplashScreenState extends State<SplashScreen> {
               ],
             ),
           ),
-          // Bottom: progress bar + version
           Positioned(
             bottom: 34,
             left: 0,

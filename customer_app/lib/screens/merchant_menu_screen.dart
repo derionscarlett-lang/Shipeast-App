@@ -12,20 +12,21 @@ class MerchantMenuScreen extends StatefulWidget {
 
 class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   int _selectedTab = 0;
-  final Map<int, int> _cart = {}; // itemIndex → quantity
+  final Map<int, int> _cart = {};
 
-  final List<Map<String, String>> _tabs = const [
-    {'emoji': '🔥', 'label': 'Popular'},
-    {'emoji': '🍗', 'label': 'Mains'},
-    {'emoji': '🥤', 'label': 'Drinks'},
+  static const _tabs = [
+    {'label': 'Popular', 'cat': 'all'},
+    {'label': 'Mains', 'cat': 'mains'},
+    {'label': 'Drinks', 'cat': 'drinks'},
   ];
 
-  final List<Map<String, dynamic>> _menuItems = const [
+  static const List<Map<String, dynamic>> _allItems = [
     {
       'name': 'Full Jerk Chicken',
       'desc': 'Smoky, slow-cooked with festival & rice',
       'price': 1200,
       'emoji': '🍗',
+      'cat': 'mains',
       'gradStart': Color(0xFFFEE2E2),
       'gradEnd': Color(0xFFFECACA),
     },
@@ -34,6 +35,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       'desc': 'Tender curry goat, white rice & peas',
       'price': 1400,
       'emoji': '🍛',
+      'cat': 'mains',
       'gradStart': Color(0xFFFEF9C3),
       'gradEnd': Color(0xFFFEF08A),
     },
@@ -42,16 +44,22 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       'desc': 'Iced, sweet, with ginger kick',
       'price': 350,
       'emoji': '🥤',
+      'cat': 'drinks',
       'gradStart': Color(0xFFDCFCE7),
       'gradEnd': Color(0xFFBBF7D0),
     },
   ];
 
-  int get _cartCount =>
-      _cart.values.fold(0, (sum, qty) => sum + qty);
+  List<Map<String, dynamic>> get _visibleItems {
+    final cat = _tabs[_selectedTab]['cat'];
+    if (cat == 'all') return _allItems;
+    return _allItems.where((item) => item['cat'] == cat).toList();
+  }
+
+  int get _cartCount => _cart.values.fold(0, (sum, qty) => sum + qty);
 
   int get _cartTotal => _cart.entries.fold(0, (sum, e) {
-        final price = _menuItems[e.key]['price'] as int;
+        final price = _allItems[e.key]['price'] as int;
         return sum + price * e.value;
       });
 
@@ -69,12 +77,19 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
 
   void _goToCart() {
     final cartItems = _cart.entries
-        .map((e) => {
-              ..._menuItems[e.key],
-              'quantity': e.value,
-            })
+        .map((e) => {..._allItems[e.key], 'quantity': e.value})
         .toList();
     Navigator.pushNamed(context, '/cart', arguments: {'items': cartItems});
+  }
+
+  void _showSnackbar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+      backgroundColor: AppTheme.primary,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      duration: const Duration(seconds: 2),
+    ));
   }
 
   @override
@@ -83,11 +98,8 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       backgroundColor: const Color(0xFFF5F5F7),
       body: Column(
         children: [
-          // Hero banner
           _buildHero(),
-          // Info bar
           _buildInfoBar(),
-          // Scrollable menu + floating cart
           Expanded(
             child: Stack(
               children: [
@@ -107,15 +119,14 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                           ),
                         ),
                       ),
-                      ..._menuItems.asMap().entries.map(
-                            (e) => _menuItemCard(e.key, e.value),
-                          ),
-                      // Bottom padding so last item isn't hidden by float cart
+                      ..._visibleItems.map((item) {
+                        final index = _allItems.indexOf(item);
+                        return _menuItemCard(index, item);
+                      }),
                       const SizedBox(height: 80),
                     ],
                   ),
                 ),
-                // Floating cart bar
                 if (_cartCount > 0)
                   Positioned(
                     bottom: 10,
@@ -131,7 +142,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
   }
 
-  // ── HERO ──────────────────────────────────────────────────────────────────
   Widget _buildHero() {
     return Container(
       height: 155,
@@ -146,7 +156,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         bottom: false,
         child: Stack(
           children: [
-            // Back button
             Positioned(
               top: 10,
               left: 10,
@@ -160,28 +169,31 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: const Center(
-                    child: Text('←', style: TextStyle(fontSize: 16)),
+                    child: Icon(Icons.arrow_back_ios, size: 16,
+                        color: Color(0xFF333333)),
                   ),
                 ),
               ),
             ),
-            // Centred emoji
             const Center(
               child: Text('🍗', style: TextStyle(fontSize: 68)),
             ),
-            // Heart button
             Positioned(
               top: 10,
               right: 10,
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.82),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Text('🤍', style: TextStyle(fontSize: 15)),
+              child: GestureDetector(
+                onTap: () => _showSnackbar('Added to favourites!'),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.favorite_border, size: 16,
+                        color: Color(0xFF888888)),
+                  ),
                 ),
               ),
             ),
@@ -191,7 +203,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
   }
 
-  // ── INFO BAR ──────────────────────────────────────────────────────────────
   Widget _buildInfoBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
@@ -202,7 +213,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Restaurant name
           Text(
             'Island Jerk Palace',
             style: GoogleFonts.montserrat(
@@ -212,10 +222,10 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
             ),
           ),
           const SizedBox(height: 5),
-          // Rating / time / status row
           Row(
             children: [
-              Text('⭐ 4.8',
+              const Icon(Icons.star, size: 11, color: Color(0xFFFACC15)),
+              Text(' 4.8',
                   style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -256,13 +266,13 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
             ],
           ),
           const SizedBox(height: 9),
-          // Category tabs
           SizedBox(
             height: 32,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _tabs.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 7),
+              separatorBuilder: (context, index) =>
+                  const SizedBox(width: 7),
               itemBuilder: (context, i) {
                 final active = _selectedTab == i;
                 return GestureDetector(
@@ -280,12 +290,11 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                           : null,
                     ),
                     child: Text(
-                      '${_tabs[i]['emoji']} ${_tabs[i]['label']}',
+                      _tabs[i]['label']!,
                       style: GoogleFonts.nunito(
                         fontSize: 11,
-                        fontWeight: active
-                            ? FontWeight.w900
-                            : FontWeight.w700,
+                        fontWeight:
+                            active ? FontWeight.w900 : FontWeight.w700,
                         color: active
                             ? AppTheme.primary
                             : const Color(0xFF888888),
@@ -301,7 +310,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
   }
 
-  // ── MENU ITEM CARD ────────────────────────────────────────────────────────
   Widget _menuItemCard(int index, Map<String, dynamic> item) {
     final qty = _cart[index] ?? 0;
     return Container(
@@ -321,7 +329,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Food image tile
           Container(
             width: 68,
             height: 68,
@@ -337,14 +344,11 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
               borderRadius: BorderRadius.circular(11),
             ),
             child: Center(
-              child: Text(
-                item['emoji'] as String,
-                style: const TextStyle(fontSize: 32),
-              ),
+              child: Text(item['emoji'] as String,
+                  style: const TextStyle(fontSize: 32)),
             ),
           ),
           const SizedBox(width: 11),
-          // Name / desc / price / add
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,14 +375,13 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'J\$${_formatPrice(item['price'] as int)}',
+                      '\$${_formatPrice(item['price'] as int)}',
                       style: GoogleFonts.montserrat(
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
                         color: AppTheme.primary,
                       ),
                     ),
-                    // Add / qty control
                     qty == 0
                         ? GestureDetector(
                             onTap: () => _addToCart(index),
@@ -390,15 +393,12 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                                 borderRadius: BorderRadius.circular(9),
                               ),
                               child: const Center(
-                                child: Text(
-                                  '+',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1,
-                                  ),
-                                ),
+                                child: Text('+',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        height: 1)),
                               ),
                             ),
                           )
@@ -441,14 +441,11 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              '$qty',
-              style: GoogleFonts.montserrat(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.dark,
-              ),
-            ),
+            child: Text('$qty',
+                style: GoogleFonts.montserrat(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.dark)),
           ),
           GestureDetector(
             onTap: () => _addToCart(index),
@@ -471,7 +468,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         ],
       );
 
-  // ── FLOATING CART BAR ─────────────────────────────────────────────────────
   Widget _buildFloatCart() => GestureDetector(
         onTap: _goToCart,
         child: Container(
@@ -509,18 +505,16 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
               Text(
                 'View Cart',
                 style: GoogleFonts.nunito(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                ),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white),
               ),
               Text(
-                'J\$${_formatPrice(_cartTotal)} →',
+                '\$${_formatPrice(_cartTotal)} →',
                 style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                ),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white),
               ),
             ],
           ),

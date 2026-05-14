@@ -97,7 +97,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: Text('←', style: TextStyle(fontSize: 16)),
+                  child: Icon(Icons.arrow_back_ios, size: 16,
+                      color: Color(0xFF444444)),
                 ),
               ),
             ),
@@ -327,7 +328,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ),
               ),
               Text(
-                'J\$1,925',
+                '\$1,925',
                 style: GoogleFonts.montserrat(
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
@@ -354,10 +355,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
               borderRadius: BorderRadius.circular(13)),
           elevation: 0,
         ),
-        child: Text(
-          '🔒  Place Order · J\$1,925',
-          style: GoogleFonts.nunito(
-              fontSize: 14, fontWeight: FontWeight.w900),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              'Place Order · \$1,925',
+              style: GoogleFonts.nunito(
+                  fontSize: 14, fontWeight: FontWeight.w900),
+            ),
+          ],
         ),
       );
 

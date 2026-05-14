@@ -31,27 +31,16 @@ class _CartScreenState extends State<CartScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initialized) {
-      final args = ModalRoute.of(context)?.settings.arguments
-          as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       if (args != null && args['items'] != null) {
         _items = (args['items'] as List)
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
       } else {
-        // Fallback demo state matching the design
         _items = [
-          {
-            'name': 'Full Jerk Chicken',
-            'emoji': '🍗',
-            'price': 1200,
-            'quantity': 1,
-          },
-          {
-            'name': 'Sorrel Punch',
-            'emoji': '🥤',
-            'price': 350,
-            'quantity': 1,
-          },
+          {'name': 'Full Jerk Chicken', 'emoji': '🍗', 'price': 1200, 'quantity': 1},
+          {'name': 'Sorrel Punch', 'emoji': '🥤', 'price': 350, 'quantity': 1},
         ];
       }
       _initialized = true;
@@ -94,9 +83,7 @@ class _CartScreenState extends State<CartScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Back row with cart count badge
             _buildHeader(),
-            // Scrollable cart content
             Expanded(
               child: _items.isEmpty
                   ? _buildEmptyState()
@@ -105,30 +92,30 @@ class _CartScreenState extends State<CartScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Merchant label
                           Padding(
-                            padding:
-                                const EdgeInsets.only(left: 3, bottom: 7),
-                            child: Text(
-                              '📍 Island Jerk Palace',
-                              style: GoogleFonts.nunito(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF999999),
-                                letterSpacing: 0.4,
-                              ),
+                            padding: const EdgeInsets.only(left: 3, bottom: 7),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.location_on, size: 12,
+                                    color: Color(0xFF999999)),
+                                Text(
+                                  ' Island Jerk Palace',
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF999999),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          // Item cards
                           ..._items.asMap().entries.map(
                                 (e) => _itemCard(e.key, e.value),
                               ),
-                          // Special instructions
                           _buildInstructionsCard(),
-                          // Order summary
                           _buildSummaryCard(),
                           const SizedBox(height: 2),
-                          // Checkout button
                           _buildCheckoutButton(),
                           const SizedBox(height: 12),
                         ],
@@ -141,10 +128,8 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // ── HEADER ────────────────────────────────────────────────────────────────
   Widget _buildHeader() => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: const BoxDecoration(
           color: Colors.white,
           border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
@@ -161,7 +146,8 @@ class _CartScreenState extends State<CartScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: Text('←', style: TextStyle(fontSize: 16)),
+                  child: Icon(Icons.arrow_back_ios, size: 16,
+                      color: Color(0xFF444444)),
                 ),
               ),
             ),
@@ -198,7 +184,6 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
 
-  // ── ITEM CARD ─────────────────────────────────────────────────────────────
   Widget _itemCard(int index, Map<String, dynamic> item) => Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
@@ -232,7 +217,7 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'J\$${_formatPrice(item['price'] as int)}',
+                    '\$${_formatPrice(item['price'] as int)}',
                     style: GoogleFonts.montserrat(
                       fontSize: 15,
                       fontWeight: FontWeight.w900,
@@ -242,7 +227,6 @@ class _CartScreenState extends State<CartScreen> {
                 ],
               ),
             ),
-            // Qty controls
             Row(
               children: [
                 _qtyBtn(
@@ -290,20 +274,16 @@ class _CartScreenState extends State<CartScreen> {
             borderRadius: BorderRadius.circular(7),
           ),
           child: Center(
-            child: Text(
-              icon,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                height: 1,
-              ),
-            ),
+            child: Text(icon,
+                style: TextStyle(
+                    color: textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    height: 1)),
           ),
         ),
       );
 
-  // ── SPECIAL INSTRUCTIONS ──────────────────────────────────────────────────
   Widget _buildInstructionsCard() => Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
@@ -349,7 +329,6 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
 
-  // ── ORDER SUMMARY ─────────────────────────────────────────────────────────
   Widget _buildSummaryCard() => Container(
         margin: const EdgeInsets.only(bottom: 0),
         padding: const EdgeInsets.all(13),
@@ -371,12 +350,9 @@ class _CartScreenState extends State<CartScreen> {
             _summaryRow('Service fee', _formatPrice(_serviceFee)),
             const SizedBox(height: 4),
             Container(
-              margin: const EdgeInsets.only(top: 0),
               padding: const EdgeInsets.only(top: 9),
               decoration: const BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: Color(0xFFF2F2F2)),
-                ),
+                border: Border(top: BorderSide(color: Color(0xFFF2F2F2))),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -390,7 +366,7 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                   ),
                   Text(
-                    'J\$${_formatPrice(_total)}',
+                    '\$${_formatPrice(_total)}',
                     style: GoogleFonts.montserrat(
                       fontSize: 15,
                       fontWeight: FontWeight.w900,
@@ -414,7 +390,7 @@ class _CartScreenState extends State<CartScreen> {
                     fontSize: 12,
                     color: const Color(0xFF666666),
                     fontWeight: FontWeight.w500)),
-            Text('J\$$value',
+            Text('\$$value',
                 style: GoogleFonts.inter(
                     fontSize: 12,
                     color: const Color(0xFF666666),
@@ -423,7 +399,6 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
 
-  // ── CHECKOUT BUTTON ───────────────────────────────────────────────────────
   Widget _buildCheckoutButton() => GestureDetector(
         onTap: () => Navigator.pushNamed(context, '/checkout'),
         child: Container(
@@ -444,7 +419,7 @@ class _CartScreenState extends State<CartScreen> {
                 ),
               ),
               Text(
-                'J\$${_formatPrice(_total)} →',
+                '\$${_formatPrice(_total)} →',
                 style: GoogleFonts.montserrat(
                   fontSize: 13,
                   fontWeight: FontWeight.w900,
@@ -456,12 +431,12 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
 
-  // ── EMPTY STATE ───────────────────────────────────────────────────────────
   Widget _buildEmptyState() => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🛒', style: TextStyle(fontSize: 56)),
+            const Icon(Icons.shopping_cart_outlined, size: 56,
+                color: Color(0xFFCCCCCC)),
             const SizedBox(height: 14),
             Text(
               'Your cart is empty',
@@ -475,9 +450,7 @@ class _CartScreenState extends State<CartScreen> {
             Text(
               'Add items from a merchant to get started',
               style: GoogleFonts.inter(
-                fontSize: 12,
-                color: const Color(0xFF888888),
-              ),
+                  fontSize: 12, color: const Color(0xFF888888)),
             ),
           ],
         ),

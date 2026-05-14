@@ -13,14 +13,14 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   int _selectedAddress = 0;
 
-  final List<Map<String, String>> _addresses = const [
+  static const List<Map<String, dynamic>> _addresses = [
     {
-      'icon': '🏠',
+      'icon': Icons.home,
       'label': 'Home',
       'text': '14 Yallahs Main Road, St. Thomas',
     },
     {
-      'icon': '💼',
+      'icon': Icons.work,
       'label': 'Work',
       'text': '45 King Street, Kingston',
     },
@@ -32,6 +32,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
+    ));
+  }
+
+  void _showSnackbar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+      backgroundColor: AppTheme.primary,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      duration: const Duration(seconds: 2),
     ));
   }
 
@@ -66,7 +76,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  // ── HEADER ────────────────────────────────────────────────────────────────
   Widget _buildHeader() => Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: const BoxDecoration(
@@ -85,7 +94,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: Text('←', style: TextStyle(fontSize: 16)),
+                  child: Icon(Icons.arrow_back_ios, size: 16,
+                      color: Color(0xFF444444)),
                 ),
               ),
             ),
@@ -102,11 +112,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       );
 
-  // ── DELIVERY ADDRESS CARD ─────────────────────────────────────────────────
   Widget _buildAddressCard() => _coCard(
         child: Column(
           children: [
-            _coHead('Delivery Address', actionLabel: '+ Add New'),
+            _coHead('Delivery Address',
+                actionLabel: '+ Add New',
+                onAction: () => _showSnackbar('Add address coming soon!')),
             ..._addresses.asMap().entries.map((e) {
               final i = e.key;
               final addr = e.value;
@@ -115,8 +126,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               return GestureDetector(
                 onTap: () => setState(() => _selectedAddress = i),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 15, vertical: 11),
                   decoration: BoxDecoration(
                     border: isLast
                         ? null
@@ -126,7 +137,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   child: Row(
                     children: [
-                      // Radio button
                       Container(
                         width: 18,
                         height: 18,
@@ -156,19 +166,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '${addr['icon']} ${addr['label']}',
-                            style: GoogleFonts.nunito(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: selected
-                                  ? AppTheme.primary
-                                  : const Color(0xFF888888),
-                            ),
+                          Row(
+                            children: [
+                              Icon(
+                                addr['icon'] as IconData,
+                                size: 12,
+                                color: selected
+                                    ? AppTheme.primary
+                                    : const Color(0xFF888888),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                addr['label'] as String,
+                                style: GoogleFonts.nunito(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: selected
+                                      ? AppTheme.primary
+                                      : const Color(0xFF888888),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            addr['text']!,
+                            addr['text'] as String,
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
@@ -186,17 +208,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       );
 
-  // ── ORDER SUMMARY CARD ────────────────────────────────────────────────────
   Widget _buildOrderSummaryCard() => _coCard(
         child: Column(
           children: [
             _coHead('Order Summary'),
-            _summaryLine('Full Jerk Chicken × 1', 'J\$1,200'),
-            _summaryLine('Sorrel Punch × 1', 'J\$350'),
-            _summaryLine('Delivery + Service', 'J\$375'),
+            _summaryLine('Full Jerk Chicken × 1', '\$1,200'),
+            _summaryLine('Sorrel Punch × 1', '\$350'),
+            _summaryLine('Delivery + Service', '\$375'),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -209,7 +229,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                   Text(
-                    'J\$1,925',
+                    '\$1,925',
                     style: GoogleFonts.montserrat(
                       fontSize: 15,
                       fontWeight: FontWeight.w900,
@@ -224,28 +244,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
   Widget _summaryLine(String label, String value) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
         decoration: const BoxDecoration(
-          border:
-              Border(bottom: BorderSide(color: Color(0xFFF8F8F8))),
+          border: Border(bottom: BorderSide(color: Color(0xFFF8F8F8))),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label,
                 style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFF555555))),
+                    fontSize: 12, color: const Color(0xFF555555))),
             Text(value,
                 style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFF555555))),
+                    fontSize: 12, color: const Color(0xFF555555))),
           ],
         ),
       );
 
-  // ── CHOOSE PAYMENT BUTTON ─────────────────────────────────────────────────
   Widget _buildChoosePaymentButton() => ElevatedButton(
         onPressed: () => Navigator.pushNamed(context, '/payment'),
         style: ElevatedButton.styleFrom(
@@ -263,7 +278,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       );
 
-  // ── SHARED HELPERS ────────────────────────────────────────────────────────
   Widget _coCard({required Widget child}) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -280,12 +294,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         child: child,
       );
 
-  Widget _coHead(String title, {String? actionLabel}) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+  Widget _coHead(String title,
+          {String? actionLabel, VoidCallback? onAction}) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
         decoration: const BoxDecoration(
-          border: Border(
-              bottom: BorderSide(color: Color(0xFFF2F2F2))),
+          border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -298,12 +312,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   color: AppTheme.dark),
             ),
             if (actionLabel != null)
-              Text(
-                actionLabel,
-                style: GoogleFonts.nunito(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.primary),
+              GestureDetector(
+                onTap: onAction,
+                child: Text(
+                  actionLabel,
+                  style: GoogleFonts.nunito(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.primary),
+                ),
               ),
           ],
         ),

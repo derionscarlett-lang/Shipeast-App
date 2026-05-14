@@ -11,14 +11,34 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final int _navIndex = 3; // Profile tab
+  final int _navIndex = 3;
 
-  static const _menuItems = [
-    {'icon': '📍', 'label': 'Saved Addresses', 'sub': 'Manage your delivery locations'},
-    {'icon': '🔔', 'label': 'Notifications', 'sub': 'Push alerts & order updates'},
-    {'icon': '💳', 'label': 'Payment Methods', 'sub': 'Cards, PayPal & Cash'},
-    {'icon': '🔒', 'label': 'Privacy & Security', 'sub': 'Password, data & permissions'},
-    {'icon': '❓', 'label': 'Help & Support', 'sub': 'FAQs, chat with us'},
+  static const List<Map<String, dynamic>> _menuItems = [
+    {
+      'icon': Icons.location_on,
+      'label': 'Saved Addresses',
+      'sub': 'Manage your delivery locations',
+    },
+    {
+      'icon': Icons.notifications,
+      'label': 'Notifications',
+      'sub': 'Push alerts & order updates',
+    },
+    {
+      'icon': Icons.credit_card,
+      'label': 'Payment Methods',
+      'sub': 'Cards, PayPal & Cash',
+    },
+    {
+      'icon': Icons.lock,
+      'label': 'Privacy & Security',
+      'sub': 'Password, data & permissions',
+    },
+    {
+      'icon': Icons.help_outline,
+      'label': 'Help & Support',
+      'sub': 'FAQs, chat with us',
+    },
   ];
 
   @override
@@ -75,7 +95,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Row(
           children: [
-            // Avatar
             Container(
               width: 58,
               height: 58,
@@ -86,11 +105,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: Colors.white.withValues(alpha: 0.4), width: 2),
               ),
               child: const Center(
-                child: Text('👤', style: TextStyle(fontSize: 26)),
+                child: Icon(Icons.person, size: 26, color: Colors.white),
               ),
             ),
             const SizedBox(width: 14),
-            // Name & phone
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,7 +133,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            // Edit button
             GestureDetector(
               onTap: () {},
               child: Container(
@@ -151,7 +168,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             _statItem('24', 'Orders'),
             _statDivider(),
-            _statItem('4.9 ⭐', 'Rating'),
+            Expanded(
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '4.9',
+                        style: GoogleFonts.montserrat(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.dark,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      const Icon(Icons.star,
+                          size: 14, color: Color(0xFFFACC15)),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Rating',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: const Color(0xFF888888),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             _statDivider(),
             _statItem('3', 'Saved'),
           ],
@@ -226,9 +274,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
-                        child: Text(
-                          item['icon']!,
-                          style: const TextStyle(fontSize: 18),
+                        child: Icon(
+                          item['icon'] as IconData,
+                          size: 19,
+                          color: const Color(0xFF666666),
                         ),
                       ),
                     ),
@@ -238,7 +287,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item['label']!,
+                            item['label'] as String,
                             style: GoogleFonts.montserrat(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -247,7 +296,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 1),
                           Text(
-                            item['sub']!,
+                            item['sub'] as String,
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               color: const Color(0xFFAAAAAA),
@@ -257,9 +306,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
-                    const Text('›',
-                        style: TextStyle(
-                            fontSize: 18, color: Color(0xFFCCCCCC))),
+                    const Icon(Icons.arrow_forward_ios,
+                        size: 14, color: Color(0xFFCCCCCC)),
                   ],
                 ),
               ),
@@ -303,15 +351,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _navItem(context, 0, '🏠', 'Home', '/home'),
-            _navItem(context, 1, '📦', 'Orders', '/order-history'),
-            _navItem(context, 3, '👤', 'Profile', null),
+            _navItem(context, 0, Icons.home, 'Home', '/home'),
+            _navItem(context, 1, Icons.inventory_2, 'Orders', '/order-history'),
+            _navItem(context, 3, Icons.person, 'Profile', null),
           ],
         ),
       );
 
-  Widget _navItem(BuildContext context, int index, String emoji, String label,
-      String? route) {
+  Widget _navItem(BuildContext context, int index, IconData iconData,
+      String label, String? route) {
     final active = _navIndex == index;
     return GestureDetector(
       onTap: () {
@@ -322,10 +370,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(emoji,
-              style: TextStyle(
-                  fontSize: 22,
-                  color: active ? AppTheme.primary : const Color(0xFFAAAAAA))),
+          Icon(
+            iconData,
+            size: 22,
+            color: active ? AppTheme.primary : const Color(0xFFAAAAAA),
+          ),
           const SizedBox(height: 2),
           Text(
             label,

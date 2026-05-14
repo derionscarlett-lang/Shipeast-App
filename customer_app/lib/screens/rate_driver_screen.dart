@@ -92,7 +92,8 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: Text('←', style: TextStyle(fontSize: 16)),
+                  child: Icon(Icons.arrow_back_ios, size: 16,
+                      color: Color(0xFF444444)),
                 ),
               ),
             ),
@@ -137,7 +138,7 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
                 borderRadius: BorderRadius.circular(22),
               ),
               child: const Center(
-                child: Text('👨', style: TextStyle(fontSize: 34)),
+                child: Icon(Icons.person, size: 34, color: Colors.white),
               ),
             ),
             const SizedBox(height: 10),

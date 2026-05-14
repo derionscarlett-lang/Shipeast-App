@@ -43,12 +43,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Back row
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
+                border:
+                    Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
               ),
               child: Row(
                 children: [
@@ -62,7 +63,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: const Center(
-                        child: Text('←', style: TextStyle(fontSize: 16)),
+                        child: Icon(Icons.arrow_back_ios, size: 16,
+                            color: Color(0xFF444444)),
                       ),
                     ),
                   ),
@@ -78,10 +80,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ],
               ),
             ),
-            // Scrollable form
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 17, vertical: 15),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -113,7 +115,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 5),
                     _passwordField(),
                     const SizedBox(height: 14),
-                    // Security note
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 13, vertical: 9),
@@ -125,7 +126,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Text('🔒', style: TextStyle(fontSize: 14)),
+                          const Icon(Icons.lock, size: 14,
+                              color: Color(0xFF9B1C1C)),
                           const SizedBox(width: 7),
                           Expanded(
                             child: Text(
@@ -141,7 +143,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    // Create Account button
                     ElevatedButton(
                       onPressed: () =>
                           Navigator.pushReplacementNamed(context, '/home'),
@@ -150,20 +151,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13),
-                        ),
+                            borderRadius: BorderRadius.circular(13)),
                         elevation: 0,
                       ),
                       child: Text(
                         'Create My Account →',
                         style: GoogleFonts.nunito(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                        ),
+                            fontSize: 14, fontWeight: FontWeight.w900),
                       ),
                     ),
                     const SizedBox(height: 13),
-                    // Sign In link
                     GestureDetector(
                       onTap: () =>
                           Navigator.pushReplacementNamed(context, '/login'),
@@ -264,15 +261,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+            borderSide:
+                const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+            borderSide:
+                const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+            borderSide:
+                const BorderSide(color: AppTheme.primary, width: 1.5),
           ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

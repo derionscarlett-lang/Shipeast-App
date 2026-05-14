@@ -102,8 +102,8 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: Text('←',
-                      style: TextStyle(fontSize: 16, color: Colors.white)),
+                  child: Icon(Icons.arrow_back_ios, size: 16,
+                      color: Colors.white),
                 ),
               ),
             ),
@@ -130,7 +130,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
               ],
             ),
             const Spacer(),
-            const Text('✈️', style: TextStyle(fontSize: 26)),
+            const Icon(Icons.flight, size: 26, color: Colors.white),
           ],
         ),
       );
@@ -191,8 +191,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section: Sender
-            _sectionHead('📦  Sender Details'),
+            _sectionHead('Sender Details', iconData: Icons.inventory_2),
             Padding(
               padding: const EdgeInsets.fromLTRB(13, 4, 13, 13),
               child: Column(
@@ -201,14 +200,13 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                     controller: _senderNameCtrl,
                     label: 'Your Full Name',
                     hint: 'e.g. Marcus Brown',
-                    icon: '👤',
+                    icon: Icons.person,
                   ),
                 ],
               ),
             ),
             _divider(),
-            // Section: Recipient
-            _sectionHead('🏠  Recipient Details'),
+            _sectionHead('Recipient Details', iconData: Icons.home),
             Padding(
               padding: const EdgeInsets.fromLTRB(13, 4, 13, 13),
               child: Column(
@@ -217,14 +215,14 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                     controller: _recipientNameCtrl,
                     label: 'Recipient Full Name',
                     hint: 'e.g. Asha Williams',
-                    icon: '👤',
+                    icon: Icons.person,
                   ),
                   const SizedBox(height: 10),
                   _formField(
                     controller: _recipientPhoneCtrl,
                     label: 'Recipient Phone',
                     hint: '+1 876 000 0000',
-                    icon: '📞',
+                    icon: Icons.phone,
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 10),
@@ -232,20 +230,18 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                     controller: _recipientAddressCtrl,
                     label: 'Delivery Address (Jamaica)',
                     hint: 'e.g. 14 Yallahs Main Road, St. Thomas',
-                    icon: '📍',
+                    icon: Icons.location_on,
                     maxLines: 2,
                   ),
                 ],
               ),
             ),
             _divider(),
-            // Section: Package
             _sectionHead('📬  Package Details'),
             Padding(
               padding: const EdgeInsets.fromLTRB(13, 4, 13, 13),
               child: Column(
                 children: [
-                  // Origin country dropdown
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -305,16 +301,24 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
         ),
       );
 
-  Widget _sectionHead(String title) => Padding(
+  Widget _sectionHead(String title, {IconData? iconData}) => Padding(
         padding: const EdgeInsets.fromLTRB(13, 13, 13, 0),
-        child: Text(
-          title,
-          style: GoogleFonts.nunito(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF888888),
-            letterSpacing: 0.3,
-          ),
+        child: Row(
+          children: [
+            if (iconData != null) ...[
+              Icon(iconData, size: 13, color: const Color(0xFF888888)),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              title,
+              style: GoogleFonts.nunito(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF888888),
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
         ),
       );
 
@@ -324,63 +328,70 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
     required TextEditingController controller,
     required String label,
     required String hint,
-    required String icon,
+    required dynamic icon,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
-  }) =>
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF666666),
-            ),
+  }) {
+    Widget prefixWidget;
+    if (icon is IconData) {
+      prefixWidget = Icon(icon, size: 16, color: const Color(0xFF888888));
+    } else {
+      prefixWidget = Text(icon as String, style: const TextStyle(fontSize: 16));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF666666),
           ),
-          const SizedBox(height: 5),
-          TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            maxLines: maxLines,
-            style:
-                GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333)),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: GoogleFonts.inter(
-                  fontSize: 12, color: const Color(0xFFBBBBBB)),
-              prefixIcon: Padding(
-                padding: const EdgeInsets.only(left: 11, right: 8),
-                child: Text(icon,
-                    style: const TextStyle(fontSize: 16)),
-              ),
-              prefixIconConstraints:
-                  const BoxConstraints(minWidth: 0, minHeight: 0),
-              filled: true,
-              fillColor: const Color(0xFFF5F5F7),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide:
-                    const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide:
-                    const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide:
-                    const BorderSide(color: AppTheme.primary, width: 1.5),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-              isDense: true,
+        ),
+        const SizedBox(height: 5),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          style:
+              GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333)),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: GoogleFonts.inter(
+                fontSize: 12, color: const Color(0xFFBBBBBB)),
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(left: 11, right: 8),
+              child: prefixWidget,
             ),
+            prefixIconConstraints:
+                const BoxConstraints(minWidth: 0, minHeight: 0),
+            filled: true,
+            fillColor: const Color(0xFFF5F5F7),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: AppTheme.primary, width: 1.5),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+            isDense: true,
           ),
-        ],
-      );
+        ),
+      ],
+    );
+  }
 
   Widget _buildContinueButton(BuildContext context) => ElevatedButton(
         onPressed: () {

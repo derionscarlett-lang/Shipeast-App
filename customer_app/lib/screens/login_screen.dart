@@ -31,6 +31,16 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _showSnackbar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+      backgroundColor: AppTheme.primary,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      duration: const Duration(seconds: 2),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,14 +49,11 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Back row header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  bottom: BorderSide(color: Color(0xFFF2F2F2)),
-                ),
+                border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
               ),
               child: Row(
                 children: [
@@ -60,7 +67,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: const Center(
-                        child: Text('←', style: TextStyle(fontSize: 16)),
+                        child: Icon(Icons.arrow_back_ios, size: 16,
+                            color: Color(0xFF444444)),
                       ),
                     ),
                   ),
@@ -76,7 +84,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
             ),
-            // Scrollable form
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 20),
@@ -86,12 +93,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       'Sign in to your ShipEast account',
                       style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF888888),
-                      ),
+                          fontSize: 12, color: const Color(0xFF888888)),
                     ),
                     const SizedBox(height: 22),
-                    // Phone or Email field (active state — red border)
                     _buildLabel('PHONE OR EMAIL'),
                     const SizedBox(height: 5),
                     _buildTextField(
@@ -101,26 +105,27 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 12),
-                    // Password field
                     _buildLabel('PASSWORD'),
                     const SizedBox(height: 5),
                     _buildPasswordField(),
-                    // Forgot password
                     Align(
                       alignment: Alignment.centerRight,
                       child: Padding(
                         padding: const EdgeInsets.only(top: 8, bottom: 18),
-                        child: Text(
-                          'Forgot Password?',
-                          style: GoogleFonts.nunito(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.primary,
+                        child: GestureDetector(
+                          onTap: () =>
+                              _showSnackbar('Password reset coming soon!'),
+                          child: Text(
+                            'Forgot Password?',
+                            style: GoogleFonts.nunito(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.primary,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    // Sign In button
                     ElevatedButton(
                       onPressed: () =>
                           Navigator.pushReplacementNamed(context, '/home'),
@@ -129,28 +134,25 @@ class _LoginScreenState extends State<LoginScreen> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13),
-                        ),
+                            borderRadius: BorderRadius.circular(13)),
                         elevation: 0,
                       ),
                       child: Text(
                         'Sign In →',
                         style: GoogleFonts.nunito(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                        ),
+                            fontSize: 14, fontWeight: FontWeight.w900),
                       ),
                     ),
-                    // OR divider
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       child: Row(
                         children: [
                           const Expanded(
-                            child: Divider(color: Color(0xFFEEEEEE), thickness: 1),
-                          ),
+                              child: Divider(
+                                  color: Color(0xFFEEEEEE), thickness: 1)),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 10),
                             child: Text(
                               'or continue with',
                               style: GoogleFonts.inter(
@@ -161,32 +163,32 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const Expanded(
-                            child: Divider(color: Color(0xFFEEEEEE), thickness: 1),
-                          ),
+                              child: Divider(
+                                  color: Color(0xFFEEEEEE), thickness: 1)),
                         ],
                       ),
                     ),
-                    // Continue with Google button
                     GestureDetector(
-                      onTap: () {},
+                      onTap: () =>
+                          _showSnackbar('Google Sign-In coming soon!'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
+                            horizontal: 14, vertical: 12),
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF5F5F7),
                           border: Border.all(
-                            color: const Color(0xFFE8E8E8),
-                            width: 1.5,
-                          ),
+                              color: const Color(0xFFE8E8E8), width: 1.5),
                           borderRadius: BorderRadius.circular(11),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('🇬', style: TextStyle(fontSize: 18)),
+                            const Text('G',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF4285F4))),
                             const SizedBox(width: 9),
                             Text(
                               'Continue with Google',
@@ -200,10 +202,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    // Sign up link
                     GestureDetector(
-                      onTap: () =>
-                          Navigator.pushNamed(context, '/register'),
+                      onTap: () => Navigator.pushNamed(context, '/register'),
                       child: Text.rich(
                         TextSpan(
                           children: [
@@ -271,9 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
         hintStyle:
             GoogleFonts.inter(fontSize: 13, color: const Color(0xFF999999)),
         filled: true,
-        fillColor: isActive
-            ? const Color(0xFFFFF8F9)
-            : AppTheme.inputBg,
+        fillColor: isActive ? const Color(0xFFFFF8F9) : AppTheme.inputBg,
         border: isActive ? activeBorder : normalBorder,
         enabledBorder: isActive ? activeBorder : normalBorder,
         focusedBorder: activeBorder,
@@ -304,13 +302,11 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(11),
-            borderSide:
-                const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+            borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(11),
-            borderSide:
-                const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+            borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(11),

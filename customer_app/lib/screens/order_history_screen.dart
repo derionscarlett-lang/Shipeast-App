@@ -14,59 +14,64 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   int _activeTab = 0;
   static const _tabs = ['All', 'Active', 'Completed', 'Cancelled'];
 
-  static const _orders = [
+  static const List<Map<String, dynamic>> _orders = [
     {
       'merchant': 'Island Jerk Palace',
+      'iconData': null,
       'emoji': '🍗',
       'status': 'Active',
       'statusColor': 0xFF16A34A,
       'statusBg': 0xFFDCFCE7,
       'items': 'Full Jerk Chicken, Sorrel Punch',
-      'total': 'J\$1,925',
+      'total': '\$1,925',
       'date': 'Today, 9:41 AM',
       'orderId': '#SE-20268814',
     },
     {
       'merchant': 'Kingston Burger Co.',
-      'emoji': '🍔',
+      'iconData': Icons.restaurant,
+      'emoji': null,
       'status': 'Completed',
       'statusColor': 0xFF2563EB,
       'statusBg': 0xFFEFF6FF,
       'items': 'Smash Burger, Loaded Fries, Coke',
-      'total': 'J\$2,450',
+      'total': '\$2,450',
       'date': 'Yesterday, 2:15 PM',
       'orderId': '#SE-20268799',
     },
     {
       'merchant': 'Spice Island Cuisine',
+      'iconData': null,
       'emoji': '🍛',
       'status': 'Completed',
       'statusColor': 0xFF2563EB,
       'statusBg': 0xFFEFF6FF,
       'items': 'Curry Goat, Rice & Peas, Ting',
-      'total': 'J\$1,780',
+      'total': '\$1,780',
       'date': 'May 12, 6:30 PM',
       'orderId': '#SE-20268751',
     },
     {
       'merchant': 'FreshMart Grocery',
-      'emoji': '🛒',
+      'iconData': Icons.shopping_cart,
+      'emoji': null,
       'status': 'Cancelled',
       'statusColor': 0xFFC8102E,
       'statusBg': 0xFFFFF0F2,
       'items': 'Bananas, Bread, Milk, Eggs',
-      'total': 'J\$890',
+      'total': '\$890',
       'date': 'May 10, 11:00 AM',
       'orderId': '#SE-20268722',
     },
     {
       'merchant': 'Tropical Pharmacy',
-      'emoji': '💊',
+      'iconData': Icons.local_pharmacy,
+      'emoji': null,
       'status': 'Completed',
       'statusColor': 0xFF2563EB,
       'statusBg': 0xFFEFF6FF,
       'items': 'Panadol, Vitamin C, Bandages',
-      'total': 'J\$1,120',
+      'total': '\$1,120',
       'date': 'May 8, 3:45 PM',
       'orderId': '#SE-20268688',
     },
@@ -125,7 +130,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: Text('←', style: TextStyle(fontSize: 16)),
+                  child: Icon(Icons.arrow_back_ios, size: 16,
+                      color: Color(0xFF444444)),
                 ),
               ),
             ),
@@ -152,10 +158,13 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
               child: GestureDetector(
                 onTap: () => setState(() => _activeTab = e.key),
                 child: Container(
-                  margin: EdgeInsets.only(right: e.key < _tabs.length - 1 ? 6 : 0),
+                  margin: EdgeInsets.only(
+                      right: e.key < _tabs.length - 1 ? 6 : 0),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
-                    color: selected ? AppTheme.primary : const Color(0xFFF5F5F7),
+                    color: selected
+                        ? AppTheme.primary
+                        : const Color(0xFFF5F5F7),
                     borderRadius: BorderRadius.circular(9),
                   ),
                   child: Center(
@@ -164,7 +173,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                       style: GoogleFonts.nunito(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: selected ? Colors.white : const Color(0xFF888888),
+                        color: selected
+                            ? Colors.white
+                            : const Color(0xFF888888),
                       ),
                     ),
                   ),
@@ -182,7 +193,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('📦', style: TextStyle(fontSize: 52)),
+            const Icon(Icons.inventory_2,
+                size: 52, color: Color(0xFFCCCCCC)),
             const SizedBox(height: 12),
             Text(
               'No orders here yet',
@@ -228,7 +240,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: merchant + status badge
             Row(
               children: [
                 Container(
@@ -239,10 +250,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                     borderRadius: BorderRadius.circular(11),
                   ),
                   child: Center(
-                    child: Text(
-                      order['emoji'] as String,
-                      style: const TextStyle(fontSize: 20),
-                    ),
+                    child: _merchantIcon(order),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -289,7 +297,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            // Items
             Text(
               order['items'] as String,
               style: GoogleFonts.inter(
@@ -301,7 +308,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 7),
-            // Bottom row: date + total + reorder
             Row(
               children: [
                 Text(
@@ -346,4 +352,13 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           ],
         ),
       );
+
+  Widget _merchantIcon(Map<String, dynamic> order) {
+    final iconData = order['iconData'] as IconData?;
+    final emoji = order['emoji'] as String?;
+    if (iconData != null) {
+      return Icon(iconData, size: 22, color: const Color(0xFF666666));
+    }
+    return Text(emoji ?? '', style: const TextStyle(fontSize: 20));
+  }
 }

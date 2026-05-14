@@ -16,30 +16,34 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
   late Animation<double> _pulseScale;
   late Animation<double> _pulseOpacity;
 
-  static const _steps = [
+  static const List<Map<String, dynamic>> _steps = [
     {
-      'icon': '✅',
+      'iconData': Icons.check_circle,
+      'emoji': null,
       'name': 'Order Confirmed',
       'sub': 'Island Jerk Palace accepted',
       'time': '9:41 AM',
       'state': 'done',
     },
     {
-      'icon': '✅',
+      'iconData': Icons.check_circle,
+      'emoji': null,
       'name': 'Order Picked Up',
       'sub': 'Driver collected your order',
       'time': '9:58 AM',
       'state': 'done',
     },
     {
-      'icon': '🛵',
+      'iconData': null,
+      'emoji': '🛵',
       'name': 'On the Way',
       'sub': 'Driver heading to you now',
       'time': 'Live',
       'state': 'now',
     },
     {
-      'icon': '🏠',
+      'iconData': Icons.home,
+      'emoji': null,
       'name': 'Delivered',
       'sub': 'Waiting...',
       'time': '',
@@ -106,7 +110,6 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Green gradient bg
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -116,13 +119,10 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
               ),
             ),
           ),
-          // Grid painter
           CustomPaint(painter: _MapGridPainter()),
-          // Destination pin
           const Center(
-            child: Text('📍', style: TextStyle(fontSize: 28)),
+            child: Icon(Icons.location_on, size: 28, color: Colors.red),
           ),
-          // Driver pulse + dot
           Positioned(
             bottom: 40,
             left: 64,
@@ -227,8 +227,8 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       );
 
   // ── STEP ROW ──────────────────────────────────────────────────────────────
-  Widget _buildStepRow(Map<String, String> step) {
-    final state = step['state']!;
+  Widget _buildStepRow(Map<String, dynamic> step) {
+    final state = step['state'] as String;
     final isDone = state == 'done';
     final isNow = state == 'now';
     final isWait = state == 'wait';
@@ -240,6 +240,30 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       dotBg = AppTheme.primary;
     } else {
       dotBg = const Color(0xFFF2F2F2);
+    }
+
+    final iconData = step['iconData'] as IconData?;
+    final emoji = step['emoji'] as String?;
+
+    Widget stepIcon;
+    if (iconData != null) {
+      stepIcon = Icon(
+        iconData,
+        size: 16,
+        color: isDone
+            ? const Color(0xFF16A34A)
+            : isNow
+                ? Colors.white
+                : const Color(0xFFAAAAAA),
+      );
+    } else {
+      stepIcon = Text(
+        emoji ?? '',
+        style: TextStyle(
+          fontSize: 16,
+          color: isNow ? Colors.white : null,
+        ),
+      );
     }
 
     return Opacity(
@@ -268,15 +292,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                 color: dotBg,
                 shape: BoxShape.circle,
               ),
-              child: Center(
-                child: Text(
-                  step['icon']!,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isNow ? Colors.white : null,
-                  ),
-                ),
-              ),
+              child: Center(child: stepIcon),
             ),
             const SizedBox(width: 11),
             Expanded(
@@ -284,7 +300,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    step['name']!,
+                    step['name'] as String,
                     style: GoogleFonts.montserrat(
                       fontSize: 12,
                       fontWeight: FontWeight.w900,
@@ -295,17 +311,17 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                   ),
                   const SizedBox(height: 1),
                   Text(
-                    step['sub']!,
+                    step['sub'] as String,
                     style: GoogleFonts.inter(
                       fontSize: 10,
                       color: const Color(0xFFAAAAAA),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  if (step['time']!.isNotEmpty) ...[
+                  if ((step['time'] as String).isNotEmpty) ...[
                     const SizedBox(height: 1),
                     Text(
-                      step['time']!,
+                      step['time'] as String,
                       style: GoogleFonts.nunito(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -350,7 +366,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                 borderRadius: BorderRadius.circular(13),
               ),
               child: const Center(
-                child: Text('👨', style: TextStyle(fontSize: 22)),
+                child: Icon(Icons.person, size: 22, color: Colors.white),
               ),
             ),
             const SizedBox(width: 11),
@@ -367,13 +383,19 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    '⭐ 4.9  ·  Toyota Corolla  ·  PK-2048',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: const Color(0xFFAAAAAA),
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    children: [
+                      const Icon(Icons.star,
+                          size: 10, color: Color(0xFFFACC15)),
+                      Text(
+                        ' 4.9  ·  Toyota Corolla  ·  PK-2048',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          color: const Color(0xFFAAAAAA),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -388,7 +410,8 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                   borderRadius: BorderRadius.circular(11),
                 ),
                 child: const Center(
-                  child: Text('📞', style: TextStyle(fontSize: 18)),
+                  child: Icon(Icons.phone, size: 18,
+                      color: Color(0xFF16A34A)),
                 ),
               ),
             ),
