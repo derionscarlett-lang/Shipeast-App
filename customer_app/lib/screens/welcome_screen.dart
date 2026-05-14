@@ -136,7 +136,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   const SizedBox(height: 20),
                   // Get Started button
                   ElevatedButton(
-                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                    onPressed: () => Navigator.pushNamed(context, '/register'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
