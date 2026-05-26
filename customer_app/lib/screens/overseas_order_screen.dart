@@ -16,7 +16,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
   bool _isLoading = true;
   bool _hasError = false;
 
-  static const _url = 'https://tally.so/r/shipeast';
+  static const _url = 'https://form.jotform.com/shipeast';
 
   @override
   void initState() {
@@ -146,7 +146,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Living abroad? Send groceries & gifts home.',
+                    'Sending home from overseas?',
                     style: GoogleFonts.montserrat(
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
@@ -155,7 +155,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'This service lets YOU — in the US, UK, Canada or anywhere abroad — place an order that ShipEast delivers directly to your family or friends in Jamaica.',
+                    'For persons living overseas who want to send groceries, meals or gifts to family and friends in Jamaica.',
                     style: GoogleFonts.inter(
                       fontSize: 10,
                       color: const Color(0xFF3B82F6),

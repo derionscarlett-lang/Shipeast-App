@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
+import 'coming_soon_screen.dart';
+import 'help_support_screen.dart';
 import 'saved_addresses_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -18,10 +22,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _name = 'Marcus Brown';
   String _phone = '+1 876 432 1987';
   String _email = 'marcus@email.com';
+  String? _imagePath;
 
   static const _keyName = 'shipeast_user_name';
   static const _keyPhone = 'shipeast_user_phone';
   static const _keyEmail = 'shipeast_user_email';
+  static const _keyAvatar = 'shipeast_avatar_path';
 
   @override
   void initState() {
@@ -39,10 +45,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _name = prefs.getString(_keyName) ?? 'Marcus Brown';
       _phone = prefs.getString(_keyPhone) ?? '+1 876 432 1987';
       _email = prefs.getString(_keyEmail) ?? 'marcus@email.com';
+      _imagePath = prefs.getString(_keyAvatar);
     });
   }
 
-  Future<void> _saveProfile(String name, String phone, String email) async {
+  Future<void> _saveProfile(
+      String name, String phone, String email) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyName, name);
     await prefs.setString(_keyPhone, phone);
@@ -52,6 +60,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _phone = phone;
       _email = email;
     });
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyAvatar, picked.path);
+      setState(() => _imagePath = picked.path);
+    }
   }
 
   void _showEditDialog() {
@@ -95,8 +116,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: AppTheme.dark),
             ),
             const SizedBox(height: 18),
-            _editField(nameCtrl, 'Full Name', Icons.person,
-                TextInputType.name),
+            _editField(
+                nameCtrl, 'Full Name', Icons.person, TextInputType.name),
             const SizedBox(height: 12),
             _editField(phoneCtrl, 'Phone Number', Icons.phone,
                 TextInputType.phone),
@@ -114,7 +135,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text('Profile saved!',
-                      style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+                      style: GoogleFonts.nunito(
+                          fontWeight: FontWeight.w700)),
                   backgroundColor: const Color(0xFF16A34A),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
@@ -139,8 +161,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _editField(TextEditingController ctrl, String label, IconData icon,
-      TextInputType type) {
+  Widget _editField(TextEditingController ctrl, String label,
+      IconData icon, TextInputType type) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -158,7 +180,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           decoration: InputDecoration(
             prefixIcon: Padding(
               padding: const EdgeInsets.only(left: 12, right: 8),
-              child: Icon(icon, size: 17, color: const Color(0xFF888888)),
+              child:
+                  Icon(icon, size: 17, color: const Color(0xFF888888)),
             ),
             prefixIconConstraints:
                 const BoxConstraints(minWidth: 0, minHeight: 0),
@@ -166,21 +189,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             fillColor: const Color(0xFFF5F5F7),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+              borderSide: const BorderSide(
+                  color: Color(0xFFEBEBEB), width: 1.5),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+              borderSide: const BorderSide(
+                  color: Color(0xFFEBEBEB), width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide:
                   const BorderSide(color: AppTheme.primary, width: 1.5),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 13, vertical: 13),
             isDense: true,
           ),
         ),
@@ -188,17 +211,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showSnackbar(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content:
-          Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-      backgroundColor: AppTheme.primary,
-      behavior: SnackBarBehavior.floating,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      duration: const Duration(seconds: 2),
-    ));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -245,17 +257,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.4), width: 2),
-              ),
-              child: const Center(
-                child: Icon(Icons.person, size: 26, color: Colors.white),
+            GestureDetector(
+              onTap: _pickImage,
+              child: Stack(
+                children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          width: 2),
+                    ),
+                    child: ClipOval(
+                      child: _imagePath != null
+                          ? Image.file(
+                              File(_imagePath!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (ctx, err, st) => const Center(
+                                child: Icon(Icons.person,
+                                    size: 26, color: Colors.white),
+                              ),
+                            )
+                          : const Center(
+                              child: Icon(Icons.person,
+                                  size: 26, color: Colors.white),
+                            ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.camera_alt,
+                            size: 12, color: AppTheme.primary),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 14),
@@ -304,7 +352,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Center(
-                  child: Icon(Icons.edit, size: 17, color: Colors.white),
+                  child:
+                      Icon(Icons.edit, size: 17, color: Colors.white),
                 ),
               ),
             ),
@@ -413,25 +462,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'icon': Icons.notifications,
         'label': 'Notifications',
         'sub': 'Push alerts & order updates',
-        'action': () => _showSnackbar('Notifications coming soon!'),
+        'action': () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const ComingSoonScreen(
+                      title: 'Notifications')),
+            ),
       },
       {
         'icon': Icons.credit_card,
         'label': 'Payment Methods',
         'sub': 'Cards, PayPal & Cash',
-        'action': () => _showSnackbar('Payment methods coming soon!'),
+        'action': () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const ComingSoonScreen(
+                      title: 'Payment Methods')),
+            ),
       },
       {
         'icon': Icons.lock,
         'label': 'Privacy & Security',
         'sub': 'Password, data & permissions',
-        'action': () => _showSnackbar('Privacy settings coming soon!'),
+        'action': () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const ComingSoonScreen(
+                      title: 'Privacy & Security')),
+            ),
       },
       {
         'icon': Icons.help_outline,
         'label': 'Help & Support',
-        'sub': 'FAQs, chat with us',
-        'action': () => _showSnackbar('Support chat coming soon!'),
+        'sub': 'FAQs, WhatsApp & Email',
+        'action': () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const HelpSupportScreen()),
+            ),
       },
     ];
 
@@ -455,13 +523,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return GestureDetector(
             onTap: item['action'] as VoidCallback,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 15, vertical: 13),
               decoration: BoxDecoration(
                 border: isLast
                     ? null
                     : const Border(
-                        bottom: BorderSide(color: Color(0xFFF8F8F8))),
+                        bottom:
+                            BorderSide(color: Color(0xFFF8F8F8))),
               ),
               child: Row(
                 children: [
@@ -523,14 +592,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
             color: const Color(0xFFFFF0F2),
-            border: Border.all(color: const Color(0xFFFECDD3), width: 1.5),
+            border: Border.all(
+                color: const Color(0xFFFECDD3), width: 1.5),
             borderRadius: BorderRadius.circular(13),
           ),
           child: Center(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.logout, size: 16, color: AppTheme.primary),
+                const Icon(Icons.logout,
+                    size: 16, color: AppTheme.primary),
                 const SizedBox(width: 7),
                 Text(
                   'Sign Out',
@@ -559,7 +630,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _navItem(context, 0, Icons.home, 'Home', '/home'),
-            _navItem(context, 1, Icons.inventory_2, 'Orders', '/order-history'),
+            _navItem(context, 1, Icons.inventory_2, 'Orders',
+                '/order-history'),
             _navItem(context, 3, Icons.person, 'Profile', null),
           ],
         ),
