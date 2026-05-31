@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app_theme.dart';
-import 'earnings_screen.dart';
-import 'profile_screen.dart';
 import 'new_order_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -18,7 +16,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool isOnline = false;
   bool _hasActiveOrder = false;
   String _driverName = 'Driver';
-  int _selectedNavIndex = 0;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -47,6 +44,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   void _toggleOnline() {
     setState(() {
       isOnline = !isOnline;
@@ -63,11 +67,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         height: 32,
         decoration: BoxDecoration(
           color: isOnline
-              ? AppTheme.success.withOpacity(0.9)
-              : Colors.white.withOpacity(0.3),
+              ? AppTheme.success.withValues(alpha: 0.9)
+              : Colors.white.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             width: 2,
           ),
         ),
@@ -80,8 +84,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: Container(
                 width: 24,
                 height: 24,
-                decoration: BoxDecoration(
-                  color: isOnline ? Colors.white : Colors.white,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -122,7 +126,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             label,
             style: GoogleFonts.nunito(
               fontSize: 10,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -142,7 +146,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -154,7 +158,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: iconBgColor.withOpacity(0.12),
+                color: iconBgColor.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: iconBgColor, size: 20),
@@ -217,8 +221,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           GestureDetector(
             onTap: _toggleOnline,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFE65100),
                 borderRadius: BorderRadius.circular(8),
@@ -246,7 +249,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -256,8 +259,16 @@ class _DashboardScreenState extends State<DashboardScreen>
         children: [
           Row(
             children: [
-              const Icon(Icons.radio_button_unchecked,
-                  color: AppTheme.success, size: 24),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.success.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.circle,
+                    color: AppTheme.success, size: 14),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -273,7 +284,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      "You're online and ready to receive new delivery requests",
+                      "You're online — ready to receive delivery requests",
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: AppTheme.textMid,
@@ -294,8 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: AppTheme.success
-                        .withOpacity(_pulseAnimation.value),
+                    color: AppTheme.success.withValues(alpha: _pulseAnimation.value),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -312,33 +322,82 @@ class _DashboardScreenState extends State<DashboardScreen>
             ],
           ),
           const SizedBox(height: 12),
-          // Demo button to trigger a new order
           GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (_) => const NewOrderScreen()),
+                MaterialPageRoute(builder: (_) => const NewOrderScreen()),
               );
             },
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.08),
+                color: AppTheme.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border:
-                    Border.all(color: AppTheme.primary.withOpacity(0.3)),
+                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
               ),
-              child: Text(
-                'Simulate New Order',
-                style: GoogleFonts.nunito(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.primary,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.inventory_2,
+                      size: 14, color: AppTheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Simulate New Order',
+                    style: GoogleFonts.nunito(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveOrderCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: const Border(
+          left: BorderSide(color: AppTheme.primary, width: 4),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.local_shipping,
+                  color: AppTheme.primary, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Active Order #SE-2847',
+                style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.textDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Kingston Fresh Market → 12 Mona Road',
+            style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMid),
           ),
         ],
       ),
@@ -360,14 +419,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Column(
                   children: [
-                    // Top row: avatar, name, toggle
                     Row(
                       children: [
                         Container(
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.person,
@@ -387,10 +445,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 ),
                               ),
                               Text(
-                                'Good morning!',
+                                '$_greeting!',
                                 style: GoogleFonts.inter(
                                   fontSize: 13,
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                 ),
                               ),
                             ],
@@ -400,7 +458,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ],
                     ),
                     const SizedBox(height: 12),
-                    // Stats strip
                     Container(
                       padding: const EdgeInsets.symmetric(
                           vertical: 14, horizontal: 8),
@@ -411,16 +468,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       child: Row(
                         children: [
-                          _buildStatItem('\$47.50', "Today's Earnings"),
+                          _buildStatItem('J\$3,750', "Today's Earnings"),
                           Container(
                               width: 1,
                               height: 30,
-                              color: Colors.white.withOpacity(0.3)),
+                              color: Colors.white.withValues(alpha: 0.3)),
                           _buildStatItem('6', 'Deliveries'),
                           Container(
                               width: 1,
                               height: 30,
-                              color: Colors.white.withOpacity(0.3)),
+                              color: Colors.white.withValues(alpha: 0.3)),
                           _buildStatItem('4h 32m', 'Online Time'),
                         ],
                       ),
@@ -455,7 +512,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: isOnline
-                              ? AppTheme.success.withOpacity(0.12)
+                              ? AppTheme.success.withValues(alpha: 0.12)
                               : const Color(0xFFF2F2F2),
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -475,44 +532,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 12),
 
                   if (!isOnline) _buildOfflineBanner(),
-                  if (isOnline && _hasActiveOrder)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: const Border(
-                          left: BorderSide(
-                              color: AppTheme.primary, width: 4),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Active Order #SE-2847',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.textDark,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Kingston Fresh Market → 12 Mona Road',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: AppTheme.textMid,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  if (isOnline && _hasActiveOrder) _buildActiveOrderCard(),
                   if (isOnline && !_hasActiveOrder) _buildReadyCard(),
 
                   const SizedBox(height: 16),
-
-                  // Quick Actions
                   Text(
                     'Quick Actions',
                     style: GoogleFonts.montserrat(
@@ -525,24 +548,13 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                   _buildQuickActionCard(
                     'View Earnings',
-                    Icons.payments_outlined,
+                    Icons.account_balance_wallet,
                     AppTheme.primary,
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const EarningsScreen()),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildQuickActionCard(
-                    'My Profile',
-                    Icons.person_outline,
-                    const Color(0xFF1D4ED8),
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ProfileScreen()),
-                    ),
+                    () {
+                      // Switch to Earnings tab in the shell
+                      final scaffold = Scaffold.maybeOf(context);
+                      if (scaffold != null) scaffold.openDrawer();
+                    },
                   ),
                   const SizedBox(height: 8),
                   _buildQuickActionCard(
@@ -553,8 +565,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   const SizedBox(height: 8),
                   _buildQuickActionCard(
-                    'Support',
-                    Icons.headset_mic_outlined,
+                    'My Profile',
+                    Icons.person,
+                    const Color(0xFF1D4ED8),
+                    () {},
+                  ),
+                  const SizedBox(height: 8),
+                  _buildQuickActionCard(
+                    'Help & Support',
+                    Icons.headset_mic,
                     const Color(0xFF7C3AED),
                     () {},
                   ),
@@ -564,74 +583,6 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
         ],
-      ),
-
-      // Bottom navigation
-      bottomNavigationBar: Container(
-        height: 60,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(color: AppTheme.divider, width: 1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            _buildNavItem(0, Icons.home, 'Home'),
-            _buildNavItem(1, Icons.payments_outlined, 'Earnings'),
-            _buildNavItem(2, Icons.person_outline, 'Profile'),
-            _buildNavItem(3, Icons.more_horiz, 'More'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon, String label) {
-    final isActive = _selectedNavIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          setState(() => _selectedNavIndex = index);
-          if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const EarningsScreen()),
-            );
-          } else if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
-            );
-          }
-        },
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isActive ? AppTheme.primary : const Color(0xFFC0C0C0),
-              size: 22,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.nunito(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: isActive ? AppTheme.primary : const Color(0xFFC0C0C0),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

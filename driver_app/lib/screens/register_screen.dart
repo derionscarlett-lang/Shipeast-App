@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app_theme.dart';
-import 'dashboard_screen.dart';
+import 'pending_approval_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -53,14 +53,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
+    await Future.delayed(const Duration(milliseconds: 1000));
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('driver_logged_in', true);
     await prefs.setString('driver_name', _nameController.text.trim());
+    await prefs.setString('driver_phone', _phoneController.text.trim());
+    await prefs.setString('driver_email', _emailController.text.trim());
+    await prefs.setString('driver_vehicle', _selectedVehicle);
+    await prefs.setString('driver_licence', _licencePlateController.text.trim());
+    await prefs.setString('driver_licence_number', _licenceNumberController.text.trim());
+    // Note: driver_logged_in is NOT set — pending approval
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
         (route) => false,
       );
     }

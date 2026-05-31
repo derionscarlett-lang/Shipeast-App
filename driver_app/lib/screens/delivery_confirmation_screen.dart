@@ -422,6 +422,43 @@ class _DeliveryConfirmationScreenState
                                   fit: BoxFit.cover,
                                 ),
                               ),
+                              // Green success badge
+                              Positioned(
+                                bottom: 10,
+                                left: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.success,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black
+                                            .withValues(alpha: 0.2),
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.check_circle,
+                                          color: Colors.white, size: 14),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        'Photo Added',
+                                        style: GoogleFonts.nunito(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              // Remove button
                               Positioned(
                                 top: 8,
                                 right: 8,

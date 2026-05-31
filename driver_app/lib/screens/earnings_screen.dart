@@ -10,267 +10,418 @@ class EarningsScreen extends StatefulWidget {
 }
 
 class _EarningsScreenState extends State<EarningsScreen> {
-  int selectedPeriod = 0;
+  int _selectedPeriod = 0;
 
-  final List<String> _periods = ['This Week', 'Last Week', 'This Month'];
+  static const _periods = ['Today', 'This Week', 'This Month'];
 
-  final List<Map<String, String>> _recentTrips = [
+  static const List<Map<String, dynamic>> _periodData = [
     {
-      'order': '#SE-2847',
-      'route': 'Kingston · 15 min',
-      'amount': '\$8.50',
+      'total': 'J\$3,750',
+      'deliveries': '6',
+      'avg': 'J\$625',
+      'hours': '4h 32m',
+      'bars': [25.0, 40.0, 35.0, 45.0, 38.0, 50.0, 62.5],
+      'labels': ['10', '11', '12', '1', '2', '3', '4'],
+      'barLabel': 'Hourly Breakdown',
+      'avgLabel': 'Avg J\$625/hr',
     },
     {
-      'order': '#SE-2831',
-      'route': 'New Kingston · 22 min',
-      'amount': '\$12.00',
+      'total': 'J\$22,400',
+      'deliveries': '38',
+      'avg': 'J\$3,200',
+      'hours': '31h 14m',
+      'bars': [32.0, 45.0, 28.0, 52.0, 38.0, 47.0, 42.5],
+      'labels': ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+      'barLabel': 'Daily Breakdown',
+      'avgLabel': 'Avg J\$3,200/day',
     },
     {
-      'order': '#SE-2819',
-      'route': 'Half Way Tree · 18 min',
-      'amount': '\$9.50',
+      'total': 'J\$89,500',
+      'deliveries': '152',
+      'avg': 'J\$22,375',
+      'hours': '118h 40m',
+      'bars': [55.0, 72.0, 63.0, 80.0],
+      'labels': ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4'],
+      'barLabel': 'Weekly Breakdown',
+      'avgLabel': 'Avg J\$22,375/week',
     },
-    {
-      'order': '#SE-2804',
-      'route': 'Liguanea · 10 min',
-      'amount': '\$7.00',
-    },
-    {
-      'order': '#SE-2791',
-      'route': 'Barbican · 25 min',
-      'amount': '\$13.50',
-    },
+  ];
+
+  static const List<List<Map<String, String>>> _periodTrips = [
+    [
+      {'order': '#SE-2847', 'route': 'Kingston · 18 min', 'amount': 'J\$850'},
+      {'order': '#SE-2831', 'route': 'New Kingston · 22 min', 'amount': 'J\$1,000'},
+      {'order': '#SE-2819', 'route': 'Half Way Tree · 15 min', 'amount': 'J\$750'},
+    ],
+    [
+      {'order': '#SE-2847', 'route': 'Kingston · 18 min', 'amount': 'J\$850'},
+      {'order': '#SE-2831', 'route': 'New Kingston · 22 min', 'amount': 'J\$1,000'},
+      {'order': '#SE-2819', 'route': 'Half Way Tree · 15 min', 'amount': 'J\$750'},
+      {'order': '#SE-2804', 'route': 'Liguanea · 10 min', 'amount': 'J\$620'},
+      {'order': '#SE-2791', 'route': 'Barbican · 25 min', 'amount': 'J\$1,100'},
+    ],
+    [
+      {'order': '#SE-2847', 'route': 'Kingston · 18 min', 'amount': 'J\$850'},
+      {'order': '#SE-2831', 'route': 'New Kingston · 22 min', 'amount': 'J\$1,000'},
+      {'order': '#SE-2819', 'route': 'Half Way Tree · 15 min', 'amount': 'J\$750'},
+      {'order': '#SE-2804', 'route': 'Liguanea · 10 min', 'amount': 'J\$620'},
+      {'order': '#SE-2791', 'route': 'Barbican · 25 min', 'amount': 'J\$1,100'},
+    ],
   ];
 
   @override
   Widget build(BuildContext context) {
+    final data = _periodData[_selectedPeriod];
+    final trips = _periodTrips[_selectedPeriod];
+
     return Scaffold(
       backgroundColor: AppTheme.surfaceGrey,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textDark),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Earnings',
-          style: GoogleFonts.montserrat(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: AppTheme.textDark,
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Period tabs
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: List.generate(_periods.length, (i) {
-                  final isSelected = selectedPeriod == i;
-                  return GestureDetector(
-                    onTap: () => setState(() => selectedPeriod = i),
-                    child: Container(
-                      margin: EdgeInsets.only(right: i < _periods.length - 1 ? 8 : 0),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppTheme.primary
-                            : const Color(0xFFF2F2F2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        _periods[i],
-                        style: GoogleFonts.nunito(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          color: isSelected
-                              ? Colors.white
-                              : AppTheme.textDark,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
+      body: Column(
+        children: [
+          _buildHeader(),
+          _buildPeriodTabs(),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _buildSummaryCards(data),
+                    const SizedBox(height: 12),
+                    _buildBarChart(data),
+                    const SizedBox(height: 12),
+                    _buildRecentTrips(trips),
+                    const SizedBox(height: 12),
+                    _buildPayoutCard(data),
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildHeader() => Container(
+        color: AppTheme.primary,
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.account_balance_wallet,
+                      color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Earnings',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'Track your income & trips',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _buildPeriodTabs() => Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: List.generate(_periods.length, (i) {
+            final isSelected = _selectedPeriod == i;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedPeriod = i),
+                child: Container(
+                  margin: EdgeInsets.only(right: i < _periods.length - 1 ? 8 : 0),
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppTheme.primary
+                        : const Color(0xFFF2F2F2),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _periods[i],
+                      style: GoogleFonts.nunito(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        color: isSelected ? Colors.white : AppTheme.textDark,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      );
+
+  Widget _buildSummaryCards(Map<String, dynamic> data) => Row(
+        children: [
+          Expanded(
+            child: _summaryCard(
+              label: 'Total Earned',
+              value: data['total'] as String,
+              icon: Icons.trending_up,
+              iconColor: AppTheme.success,
+              sub: _periods[_selectedPeriod],
+              valueColor: AppTheme.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _summaryCard(
+              label: 'Deliveries',
+              value: data['deliveries'] as String,
+              icon: Icons.local_shipping,
+              iconColor: const Color(0xFF1D4ED8),
+              sub: 'Completed',
+              valueColor: AppTheme.textDark,
+            ),
+          ),
+        ],
+      );
+
+  Widget _summaryCard({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color iconColor,
+    required String sub,
+    required Color valueColor,
+  }) =>
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(label,
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: AppTheme.textMid)),
+                Icon(icon, color: iconColor, size: 18),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: GoogleFonts.montserrat(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: valueColor,
+              ),
+            ),
+            Text(sub,
+                style: GoogleFonts.inter(
+                    fontSize: 12, color: AppTheme.textMid)),
+          ],
+        ),
+      );
+
+  Widget _buildBarChart(Map<String, dynamic> data) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              data['barLabel'] as String,
+              style: GoogleFonts.montserrat(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 140,
+              child: CustomPaint(
+                painter: _BarChartPainter(
+                  data: List<double>.from(data['bars'] as List),
+                  labels: List<String>.from(data['labels'] as List),
+                  selectedIndex:
+                      (data['bars'] as List).length == 4 ? 3 : 3,
+                ),
+                size: const Size(double.infinity, 140),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  data['avgLabel'] as String,
+                  style: GoogleFonts.inter(
+                      fontSize: 12, color: AppTheme.textMid),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+
+  Widget _buildRecentTrips(List<Map<String, String>> trips) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Summary cards row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
+                  Text(
+                    'Recent Trips',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  Text(
+                    'View All',
+                    style: GoogleFonts.nunito(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ...List.generate(trips.length, (i) {
+              final trip = trips[i];
+              return Column(
+                children: [
+                  if (i > 0)
+                    const Divider(
+                        height: 1,
+                        color: AppTheme.divider,
+                        indent: 16,
+                        endIndent: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                            color: AppTheme.primary.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Total Earned',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      color: AppTheme.textMid,
-                                    ),
-                                  ),
-                                  const Icon(Icons.trending_up,
-                                      color: AppTheme.success, size: 18),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '\$284.50',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppTheme.primary,
-                                ),
-                              ),
-                              Text(
-                                _periods[selectedPeriod],
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppTheme.textMid,
-                                ),
-                              ),
-                            ],
-                          ),
+                          child: const Icon(Icons.two_wheeler,
+                              color: AppTheme.primary, size: 18),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
+                        const SizedBox(width: 12),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Deliveries',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      color: AppTheme.textMid,
-                                    ),
-                                  ),
-                                  const Icon(Icons.local_shipping,
-                                      color: Color(0xFF1D4ED8), size: 18),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
                               Text(
-                                '23',
+                                'Order ${trip['order']}',
                                 style: GoogleFonts.montserrat(
-                                  fontSize: 24,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w900,
                                   color: AppTheme.textDark,
                                 ),
                               ),
+                              const SizedBox(height: 2),
                               Text(
-                                'Completed',
+                                trip['route']!,
                                 style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppTheme.textMid,
-                                ),
+                                    fontSize: 11, color: AppTheme.textMid),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Bar chart card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Daily Breakdown',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.textDark,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          height: 140,
-                          child: CustomPaint(
-                            painter: _BarChartPainter(
-                              data: const [32.0, 45.0, 28.0, 52.0, 38.0, 47.0, 42.5],
-                              labels: const ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
-                              selectedIndex: 3,
-                            ),
-                            size: const Size(double.infinity, 140),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Container(
-                              width: 10,
-                              height: 10,
-                              decoration: const BoxDecoration(
+                            Text(
+                              trip['amount']!,
+                              style: GoogleFonts.montserrat(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
                                 color: AppTheme.primary,
-                                shape: BoxShape.circle,
                               ),
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(height: 2),
                             Text(
-                              'Avg \$40.64/day',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: AppTheme.textMid,
+                              'Completed',
+                              style: GoogleFonts.nunito(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.success,
                               ),
                             ),
                           ],
@@ -278,188 +429,63 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       ],
                     ),
                   ),
+                ],
+              );
+            }),
+          ],
+        ),
+      );
 
-                  // Recent trips card
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Recent Trips',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppTheme.textDark,
-                                ),
-                              ),
-                              Text(
-                                'View All',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppTheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ...List.generate(_recentTrips.length, (i) {
-                          final trip = _recentTrips[i];
-                          return Column(
-                            children: [
-                              if (i > 0)
-                                const Divider(
-                                    height: 1, color: AppTheme.divider,
-                                    indent: 16, endIndent: 16),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 38,
-                                      height: 38,
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primary.withOpacity(0.1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(Icons.local_shipping,
-                                          color: AppTheme.primary, size: 18),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Order ${trip['order']}',
-                                            style: GoogleFonts.montserrat(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w900,
-                                              color: AppTheme.textDark,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            trip['route']!,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 11,
-                                              color: AppTheme.textMid,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          trip['amount']!,
-                                          style: GoogleFonts.montserrat(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w900,
-                                            color: AppTheme.primary,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Completed',
-                                          style: GoogleFonts.nunito(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppTheme.success,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          );
-                        }),
-                      ],
+  Widget _buildPayoutCard(Map<String, dynamic> data) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFC8102E), Color(0xFFB00D28)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.account_balance_wallet,
+                color: Colors.white, size: 28),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Next Payout',
+                    style: GoogleFonts.nunito(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white.withValues(alpha: 0.7),
                     ),
                   ),
-
-                  // Payout info card
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFC8102E), Color(0xFFB00D28)],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.account_balance_wallet,
-                            color: Colors.white, size: 28),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Next Payout',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Friday, June 6',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          '\$284.50',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: 2),
+                  Text(
+                    'Friday, June 6',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
                     ),
                   ),
                 ],
               ),
             ),
+            Text(
+              data['total'] as String,
+              style: GoogleFonts.montserrat(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
           ],
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _BarChartPainter extends CustomPainter {
@@ -483,17 +509,16 @@ class _BarChartPainter extends CustomPainter {
 
     final bgPaint = Paint()..color = const Color(0xFFEBEBEB);
     final redPaint = Paint()..color = AppTheme.primary;
-    final textStyle = TextStyle(
+    const textStyle = TextStyle(
       color: AppTheme.textMid,
       fontSize: 10,
       fontFamily: 'Inter',
     );
 
-    // Max value label
     final maxLabelPainter = TextPainter(
       text: TextSpan(
-        text: '\$${maxVal.toStringAsFixed(0)}',
-        style: TextStyle(
+        text: 'J\$${maxVal.toStringAsFixed(0)}',
+        style: const TextStyle(
           color: AppTheme.textLight,
           fontSize: 9,
           fontFamily: 'Inter',
@@ -507,7 +532,6 @@ class _BarChartPainter extends CustomPainter {
       final x = 30.0 + i * (barWidth * 2);
       final barHeight = (data[i] / maxVal) * (chartAreaHeight - 20);
       final top = chartAreaHeight - barHeight;
-
       final rect = Rect.fromLTWH(x, top, barWidth, barHeight);
       final isSelected = i == selectedIndex;
 
@@ -517,13 +541,12 @@ class _BarChartPainter extends CustomPainter {
           redPaint,
         );
       } else {
-        // Background bar (full height, light grey)
-        final bgRect = Rect.fromLTWH(x, 20, barWidth, chartAreaHeight - 20);
+        final bgRect =
+            Rect.fromLTWH(x, 20, barWidth, chartAreaHeight - 20);
         canvas.drawRRect(
           RRect.fromRectAndRadius(bgRect, const Radius.circular(4)),
           bgPaint,
         );
-        // Red top portion
         final redRect = Rect.fromLTWH(x, top, barWidth, 4);
         canvas.drawRRect(
           RRect.fromRectAndRadius(redRect, const Radius.circular(4)),
@@ -531,7 +554,6 @@ class _BarChartPainter extends CustomPainter {
         );
       }
 
-      // Label
       final labelPainter = TextPainter(
         text: TextSpan(text: labels[i], style: textStyle),
         textDirection: TextDirection.ltr,
