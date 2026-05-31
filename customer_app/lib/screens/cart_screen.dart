@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -39,8 +40,18 @@ class _CartScreenState extends State<CartScreen> {
             .toList();
       } else {
         _items = [
-          {'name': 'Full Jerk Chicken', 'emoji': '🍗', 'price': 1200, 'quantity': 1},
-          {'name': 'Sorrel Punch', 'emoji': '🥤', 'price': 350, 'quantity': 1},
+          {
+            'name': 'Full Jerk Chicken',
+            'imageUrl': 'https://images.unsplash.com/photo-1544025162-d76538591398?w=300',
+            'price': 1200,
+            'quantity': 1,
+          },
+          {
+            'name': 'Sorrel Punch',
+            'imageUrl': 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300',
+            'price': 350,
+            'quantity': 1,
+          },
         ];
       }
       _initialized = true;
@@ -200,8 +211,30 @@ class _CartScreenState extends State<CartScreen> {
         ),
         child: Row(
           children: [
-            Text(item['emoji'] as String,
-                style: const TextStyle(fontSize: 30)),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(9),
+              child: SizedBox(
+                width: 52,
+                height: 52,
+                child: item['imageUrl'] != null
+                    ? CachedNetworkImage(
+                        imageUrl: item['imageUrl'] as String,
+                        fit: BoxFit.cover,
+                        placeholder: (_, _) => Container(
+                            color: const Color(0xFFEEEEEE)),
+                        errorWidget: (_, _, _) => Container(
+                          color: const Color(0xFFF0F0F0),
+                          child: const Icon(Icons.restaurant,
+                              size: 24, color: Color(0xFFBBBBBB)),
+                        ),
+                      )
+                    : Container(
+                        color: const Color(0xFFF0F0F0),
+                        child: const Icon(Icons.restaurant,
+                            size: 24, color: Color(0xFFBBBBBB)),
+                      ),
+              ),
+            ),
             const SizedBox(width: 11),
             Expanded(
               child: Column(
@@ -302,7 +335,7 @@ class _CartScreenState extends State<CartScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '✏️  SPECIAL INSTRUCTIONS',
+              'SPECIAL INSTRUCTIONS',
               style: GoogleFonts.nunito(
                 fontSize: 10,
                 fontWeight: FontWeight.w800,

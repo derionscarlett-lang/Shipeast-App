@@ -17,7 +17,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final int _navIndex = 3;
 
   String _name = 'Marcus Brown';
   String _phone = '+1 876 432 1987';
@@ -235,7 +234,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
-          _buildBottomNav(context),
         ],
       ),
     );
@@ -617,54 +615,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
-  Widget _buildBottomNav(BuildContext context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFF2F2F2))),
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).padding.bottom + 4,
-          top: 8,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _navItem(context, 0, Icons.home, 'Home', '/home'),
-            _navItem(context, 1, Icons.inventory_2, 'Orders',
-                '/order-history'),
-            _navItem(context, 3, Icons.person, 'Profile', null),
-          ],
-        ),
-      );
-
-  Widget _navItem(BuildContext context, int index, IconData iconData,
-      String label, String? route) {
-    final active = _navIndex == index;
-    return GestureDetector(
-      onTap: () {
-        if (route != null) {
-          Navigator.pushReplacementNamed(context, route);
-        }
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            iconData,
-            size: 22,
-            color: active ? AppTheme.primary : const Color(0xFFAAAAAA),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.nunito(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: active ? AppTheme.primary : const Color(0xFFAAAAAA),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

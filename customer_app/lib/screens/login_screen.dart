@@ -31,14 +31,30 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _showSnackbar(String msg) {
+  void _showSnackbar(String msg, {Color? color}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-      backgroundColor: AppTheme.primary,
+      backgroundColor: color ?? AppTheme.primary,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       duration: const Duration(seconds: 2),
     ));
+  }
+
+  void _handleLogin() {
+    final phone = _phoneController.text.trim();
+    final pass = _passwordController.text.trim();
+    if (phone.isEmpty || pass.isEmpty) {
+      _showSnackbar('Please fill in all fields',
+          color: const Color(0xFFDC2626));
+      return;
+    }
+    if (pass.length < 4) {
+      _showSnackbar('Invalid phone/email or password',
+          color: const Color(0xFFDC2626));
+      return;
+    }
+    Navigator.pushReplacementNamed(context, '/home');
   }
 
   @override
@@ -100,9 +116,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 5),
                     _buildTextField(
                       controller: _phoneController,
-                      hint: '+1 876 555 0123',
+                      hint: 'your@email.com or phone',
                       isActive: true,
-                      keyboardType: TextInputType.phone,
+                      keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: 12),
                     _buildLabel('PASSWORD'),
@@ -127,8 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     ElevatedButton(
-                      onPressed: () =>
-                          Navigator.pushReplacementNamed(context, '/home'),
+                      onPressed: _handleLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,

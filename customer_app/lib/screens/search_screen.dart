@@ -75,22 +75,24 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.fromLTRB(12, 10, 16, 14),
             child: Row(
               children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.arrow_back_ios,
-                          size: 16, color: Colors.white),
+                if (Navigator.canPop(context)) ...[
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.arrow_back_ios,
+                            size: 16, color: Colors.white),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
+                  const SizedBox(width: 10),
+                ],
                 Expanded(
                   child: Container(
                     height: 40,
@@ -212,8 +214,11 @@ class _SearchScreenState extends State<SearchScreen> {
                       borderRadius: BorderRadius.circular(11),
                     ),
                     child: Center(
-                      child: Text(m['emoji']!,
-                          style: const TextStyle(fontSize: 27)),
+                      child: Icon(
+                        _categoryIcon(m['category']!),
+                        size: 24,
+                        color: const Color(0xFF666666),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 13),
@@ -271,4 +276,17 @@ class _SearchScreenState extends State<SearchScreen> {
           );
         },
       );
+
+  IconData _categoryIcon(String category) {
+    switch (category) {
+      case 'Food':
+        return Icons.restaurant;
+      case 'Grocery':
+        return Icons.shopping_basket;
+      case 'Pharmacy':
+        return Icons.local_pharmacy;
+      default:
+        return Icons.store;
+    }
+  }
 }

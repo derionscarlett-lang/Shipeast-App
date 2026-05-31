@@ -10,7 +10,11 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _progressCtrl;
+  late Animation<double> _progressAnim;
+
   @override
   void initState() {
     super.initState();
@@ -18,9 +22,25 @@ class _SplashScreenState extends State<SplashScreen> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ));
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) Navigator.pushReplacementNamed(context, '/welcome');
+    _progressCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    );
+    _progressAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _progressCtrl, curve: Curves.easeInOut),
+    );
+    _progressCtrl.forward();
+    _progressCtrl.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        Navigator.pushReplacementNamed(context, '/welcome');
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _progressCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -48,7 +68,6 @@ class _SplashScreenState extends State<SplashScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo card with real image
                 Container(
                   width: 236,
                   padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
@@ -90,15 +109,18 @@ class _SplashScreenState extends State<SplashScreen> {
               children: [
                 Center(
                   child: SizedBox(
-                    width: 110,
+                    width: 140,
                     height: 4,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: LinearProgressIndicator(
-                        value: 0.62,
-                        backgroundColor: Colors.white.withValues(alpha: 0.18),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white.withValues(alpha: 0.85),
+                      child: AnimatedBuilder(
+                        animation: _progressAnim,
+                        builder: (_, _) => LinearProgressIndicator(
+                          value: _progressAnim.value,
+                          backgroundColor: Colors.white.withValues(alpha: 0.18),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white.withValues(alpha: 0.85),
+                          ),
                         ),
                       ),
                     ),
@@ -106,7 +128,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
                 const SizedBox(height: 9),
                 Text(
-                  'v1.0.0',
+                  'v1.0.2',
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     color: Colors.white.withValues(alpha: 0.45),

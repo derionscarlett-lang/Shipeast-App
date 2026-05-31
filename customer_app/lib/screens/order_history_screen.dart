@@ -17,8 +17,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   static const List<Map<String, dynamic>> _orders = [
     {
       'merchant': 'Island Jerk Palace',
-      'iconData': null,
-      'emoji': '🍗',
+      'iconData': Icons.restaurant,
+      'emoji': null,
       'status': 'Active',
       'statusColor': 0xFF16A34A,
       'statusBg': 0xFFDCFCE7,
@@ -41,8 +41,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     },
     {
       'merchant': 'Spice Island Cuisine',
-      'iconData': null,
-      'emoji': '🍛',
+      'iconData': Icons.restaurant,
+      'emoji': null,
       'status': 'Completed',
       'statusColor': 0xFF2563EB,
       'statusBg': 0xFFEFF6FF,
@@ -120,22 +120,24 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         ),
         child: Row(
           children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF2F2F2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(Icons.arrow_back_ios, size: 16,
-                      color: Color(0xFF444444)),
+            if (Navigator.canPop(context)) ...[
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF2F2F2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.arrow_back_ios, size: 16,
+                        color: Color(0xFF444444)),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
+              const SizedBox(width: 10),
+            ],
             Text(
               'Order History',
               style: GoogleFonts.montserrat(

@@ -40,8 +40,8 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       'name': 'On the Way',
       'sub': 'Driver heading to you now',
       'time': 'Live',
-      'icon': null,
-      'emoji': '🛵',
+      'icon': Icons.delivery_dining,
+      'emoji': null,
     },
     {
       'name': 'Delivered',
@@ -55,13 +55,13 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
   String get _statusLabel {
     switch (_currentStep) {
       case 0:
-        return 'Order Confirmed ✅';
+        return 'Order Confirmed';
       case 1:
-        return 'Order Picked Up 📦';
+        return 'Order Picked Up';
       case 2:
-        return 'On the Way 🛵';
+        return 'On the Way';
       case 3:
-        return 'Delivered! 🏠';
+        return 'Delivered!';
       default:
         return '';
     }
@@ -247,7 +247,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '✅  Delivered!',
+                  'Delivered!',
                   style: GoogleFonts.montserrat(
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
@@ -593,19 +593,24 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
         ),
       );
 
-  Widget _buildRateButton() => ElevatedButton(
-        onPressed: () => Navigator.pushNamed(context, '/rate-driver'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primary,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13)),
-          elevation: 0,
-        ),
-        child: Text(
-          'Rate Your Experience →',
-          style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w900),
+  Widget _buildRateButton() => SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () => Navigator.pushNamed(context, '/rate-driver'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primary,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 52),
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(13)),
+            elevation: 0,
+          ),
+          child: Text(
+            'Rate Your Experience →',
+            style:
+                GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w900),
+          ),
         ),
       );
 

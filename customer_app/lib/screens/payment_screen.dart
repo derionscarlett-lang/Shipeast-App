@@ -15,21 +15,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
   final _promoController = TextEditingController();
   bool _promoApplied = false;
 
-  final List<Map<String, dynamic>> _paymentMethods = const [
-    {
-      'emoji': '🅿️',
-      'name': 'PayPal',
-      'sub': 'Pay securely via PayPal',
-      'iconBg': Color(0xFFF0F4FF),
-    },
-    {
-      'emoji': '💵',
-      'name': 'Cash on Delivery',
-      'sub': 'Pay when your order arrives',
-      'iconBg': Color(0xFFF0FDF4),
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -62,6 +47,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   children: [
                     _buildPaymentCard(),
                     const SizedBox(height: 10),
+                    _buildSecurityCard(),
+                    const SizedBox(height: 10),
                     _buildPromoCard(),
                     const SizedBox(height: 10),
                     _buildTotalCard(),
@@ -78,7 +65,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  // ── HEADER ────────────────────────────────────────────────────────────────
   Widget _buildHeader() => Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: const BoxDecoration(
@@ -115,120 +101,212 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
 
-  // ── PAYMENT METHODS CARD ──────────────────────────────────────────────────
   Widget _buildPaymentCard() => _coCard(
         child: Column(
           children: [
             _coHead('Select Payment'),
-            ..._paymentMethods.asMap().entries.map((e) {
-              final i = e.key;
-              final method = e.value;
-              final selected = _selectedPayment == i;
-              final isLast = i == _paymentMethods.length - 1;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedPayment = i),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 15, vertical: 13),
-                  decoration: BoxDecoration(
-                    border: isLast
-                        ? null
-                        : const Border(
-                            bottom:
-                                BorderSide(color: Color(0xFFF8F8F8))),
-                  ),
-                  child: Row(
-                    children: [
-                      // Pay icon
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: method['iconBg'] as Color,
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: Center(
-                          child: Text(
-                            method['emoji'] as String,
-                            style: const TextStyle(fontSize: 22),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 13),
-                      // Name & sub
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              method['name'] as String,
-                              style: GoogleFonts.montserrat(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                                color: AppTheme.dark,
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              method['sub'] as String,
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                color: const Color(0xFF999999),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Radio
-                      Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: selected
-                                ? AppTheme.primary
-                                : const Color(0xFFDDDDDD),
-                            width: 2,
-                          ),
-                        ),
-                        child: selected
-                            ? Center(
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: AppTheme.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              )
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
+            _paymentRow(
+              index: 0,
+              icon: _paypalLogo(),
+              name: 'PayPal',
+              sub: 'Pay securely via PayPal',
+              iconBg: const Color(0xFFF0F4FF),
+            ),
+            _paymentRow(
+              index: 1,
+              icon: const Icon(Icons.payments,
+                  size: 24, color: Color(0xFF16A34A)),
+              name: 'Cash on Delivery',
+              sub: 'Pay when your order arrives',
+              iconBg: const Color(0xFFF0FDF4),
+              isLast: true,
+            ),
           ],
         ),
       );
 
-  // ── PROMO CODE CARD ───────────────────────────────────────────────────────
+  Widget _paymentRow({
+    required int index,
+    required Widget icon,
+    required String name,
+    required String sub,
+    required Color iconBg,
+    bool isLast = false,
+  }) {
+    final selected = _selectedPayment == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedPayment = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+        decoration: BoxDecoration(
+          border: isLast
+              ? null
+              : const Border(bottom: BorderSide(color: Color(0xFFF8F8F8))),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Center(child: icon),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.dark,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    sub,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: const Color(0xFF999999),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? AppTheme.primary : const Color(0xFFDDDDDD),
+                  width: 2,
+                ),
+              ),
+              child: selected
+                  ? Center(
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _paypalLogo() => RichText(
+        text: const TextSpan(
+          children: [
+            TextSpan(
+              text: 'Pay',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF003087),
+              ),
+            ),
+            TextSpan(
+              text: 'Pal',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF009CDE),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _buildSecurityCard() => _coCard(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your payment is protected',
+                style: GoogleFonts.montserrat(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.dark,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _securityRow(
+                icon: Icons.shield,
+                color: const Color(0xFF16A34A),
+                label: '256-bit SSL Encryption',
+              ),
+              const SizedBox(height: 8),
+              _securityRow(
+                icon: Icons.lock,
+                color: const Color(0xFF2563EB),
+                label: '100% Secure Payment',
+              ),
+              const SizedBox(height: 8),
+              _securityRow(
+                icon: Icons.verified_user,
+                color: const Color(0xFF003087),
+                label: 'PayPal Buyer Protection',
+              ),
+            ],
+          ),
+        ),
+      );
+
+  Widget _securityRow(
+          {required IconData icon,
+          required Color color,
+          required String label}) =>
+      Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF555555),
+            ),
+          ),
+        ],
+      );
+
   Widget _buildPromoCard() => _coCard(
         child: Padding(
           padding: const EdgeInsets.all(13),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '🏷️  Promo Code',
-                style: GoogleFonts.montserrat(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.dark,
-                ),
+              Row(
+                children: [
+                  const Icon(Icons.local_offer,
+                      size: 14, color: AppTheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Promo Code',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.dark,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 9),
               Row(
@@ -241,8 +319,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       decoration: InputDecoration(
                         hintText: 'Enter promo code...',
                         hintStyle: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: const Color(0xFF888888)),
+                            fontSize: 12, color: const Color(0xFF888888)),
                         filled: true,
                         fillColor: const Color(0xFFF5F5F7),
                         border: OutlineInputBorder(
@@ -295,7 +372,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        _promoApplied ? '✓ Applied' : 'Apply',
+                        _promoApplied ? 'Applied' : 'Apply',
                         style: GoogleFonts.nunito(
                           fontSize: 12,
                           fontWeight: FontWeight.w900,
@@ -311,11 +388,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
 
-  // ── TOTAL TO PAY CARD ─────────────────────────────────────────────────────
   Widget _buildTotalCard() => _coCard(
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -328,7 +403,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ),
               ),
               Text(
-                '\$1,925',
+                'J\$1,925',
                 style: GoogleFonts.montserrat(
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
@@ -340,7 +415,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
 
-  // ── PLACE ORDER BUTTON ────────────────────────────────────────────────────
   Widget _buildPlaceOrderButton() => ElevatedButton(
         onPressed: () => Navigator.pushNamedAndRemoveUntil(
           context,
@@ -361,7 +435,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
             const Icon(Icons.lock, size: 14),
             const SizedBox(width: 6),
             Text(
-              'Place Order · \$1,925',
+              'Place Order · J\$1,925',
               style: GoogleFonts.nunito(
                   fontSize: 14, fontWeight: FontWeight.w900),
             ),
@@ -369,7 +443,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
 
-  // ── SHARED HELPERS ────────────────────────────────────────────────────────
   Widget _coCard({required Widget child}) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -387,11 +460,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       );
 
   Widget _coHead(String title) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
         decoration: const BoxDecoration(
-          border:
-              Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
+          border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
         ),
         child: Text(
           title,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/login_screen.dart';
@@ -41,7 +42,7 @@ class ShipEastApp extends StatelessWidget {
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginScreen(),
         '/register': (_) => const RegisterScreen(),
-        '/home': (_) => const HomeScreen(),
+        '/home': (_) => const MainShell(),
         '/merchant': (_) => const MerchantMenuScreen(),
         '/cart': (_) => const CartScreen(),
         '/checkout': (_) => const CheckoutScreen(),
@@ -56,6 +57,85 @@ class ShipEastApp extends StatelessWidget {
         '/search': (_) => const SearchScreen(),
         '/help-support': (_) => const HelpSupportScreen(),
       },
+    );
+  }
+}
+
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int _selectedIndex = 0;
+
+  static const List<Map<String, dynamic>> _navItems = [
+    {'label': 'Home', 'icon': Icons.home},
+    {'label': 'Search', 'icon': Icons.search},
+    {'label': 'Orders', 'icon': Icons.receipt_long},
+    {'label': 'Profile', 'icon': Icons.person},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: const [
+          HomeScreen(),
+          SearchScreen(),
+          OrderHistoryScreen(),
+          ProfileScreen(),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFEFEFEF))),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 60,
+            child: Row(
+              children: List.generate(_navItems.length, (i) {
+                final active = _selectedIndex == i;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedIndex = i),
+                    behavior: HitTestBehavior.opaque,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _navItems[i]['icon'] as IconData,
+                          size: 22,
+                          color: active
+                              ? AppTheme.primary
+                              : const Color(0xFFC0C0C0),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _navItems[i]['label'] as String,
+                          style: GoogleFonts.nunito(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: active
+                                ? AppTheme.primary
+                                : const Color(0xFFC0C0C0),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

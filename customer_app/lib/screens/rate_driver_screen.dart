@@ -295,11 +295,12 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F7),
+                color: const Color(0xFFFFF0F2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Center(
-                child: Text('🍗', style: TextStyle(fontSize: 22)),
+                child: Icon(Icons.restaurant,
+                    size: 22, color: AppTheme.primary),
               ),
             ),
             const SizedBox(width: 12),
@@ -367,13 +368,20 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '💬  Leave a comment',
-              style: GoogleFonts.montserrat(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.dark,
-              ),
+            Row(
+              children: [
+                const Icon(Icons.chat_bubble_outline,
+                    size: 14, color: AppTheme.dark),
+                const SizedBox(width: 6),
+                Text(
+                  'Leave a comment',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.dark,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 9),
             TextField(
@@ -410,22 +418,53 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
         ),
       );
 
-  Widget _buildSubmitButton(BuildContext context) => ElevatedButton(
-        onPressed: () {
-          Navigator.pushNamedAndRemoveUntil(
-              context, '/home', (route) => false);
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primary,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-          elevation: 0,
-        ),
-        child: Text(
-          'Submit Rating →',
-          style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w900),
+  Widget _buildSubmitButton(BuildContext context) => SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () {
+            if (_commentCtrl.text.trim().isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('Please write a comment before submitting',
+                    style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+                backgroundColor: const Color(0xFFDC2626),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                duration: const Duration(seconds: 2),
+              ));
+              return;
+            }
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Thank you for your rating!',
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+              backgroundColor: const Color(0xFF16A34A),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              duration: const Duration(seconds: 2),
+            ));
+            Future.delayed(const Duration(milliseconds: 1800), () {
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/home', (route) => false);
+              }
+            });
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primary,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 52),
+            padding:
+                const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(13)),
+            elevation: 0,
+          ),
+          child: Text(
+            'Submit Rating',
+            style:
+                GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w900),
+          ),
         ),
       );
 

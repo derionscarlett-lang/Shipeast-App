@@ -15,8 +15,10 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
   late final WebViewController _controller;
   bool _isLoading = true;
   bool _hasError = false;
+  bool _usedFallback = false;
 
-  static const _url = 'https://form.jotform.com/shipeast';
+  static const _primaryUrl = 'https://tally.so/r/shipeast';
+  static const _fallbackUrl = 'https://form.jotform.com/shipeast';
 
   @override
   void initState() {
@@ -34,12 +36,23 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
           _hasError = false;
         }),
         onPageFinished: (_) => setState(() => _isLoading = false),
-        onWebResourceError: (_) => setState(() {
-          _isLoading = false;
-          _hasError = true;
-        }),
+        onWebResourceError: (_) {
+          if (!_usedFallback) {
+            setState(() {
+              _usedFallback = true;
+              _isLoading = true;
+              _hasError = false;
+            });
+            _controller.loadRequest(Uri.parse(_fallbackUrl));
+          } else {
+            setState(() {
+              _isLoading = false;
+              _hasError = true;
+            });
+          }
+        },
       ))
-      ..loadRequest(Uri.parse(_url));
+      ..loadRequest(Uri.parse(_primaryUrl));
   }
 
   @override
@@ -58,8 +71,17 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                 else
                   _buildErrorState(),
                 if (_isLoading && !_hasError)
-                  const Center(
-                    child: CircularProgressIndicator(color: AppTheme.primary),
+                  Container(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    child: const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(color: AppTheme.primary),
+                          SizedBox(height: 14),
+                        ],
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -77,11 +99,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
           right: 16,
         ),
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
-          ),
+          color: AppTheme.primary,
         ),
         child: Row(
           children: [
@@ -130,16 +148,15 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
       );
 
   Widget _buildInfoBanner() => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: const BoxDecoration(
-          color: Color(0xFFEFF6FF),
-          border: Border(bottom: BorderSide(color: Color(0xFFBFDBFE))),
+          color: Color(0xFFFFF0F2),
+          border: Border(bottom: BorderSide(color: Color(0xFFFECDD3))),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('🌍', style: TextStyle(fontSize: 18)),
+            const Icon(Icons.public, size: 20, color: AppTheme.primary),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -150,7 +167,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                     style: GoogleFonts.montserrat(
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
-                      color: const Color(0xFF1E40AF),
+                      color: AppTheme.primary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -158,7 +175,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                     'For persons living overseas who want to send groceries, meals or gifts to family and friends in Jamaica.',
                     style: GoogleFonts.inter(
                       fontSize: 10,
-                      color: const Color(0xFF3B82F6),
+                      color: const Color(0xFF9E0B23),
                       fontWeight: FontWeight.w500,
                       height: 1.5,
                     ),
@@ -176,19 +193,30 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.wifi_off, size: 56, color: Color(0xFFDDDDDD)),
-              const SizedBox(height: 16),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0F2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(Icons.wifi_off,
+                      size: 38, color: AppTheme.primary),
+                ),
+              ),
+              const SizedBox(height: 18),
               Text(
                 'Connection Error',
                 style: GoogleFonts.montserrat(
-                  fontSize: 16,
+                  fontSize: 17,
                   fontWeight: FontWeight.w900,
                   color: AppTheme.dark,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Unable to load the form. Please check your internet connection.',
+                'Unable to load the overseas order form. Please check your internet connection and try again.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 12,
@@ -196,25 +224,45 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _isLoading = true;
-                    _hasError = false;
-                  });
-                  _controller.loadRequest(Uri.parse(_url));
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-                child: Text('Retry',
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _isLoading = true;
+                      _hasError = false;
+                      _usedFallback = false;
+                    });
+                    _controller.loadRequest(Uri.parse(_primaryUrl));
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: Text(
+                    'Retry',
                     style: GoogleFonts.nunito(
-                        fontWeight: FontWeight.w900)),
+                        fontSize: 14, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Text(
+                  'Go Back',
+                  style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF888888),
+                  ),
+                ),
               ),
             ],
           ),

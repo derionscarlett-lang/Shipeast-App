@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,28 +26,29 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       'name': 'Full Jerk Chicken',
       'desc': 'Smoky, slow-cooked with festival & rice',
       'price': 1200,
-      'emoji': '🍗',
+      'imageUrl': 'https://images.unsplash.com/photo-1544025162-d76538591398?w=300',
       'cat': 'mains',
-      'gradStart': Color(0xFFFEE2E2),
-      'gradEnd': Color(0xFFFECACA),
     },
     {
       'name': 'Curry Goat Plate',
       'desc': 'Tender curry goat, white rice & peas',
       'price': 1400,
-      'emoji': '🍛',
+      'imageUrl': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=300',
       'cat': 'mains',
-      'gradStart': Color(0xFFFEF9C3),
-      'gradEnd': Color(0xFFFEF08A),
+    },
+    {
+      'name': 'Rice & Peas Plate',
+      'desc': 'Jamaican staple — seasoned rice & kidney peas',
+      'price': 800,
+      'imageUrl': 'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=300',
+      'cat': 'mains',
     },
     {
       'name': 'Sorrel Punch',
       'desc': 'Iced, sweet, with ginger kick',
       'price': 350,
-      'emoji': '🥤',
+      'imageUrl': 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300',
       'cat': 'drinks',
-      'gradStart': Color(0xFFDCFCE7),
-      'gradEnd': Color(0xFFBBF7D0),
     },
   ];
 
@@ -109,14 +111,21 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     children: [
                       Padding(
                         padding: const EdgeInsets.fromLTRB(10, 11, 10, 4),
-                        child: Text(
-                          '🔥 MOST ORDERED',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.dark,
-                            letterSpacing: 0.5,
-                          ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.local_fire_department,
+                                size: 14, color: Color(0xFFEF4444)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'MOST ORDERED',
+                              style: GoogleFonts.montserrat(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.dark,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       ..._visibleItems.map((item) {
@@ -175,8 +184,19 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                 ),
               ),
             ),
-            const Center(
-              child: Text('🍗', style: TextStyle(fontSize: 68)),
+            Center(
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.15),
+                ),
+                child: const Center(
+                  child: Icon(Icons.restaurant,
+                      size: 44, color: Colors.white),
+                ),
+              ),
             ),
             Positioned(
               top: 10,
@@ -248,8 +268,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                         fontSize: 11, color: const Color(0xFFDDDDDD))),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEDFCF2),
                   borderRadius: BorderRadius.circular(16),
@@ -271,8 +290,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _tabs.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(width: 7),
+              separatorBuilder: (context, index) => const SizedBox(width: 7),
               itemBuilder: (context, i) {
                 final active = _selectedTab == i;
                 return GestureDetector(
@@ -329,23 +347,22 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  item['gradStart'] as Color,
-                  item['gradEnd'] as Color,
-                ],
+          ClipRRect(
+            borderRadius: BorderRadius.circular(11),
+            child: SizedBox(
+              width: 68,
+              height: 68,
+              child: CachedNetworkImage(
+                imageUrl: item['imageUrl'] as String,
+                fit: BoxFit.cover,
+                placeholder: (_, _) => _ShimmerBox(
+                    width: 68, height: 68, radius: 11),
+                errorWidget: (_, _, _) => Container(
+                  color: const Color(0xFFF0F0F0),
+                  child: const Icon(Icons.restaurant,
+                      size: 30, color: Color(0xFFBBBBBB)),
+                ),
               ),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Center(
-              child: Text(item['emoji'] as String,
-                  style: const TextStyle(fontSize: 32)),
             ),
           ),
           const SizedBox(width: 11),
@@ -375,7 +392,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '\$${_formatPrice(item['price'] as int)}',
+                      'J\$${_formatPrice(item['price'] as int)}',
                       style: GoogleFonts.montserrat(
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
@@ -510,7 +527,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     color: Colors.white),
               ),
               Text(
-                '\$${_formatPrice(_cartTotal)} →',
+                'J\$${_formatPrice(_cartTotal)} →',
                 style: GoogleFonts.montserrat(
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
@@ -528,5 +545,61 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       return '$thousands,${hundreds.toString().padLeft(3, '0')}';
     }
     return '$price';
+  }
+}
+
+class _ShimmerBox extends StatefulWidget {
+  final double width;
+  final double height;
+  final double radius;
+
+  const _ShimmerBox(
+      {required this.width, required this.height, required this.radius});
+
+  @override
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
+}
+
+class _ShimmerBoxState extends State<_ShimmerBox>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat();
+    _anim = Tween<double>(begin: -2.0, end: 2.0).animate(_ctrl);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, _) => Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(widget.radius),
+          gradient: LinearGradient(
+            begin: Alignment(_anim.value - 1, 0),
+            end: Alignment(_anim.value, 0),
+            colors: const [
+              Color(0xFFEEEEEE),
+              Color(0xFFDDDDDD),
+              Color(0xFFEEEEEE),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

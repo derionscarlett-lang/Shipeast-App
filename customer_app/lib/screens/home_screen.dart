@@ -14,7 +14,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedCategory = 0;
-  int _selectedNav = 0;
   String _userName = 'Marcus Brown';
   String? _avatarPath;
 
@@ -244,10 +243,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _goToProfile() {
     Navigator.pushNamed(context, '/profile').then((_) => _loadProfile());
-  }
-
-  void _goToSearch() {
-    Navigator.pushNamed(context, '/search');
   }
 
   void _showSnackbar(String msg) {
@@ -534,7 +529,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          _buildBottomNav(),
         ],
       ),
     );
@@ -617,7 +611,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 13),
               GestureDetector(
-                onTap: _goToSearch,
+                onTap: () => Navigator.pushNamed(context, '/search'),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 13, vertical: 10),
@@ -1088,60 +1082,4 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
-  Widget _buildBottomNav() {
-    const items = [
-      {'label': 'Home', 'icon': Icons.home},
-      {'label': 'Search', 'icon': Icons.search},
-      {'label': 'Orders', 'icon': Icons.inventory_2},
-      {'label': 'Profile', 'icon': Icons.person},
-    ];
-    return Container(
-      height: 60,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFEFEFEF))),
-      ),
-      child: Row(
-        children: List.generate(items.length, (i) {
-          final active = _selectedNav == i;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() => _selectedNav = i);
-                if (i == 1) _goToSearch();
-                if (i == 2) {
-                  Navigator.pushNamed(context, '/order-history');
-                }
-                if (i == 3) _goToProfile();
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    items[i]['icon'] as IconData,
-                    size: 22,
-                    color: active
-                        ? AppTheme.primary
-                        : const Color(0xFFC0C0C0),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    items[i]['label'] as String,
-                    style: GoogleFonts.nunito(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: active
-                          ? AppTheme.primary
-                          : const Color(0xFFC0C0C0),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
 }

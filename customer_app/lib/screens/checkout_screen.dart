@@ -74,6 +74,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           const SizedBox(height: 10),
                           _buildOrderSummaryCard(),
                           const SizedBox(height: 10),
+                          _buildAddMoreItemsButton(),
+                          const SizedBox(height: 10),
                           _buildChoosePaymentButton(),
                           const SizedBox(height: 12),
                         ],
@@ -316,6 +318,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 style: GoogleFonts.inter(
                     fontSize: 12, color: const Color(0xFF555555))),
           ],
+        ),
+      );
+
+  Widget _buildAddMoreItemsButton() => OutlinedButton.icon(
+        onPressed: () {
+          // Pop cart, then pop checkout back to merchant menu
+          Navigator.popUntil(context, (route) =>
+              route.settings.name == '/merchant' || route.isFirst);
+        },
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppTheme.primary,
+          side: const BorderSide(color: AppTheme.primary, width: 1.5),
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(13)),
+        ),
+        icon: const Icon(Icons.add_shopping_cart, size: 16),
+        label: Text(
+          'Add More Items',
+          style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w900),
         ),
       );
 
