@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../app_theme.dart';
-import 'dashboard_screen.dart';
 
 class DeliveryConfirmationScreen extends StatefulWidget {
   const DeliveryConfirmationScreen({super.key});
@@ -145,9 +144,9 @@ class _DeliveryConfirmationScreenState
             child: ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.pushAndRemoveUntil(
+                Navigator.pushNamedAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (_) => const DashboardScreen()),
+                  '/dashboard',
                   (route) => false,
                 );
               },

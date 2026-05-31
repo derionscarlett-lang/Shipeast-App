@@ -169,6 +169,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _showComingSoon(String feature) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          feature,
+          style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 16),
+        ),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.construction, color: AppTheme.primary, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'This feature is coming soon. Stay tuned for updates!',
+                style: AppTheme.body(color: AppTheme.textMid),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'OK',
+              style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w900, color: AppTheme.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAbout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppTheme.primary,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child:
+                  const Icon(Icons.local_shipping, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'About ShipEast',
+              style:
+                  GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 16),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'ShipEast Driver App',
+              style: GoogleFonts.montserrat(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  color: AppTheme.textDark),
+            ),
+            const SizedBox(height: 4),
+            Text('Version 1.0.0', style: AppTheme.body(color: AppTheme.textMid)),
+            const SizedBox(height: 12),
+            Text(
+              'Connecting drivers with customers across Jamaica. Fast, reliable, and seamless deliveries.',
+              style: AppTheme.body(color: AppTheme.textMid),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '© 2025 ShipEast. All rights reserved.',
+              style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textLight),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Close',
+              style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w900, color: AppTheme.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSignOutDialog() {
     showDialog(
       context: context,
@@ -672,30 +772,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Column(
           children: [
-            _settingsTile(Icons.notifications_outlined, 'Notifications'),
+            _settingsTile(Icons.notifications_outlined, 'Notifications',
+                () => _showComingSoon('Notifications')),
             const Divider(
                 height: 1, color: AppTheme.divider,
                 indent: 16, endIndent: 16),
-            _settingsTile(Icons.lock_outline, 'Privacy & Security'),
+            _settingsTile(Icons.lock_outline, 'Privacy & Security',
+                () => _showComingSoon('Privacy & Security')),
             const Divider(
                 height: 1, color: AppTheme.divider,
                 indent: 16, endIndent: 16),
-            _settingsTile(Icons.help_outline, 'Help & Support'),
+            _settingsTile(Icons.help_outline, 'Help & Support',
+                () => _showComingSoon('Help & Support')),
             const Divider(
                 height: 1, color: AppTheme.divider,
                 indent: 16, endIndent: 16),
-            _settingsTile(Icons.info_outline, 'About ShipEast'),
+            _settingsTile(Icons.info_outline, 'About ShipEast', _showAbout),
           ],
         ),
       );
 
-  Widget _settingsTile(IconData icon, String title) => ListTile(
+  Widget _settingsTile(IconData icon, String title, VoidCallback onTap) =>
+      ListTile(
         leading: Icon(icon, color: AppTheme.textMid, size: 22),
         title: Text(title,
             style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textDark)),
         trailing: const Icon(Icons.arrow_forward_ios,
             size: 14, color: AppTheme.textLight),
-        onTap: () {},
+        onTap: onTap,
       );
 
   Widget _buildSignOutTile() => Container(

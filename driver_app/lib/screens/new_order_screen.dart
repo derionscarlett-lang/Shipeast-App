@@ -346,7 +346,7 @@ class _NewOrderScreenState extends State<NewOrderScreen>
 
   Widget _buildTimerCard(Color timerColor) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -358,20 +358,32 @@ class _NewOrderScreenState extends State<NewOrderScreen>
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
+          Text(
+            'Accept before time expires',
+            style: GoogleFonts.montserrat(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.textDark,
+            ),
+          ),
+          const SizedBox(height: 16),
           SizedBox(
-            width: 80,
-            height: 80,
+            width: 140,
+            height: 140,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                CircularProgressIndicator(
-                  value: _remainingSeconds / 60.0,
-                  strokeWidth: 7,
-                  backgroundColor: const Color(0xFFEEEEEE),
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(timerColor),
+                SizedBox(
+                  width: 140,
+                  height: 140,
+                  child: CircularProgressIndicator(
+                    value: _remainingSeconds / 60.0,
+                    strokeWidth: 10,
+                    backgroundColor: const Color(0xFFEEEEEE),
+                    valueColor: AlwaysStoppedAnimation<Color>(timerColor),
+                  ),
                 ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
@@ -379,15 +391,18 @@ class _NewOrderScreenState extends State<NewOrderScreen>
                     Text(
                       '$_remainingSeconds',
                       style: GoogleFonts.montserrat(
-                        fontSize: 22,
+                        fontSize: 44,
                         fontWeight: FontWeight.w900,
                         color: timerColor,
+                        height: 1.0,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       'sec',
                       style: GoogleFonts.inter(
-                        fontSize: 10,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                         color: AppTheme.textMid,
                       ),
                     ),
@@ -396,41 +411,17 @@ class _NewOrderScreenState extends State<NewOrderScreen>
               ],
             ),
           ),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Accept before time expires',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                LinearProgressIndicator(
-                  value: _remainingSeconds / 60.0,
-                  backgroundColor: const Color(0xFFEEEEEE),
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(timerColor),
-                  minHeight: 6,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _remainingSeconds <= 10
-                      ? 'Expiring soon!'
-                      : 'Order will auto-expire if not accepted',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: _remainingSeconds <= 10
-                        ? Colors.orange
-                        : AppTheme.textMid,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 14),
+          Text(
+            _remainingSeconds <= 10
+                ? 'Expiring soon!'
+                : 'Order will auto-expire if not accepted',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight:
+                  _remainingSeconds <= 10 ? FontWeight.w700 : FontWeight.w400,
+              color:
+                  _remainingSeconds <= 10 ? Colors.orange : AppTheme.textMid,
             ),
           ),
         ],

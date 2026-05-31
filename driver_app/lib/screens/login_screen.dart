@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app_theme.dart';
-import 'dashboard_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -33,10 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
     await prefs.setBool('driver_logged_in', true);
     await prefs.setString('driver_name', 'Marcus Thompson');
     if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
-      );
+      Navigator.pushReplacementNamed(context, '/dashboard');
     }
   }
 

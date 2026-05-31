@@ -61,11 +61,11 @@ class _DriverShellState extends State<DriverShell> {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: const [
-          DashboardScreen(),
-          HistoryScreen(),
-          EarningsScreen(),
-          ProfileScreen(),
+        children: [
+          DashboardScreen(onTabSwitch: (i) => setState(() => _selectedIndex = i)),
+          const HistoryScreen(),
+          const EarningsScreen(),
+          const ProfileScreen(),
         ],
       ),
       bottomNavigationBar: Container(

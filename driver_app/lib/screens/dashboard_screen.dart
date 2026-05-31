@@ -5,7 +5,8 @@ import '../app_theme.dart';
 import 'new_order_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final void Function(int) onTabSwitch;
+  const DashboardScreen({super.key, required this.onTabSwitch});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -49,6 +50,41 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (h < 12) return 'Good morning';
     if (h < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Help & Support',
+          style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 16),
+        ),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.construction, color: AppTheme.primary, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Help & Support is coming soon. Stay tuned for updates!',
+                style: AppTheme.body(color: AppTheme.textMid),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'OK',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: AppTheme.primary),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _toggleOnline() {
@@ -550,32 +586,28 @@ class _DashboardScreenState extends State<DashboardScreen>
                     'View Earnings',
                     Icons.account_balance_wallet,
                     AppTheme.primary,
-                    () {
-                      // Switch to Earnings tab in the shell
-                      final scaffold = Scaffold.maybeOf(context);
-                      if (scaffold != null) scaffold.openDrawer();
-                    },
+                    () => widget.onTabSwitch(2),
                   ),
                   const SizedBox(height: 8),
                   _buildQuickActionCard(
                     'Delivery History',
                     Icons.history,
                     AppTheme.success,
-                    () {},
+                    () => widget.onTabSwitch(1),
                   ),
                   const SizedBox(height: 8),
                   _buildQuickActionCard(
                     'My Profile',
                     Icons.person,
                     const Color(0xFF1D4ED8),
-                    () {},
+                    () => widget.onTabSwitch(3),
                   ),
                   const SizedBox(height: 8),
                   _buildQuickActionCard(
                     'Help & Support',
                     Icons.headset_mic,
                     const Color(0xFF7C3AED),
-                    () {},
+                    _showHelpDialog,
                   ),
                   const SizedBox(height: 80),
                 ],
