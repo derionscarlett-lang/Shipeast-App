@@ -385,7 +385,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'J\$${_formatPrice(item['price'] as int)}',
+                      '\$${_formatPrice(item['price'] as int)}',
                       style: GoogleFonts.montserrat(
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
@@ -520,7 +520,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     color: Colors.white),
               ),
               Text(
-                'J\$${_formatPrice(_cartTotal)} →',
+                '\$${_formatPrice(_cartTotal)} →',
                 style: GoogleFonts.montserrat(
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
