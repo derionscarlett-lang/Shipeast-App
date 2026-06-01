@@ -16,56 +16,56 @@ class _EarningsScreenState extends State<EarningsScreen> {
 
   static const List<Map<String, dynamic>> _periodData = [
     {
-      'total': 'J\$3,750',
+      'total': '\$3,750',
       'deliveries': '6',
-      'avg': 'J\$625',
+      'avg': '\$625',
       'hours': '4h 32m',
       'bars': [25.0, 40.0, 35.0, 45.0, 38.0, 50.0, 62.5],
       'labels': ['10', '11', '12', '1', '2', '3', '4'],
       'barLabel': 'Hourly Breakdown',
-      'avgLabel': 'Avg J\$625/hr',
+      'avgLabel': 'Avg \$625/hr',
     },
     {
-      'total': 'J\$22,400',
+      'total': '\$22,400',
       'deliveries': '38',
-      'avg': 'J\$3,200',
+      'avg': '\$3,200',
       'hours': '31h 14m',
       'bars': [32.0, 45.0, 28.0, 52.0, 38.0, 47.0, 42.5],
       'labels': ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
       'barLabel': 'Daily Breakdown',
-      'avgLabel': 'Avg J\$3,200/day',
+      'avgLabel': 'Avg \$3,200/day',
     },
     {
-      'total': 'J\$89,500',
+      'total': '\$89,500',
       'deliveries': '152',
-      'avg': 'J\$22,375',
+      'avg': '\$22,375',
       'hours': '118h 40m',
       'bars': [55.0, 72.0, 63.0, 80.0],
       'labels': ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4'],
       'barLabel': 'Weekly Breakdown',
-      'avgLabel': 'Avg J\$22,375/week',
+      'avgLabel': 'Avg \$22,375/week',
     },
   ];
 
   static const List<List<Map<String, String>>> _periodTrips = [
     [
-      {'order': '#SE-2847', 'route': 'Kingston · 18 min', 'amount': 'J\$850'},
-      {'order': '#SE-2831', 'route': 'New Kingston · 22 min', 'amount': 'J\$1,000'},
-      {'order': '#SE-2819', 'route': 'Half Way Tree · 15 min', 'amount': 'J\$750'},
+      {'order': '#SE-2847', 'route': 'Kingston · 18 min', 'amount': '\$850'},
+      {'order': '#SE-2831', 'route': 'New Kingston · 22 min', 'amount': '\$1,000'},
+      {'order': '#SE-2819', 'route': 'Half Way Tree · 15 min', 'amount': '\$750'},
     ],
     [
-      {'order': '#SE-2847', 'route': 'Kingston · 18 min', 'amount': 'J\$850'},
-      {'order': '#SE-2831', 'route': 'New Kingston · 22 min', 'amount': 'J\$1,000'},
-      {'order': '#SE-2819', 'route': 'Half Way Tree · 15 min', 'amount': 'J\$750'},
-      {'order': '#SE-2804', 'route': 'Liguanea · 10 min', 'amount': 'J\$620'},
-      {'order': '#SE-2791', 'route': 'Barbican · 25 min', 'amount': 'J\$1,100'},
+      {'order': '#SE-2847', 'route': 'Kingston · 18 min', 'amount': '\$850'},
+      {'order': '#SE-2831', 'route': 'New Kingston · 22 min', 'amount': '\$1,000'},
+      {'order': '#SE-2819', 'route': 'Half Way Tree · 15 min', 'amount': '\$750'},
+      {'order': '#SE-2804', 'route': 'Liguanea · 10 min', 'amount': '\$620'},
+      {'order': '#SE-2791', 'route': 'Barbican · 25 min', 'amount': '\$1,100'},
     ],
     [
-      {'order': '#SE-2847', 'route': 'Kingston · 18 min', 'amount': 'J\$850'},
-      {'order': '#SE-2831', 'route': 'New Kingston · 22 min', 'amount': 'J\$1,000'},
-      {'order': '#SE-2819', 'route': 'Half Way Tree · 15 min', 'amount': 'J\$750'},
-      {'order': '#SE-2804', 'route': 'Liguanea · 10 min', 'amount': 'J\$620'},
-      {'order': '#SE-2791', 'route': 'Barbican · 25 min', 'amount': 'J\$1,100'},
+      {'order': '#SE-2847', 'route': 'Kingston · 18 min', 'amount': '\$850'},
+      {'order': '#SE-2831', 'route': 'New Kingston · 22 min', 'amount': '\$1,000'},
+      {'order': '#SE-2819', 'route': 'Half Way Tree · 15 min', 'amount': '\$750'},
+      {'order': '#SE-2804', 'route': 'Liguanea · 10 min', 'amount': '\$620'},
+      {'order': '#SE-2791', 'route': 'Barbican · 25 min', 'amount': '\$1,100'},
     ],
   ];
 
@@ -517,7 +517,7 @@ class _BarChartPainter extends CustomPainter {
 
     final maxLabelPainter = TextPainter(
       text: TextSpan(
-        text: 'J\$${maxVal.toStringAsFixed(0)}',
+        text: '\$${maxVal.toStringAsFixed(0)}',
         style: const TextStyle(
           color: AppTheme.textLight,
           fontSize: 9,

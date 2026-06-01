@@ -7,7 +7,8 @@ import '../app_theme.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final ValueNotifier<String> driverNameNotifier;
+  const ProfileScreen({super.key, required this.driverNameNotifier});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -91,6 +92,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isEditing = false;
       _isSaving = false;
     });
+    widget.driverNameNotifier.value = _name;
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Profile saved!',

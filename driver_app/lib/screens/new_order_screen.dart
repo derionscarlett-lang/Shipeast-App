@@ -169,7 +169,7 @@ class _NewOrderScreenState extends State<NewOrderScreen>
                 const SizedBox(width: 12),
                 Expanded(child: _buildStatCard(
                   Icons.attach_money, AppTheme.success,
-                  'J\$850', 'Earnings',
+                  '\$850', 'Earnings',
                 )),
                 const SizedBox(width: 12),
                 Expanded(child: _buildStatCard(
@@ -591,7 +591,7 @@ class _NewOrderScreenState extends State<NewOrderScreen>
               const Icon(Icons.payments,
                   color: AppTheme.textMid, size: 18),
               const SizedBox(width: 8),
-              Text('COD – Collect J\$1,250',
+              Text('COD – Collect \$1,250',
                   style: GoogleFonts.inter(
                       fontSize: 13, color: AppTheme.textDark)),
             ],

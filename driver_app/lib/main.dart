@@ -48,6 +48,21 @@ class DriverShell extends StatefulWidget {
 
 class _DriverShellState extends State<DriverShell> {
   int _selectedIndex = 0;
+  final ValueNotifier<String> _driverNameNotifier = ValueNotifier<String>('Driver');
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((prefs) {
+      _driverNameNotifier.value = prefs.getString('driver_name') ?? 'Driver';
+    });
+  }
+
+  @override
+  void dispose() {
+    _driverNameNotifier.dispose();
+    super.dispose();
+  }
 
   static const List<Map<String, dynamic>> _navItems = [
     {'label': 'Home', 'icon': Icons.home},
@@ -62,10 +77,13 @@ class _DriverShellState extends State<DriverShell> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          DashboardScreen(onTabSwitch: (i) => setState(() => _selectedIndex = i)),
+          DashboardScreen(
+            onTabSwitch: (i) => setState(() => _selectedIndex = i),
+            driverNameNotifier: _driverNameNotifier,
+          ),
           const HistoryScreen(),
           const EarningsScreen(),
-          const ProfileScreen(),
+          ProfileScreen(driverNameNotifier: _driverNameNotifier),
         ],
       ),
       bottomNavigationBar: Container(

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../app_theme.dart';
 import 'new_order_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final void Function(int) onTabSwitch;
-  const DashboardScreen({super.key, required this.onTabSwitch});
+  final ValueNotifier<String> driverNameNotifier;
+  const DashboardScreen({super.key, required this.onTabSwitch, required this.driverNameNotifier});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -16,14 +16,12 @@ class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   bool isOnline = false;
   bool _hasActiveOrder = false;
-  String _driverName = 'Driver';
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    _loadDriverData();
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -36,13 +34,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   void dispose() {
     _pulseController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadDriverData() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _driverName = prefs.getString('driver_name') ?? 'Driver';
-    });
   }
 
   String get _greeting {
@@ -472,12 +463,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                _driverName,
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
+                              ValueListenableBuilder<String>(
+                                valueListenable: widget.driverNameNotifier,
+                                builder: (_, name, _) => Text(
+                                  name,
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                               Text(
@@ -504,7 +498,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       child: Row(
                         children: [
-                          _buildStatItem('J\$3,750', "Today's Earnings"),
+                          _buildStatItem('\$3,750', "Today's Earnings"),
                           Container(
                               width: 1,
                               height: 30,
