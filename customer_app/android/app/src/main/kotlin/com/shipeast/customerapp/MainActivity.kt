@@ -1,13 +1,13 @@
-package com.shipeast.shipeast_customer
+package com.shipeast.customerapp
 
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 
 // Flutter regenerates GeneratedPluginRegistrant.java with `catch (Exception e)` only,
-// which silently swallows UnsatisfiedLinkError (a java.lang.Error) from JNI native
-// library loading failures, crashing the app. We register each plugin individually
-// here so a failure in one (e.g. jni) cannot prevent the rest from loading.
+// which does not catch UnsatisfiedLinkError (a java.lang.Error) from JNI native library
+// loading failures. We register each plugin individually with catch (Throwable) so a
+// failure in one plugin cannot prevent the rest from loading.
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         registerPlugin(flutterEngine, "flutter_plugin_android_lifecycle") {
