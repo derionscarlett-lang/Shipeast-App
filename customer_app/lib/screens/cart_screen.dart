@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -216,19 +215,7 @@ class _CartScreenState extends State<CartScreen> {
               child: SizedBox(
                 width: 52,
                 height: 52,
-                child: item['imageUrl'] != null
-                    ? CachedNetworkImage(
-                        imageUrl: item['imageUrl'] as String,
-                        fit: BoxFit.cover,
-                        placeholder: (_, _) => Container(
-                            color: const Color(0xFFEEEEEE)),
-                        errorWidget: (_, _, _) => Container(
-                          color: const Color(0xFFF0F0F0),
-                          child: const Icon(Icons.restaurant,
-                              size: 24, color: Color(0xFFBBBBBB)),
-                        ),
-                      )
-                    : Container(
+                child: Container(
                         color: const Color(0xFFF0F0F0),
                         child: const Icon(Icons.restaurant,
                             size: 24, color: Color(0xFFBBBBBB)),

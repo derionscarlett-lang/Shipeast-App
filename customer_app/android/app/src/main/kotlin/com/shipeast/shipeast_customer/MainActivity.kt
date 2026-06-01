@@ -25,9 +25,6 @@ class MainActivity : FlutterActivity() {
         registerPlugin(flutterEngine, "shared_preferences_android") {
             flutterEngine.plugins.add(io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin())
         }
-        registerPlugin(flutterEngine, "sqflite_android") {
-            flutterEngine.plugins.add(com.tekartik.sqflite.SqflitePlugin())
-        }
         registerPlugin(flutterEngine, "url_launcher_android") {
             flutterEngine.plugins.add(io.flutter.plugins.urllauncher.UrlLauncherPlugin())
         }

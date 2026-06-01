@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -352,16 +351,10 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
             child: SizedBox(
               width: 68,
               height: 68,
-              child: CachedNetworkImage(
-                imageUrl: item['imageUrl'] as String,
-                fit: BoxFit.cover,
-                placeholder: (_, _) => _ShimmerBox(
-                    width: 68, height: 68, radius: 11),
-                errorWidget: (_, _, _) => Container(
-                  color: const Color(0xFFF0F0F0),
-                  child: const Icon(Icons.restaurant,
-                      size: 30, color: Color(0xFFBBBBBB)),
-                ),
+              child: Container(
+                color: const Color(0xFFF0F0F0),
+                child: const Icon(Icons.restaurant,
+                    size: 30, color: Color(0xFFBBBBBB)),
               ),
             ),
           ),
