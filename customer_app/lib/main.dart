@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'firebase_options.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/splash_screen.dart';
@@ -22,9 +23,22 @@ import 'screens/search_screen.dart';
 import 'screens/help_support_screen.dart';
 import 'theme/app_theme.dart';
 
+Future<void> _initFirebase() async {
+  for (int attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform);
+      return;
+    } catch (e) {
+      if (attempt == 5) rethrow;
+      await Future<void>.delayed(Duration(milliseconds: 200 * attempt));
+    }
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await _initFirebase();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const ShipEastApp());
 }

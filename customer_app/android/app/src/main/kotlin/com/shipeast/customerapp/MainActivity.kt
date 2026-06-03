@@ -10,6 +10,22 @@ import io.flutter.embedding.engine.FlutterEngine
 // failure in one plugin cannot prevent the rest from loading.
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        // Firebase Core must be registered first — other Firebase plugins depend on it.
+        registerPlugin(flutterEngine, "firebase_core") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.core.FlutterFirebaseCorePlugin())
+        }
+        registerPlugin(flutterEngine, "firebase_auth") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.auth.FlutterFirebaseAuthPlugin())
+        }
+        registerPlugin(flutterEngine, "cloud_firestore") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.firestore.FlutterFirebaseFirestorePlugin())
+        }
+        registerPlugin(flutterEngine, "firebase_storage") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.storage.FlutterFirebaseStoragePlugin())
+        }
+        registerPlugin(flutterEngine, "firebase_messaging") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingPlugin())
+        }
         registerPlugin(flutterEngine, "flutter_plugin_android_lifecycle") {
             flutterEngine.plugins.add(io.flutter.plugins.flutter_plugin_android_lifecycle.FlutterAndroidLifecyclePlugin())
         }
