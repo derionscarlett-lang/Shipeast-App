@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../app_theme.dart';
 import 'register_screen.dart';
+import 'pending_approval_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,14 +27,67 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  String _authErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No account found with this email.';
+      case 'wrong-password':
+        return 'Incorrect password.';
+      case 'invalid-email':
+        return 'Invalid email address.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'invalid-credential':
+        return 'Invalid email or password.';
+      default:
+        return 'Sign in failed. Please try again.';
+    }
+  }
+
   Future<void> _signIn() async {
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email and password')),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('driver_logged_in', true);
-    await prefs.setString('driver_name', 'Marcus Thompson');
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
+    try {
+      final credential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      final uid = credential.user!.uid;
+      final doc = await FirebaseFirestore.instance
+          .collection('drivers')
+          .doc(uid)
+          .get();
+      if (!mounted) return;
+      final status = doc.data()?['status'] as String? ?? 'pending';
+      if (status == 'approved') {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
+          (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_authErrorMessage(e.code)),
+        backgroundColor: AppTheme.primary,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Sign in failed. Please try again.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -129,18 +184,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        // Phone/Email field
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           style: AppTheme.body(),
                           decoration: AppTheme.inputDecoration(
-                            'Phone / Email',
-                            Icons.phone_outlined,
+                            'Email',
+                            Icons.email_outlined,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        // Password field
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
@@ -163,7 +216,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        // Forgot password
                         Align(
                           alignment: Alignment.centerRight,
                           child: GestureDetector(
@@ -179,7 +231,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        // Sign In button
                         SizedBox(
                           width: double.infinity,
                           height: 52,
@@ -207,7 +258,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        // Register link
                         Center(
                           child: GestureDetector(
                             onTap: () {

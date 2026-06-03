@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -53,15 +55,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('drivers')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        setState(() {
+          _name = data['name'] as String? ?? 'Driver';
+          _phone = data['phone'] as String? ?? '';
+          _email = data['email'] as String? ?? '';
+          _vehicle = data['vehicleType'] as String? ?? 'Motorcycle';
+          _licence = data['licencePlate'] as String? ?? '';
+        });
+      }
+    } catch (_) {}
+    // Image path stored locally only
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _name = prefs.getString('driver_name') ?? 'Driver';
-      _phone = prefs.getString('driver_phone') ?? '+1 876 000 0000';
-      _email = prefs.getString('driver_email') ?? 'driver@shipeast.com';
-      _vehicle = prefs.getString('driver_vehicle') ?? 'Motorcycle';
-      _licence = prefs.getString('driver_licence') ?? 'ABC 1234';
-      _imagePath = prefs.getString('driver_avatar');
-    });
+    if (mounted) {
+      setState(() => _imagePath = prefs.getString('driver_avatar'));
+    }
   }
 
   void _startEditing() {
@@ -76,13 +92,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _saveProfile() async {
     if (_nameCtrl.text.trim().isEmpty) return;
     setState(() => _isSaving = true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('driver_name', _nameCtrl.text.trim());
-    await prefs.setString('driver_phone', _phoneCtrl.text.trim());
-    await prefs.setString('driver_email', _emailCtrl.text.trim());
-    await prefs.setString('driver_vehicle', _editVehicle);
-    await prefs.setString('driver_licence', _licenceCtrl.text.trim());
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('drivers')
+            .doc(user.uid)
+            .update({
+          'name': _nameCtrl.text.trim(),
+          'phone': _phoneCtrl.text.trim(),
+          'email': _emailCtrl.text.trim(),
+          'vehicleType': _editVehicle,
+          'licencePlate': _licenceCtrl.text.trim(),
+        });
+      } catch (_) {}
+    }
     setState(() {
       _name = _nameCtrl.text.trim();
       _phone = _phoneCtrl.text.trim();
@@ -107,8 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickPhoto(ImageSource source) async {
     final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: source, imageQuality: 85);
+    final picked = await picker.pickImage(source: source, imageQuality: 85);
     if (picked != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('driver_avatar', picked.path);
@@ -160,8 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _signOut() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('driver_logged_in');
+    await FirebaseAuth.instance.signOut();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -500,16 +522,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               _infoRow(Icons.phone, 'Phone', _phone),
               const Divider(
-                  height: 1, color: AppTheme.divider,
-                  indent: 16, endIndent: 16),
+                  height: 1,
+                  color: AppTheme.divider,
+                  indent: 16,
+                  endIndent: 16),
               _infoRow(Icons.email_outlined, 'Email', _email),
               const Divider(
-                  height: 1, color: AppTheme.divider,
-                  indent: 16, endIndent: 16),
+                  height: 1,
+                  color: AppTheme.divider,
+                  indent: 16,
+                  endIndent: 16),
               _infoRow(Icons.two_wheeler, 'Vehicle', _vehicle),
               const Divider(
-                  height: 1, color: AppTheme.divider,
-                  indent: 16, endIndent: 16),
+                  height: 1,
+                  color: AppTheme.divider,
+                  indent: 16,
+                  endIndent: 16),
               _infoRow(Icons.credit_card_outlined, 'Licence Plate', _licence),
             ],
           ),
@@ -777,18 +805,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _settingsTile(Icons.notifications_outlined, 'Notifications',
                 () => _showComingSoon('Notifications')),
             const Divider(
-                height: 1, color: AppTheme.divider,
-                indent: 16, endIndent: 16),
+                height: 1,
+                color: AppTheme.divider,
+                indent: 16,
+                endIndent: 16),
             _settingsTile(Icons.lock_outline, 'Privacy & Security',
                 () => _showComingSoon('Privacy & Security')),
             const Divider(
-                height: 1, color: AppTheme.divider,
-                indent: 16, endIndent: 16),
+                height: 1,
+                color: AppTheme.divider,
+                indent: 16,
+                endIndent: 16),
             _settingsTile(Icons.help_outline, 'Help & Support',
                 () => _showComingSoon('Help & Support')),
             const Divider(
-                height: 1, color: AppTheme.divider,
-                indent: 16, endIndent: 16),
+                height: 1,
+                color: AppTheme.divider,
+                indent: 16,
+                endIndent: 16),
             _settingsTile(Icons.info_outline, 'About ShipEast', _showAbout),
           ],
         ),

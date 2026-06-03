@@ -1,28 +1,60 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'app_theme.dart';
+import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/earnings_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/history_screen.dart';
+import 'screens/pending_approval_screen.dart';
+
+Future<void> _initFirebase() async {
+  for (int attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform);
+      return;
+    } catch (e) {
+      if (attempt == 5) rethrow;
+      await Future<void>.delayed(Duration(milliseconds: 200 * attempt));
+    }
+  }
+}
+
+Future<Widget> _resolveHome() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return const LoginScreen();
+  try {
+    final doc = await FirebaseFirestore.instance
+        .collection('drivers')
+        .doc(user.uid)
+        .get();
+    if (doc.exists && doc.data()?['status'] == 'approved') {
+      return const DriverShell();
+    }
+  } catch (_) {}
+  return const PendingApprovalScreen();
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _initFirebase();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
-  final prefs = await SharedPreferences.getInstance();
-  final isLoggedIn = prefs.getBool('driver_logged_in') ?? false;
-  runApp(ShipEastDriverApp(initialRoute: isLoggedIn ? '/dashboard' : '/login'));
+  final home = await _resolveHome();
+  runApp(ShipEastDriverApp(home: home));
 }
 
 class ShipEastDriverApp extends StatelessWidget {
-  final String initialRoute;
-  const ShipEastDriverApp({super.key, required this.initialRoute});
+  final Widget home;
+  const ShipEastDriverApp({super.key, required this.home});
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +62,7 @@ class ShipEastDriverApp extends StatelessWidget {
       title: 'ShipEast Driver',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.buildTheme(),
-      initialRoute: initialRoute,
+      home: home,
       routes: {
         '/login': (_) => const LoginScreen(),
         '/dashboard': (_) => const DriverShell(),
@@ -48,14 +80,28 @@ class DriverShell extends StatefulWidget {
 
 class _DriverShellState extends State<DriverShell> {
   int _selectedIndex = 0;
-  final ValueNotifier<String> _driverNameNotifier = ValueNotifier<String>('Driver');
+  final ValueNotifier<String> _driverNameNotifier =
+      ValueNotifier<String>('Driver');
 
   @override
   void initState() {
     super.initState();
-    SharedPreferences.getInstance().then((prefs) {
-      _driverNameNotifier.value = prefs.getString('driver_name') ?? 'Driver';
-    });
+    _loadDriverName();
+  }
+
+  Future<void> _loadDriverName() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('drivers')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && mounted) {
+        _driverNameNotifier.value =
+            doc.data()?['name'] as String? ?? 'Driver';
+      }
+    } catch (_) {}
   }
 
   @override

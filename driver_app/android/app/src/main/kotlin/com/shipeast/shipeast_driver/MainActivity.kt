@@ -1,5 +1,53 @@
 package com.shipeast.shipeast_driver
 
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
 
-class MainActivity : FlutterActivity()
+// Flutter regenerates GeneratedPluginRegistrant.java with `catch (Exception e)` only,
+// which does not catch UnsatisfiedLinkError (a java.lang.Error) from JNI native library
+// loading failures. We register each plugin individually with catch (Throwable) so a
+// failure in one plugin cannot prevent the rest from loading.
+class MainActivity : FlutterActivity() {
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        // Firebase Core must be registered first — other Firebase plugins depend on it.
+        registerPlugin(flutterEngine, "firebase_core") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.core.FlutterFirebaseCorePlugin())
+        }
+        registerPlugin(flutterEngine, "firebase_auth") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.auth.FlutterFirebaseAuthPlugin())
+        }
+        registerPlugin(flutterEngine, "cloud_firestore") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.firestore.FlutterFirebaseFirestorePlugin())
+        }
+        registerPlugin(flutterEngine, "firebase_storage") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.storage.FlutterFirebaseStoragePlugin())
+        }
+        registerPlugin(flutterEngine, "firebase_messaging") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingPlugin())
+        }
+        registerPlugin(flutterEngine, "flutter_plugin_android_lifecycle") {
+            flutterEngine.plugins.add(io.flutter.plugins.flutter_plugin_android_lifecycle.FlutterAndroidLifecyclePlugin())
+        }
+        registerPlugin(flutterEngine, "image_picker_android") {
+            flutterEngine.plugins.add(io.flutter.plugins.imagepicker.ImagePickerPlugin())
+        }
+        registerPlugin(flutterEngine, "jni") {
+            flutterEngine.plugins.add(com.github.dart_lang.jni.JniPlugin())
+        }
+        registerPlugin(flutterEngine, "jni_flutter") {
+            flutterEngine.plugins.add(com.github.dart_lang.jni_flutter.JniFlutterPlugin())
+        }
+        registerPlugin(flutterEngine, "shared_preferences_android") {
+            flutterEngine.plugins.add(io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin())
+        }
+    }
+
+    private fun registerPlugin(flutterEngine: FlutterEngine, name: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (t: Throwable) {
+            Log.e("ShipEast", "Plugin $name failed to register: ${t.javaClass.simpleName}: ${t.message}", t)
+        }
+    }
+}

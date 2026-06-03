@@ -1,6 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../app_theme.dart';
 import 'pending_approval_screen.dart';
 
@@ -45,6 +46,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  String _authErrorMessage(String code) {
+    switch (code) {
+      case 'email-already-in-use':
+        return 'An account already exists with this email.';
+      case 'invalid-email':
+        return 'Invalid email address.';
+      case 'weak-password':
+        return 'Password is too weak (minimum 6 characters).';
+      default:
+        return 'Registration failed. Please try again.';
+    }
+  }
+
   Future<void> _createAccount() async {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -52,22 +66,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       return;
     }
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 1000));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('driver_name', _nameController.text.trim());
-    await prefs.setString('driver_phone', _phoneController.text.trim());
-    await prefs.setString('driver_email', _emailController.text.trim());
-    await prefs.setString('driver_vehicle', _selectedVehicle);
-    await prefs.setString('driver_licence', _licencePlateController.text.trim());
-    await prefs.setString('driver_licence_number', _licenceNumberController.text.trim());
-    // Note: driver_logged_in is NOT set — pending approval
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
-        (route) => false,
+    if (_emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email')),
       );
+      return;
+    }
+    if (_passwordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Password must be at least 6 characters')),
+      );
+      return;
+    }
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match')),
+      );
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final credential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      final uid = credential.user!.uid;
+      await FirebaseFirestore.instance.collection('drivers').doc(uid).set({
+        'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'email': _emailController.text.trim(),
+        'vehicleType': _selectedVehicle,
+        'licencePlate': _licencePlateController.text.trim(),
+        'licenceNumber': _licenceNumberController.text.trim(),
+        'status': 'pending',
+        'isOnline': false,
+        'rating': 5.0,
+        'totalTrips': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
+          (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_authErrorMessage(e.code)),
+        backgroundColor: AppTheme.primary,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Registration failed: $e'),
+      ));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -134,7 +192,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextFormField(
                 controller: _nameController,
                 style: AppTheme.body(),
-                decoration: AppTheme.inputDecoration('Full Name', Icons.person_outline),
+                decoration:
+                    AppTheme.inputDecoration('Full Name', Icons.person_outline),
               ),
               const SizedBox(height: 12),
 
@@ -143,8 +202,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 style: AppTheme.body(),
-                decoration:
-                    AppTheme.inputDecoration('Phone Number', Icons.phone_outlined),
+                decoration: AppTheme.inputDecoration(
+                    'Phone Number', Icons.phone_outlined),
               ),
               const SizedBox(height: 12),
 
@@ -163,8 +222,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 style: AppTheme.body(),
-                decoration: AppTheme.inputDecoration('Password', Icons.lock_outline)
-                    .copyWith(
+                decoration:
+                    AppTheme.inputDecoration('Password', Icons.lock_outline)
+                        .copyWith(
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -185,9 +245,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirmPassword,
                 style: AppTheme.body(),
-                decoration:
-                    AppTheme.inputDecoration('Confirm Password', Icons.lock_outline)
-                        .copyWith(
+                decoration: AppTheme.inputDecoration(
+                        'Confirm Password', Icons.lock_outline)
+                    .copyWith(
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureConfirmPassword
@@ -196,8 +256,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: AppTheme.textLight,
                       size: 20,
                     ),
-                    onPressed: () => setState(() =>
-                        _obscureConfirmPassword = !_obscureConfirmPassword),
+                    onPressed: () => setState(
+                        () => _obscureConfirmPassword = !_obscureConfirmPassword),
                   ),
                 ),
               ),
@@ -279,9 +339,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextFormField(
                 controller: _licenceNumberController,
                 style: AppTheme.body(),
-                decoration:
-                    AppTheme.inputDecoration('Licence Number', Icons.badge_outlined)
-                        .copyWith(hintText: 'DL-XXXXXXXX'),
+                decoration: AppTheme.inputDecoration(
+                        'Licence Number', Icons.badge_outlined)
+                    .copyWith(hintText: 'DL-XXXXXXXX'),
               ),
               const SizedBox(height: 24),
 
