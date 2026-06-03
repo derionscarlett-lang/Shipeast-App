@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -32,7 +33,11 @@ class _SplashScreenState extends State<SplashScreen>
     _progressCtrl.forward();
     _progressCtrl.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {
-        Navigator.pushReplacementNamed(context, '/welcome');
+        final user = FirebaseAuth.instance.currentUser;
+        Navigator.pushReplacementNamed(
+          context,
+          user != null ? '/home' : '/welcome',
+        );
       }
     });
   }

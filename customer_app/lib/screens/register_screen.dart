@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -16,6 +18,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _passwordVisible = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -33,6 +36,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _showSnackbar(String msg, {Color? color}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+      backgroundColor: color ?? AppTheme.primary,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      duration: const Duration(seconds: 3),
+    ));
+  }
+
+  Future<void> _handleRegister() async {
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final email = _emailController.text.trim();
+    final pass = _passwordController.text.trim();
+
+    if (name.isEmpty || phone.isEmpty || email.isEmpty || pass.isEmpty) {
+      _showSnackbar('Please fill in all fields', color: const Color(0xFFDC2626));
+      return;
+    }
+    if (pass.length < 6) {
+      _showSnackbar('Password must be at least 6 characters',
+          color: const Color(0xFFDC2626));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(cred.user!.uid)
+          .set({
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) Navigator.pushReplacementNamed(context, '/home');
+    } on FirebaseAuthException catch (e) {
+      _showSnackbar(e.message ?? 'Registration failed. Please try again.',
+          color: const Color(0xFFDC2626));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -144,8 +197,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 14),
                     ElevatedButton(
-                      onPressed: () =>
-                          Navigator.pushReplacementNamed(context, '/home'),
+                      onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,
@@ -154,11 +206,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             borderRadius: BorderRadius.circular(13)),
                         elevation: 0,
                       ),
-                      child: Text(
-                        'Create My Account →',
-                        style: GoogleFonts.nunito(
-                            fontSize: 14, fontWeight: FontWeight.w900),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : Text(
+                              'Create My Account →',
+                              style: GoogleFonts.nunito(
+                                  fontSize: 14, fontWeight: FontWeight.w900),
+                            ),
                     ),
                     const SizedBox(height: 13),
                     GestureDetector(

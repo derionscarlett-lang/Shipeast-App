@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,15 +19,11 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-
-  String _name = 'Marcus Brown';
-  String _phone = '+1 876 432 1987';
-  String _email = 'marcus@email.com';
+  String _name = '';
+  String _phone = '';
+  String _email = '';
   String? _imagePath;
 
-  static const _keyName = 'shipeast_user_name';
-  static const _keyPhone = 'shipeast_user_phone';
-  static const _keyEmail = 'shipeast_user_email';
   static const _keyAvatar = 'shipeast_avatar_path';
 
   @override
@@ -39,21 +37,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _email = user.email ?? '';
+
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _name = prefs.getString(_keyName) ?? 'Marcus Brown';
-      _phone = prefs.getString(_keyPhone) ?? '+1 876 432 1987';
-      _email = prefs.getString(_keyEmail) ?? 'marcus@email.com';
-      _imagePath = prefs.getString(_keyAvatar);
-    });
+    final avatarPath = prefs.getString(_keyAvatar);
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        setState(() {
+          _name = data['name'] as String? ?? '';
+          _phone = data['phone'] as String? ?? '';
+          _email = data['email'] as String? ?? user.email ?? '';
+          _imagePath = avatarPath;
+        });
+      } else if (mounted) {
+        setState(() => _imagePath = avatarPath);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _imagePath = avatarPath);
+    }
   }
 
-  Future<void> _saveProfile(
-      String name, String phone, String email) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyName, name);
-    await prefs.setString(_keyPhone, phone);
-    await prefs.setString(_keyEmail, email);
+  Future<void> _saveProfile(String name, String phone, String email) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'name': name,
+      'phone': phone,
+      'email': email,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
     setState(() {
       _name = name;
       _phone = phone;
@@ -71,6 +94,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyAvatar, picked.path);
       setState(() => _imagePath = picked.path);
+    }
+  }
+
+  Future<void> _handleSignOut() async {
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
     }
   }
 
@@ -210,7 +240,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -310,7 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _name,
+                    _name.isNotEmpty ? _name : 'ShipEast User',
                     style: GoogleFonts.montserrat(
                       fontSize: 17,
                       fontWeight: FontWeight.w900,
@@ -318,14 +347,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    _phone,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontWeight: FontWeight.w500,
+                  if (_phone.isNotEmpty)
+                    Text(
+                      _phone,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
                   if (_email.isNotEmpty) ...[
                     const SizedBox(height: 1),
                     Text(
@@ -584,8 +614,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildSignOutButton(BuildContext context) => GestureDetector(
-        onTap: () => Navigator.pushNamedAndRemoveUntil(
-            context, '/welcome', (route) => false),
+        onTap: _handleSignOut,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
@@ -614,5 +643,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       );
-
 }

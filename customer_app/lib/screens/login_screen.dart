@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,9 +12,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _passwordVisible = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -26,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -37,24 +39,32 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: color ?? AppTheme.primary,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 3),
     ));
   }
 
-  void _handleLogin() {
-    final phone = _phoneController.text.trim();
+  Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
     final pass = _passwordController.text.trim();
-    if (phone.isEmpty || pass.isEmpty) {
-      _showSnackbar('Please fill in all fields',
-          color: const Color(0xFFDC2626));
+    if (email.isEmpty || pass.isEmpty) {
+      _showSnackbar('Please fill in all fields', color: const Color(0xFFDC2626));
       return;
     }
-    if (pass.length < 4) {
-      _showSnackbar('Invalid phone/email or password',
-          color: const Color(0xFFDC2626));
-      return;
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+      if (mounted) Navigator.pushReplacementNamed(context, '/home');
+    } on FirebaseAuthException catch (e) {
+      _showSnackbar(
+        e.message ?? 'Login failed. Please try again.',
+        color: const Color(0xFFDC2626),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-    Navigator.pushReplacementNamed(context, '/home');
   }
 
   @override
@@ -112,11 +122,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           fontSize: 12, color: const Color(0xFF888888)),
                     ),
                     const SizedBox(height: 22),
-                    _buildLabel('PHONE OR EMAIL'),
+                    _buildLabel('EMAIL ADDRESS'),
                     const SizedBox(height: 5),
                     _buildTextField(
-                      controller: _phoneController,
-                      hint: 'your@email.com or phone',
+                      controller: _emailController,
+                      hint: 'your@email.com',
                       isActive: true,
                       keyboardType: TextInputType.emailAddress,
                     ),
@@ -143,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     ElevatedButton(
-                      onPressed: _handleLogin,
+                      onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,
@@ -152,11 +162,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(13)),
                         elevation: 0,
                       ),
-                      child: Text(
-                        'Sign In →',
-                        style: GoogleFonts.nunito(
-                            fontSize: 14, fontWeight: FontWeight.w900),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : Text(
+                              'Sign In →',
+                              style: GoogleFonts.nunito(
+                                  fontSize: 14, fontWeight: FontWeight.w900),
+                            ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 14),
