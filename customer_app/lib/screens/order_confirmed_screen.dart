@@ -23,14 +23,12 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
 
   String _orderId = '';
   String _merchantName = '';
-  List<Map<String, dynamic>> _items = const [
-    {'name': 'Full Jerk Chicken', 'qty': 1, 'price': 1200},
-    {'name': 'Sorrel Punch', 'qty': 1, 'price': 350},
-  ];
-  int _subtotal = 1550;
-  int _deliveryFee = 250;
-  int _serviceFee = 125;
-  int _total = 1925;
+  String _deliveryAddress = '';
+  List<Map<String, dynamic>> _items = const [];
+  int _subtotal = 0;
+  int _deliveryFee = 0;
+  int _serviceFee = 0;
+  int _total = 0;
   bool _argsLoaded = false;
 
   @override
@@ -71,10 +69,11 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
       if (args != null) {
         _orderId = args['orderId'] as String? ?? '';
         _merchantName = args['merchantName'] as String? ?? '';
-        _subtotal = args['subtotal'] as int? ?? 1550;
-        _deliveryFee = args['deliveryFee'] as int? ?? 250;
-        _serviceFee = args['serviceFee'] as int? ?? 125;
-        _total = args['total'] as int? ?? 1925;
+        _deliveryAddress = args['deliveryAddress'] as String? ?? '';
+        _subtotal = args['subtotal'] as int? ?? 0;
+        _deliveryFee = args['deliveryFee'] as int? ?? 0;
+        _serviceFee = args['serviceFee'] as int? ?? 0;
+        _total = args['total'] as int? ?? 0;
         final rawItems = args['items'] as List?;
         if (rawItems != null && rawItems.isNotEmpty) {
           _items = rawItems
@@ -280,7 +279,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '14 Yallahs Main Road, St. Thomas',
+                            _deliveryAddress.isNotEmpty ? _deliveryAddress : 'No address provided',
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               color: const Color(0xFF555555),
@@ -296,8 +295,9 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                     const SizedBox(height: 18),
                     // Track button
                     ElevatedButton(
-                      onPressed: () =>
-                          Navigator.pushNamed(context, '/order-status'),
+                      onPressed: () => Navigator.pushNamed(
+                          context, '/order-status',
+                          arguments: {'orderId': _orderId}),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,

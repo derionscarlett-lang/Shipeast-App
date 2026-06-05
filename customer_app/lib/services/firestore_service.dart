@@ -184,6 +184,10 @@ class FirestoreService {
           .map((s) =>
               s.exists ? <String, dynamic>{'id': s.id, ...s.data()!} : null);
 
+  static Stream<Map<String, dynamic>?> watchDriver(String driverId) =>
+      _db.collection('drivers').doc(driverId).snapshots().map(
+          (s) => s.exists ? <String, dynamic>{'id': s.id, ...s.data()!} : null);
+
   // ─── Addresses ───────────────────────────────────────────────────────────────
 
   static Stream<List<Map<String, dynamic>>> addressStream(String uid) =>
@@ -205,15 +209,7 @@ class FirestoreService {
           });
 
   static Future<List<Map<String, dynamic>>> getAddressesOnce(String uid) async {
-    final snap =
-        await _db.collection('users').doc(uid).collection('addresses').get();
-    if (snap.docs.isEmpty) {
-      await addAddress(uid, 'Home', '14 Yallahs Main Road, St. Thomas');
-      await addAddress(uid, 'Work', '45 King Street, Kingston');
-      final snap2 =
-          await _db.collection('users').doc(uid).collection('addresses').get();
-      return _sortedAddresses(snap2.docs);
-    }
+    final snap = await _db.collection('users').doc(uid).collection('addresses').get();
     return _sortedAddresses(snap.docs);
   }
 
@@ -260,6 +256,20 @@ class FirestoreService {
           s.exists ? <String, dynamic>{'id': s.id, ...s.data()!} : null);
 
   // ─── Rating ──────────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>?> validatePromoCode(String code) async {
+    try {
+      final doc = await _db.collection('promoCodes').doc(code.toUpperCase()).get();
+      if (!doc.exists) return null;
+      final data = doc.data()!;
+      if (data['active'] != true) return null;
+      final expiresAt = data['expiresAt'] as Timestamp?;
+      if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) return null;
+      return {'id': doc.id, ...data};
+    } catch (_) {
+      return null;
+    }
+  }
 
   static Future<void> submitRating({
     required String orderId,

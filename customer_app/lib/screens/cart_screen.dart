@@ -16,7 +16,6 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   final _instructionsController = TextEditingController();
-  static const int _serviceFee = 275;
 
   @override
   void initState() {
@@ -48,7 +47,8 @@ class _CartScreenState extends State<CartScreen> {
     final items = cart.itemList;
     final subtotal = cart.cartTotal;
     final deliveryFee = cart.deliveryFeeAmount;
-    final total = subtotal + deliveryFee + _serviceFee;
+    final serviceFee = (subtotal * 0.1).round();
+    final total = subtotal + deliveryFee + serviceFee;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
@@ -89,9 +89,9 @@ class _CartScreenState extends State<CartScreen> {
                           _buildAddMoreButton(),
                           const SizedBox(height: 8),
                           _buildInstructionsCard(),
-                          _buildSummaryCard(subtotal, deliveryFee, total),
+                          _buildSummaryCard(subtotal, deliveryFee, serviceFee, total),
                           const SizedBox(height: 8),
-                          _buildCheckoutButton(cart, subtotal, deliveryFee, total),
+                          _buildCheckoutButton(cart, subtotal, deliveryFee, serviceFee, total),
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -342,7 +342,7 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
 
-  Widget _buildSummaryCard(int subtotal, int deliveryFee, int total) =>
+  Widget _buildSummaryCard(int subtotal, int deliveryFee, int serviceFee, int total) =>
       Container(
         margin: const EdgeInsets.only(bottom: 0),
         padding: const EdgeInsets.all(13),
@@ -362,7 +362,7 @@ class _CartScreenState extends State<CartScreen> {
             _summaryRow('Subtotal', _formatPrice(subtotal)),
             _summaryRow('Delivery fee',
                 deliveryFee == 0 ? 'Free' : _formatPrice(deliveryFee)),
-            _summaryRow('Service fee', _formatPrice(_serviceFee)),
+            _summaryRow('Service fee', _formatPrice(serviceFee)),
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.only(top: 9),
@@ -417,7 +417,7 @@ class _CartScreenState extends State<CartScreen> {
       );
 
   Widget _buildCheckoutButton(
-          CartProvider cart, int subtotal, int deliveryFee, int total) =>
+          CartProvider cart, int subtotal, int deliveryFee, int serviceFee, int total) =>
       GestureDetector(
         onTap: () => Navigator.pushNamed(context, '/checkout', arguments: {
           'merchantId': cart.merchantId,
@@ -425,7 +425,7 @@ class _CartScreenState extends State<CartScreen> {
           'items': cart.toOrderItems(),
           'subtotal': subtotal,
           'deliveryFee': deliveryFee,
-          'serviceFee': _serviceFee,
+          'serviceFee': serviceFee,
           'total': total,
         }),
         child: Container(

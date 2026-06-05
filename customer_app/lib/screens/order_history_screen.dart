@@ -89,24 +89,18 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     if (createdAt == null) return '';
     try {
       final dt = (createdAt as Timestamp).toDate();
-      final now = DateTime.now();
-      final diff = now.difference(dt);
-      if (diff.inDays == 0) {
-        final h = dt.hour.toString().padLeft(2, '0');
-        final m = dt.minute.toString().padLeft(2, '0');
-        return 'Today, $h:$m';
-      }
-      if (diff.inDays == 1) return 'Yesterday';
-      return '${_monthName(dt.month)} ${dt.day}, ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      const months = ['', 'January', 'February', 'March', 'April', 'May',
+          'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      final month = months[dt.month];
+      final day = dt.day;
+      final year = dt.year;
+      final hour12 = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final ampm = dt.hour < 12 ? 'AM' : 'PM';
+      return '$month $day, $year at $hour12:$minute $ampm';
     } catch (_) {
       return '';
     }
-  }
-
-  String _monthName(int m) {
-    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[m];
   }
 
   String _itemsLabel(List<dynamic> items) {
