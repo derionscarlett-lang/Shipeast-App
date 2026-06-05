@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../app_theme.dart';
 import '../services/driver_firestore_service.dart';
 import 'new_order_screen.dart';
+import 'pickup_confirmation_screen.dart';
+import 'delivery_confirmation_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final void Function(int) onTabSwitch;
@@ -22,6 +24,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool isOnline = false;
   int _todayEarnings = 0;
   int _todayDeliveries = 0;
+  Map<String, dynamic>? _activeOrder;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -29,6 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   StreamSubscription<List<Map<String, dynamic>>>? _ordersSub;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _driverSub;
   StreamSubscription<List<Map<String, dynamic>>>? _historySub;
+  StreamSubscription<List<Map<String, dynamic>>>? _activeOrderSub;
 
   final Set<String> _seenOrderIds = {};
   bool _navigating = false;
@@ -44,6 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         Tween<double>(begin: 0.6, end: 1.0).animate(_pulseController);
     _subscribeToDriverData();
     _subscribeToOrderHistory();
+    _subscribeToActiveOrder();
   }
 
   @override
@@ -52,6 +57,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _ordersSub?.cancel();
     _driverSub?.cancel();
     _historySub?.cancel();
+    _activeOrderSub?.cancel();
     super.dispose();
   }
 
@@ -59,8 +65,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    _driverSub =
-        DriverFirestoreService.driverStream(uid).listen((snap) {
+    _driverSub = DriverFirestoreService.driverStream(uid).listen((snap) {
       if (!mounted) return;
       final data = snap.data();
       if (data == null) return;
@@ -71,11 +76,37 @@ class _DashboardScreenState extends State<DashboardScreen>
         _todayEarnings = (data['todayEarnings'] as num?)?.toInt() ?? 0;
       });
       if (newOnline && !wasOnline) {
-        _startListening();
+        // Only start listening for new orders if no active order
+        if (_activeOrder == null) {
+          _startListening();
+        }
       } else if (!newOnline && wasOnline) {
         _ordersSub?.cancel();
         _ordersSub = null;
         _seenOrderIds.clear();
+      }
+    });
+  }
+
+  void _subscribeToActiveOrder() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    _activeOrderSub =
+        DriverFirestoreService.activeOrderStream(uid).listen((orders) {
+      if (!mounted) return;
+      final hadActive = _activeOrder != null;
+      final newActive = orders.isNotEmpty ? orders.first : null;
+      setState(() => _activeOrder = newActive);
+
+      if (newActive != null) {
+        // Has active order — cancel new-order listener
+        _ordersSub?.cancel();
+        _ordersSub = null;
+      } else if (hadActive && isOnline) {
+        // Active order just completed — start listening for new orders
+        _seenOrderIds.clear();
+        _startListening();
       }
     });
   }
@@ -122,7 +153,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     if (newState) {
-      _startListening();
+      if (_activeOrder == null) {
+        _startListening();
+      }
     } else {
       _ordersSub?.cancel();
       _ordersSub = null;
@@ -134,7 +167,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _ordersSub?.cancel();
     _ordersSub =
         DriverFirestoreService.pendingOrdersStream().listen((orders) async {
-      if (!mounted || !isOnline || _navigating) return;
+      if (!mounted || !isOnline || _navigating || _activeOrder != null) return;
       for (final order in orders) {
         final id = order['id'] as String? ?? '';
         if (id.isEmpty || _seenOrderIds.contains(id)) continue;
@@ -150,6 +183,34 @@ class _DashboardScreenState extends State<DashboardScreen>
         break;
       }
     });
+  }
+
+  void _continueActiveOrder() {
+    final order = _activeOrder;
+    if (order == null) return;
+    final status = order['status'] as String? ?? '';
+    final orderId = order['id'] as String? ?? '';
+    if (status == 'confirmed') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PickupConfirmationScreen(
+            orderId: orderId,
+            order: order,
+          ),
+        ),
+      );
+    } else if (status == 'picked_up') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DeliveryConfirmationScreen(
+            orderId: orderId,
+            order: order,
+          ),
+        ),
+      );
+    }
   }
 
   void _showHelpDialog() {
@@ -423,6 +484,165 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  Widget _buildActiveOrderCard(Map<String, dynamic> order) {
+    final status = order['status'] as String? ?? '';
+    final merchantName = order['merchantName'] as String? ?? 'Merchant';
+    final customerName = order['customerName'] as String? ?? 'Customer';
+    final deliveryAddress = order['deliveryAddress'] as String? ?? '—';
+    final isPickup = status == 'confirmed';
+    final statusLabel = isPickup ? 'Head to Merchant' : 'On the Way';
+    final statusColor = isPickup ? AppTheme.primary : AppTheme.success;
+    final orderId = order['id'] as String? ?? '';
+    final shortId = orderId.length > 8
+        ? orderId.substring(0, 8).toUpperCase()
+        : orderId.toUpperCase();
+
+    return GestureDetector(
+      onTap: _continueActiveOrder,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [statusColor, statusColor.withValues(alpha: 0.85)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+                color: statusColor.withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 6)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isPickup ? Icons.store : Icons.local_shipping,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Active Delivery',
+                          style: GoogleFonts.nunito(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white.withValues(alpha: 0.8))),
+                      Text(statusLabel,
+                          style: GoogleFonts.montserrat(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('#$shortId',
+                      style: GoogleFonts.nunito(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.store,
+                          size: 14, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(merchantName,
+                            style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on,
+                          size: 14, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text('$customerName · $deliveryAddress',
+                            style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.85)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isPickup ? Icons.directions : Icons.check_circle,
+                      color: statusColor,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isPickup ? 'Go to Pickup' : 'Confirm Delivery',
+                      style: GoogleFonts.nunito(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: statusColor),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -529,27 +749,39 @@ class _DashboardScreenState extends State<DashboardScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isOnline
-                              ? AppTheme.success.withValues(alpha: 0.12)
-                              : const Color(0xFFF2F2F2),
+                          color: _activeOrder != null
+                              ? AppTheme.primary.withValues(alpha: 0.12)
+                              : isOnline
+                                  ? AppTheme.success.withValues(alpha: 0.12)
+                                  : const Color(0xFFF2F2F2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          isOnline ? 'ONLINE' : 'OFFLINE',
+                          _activeOrder != null
+                              ? 'DELIVERING'
+                              : isOnline
+                                  ? 'ONLINE'
+                                  : 'OFFLINE',
                           style: GoogleFonts.nunito(
                             fontSize: 11,
                             fontWeight: FontWeight.w900,
-                            color: isOnline
-                                ? AppTheme.success
-                                : AppTheme.textLight,
+                            color: _activeOrder != null
+                                ? AppTheme.primary
+                                : isOnline
+                                    ? AppTheme.success
+                                    : AppTheme.textLight,
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (!isOnline) _buildOfflineBanner(),
-                  if (isOnline) _buildReadyCard(),
+                  if (_activeOrder != null)
+                    _buildActiveOrderCard(_activeOrder!)
+                  else if (!isOnline)
+                    _buildOfflineBanner()
+                  else
+                    _buildReadyCard(),
                   const SizedBox(height: 16),
                   Text('Quick Actions',
                       style: GoogleFonts.montserrat(

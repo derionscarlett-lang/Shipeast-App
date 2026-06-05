@@ -264,6 +264,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final deliverAddr = order['deliveryAddress'] as String? ?? '—';
     final route = '$pickupAddr → $deliverAddr';
     final total = (order['total'] as num?)?.toInt() ?? 0;
+    final commission = total ~/ 10;
     final dateTs = order['deliveredAt'] ??
         order['createdAt'] ??
         order['acceptedAt'];
@@ -324,13 +325,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(_formatPrice(total),
-                      style: GoogleFonts.montserrat(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: isCompleted
-                              ? AppTheme.primary
-                              : AppTheme.textLight)),
+                  Text(
+                    isCompleted
+                        ? _formatPrice(commission)
+                        : _formatPrice(total),
+                    style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: isCompleted
+                            ? AppTheme.success
+                            : AppTheme.textLight),
+                  ),
+                  if (isCompleted)
+                    Text('of ${_formatPrice(total)}',
+                        style: GoogleFonts.inter(
+                            fontSize: 10, color: AppTheme.textLight)),
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

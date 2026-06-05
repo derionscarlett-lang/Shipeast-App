@@ -132,6 +132,7 @@ class _DeliveryConfirmationScreenState
         uid,
         _total,
         photoUrl,
+        _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
       );
       if (mounted) {
         _showSuccessDialog();

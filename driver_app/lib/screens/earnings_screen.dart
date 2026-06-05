@@ -55,7 +55,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         final ts = (o['deliveredAt'] as Timestamp?)?.toDate();
         if (ts == null) continue;
         final idx = ((ts.hour - 6) / 2).floor().clamp(0, 7);
-        bars[idx] += (o['total'] as num?)?.toDouble() ?? 0;
+        bars[idx] += ((o['total'] as num?)?.toDouble() ?? 0) / 10;
       }
       return bars;
     } else if (period == 1) {
@@ -65,7 +65,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         final ts = (o['deliveredAt'] as Timestamp?)?.toDate();
         if (ts == null) continue;
         final idx = (ts.weekday - 1).clamp(0, 6);
-        bars[idx] += (o['total'] as num?)?.toDouble() ?? 0;
+        bars[idx] += ((o['total'] as num?)?.toDouble() ?? 0) / 10;
       }
       return bars;
     } else {
@@ -75,7 +75,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         final ts = (o['deliveredAt'] as Timestamp?)?.toDate();
         if (ts == null) continue;
         final idx = ((ts.day - 1) ~/ 7).clamp(0, 3);
-        bars[idx] += (o['total'] as num?)?.toDouble() ?? 0;
+        bars[idx] += ((o['total'] as num?)?.toDouble() ?? 0) / 10;
       }
       return bars;
     }
@@ -122,7 +122,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 final totalEarnings = periodOrders.fold<int>(
                     0,
                     (acc, o) =>
-                        acc + ((o['total'] as num?)?.toInt() ?? 0));
+                        acc + ((o['total'] as num?)?.toInt() ?? 0) ~/ 10);
                 final deliveriesCount = periodOrders.length;
                 final bars = _computeBars(periodOrders, _selectedPeriod);
                 final labels = _barLabels(_selectedPeriod);
@@ -414,7 +414,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
               }();
               final merchant =
                   o['merchantName'] as String? ?? 'Merchant';
-              final total = (o['total'] as num?)?.toInt() ?? 0;
+              final commission = ((o['total'] as num?)?.toInt() ?? 0) ~/ 10;
               final addr = o['deliveryAddress'] as String? ?? '—';
               return Column(
                 children: [
@@ -464,7 +464,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(_formatPrice(total),
+                            Text(_formatPrice(commission),
                                 style: GoogleFonts.montserrat(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w900,

@@ -32,6 +32,17 @@ class DriverFirestoreService {
               .map((d) => <String, dynamic>{'id': d.id, ...d.data()})
               .toList());
 
+  /// Stream of the driver's current active order (confirmed or picked_up).
+  static Stream<List<Map<String, dynamic>>> activeOrderStream(String uid) =>
+      _db
+          .collection('orders')
+          .where('driverId', isEqualTo: uid)
+          .where('status', whereIn: ['confirmed', 'picked_up'])
+          .snapshots()
+          .map((s) => s.docs
+              .map((d) => <String, dynamic>{'id': d.id, ...d.data()})
+              .toList());
+
   static Future<void> acceptOrder(String orderId, String driverUid) async {
     String driverName = '';
     String driverPhone = '';
@@ -46,14 +57,14 @@ class DriverFirestoreService {
       'driverId': driverUid,
       'driverName': driverName,
       'driverPhone': driverPhone,
-      'status': 'accepted',
+      'status': 'confirmed',
       'acceptedAt': FieldValue.serverTimestamp(),
     });
   }
 
   static Future<void> confirmPickup(String orderId) =>
       _db.collection('orders').doc(orderId).update({
-        'status': 'in_transit',
+        'status': 'picked_up',
         'pickedUpAt': FieldValue.serverTimestamp(),
       });
 
@@ -65,22 +76,25 @@ class DriverFirestoreService {
   }
 
   /// Confirms delivery and atomically updates driver stats.
+  /// Increments todayEarnings by the driver commission (10% of order total).
   static Future<void> confirmDelivery(
     String orderId,
     String driverUid,
     int orderTotal,
     String? photoUrl,
+    String? note,
   ) async {
+    final commission = (orderTotal / 10).round();
     final batch = _db.batch();
     batch.update(_db.collection('orders').doc(orderId), {
       'status': 'delivered',
       'deliveredAt': FieldValue.serverTimestamp(),
-      if (photoUrl != null && photoUrl.isNotEmpty)
-        'deliveryPhotoUrl': photoUrl,
+      if (photoUrl != null && photoUrl.isNotEmpty) 'deliveryPhotoUrl': photoUrl,
+      if (note != null && note.isNotEmpty) 'deliveryNote': note,
     });
     batch.update(_db.collection('drivers').doc(driverUid), {
       'totalTrips': FieldValue.increment(1),
-      'todayEarnings': FieldValue.increment(orderTotal),
+      'todayEarnings': FieldValue.increment(commission),
     });
     await batch.commit();
   }
