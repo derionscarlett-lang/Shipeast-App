@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../app_theme.dart';
+import '../services/driver_firestore_service.dart';
 import 'delivery_confirmation_screen.dart';
 
 class PickupConfirmationScreen extends StatefulWidget {
-  const PickupConfirmationScreen({super.key});
+  final String orderId;
+  final Map<String, dynamic> order;
+
+  const PickupConfirmationScreen({
+    super.key,
+    required this.orderId,
+    required this.order,
+  });
 
   @override
   State<PickupConfirmationScreen> createState() =>
@@ -15,6 +23,25 @@ class _PickupConfirmationScreenState extends State<PickupConfirmationScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _dotController;
   late Animation<double> _dotAnimation;
+  bool _confirming = false;
+
+  String get _merchantName =>
+      widget.order['merchantName'] as String? ?? 'Merchant';
+  String get _customerName =>
+      widget.order['customerName'] as String? ?? 'Customer';
+  String get _deliveryAddress =>
+      widget.order['deliveryAddress'] as String? ?? '—';
+  int get _total => (widget.order['total'] as num?)?.toInt() ?? 0;
+  String get _paymentMethod =>
+      widget.order['paymentMethod'] as String? ?? 'COD';
+  List _getItems() => widget.order['items'] as List? ?? [];
+
+  String _formatPrice(int price) {
+    if (price >= 1000) {
+      return '\$${price ~/ 1000},${(price % 1000).toString().padLeft(3, '0')}';
+    }
+    return '\$$price';
+  }
 
   @override
   void initState() {
@@ -33,8 +60,40 @@ class _PickupConfirmationScreenState extends State<PickupConfirmationScreen>
     super.dispose();
   }
 
+  Future<void> _confirmPickup() async {
+    setState(() => _confirming = true);
+    try {
+      await DriverFirestoreService.confirmPickup(widget.orderId);
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DeliveryConfirmationScreen(
+              orderId: widget.orderId,
+              order: widget.order,
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _confirming = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to confirm pickup. Try again.',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final items = _getItems();
+
     return Scaffold(
       backgroundColor: AppTheme.surfaceGrey,
       appBar: AppBar(
@@ -44,387 +103,282 @@ class _PickupConfirmationScreenState extends State<PickupConfirmationScreen>
           icon: const Icon(Icons.arrow_back, color: AppTheme.textDark),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'Pickup Confirmation',
-          style: GoogleFonts.montserrat(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: AppTheme.textDark,
-          ),
+        title: Text('Pickup Confirmation',
+            style: GoogleFonts.montserrat(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.textDark)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(2),
+          child: Container(height: 2, color: AppTheme.primary),
         ),
       ),
-      body: Column(
-        children: [
-          // Map placeholder
-          Container(
-            height: 180,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF1a1a2e), Color(0xFF2d2d44)],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Status banner
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppTheme.success.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: AppTheme.success.withValues(alpha: 0.3), width: 1),
               ),
-            ),
-            child: Stack(
-              children: [
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.map, color: Colors.white, size: 40),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Navigate to Merchant',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Kingston Fresh Market',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  bottom: 12,
-                  right: 12,
-                  child: ElevatedButton.icon(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      minimumSize: Size.zero,
-                    ),
-                    icon: const Icon(Icons.open_in_new,
-                        color: Colors.white, size: 14),
-                    label: Text(
-                      'Open Maps',
-                      style: GoogleFonts.nunito(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Scrollable content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+              child: Row(
                 children: [
-                  // Active status bar
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 12),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        AnimatedBuilder(
-                          animation: _dotAnimation,
-                          builder: (context, child) => Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: Colors.white
-                                  .withOpacity(_dotAnimation.value),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Order #SE-2847 · Active',
-                          style: GoogleFonts.nunito(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          'ETA 8 min',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.white.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
+                  AnimatedBuilder(
+                    animation: _dotAnimation,
+                    builder: (_, child) => Opacity(
+                      opacity: _dotAnimation.value,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: const BoxDecoration(
+                            color: AppTheme.success, shape: BoxShape.circle),
+                      ),
                     ),
                   ),
-
-                  // Merchant info card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'MERCHANT',
-                          style: GoogleFonts.nunito(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textLight,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppTheme.primary.withOpacity(0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.store,
-                                  color: AppTheme.primary, size: 20),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Kingston Fresh Market',
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w900,
-                                      color: AppTheme.textDark,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '45 Constant Spring Rd, Kingston',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      color: AppTheme.textMid,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                    color: AppTheme.primary, width: 1.5),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.phone,
-                                  color: AppTheme.primary, size: 16),
-                            ),
-                          ],
-                        ),
+                        Text('Order Accepted',
+                            style: GoogleFonts.montserrat(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.success)),
+                        const SizedBox(height: 2),
+                        Text('Head to the merchant to pick up the order',
+                            style: GoogleFonts.inter(
+                                fontSize: 12, color: AppTheme.textMid)),
                       ],
                     ),
                   ),
-
-                  // Order items card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ORDER ITEMS (2)',
-                          style: GoogleFonts.nunito(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textLight,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildItemRow(
-                            'Fresh Produce Package', 'x1'),
-                        const SizedBox(height: 8),
-                        _buildItemRow('Grocery Bag', 'x1'),
-                      ],
-                    ),
-                  ),
-
-                  // Customer info card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'CUSTOMER',
-                          style: GoogleFonts.nunito(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textLight,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1D4ED8).withOpacity(0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.person,
-                                  color: Color(0xFF1D4ED8), size: 20),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Sarah Williams',
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppTheme.textDark,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '12 Mona Road, Kingston 6',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: AppTheme.textMid,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 80),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 14),
 
-      // Bottom action
-      bottomNavigationBar: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-        child: SizedBox(
-          height: 52,
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const DeliveryConfirmationScreen(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              shape: RoundedRectangleBorder(
+            // Merchant card
+            _infoCard(
+              icon: Icons.store,
+              iconColor: AppTheme.primary,
+              title: 'Pickup From',
+              rows: [
+                _infoRow('Merchant', _merchantName),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Customer & delivery card
+            _infoCard(
+              icon: Icons.location_on,
+              iconColor: AppTheme.success,
+              title: 'Deliver To',
+              rows: [
+                _infoRow('Customer', _customerName),
+                _infoRow('Address', _deliveryAddress),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Items card
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(13),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2)),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.inventory_2,
+                            color: AppTheme.primary, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      Text('Order Items',
+                          style: GoogleFonts.montserrat(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.textDark)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ...items.map((item) {
+                    final name =
+                        (item is Map) ? (item['name'] as String? ?? '—') : '$item';
+                    final qty =
+                        (item is Map) ? (item['quantity'] as int? ?? 1) : 1;
+                    final price =
+                        (item is Map) ? (item['price'] as num?)?.toInt() : null;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                                color: AppTheme.primary, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text('$name ×$qty',
+                                style: GoogleFonts.inter(
+                                    fontSize: 13, color: AppTheme.textDark)),
+                          ),
+                          if (price != null)
+                            Text(_formatPrice(price * qty),
+                                style: GoogleFonts.montserrat(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.textMid)),
+                        ],
+                      ),
+                    );
+                  }),
+                  const Divider(color: AppTheme.divider, height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total ($_paymentMethod)',
+                          style: GoogleFonts.inter(
+                              fontSize: 13, color: AppTheme.textMid)),
+                      Text(_formatPrice(_total),
+                          style: GoogleFonts.montserrat(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.primary)),
+                    ],
+                  ),
+                ],
               ),
             ),
-            child: Text('Confirm Pickup', style: AppTheme.buttonLG()),
-          ),
+            const SizedBox(height: 20),
+
+            // Confirm button
+            SizedBox(
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _confirming ? null : _confirmPickup,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+                child: _confirming
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5, color: Colors.white))
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.check_circle,
+                              color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Text('Confirm Pickup',
+                              style: GoogleFonts.nunito(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white)),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildItemRow(String name, String qty) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceGrey,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Icon(Icons.inventory_2_outlined,
-              color: AppTheme.textMid, size: 16),
+  Widget _infoCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required List<Widget> rows,
+  }) =>
+      Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(13),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
+          ],
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            name,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: AppTheme.textDark,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Text(title,
+                    style: GoogleFonts.montserrat(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.textDark)),
+              ],
             ),
-          ),
+            const SizedBox(height: 10),
+            ...rows,
+          ],
         ),
-        Text(
-          qty,
-          style: GoogleFonts.montserrat(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textMid,
-          ),
+      );
+
+  Widget _infoRow(String label, String value) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 80,
+              child: Text(label,
+                  style: GoogleFonts.inter(
+                      fontSize: 12, color: AppTheme.textMid)),
+            ),
+            Expanded(
+              child: Text(value,
+                  style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textDark)),
+            ),
+          ],
         ),
-      ],
-    );
-  }
+      );
 }

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +13,12 @@ import 'screens/earnings_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/pending_approval_screen.dart';
+import 'services/driver_firestore_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
 
 Future<void> _initFirebase() async {
   for (int attempt = 1; attempt <= 5; attempt++) {
@@ -24,6 +31,31 @@ Future<void> _initFirebase() async {
       await Future<void>.delayed(Duration(milliseconds: 200 * attempt));
     }
   }
+}
+
+Future<void> _initFCM() async {
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    // Foreground messages are handled by the active screen
+  });
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid != null) {
+    await DriverFirestoreService.saveFcmToken(uid);
+  }
+  FirebaseMessaging.instance.onTokenRefresh.listen((token) {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid != null) {
+      FirebaseFirestore.instance
+          .collection('drivers')
+          .doc(currentUid)
+          .set({'fcmToken': token}, SetOptions(merge: true));
+    }
+  });
 }
 
 Future<Widget> _resolveHome() async {
@@ -48,6 +80,7 @@ void main() async {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
+  await _initFCM();
   final home = await _resolveHome();
   runApp(ShipEastDriverApp(home: home));
 }

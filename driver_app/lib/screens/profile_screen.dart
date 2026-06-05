@@ -4,8 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../app_theme.dart';
+import '../services/driver_firestore_service.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -22,10 +22,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _email = '';
   String _vehicle = 'Motorcycle';
   String _licence = '';
-  String? _imagePath;
+  String? _avatarUrl;
+  double _rating = 5.0;
+  int _totalTrips = 0;
 
   bool _isEditing = false;
   bool _isSaving = false;
+  bool _isUploadingPhoto = false;
 
   late TextEditingController _nameCtrl;
   late TextEditingController _phoneCtrl;
@@ -70,14 +73,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _email = data['email'] as String? ?? '';
           _vehicle = data['vehicleType'] as String? ?? 'Motorcycle';
           _licence = data['licencePlate'] as String? ?? '';
+          _avatarUrl = data['avatarUrl'] as String?;
+          _rating = (data['rating'] as num?)?.toDouble() ?? 5.0;
+          _totalTrips = (data['totalTrips'] as num?)?.toInt() ?? 0;
         });
       }
     } catch (_) {}
-    // Image path stored locally only
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() => _imagePath = prefs.getString('driver_avatar'));
-    }
   }
 
   void _startEditing() {
@@ -132,10 +133,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickPhoto(ImageSource source) async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, imageQuality: 85);
-    if (picked != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('driver_avatar', picked.path);
-      setState(() => _imagePath = picked.path);
+    if (picked == null) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _isUploadingPhoto = true);
+    try {
+      final url = await DriverFirestoreService.uploadProfilePhoto(
+          user.uid, File(picked.path));
+      await FirebaseFirestore.instance
+          .collection('drivers')
+          .doc(user.uid)
+          .update({'avatarUrl': url});
+      if (mounted) setState(() => _avatarUrl = url);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Photo upload failed. Try again.',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
     }
   }
 
@@ -154,9 +178,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFDDDDDD),
-                borderRadius: BorderRadius.circular(2),
-              ),
+                  color: const Color(0xFFDDDDDD),
+                  borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 16),
             ListTile(
@@ -198,31 +221,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          feature,
-          style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 16),
-        ),
+        title: Text(feature,
+            style: GoogleFonts.montserrat(
+                fontWeight: FontWeight.w900, fontSize: 16)),
         content: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Icon(Icons.construction, color: AppTheme.primary, size: 22),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                'This feature is coming soon. Stay tuned for updates!',
-                style: AppTheme.body(color: AppTheme.textMid),
-              ),
+              child: Text('This feature is coming soon. Stay tuned for updates!',
+                  style: AppTheme.body(color: AppTheme.textMid)),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'OK',
-              style: GoogleFonts.nunito(
-                  fontWeight: FontWeight.w900, color: AppTheme.primary),
-            ),
+            child: Text('OK',
+                style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w900, color: AppTheme.primary)),
           ),
         ],
       ),
@@ -240,53 +258,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: AppTheme.primary,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child:
-                  const Icon(Icons.local_shipping, color: Colors.white, size: 20),
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.local_shipping,
+                  color: Colors.white, size: 20),
             ),
             const SizedBox(width: 12),
-            Text(
-              'About ShipEast',
-              style:
-                  GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 16),
-            ),
+            Text('About ShipEast',
+                style: GoogleFonts.montserrat(
+                    fontWeight: FontWeight.w900, fontSize: 16)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'ShipEast Driver App',
-              style: GoogleFonts.montserrat(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                  color: AppTheme.textDark),
-            ),
+            Text('ShipEast Driver App',
+                style: GoogleFonts.montserrat(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    color: AppTheme.textDark)),
             const SizedBox(height: 4),
-            Text('Version 1.0.0', style: AppTheme.body(color: AppTheme.textMid)),
+            Text('Version 1.0.0',
+                style: AppTheme.body(color: AppTheme.textMid)),
             const SizedBox(height: 12),
             Text(
               'Connecting drivers with customers across Jamaica. Fast, reliable, and seamless deliveries.',
               style: AppTheme.body(color: AppTheme.textMid),
             ),
             const SizedBox(height: 12),
-            Text(
-              '© 2025 ShipEast. All rights reserved.',
-              style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textLight),
-            ),
+            Text('© 2025 ShipEast. All rights reserved.',
+                style: GoogleFonts.inter(
+                    fontSize: 11, color: AppTheme.textLight)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Close',
-              style: GoogleFonts.nunito(
-                  fontWeight: FontWeight.w900, color: AppTheme.primary),
-            ),
+            child: Text('Close',
+                style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w900, color: AppTheme.primary)),
           ),
         ],
       ),
@@ -354,6 +365,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildAvatarWidget() {
+    if (_isUploadingPhoto) {
+      return Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.18),
+          shape: BoxShape.circle,
+          border: Border.all(
+              color: Colors.white.withValues(alpha: 0.5), width: 2.5),
+        ),
+        child: const Center(
+            child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2.5))),
+      );
+    }
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        shape: BoxShape.circle,
+        border: Border.all(
+            color: Colors.white.withValues(alpha: 0.5), width: 2.5),
+      ),
+      child: ClipOval(
+        child: _avatarUrl != null
+            ? Image.network(
+                _avatarUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) =>
+                    const Icon(Icons.person, size: 38, color: Colors.white),
+              )
+            : const Icon(Icons.person, size: 38, color: Colors.white),
+      ),
+    );
+  }
+
   Widget _buildRedHeader() => Container(
         color: AppTheme.primary,
         child: SafeArea(
@@ -365,14 +417,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Row(
                   children: [
                     const Spacer(),
-                    Text(
-                      'Driver Profile',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
+                    Text('Driver Profile',
+                        style: GoogleFonts.montserrat(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white)),
                     const Spacer(),
                     if (!_isEditing)
                       GestureDetector(
@@ -405,32 +454,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Avatar
                 GestureDetector(
                   onTap: _showPhotoOptions,
                   child: Stack(
                     children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.5),
-                              width: 2.5),
-                        ),
-                        child: ClipOval(
-                          child: _imagePath != null
-                              ? Image.file(File(_imagePath!),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) =>
-                                      const Icon(Icons.person,
-                                          size: 38, color: Colors.white))
-                              : const Icon(Icons.person,
-                                  size: 38, color: Colors.white),
-                        ),
-                      ),
+                      _buildAvatarWidget(),
                       Positioned(
                         bottom: 0,
                         right: 0,
@@ -438,9 +466,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           width: 24,
                           height: 24,
                           decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
+                              color: Colors.white, shape: BoxShape.circle),
                           child: const Center(
                             child: Icon(Icons.camera_alt,
                                 size: 13, color: AppTheme.primary),
@@ -451,22 +477,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  _name,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
+                Text(_name,
+                    style: GoogleFonts.montserrat(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white)),
                 const SizedBox(height: 2),
-                Text(
-                  'ShipEast Driver · Kingston, JA',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
-                ),
+                Text('ShipEast Driver · Kingston, JA',
+                    style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.7))),
               ],
             ),
           ),
@@ -474,37 +494,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
   Widget _buildViewMode() {
+    final completionPct = _totalTrips > 0 ? '${((_totalTrips / (_totalTrips + 1)) * 100).toStringAsFixed(0)}%' : '—';
     return Column(
       children: [
-        // Stats row
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2)),
             ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _statItem('247', 'Trips'),
+              _statItem('$_totalTrips', 'Trips'),
               Container(width: 1, height: 36, color: AppTheme.divider),
-              _statItem('98%', 'Completion'),
+              _statItem(completionPct, 'Completion'),
               Container(width: 1, height: 36, color: AppTheme.divider),
-              _statItemWithStar('4.9', 'Rating'),
+              _statItemWithStar(
+                  _rating.toStringAsFixed(1), 'Rating'),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        // Info card
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
@@ -512,10 +530,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2)),
             ],
           ),
           child: Column(
@@ -538,7 +555,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: AppTheme.divider,
                   indent: 16,
                   endIndent: 16),
-              _infoRow(Icons.credit_card_outlined, 'Licence Plate', _licence),
+              _infoRow(
+                  Icons.credit_card_outlined, 'Licence Plate', _licence),
             ],
           ),
         ),
@@ -546,8 +564,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value) =>
-      Padding(
+  Widget _infoRow(IconData icon, String label, String value) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
@@ -614,10 +631,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: Column(
@@ -638,7 +654,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _editField(_emailCtrl, 'Email', Icons.email_outlined,
                 TextInputType.emailAddress),
             const SizedBox(height: 12),
-            // Vehicle selector
             Text('Vehicle Type',
                 style: GoogleFonts.inter(
                     fontSize: 12, color: AppTheme.textMid)),
@@ -664,14 +679,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: const Color(0xFFE0E0E0), width: 1),
                       ),
                       child: Center(
-                        child: Text(
-                          v,
-                          style: GoogleFonts.nunito(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: selected ? Colors.white : AppTheme.textMid,
-                          ),
-                        ),
+                        child: Text(v,
+                            style: GoogleFonts.nunito(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: selected
+                                    ? Colors.white
+                                    : AppTheme.textMid)),
                       ),
                     ),
                   ),
@@ -697,8 +711,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
-                      )
+                            color: Colors.white, strokeWidth: 2))
                     : Text('Save Changes', style: AppTheme.buttonLG()),
               ),
             ),
@@ -724,68 +737,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Rating Breakdown',
+            Text('Rating',
                 style: GoogleFonts.montserrat(
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
                     color: AppTheme.textDark)),
             const SizedBox(height: 12),
-            _buildRatingRow(5, 0.82, '82%'),
-            _buildRatingRow(4, 0.65, '65%'),
-            _buildRatingRow(3, 0.08, '8%'),
-            _buildRatingRow(2, 0.03, '3%'),
-            _buildRatingRow(1, 0.02, '2%'),
+            Row(
+              children: [
+                const Icon(Icons.star, color: Color(0xFFFBBC05), size: 28),
+                const SizedBox(width: 8),
+                Text(_rating.toStringAsFixed(1),
+                    style: GoogleFonts.montserrat(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.textDark)),
+                const SizedBox(width: 8),
+                Text('/ 5.0',
+                    style: GoogleFonts.inter(
+                        fontSize: 14, color: AppTheme.textMid)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text('Based on $_totalTrips completed deliveries',
+                style: GoogleFonts.inter(
+                    fontSize: 12, color: AppTheme.textMid)),
           ],
         ),
       );
-
-  Widget _buildRatingRow(int stars, double value, String pct) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          const Icon(Icons.star, color: Color(0xFFFBBC05), size: 14),
-          const SizedBox(width: 4),
-          SizedBox(
-            width: 20,
-            child: Text('$stars',
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: AppTheme.textDark)),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: value,
-                backgroundColor: AppTheme.surfaceGrey,
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppTheme.primary),
-                minHeight: 7,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 32,
-            child: Text(pct,
-                style: GoogleFonts.inter(
-                    fontSize: 11, color: AppTheme.textMid),
-                textAlign: TextAlign.right),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSettingsCard() => Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -794,10 +781,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: Column(
@@ -823,7 +809,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: AppTheme.divider,
                 indent: 16,
                 endIndent: 16),
-            _settingsTile(Icons.info_outline, 'About ShipEast', _showAbout),
+            _settingsTile(
+                Icons.info_outline, 'About ShipEast', _showAbout),
           ],
         ),
       );
@@ -832,7 +819,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ListTile(
         leading: Icon(icon, color: AppTheme.textMid, size: 22),
         title: Text(title,
-            style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textDark)),
+            style: GoogleFonts.inter(
+                fontSize: 14, color: AppTheme.textDark)),
         trailing: const Icon(Icons.arrow_forward_ios,
             size: 14, color: AppTheme.textLight),
         onTap: onTap,
@@ -845,10 +833,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: ListTile(

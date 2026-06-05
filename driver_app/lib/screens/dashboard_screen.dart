@@ -1,12 +1,17 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../app_theme.dart';
+import '../services/driver_firestore_service.dart';
 import 'new_order_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final void Function(int) onTabSwitch;
   final ValueNotifier<String> driverNameNotifier;
-  const DashboardScreen({super.key, required this.onTabSwitch, required this.driverNameNotifier});
+  const DashboardScreen(
+      {super.key, required this.onTabSwitch, required this.driverNameNotifier});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -15,9 +20,18 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   bool isOnline = false;
-  bool _hasActiveOrder = false;
+  int _todayEarnings = 0;
+  int _todayDeliveries = 0;
+
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+
+  StreamSubscription<List<Map<String, dynamic>>>? _ordersSub;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _driverSub;
+  StreamSubscription<List<Map<String, dynamic>>>? _historySub;
+
+  final Set<String> _seenOrderIds = {};
+  bool _navigating = false;
 
   @override
   void initState() {
@@ -28,12 +42,60 @@ class _DashboardScreenState extends State<DashboardScreen>
     )..repeat(reverse: true);
     _pulseAnimation =
         Tween<double>(begin: 0.6, end: 1.0).animate(_pulseController);
+    _subscribeToDriverData();
+    _subscribeToOrderHistory();
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _ordersSub?.cancel();
+    _driverSub?.cancel();
+    _historySub?.cancel();
     super.dispose();
+  }
+
+  void _subscribeToDriverData() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    _driverSub =
+        DriverFirestoreService.driverStream(uid).listen((snap) {
+      if (!mounted) return;
+      final data = snap.data();
+      if (data == null) return;
+      final newOnline = data['isOnline'] as bool? ?? false;
+      final wasOnline = isOnline;
+      setState(() {
+        isOnline = newOnline;
+        _todayEarnings = (data['todayEarnings'] as num?)?.toInt() ?? 0;
+      });
+      if (newOnline && !wasOnline) {
+        _startListening();
+      } else if (!newOnline && wasOnline) {
+        _ordersSub?.cancel();
+        _ordersSub = null;
+        _seenOrderIds.clear();
+      }
+    });
+  }
+
+  void _subscribeToOrderHistory() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    _historySub =
+        DriverFirestoreService.driverOrderHistoryStream(uid).listen((orders) {
+      if (!mounted) return;
+      final today = DateTime.now();
+      final todayStart = DateTime(today.year, today.month, today.day);
+      final count = orders.where((o) {
+        if (o['status'] != 'delivered') return false;
+        final ts = (o['deliveredAt'] as Timestamp?)?.toDate();
+        return ts != null && ts.isAfter(todayStart);
+      }).length;
+      setState(() => _todayDeliveries = count);
+    });
   }
 
   String get _greeting {
@@ -43,6 +105,53 @@ class _DashboardScreenState extends State<DashboardScreen>
     return 'Good evening';
   }
 
+  String _formatEarnings(int amount) {
+    if (amount >= 1000) {
+      return '\$${amount ~/ 1000},${(amount % 1000).toString().padLeft(3, '0')}';
+    }
+    return '\$$amount';
+  }
+
+  Future<void> _toggleOnline() async {
+    final newState = !isOnline;
+    setState(() => isOnline = newState);
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      await DriverFirestoreService.setDriverOnline(uid, newState);
+    }
+
+    if (newState) {
+      _startListening();
+    } else {
+      _ordersSub?.cancel();
+      _ordersSub = null;
+      _seenOrderIds.clear();
+    }
+  }
+
+  void _startListening() {
+    _ordersSub?.cancel();
+    _ordersSub =
+        DriverFirestoreService.pendingOrdersStream().listen((orders) async {
+      if (!mounted || !isOnline || _navigating) return;
+      for (final order in orders) {
+        final id = order['id'] as String? ?? '';
+        if (id.isEmpty || _seenOrderIds.contains(id)) continue;
+        _seenOrderIds.add(id);
+        _navigating = true;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NewOrderScreen(order: order),
+          ),
+        );
+        _navigating = false;
+        break;
+      }
+    });
+  }
+
   void _showHelpDialog() {
     showDialog(
       context: context,
@@ -50,16 +159,18 @@ class _DashboardScreenState extends State<DashboardScreen>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Help & Support',
-          style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 16),
+          style: GoogleFonts.montserrat(
+              fontWeight: FontWeight.w900, fontSize: 16),
         ),
         content: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.construction, color: AppTheme.primary, size: 22),
+            const Icon(Icons.construction,
+                color: AppTheme.primary, size: 22),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Help & Support is coming soon. Stay tuned for updates!',
+                'Help & Support is coming soon. Stay tuned!',
                 style: AppTheme.body(color: AppTheme.textMid),
               ),
             ),
@@ -68,21 +179,14 @@ class _DashboardScreenState extends State<DashboardScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'OK',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: AppTheme.primary),
-            ),
+            child: Text('OK',
+                style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.primary)),
           ),
         ],
       ),
     );
-  }
-
-  void _toggleOnline() {
-    setState(() {
-      isOnline = !isOnline;
-      if (!isOnline) _hasActiveOrder = false;
-    });
   }
 
   Widget _buildOnlineToggle() {
@@ -97,10 +201,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               ? AppTheme.success.withValues(alpha: 0.9)
               : Colors.white.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.5),
-            width: 2,
-          ),
+          border:
+              Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
         ),
         child: Stack(
           children: [
@@ -112,9 +214,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 width: 24,
                 height: 24,
                 decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
+                    color: Colors.white, shape: BoxShape.circle),
               ),
             ),
             Center(
@@ -140,23 +240,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Expanded(
       child: Column(
         children: [
-          Text(
-            value,
-            style: GoogleFonts.montserrat(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
-          ),
+          Text(value,
+              style: GoogleFonts.montserrat(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white)),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.nunito(
-              fontSize: 10,
-              color: Colors.white.withValues(alpha: 0.7),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(label,
+              style: GoogleFonts.nunito(
+                  fontSize: 10,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -173,10 +267,9 @@ class _DashboardScreenState extends State<DashboardScreen>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: Row(
@@ -192,14 +285,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                title,
-                style: GoogleFonts.montserrat(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textDark,
-                ),
-              ),
+              child: Text(title,
+                  style: GoogleFonts.montserrat(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textDark)),
             ),
             Icon(Icons.arrow_forward_ios, size: 12, color: AppTheme.textLight),
           ],
@@ -225,22 +315,15 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'You are currently offline.',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFF5D4037),
-                  ),
-                ),
+                Text('You are currently offline.',
+                    style: GoogleFonts.montserrat(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF5D4037))),
                 const SizedBox(height: 2),
-                Text(
-                  'Toggle the switch above to start receiving orders.',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFF795548),
-                  ),
-                ),
+                Text('Toggle the switch above to start receiving orders.',
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: const Color(0xFF795548))),
               ],
             ),
           ),
@@ -248,19 +331,16 @@ class _DashboardScreenState extends State<DashboardScreen>
           GestureDetector(
             onTap: _toggleOnline,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFE65100),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Go Online',
-                style: GoogleFonts.nunito(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                ),
-              ),
+                  color: const Color(0xFFE65100),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text('Go Online',
+                  style: GoogleFonts.nunito(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white)),
             ),
           ),
         ],
@@ -276,10 +356,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -301,22 +380,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Ready for Orders',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.textDark,
-                      ),
-                    ),
+                    Text('Ready for Orders',
+                        style: GoogleFonts.montserrat(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: AppTheme.textDark)),
                     const SizedBox(height: 2),
-                    Text(
-                      "You're online — ready to receive delivery requests",
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: AppTheme.textMid,
-                      ),
-                    ),
+                    Text("You're online — ready to receive delivery requests",
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: AppTheme.textMid)),
                   ],
                 ),
               ),
@@ -332,99 +404,19 @@ class _DashboardScreenState extends State<DashboardScreen>
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: AppTheme.success.withValues(alpha: _pulseAnimation.value),
+                    color: AppTheme.success
+                        .withValues(alpha: _pulseAnimation.value),
                     shape: BoxShape.circle,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                'Waiting for new orders...',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: AppTheme.success,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NewOrderScreen()),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.inventory_2,
-                      size: 14, color: AppTheme.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Simulate New Order',
-                    style: GoogleFonts.nunito(
+              Text('Waiting for new orders...',
+                  style: GoogleFonts.inter(
                       fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActiveOrderCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: const Border(
-          left: BorderSide(color: AppTheme.primary, width: 4),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.local_shipping,
-                  color: AppTheme.primary, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Active Order #SE-2847',
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textDark,
-                ),
-              ),
+                      color: AppTheme.success,
+                      fontWeight: FontWeight.w500)),
             ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Kingston Fresh Market → 12 Mona Road',
-            style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMid),
           ),
         ],
       ),
@@ -437,7 +429,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       backgroundColor: AppTheme.surfaceGrey,
       body: Column(
         children: [
-          // Red header
           Container(
             color: AppTheme.primary,
             child: SafeArea(
@@ -468,19 +459,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 builder: (_, name, _) => Text(
                                   name,
                                   style: GoogleFonts.montserrat(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                  ),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white),
                                 ),
                               ),
-                              Text(
-                                '$_greeting!',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: Colors.white.withValues(alpha: 0.7),
-                                ),
-                              ),
+                              Text('$_greeting!',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      color: Colors.white
+                                          .withValues(alpha: 0.7))),
                             ],
                           ),
                         ),
@@ -498,17 +486,23 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       child: Row(
                         children: [
-                          _buildStatItem('\$3,750', "Today's Earnings"),
+                          _buildStatItem(
+                              _todayEarnings > 0
+                                  ? _formatEarnings(_todayEarnings)
+                                  : '\$0',
+                              "Today's Earnings"),
                           Container(
                               width: 1,
                               height: 30,
                               color: Colors.white.withValues(alpha: 0.3)),
-                          _buildStatItem('6', 'Deliveries'),
+                          _buildStatItem(
+                              '$_todayDeliveries', 'Deliveries'),
                           Container(
                               width: 1,
                               height: 30,
                               color: Colors.white.withValues(alpha: 0.3)),
-                          _buildStatItem('4h 32m', 'Online Time'),
+                          _buildStatItem(
+                              isOnline ? 'Online' : 'Offline', 'Status'),
                         ],
                       ),
                     ),
@@ -517,25 +511,19 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ),
           ),
-
-          // Scrollable body
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Status section
                   Row(
                     children: [
-                      Text(
-                        'Status',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.textDark,
-                        ),
-                      ),
+                      Text('Status',
+                          style: GoogleFonts.montserrat(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.textDark)),
                       const SizedBox(width: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -560,49 +548,27 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ],
                   ),
                   const SizedBox(height: 12),
-
                   if (!isOnline) _buildOfflineBanner(),
-                  if (isOnline && _hasActiveOrder) _buildActiveOrderCard(),
-                  if (isOnline && !_hasActiveOrder) _buildReadyCard(),
-
+                  if (isOnline) _buildReadyCard(),
                   const SizedBox(height: 16),
-                  Text(
-                    'Quick Actions',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
+                  Text('Quick Actions',
+                      style: GoogleFonts.montserrat(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.textDark)),
                   const SizedBox(height: 12),
-
-                  _buildQuickActionCard(
-                    'View Earnings',
-                    Icons.account_balance_wallet,
-                    AppTheme.primary,
-                    () => widget.onTabSwitch(2),
-                  ),
+                  _buildQuickActionCard('View Earnings',
+                      Icons.account_balance_wallet, AppTheme.primary,
+                      () => widget.onTabSwitch(2)),
                   const SizedBox(height: 8),
-                  _buildQuickActionCard(
-                    'Delivery History',
-                    Icons.history,
-                    AppTheme.success,
-                    () => widget.onTabSwitch(1),
-                  ),
+                  _buildQuickActionCard('Delivery History', Icons.history,
+                      AppTheme.success, () => widget.onTabSwitch(1)),
                   const SizedBox(height: 8),
-                  _buildQuickActionCard(
-                    'My Profile',
-                    Icons.person,
-                    const Color(0xFF1D4ED8),
-                    () => widget.onTabSwitch(3),
-                  ),
+                  _buildQuickActionCard('My Profile', Icons.person,
+                      const Color(0xFF1D4ED8), () => widget.onTabSwitch(3)),
                   const SizedBox(height: 8),
-                  _buildQuickActionCard(
-                    'Help & Support',
-                    Icons.headset_mic,
-                    const Color(0xFF7C3AED),
-                    _showHelpDialog,
-                  ),
+                  _buildQuickActionCard('Help & Support', Icons.headset_mic,
+                      const Color(0xFF7C3AED), _showHelpDialog),
                   const SizedBox(height: 80),
                 ],
               ),

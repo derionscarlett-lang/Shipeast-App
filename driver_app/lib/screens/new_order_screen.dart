@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../app_theme.dart';
+import '../services/driver_firestore_service.dart';
 import 'pickup_confirmation_screen.dart';
 
 class NewOrderScreen extends StatefulWidget {
-  const NewOrderScreen({super.key});
+  final Map<String, dynamic> order;
+  const NewOrderScreen({super.key, required this.order});
 
   @override
   State<NewOrderScreen> createState() => _NewOrderScreenState();
@@ -16,9 +19,30 @@ class _NewOrderScreenState extends State<NewOrderScreen>
   int _remainingSeconds = 60;
   Timer? _timer;
   bool _expired = false;
+  bool _accepting = false;
+
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseScale;
   late Animation<double> _pulseOpacity;
+
+  String get _orderId => widget.order['id'] as String? ?? '';
+  String get _merchantName => widget.order['merchantName'] as String? ?? 'Merchant';
+  String get _customerName => widget.order['customerName'] as String? ?? 'Customer';
+  String get _deliveryAddress => widget.order['deliveryAddress'] as String? ?? '—';
+  String get _merchantAddress =>
+      widget.order['merchantAddress'] as String? ??
+      widget.order['address'] as String? ??
+      '—';
+  int get _total => (widget.order['total'] as num?)?.toInt() ?? 0;
+  String get _paymentMethod => widget.order['paymentMethod'] as String? ?? 'COD';
+  List _getItems() => widget.order['items'] as List? ?? [];
+
+  String _formatPrice(int price) {
+    if (price >= 1000) {
+      return '\$${price ~/ 1000},${(price % 1000).toString().padLeft(3, '0')}';
+    }
+    return '\$$price';
+  }
 
   @override
   void initState() {
@@ -38,10 +62,7 @@ class _NewOrderScreenState extends State<NewOrderScreen>
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
+      if (!mounted) { timer.cancel(); return; }
       setState(() {
         if (_remainingSeconds > 0) {
           _remainingSeconds--;
@@ -58,6 +79,38 @@ class _NewOrderScreenState extends State<NewOrderScreen>
     _timer?.cancel();
     _pulseCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _acceptOrder() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || _orderId.isEmpty) return;
+    setState(() => _accepting = true);
+    try {
+      await DriverFirestoreService.acceptOrder(_orderId, uid);
+      _timer?.cancel();
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PickupConfirmationScreen(
+              orderId: _orderId,
+              order: widget.order,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _accepting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to accept order. Try again.',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+      }
+    }
   }
 
   @override
@@ -91,8 +144,8 @@ class _NewOrderScreenState extends State<NewOrderScreen>
                     color: AppTheme.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.timer_off,
-                      color: AppTheme.primary, size: 40),
+                  child:
+                      const Icon(Icons.timer_off, color: AppTheme.primary, size: 40),
                 ),
                 const SizedBox(height: 20),
                 Text('Order Expired',
@@ -151,63 +204,56 @@ class _NewOrderScreenState extends State<NewOrderScreen>
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Pulsing incoming order notification banner
             _buildIncomingBanner(),
             const SizedBox(height: 14),
-
-            // Prominent timer card
             _buildTimerCard(timerColor),
             const SizedBox(height: 12),
-
-            // Stats row
             Row(
               children: [
-                Expanded(child: _buildStatCard(
-                  Icons.location_on, AppTheme.primary,
-                  '3.2 km', 'Distance',
-                )),
+                Expanded(
+                  child: _buildStatCard(
+                    Icons.attach_money, AppTheme.success,
+                    _formatPrice(_total ~/ 10), 'Earnings',
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _buildStatCard(
-                  Icons.attach_money, AppTheme.success,
-                  '\$850', 'Earnings',
-                )),
+                Expanded(
+                  child: _buildStatCard(
+                    Icons.inventory_2, AppTheme.primary,
+                    '${_getItems().length} item${_getItems().length == 1 ? '' : 's'}', 'Items',
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _buildStatCard(
-                  Icons.access_time, const Color(0xFF1D4ED8),
-                  '~18 min', 'Est. Time',
-                )),
+                Expanded(
+                  child: _buildStatCard(
+                    Icons.payments, const Color(0xFF1D4ED8),
+                    _paymentMethod, 'Payment',
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-
-            // Order details card
             _buildOrderDetailsCard(),
             const SizedBox(height: 16),
-
-            // Action buttons
             Row(
               children: [
                 Expanded(
                   child: SizedBox(
                     height: 52,
                     child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _accepting ? null : () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.primary,
-                        side: const BorderSide(
-                            color: AppTheme.primary, width: 2),
+                        side:
+                            const BorderSide(color: AppTheme.primary, width: 2),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13),
-                        ),
+                            borderRadius: BorderRadius.circular(13)),
                       ),
-                      child: Text(
-                        'Reject',
-                        style: GoogleFonts.nunito(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.primary,
-                        ),
-                      ),
+                      child: Text('Reject',
+                          style: GoogleFonts.nunito(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: AppTheme.primary)),
                     ),
                   ),
                 ),
@@ -216,31 +262,27 @@ class _NewOrderScreenState extends State<NewOrderScreen>
                   child: SizedBox(
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: () {
-                        _timer?.cancel();
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const PickupConfirmationScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: _accepting ? null : _acceptOrder,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.success,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13),
-                        ),
+                            borderRadius: BorderRadius.circular(13)),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.check_circle,
-                              size: 18, color: Colors.white),
-                          const SizedBox(width: 6),
-                          Text('Accept', style: AppTheme.buttonLG()),
-                        ],
-                      ),
+                      child: _accepting
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2.5, color: Colors.white))
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.check_circle,
+                                    size: 18, color: Colors.white),
+                                const SizedBox(width: 6),
+                                Text('Accept', style: AppTheme.buttonLG()),
+                              ],
+                            ),
                     ),
                   ),
                 ),
@@ -259,7 +301,6 @@ class _NewOrderScreenState extends State<NewOrderScreen>
       builder: (_, child) => Stack(
         alignment: Alignment.center,
         children: [
-          // Pulse rings
           Transform.scale(
             scale: _pulseScale.value,
             child: Opacity(
@@ -277,8 +318,7 @@ class _NewOrderScreenState extends State<NewOrderScreen>
         ],
       ),
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFFC8102E), Color(0xFFB00D28)],
@@ -311,33 +351,24 @@ class _NewOrderScreenState extends State<NewOrderScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'New Delivery Request!',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
+                  Text('New Delivery Request!',
+                      style: GoogleFonts.montserrat(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white)),
                   const SizedBox(height: 2),
-                  Text(
-                    'Respond before the timer runs out',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.8),
-                    ),
-                  ),
+                  Text('Respond before the timer runs out',
+                      style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.8))),
                 ],
               ),
             ),
             Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-            ),
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                    color: Colors.white, shape: BoxShape.circle)),
           ],
         ),
       ),
@@ -352,22 +383,18 @@ class _NewOrderScreenState extends State<NewOrderScreen>
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 3)),
         ],
       ),
       child: Column(
         children: [
-          Text(
-            'Accept before time expires',
-            style: GoogleFonts.montserrat(
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.textDark,
-            ),
-          ),
+          Text('Accept before time expires',
+              style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.textDark)),
           const SizedBox(height: 16),
           SizedBox(
             width: 140,
@@ -388,24 +415,18 @@ class _NewOrderScreenState extends State<NewOrderScreen>
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '$_remainingSeconds',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 44,
-                        fontWeight: FontWeight.w900,
-                        color: timerColor,
-                        height: 1.0,
-                      ),
-                    ),
+                    Text('$_remainingSeconds',
+                        style: GoogleFonts.montserrat(
+                            fontSize: 44,
+                            fontWeight: FontWeight.w900,
+                            color: timerColor,
+                            height: 1.0)),
                     const SizedBox(height: 2),
-                    Text(
-                      'sec',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textMid,
-                      ),
-                    ),
+                    Text('sec',
+                        style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textMid)),
                   ],
                 ),
               ],
@@ -420,8 +441,7 @@ class _NewOrderScreenState extends State<NewOrderScreen>
               fontSize: 12,
               fontWeight:
                   _remainingSeconds <= 10 ? FontWeight.w700 : FontWeight.w400,
-              color:
-                  _remainingSeconds <= 10 ? Colors.orange : AppTheme.textMid,
+              color: _remainingSeconds <= 10 ? Colors.orange : AppTheme.textMid,
             ),
           ),
         ],
@@ -438,10 +458,9 @@ class _NewOrderScreenState extends State<NewOrderScreen>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -451,18 +470,30 @@ class _NewOrderScreenState extends State<NewOrderScreen>
           const SizedBox(height: 6),
           Text(value,
               style: GoogleFonts.montserrat(
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: FontWeight.w900,
                   color: AppTheme.textDark)),
           Text(label,
-              style: GoogleFonts.inter(
-                  fontSize: 11, color: AppTheme.textMid)),
+              style:
+                  GoogleFonts.inter(fontSize: 11, color: AppTheme.textMid)),
         ],
       ),
     );
   }
 
   Widget _buildOrderDetailsCard() {
+    final items = _getItems();
+    final itemsSummary = items.isNotEmpty
+        ? items
+            .map((i) {
+              final name = (i is Map) ? (i['name'] as String? ?? '') : '$i';
+              final qty = (i is Map) ? (i['quantity'] as int? ?? 1) : 1;
+              return qty > 1 ? '$name ×$qty' : name;
+            })
+            .where((s) => s.isNotEmpty)
+            .join(', ')
+        : 'No items listed';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -470,10 +501,9 @@ class _NewOrderScreenState extends State<NewOrderScreen>
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 3)),
         ],
       ),
       child: Column(
@@ -482,18 +512,27 @@ class _NewOrderScreenState extends State<NewOrderScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Order #SE-2847',
+              Text('Order #${_orderId.length > 8 ? _orderId.substring(0, 8).toUpperCase() : _orderId.toUpperCase()}',
                   style: GoogleFonts.montserrat(
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
                       color: AppTheme.textDark)),
-              Text('2 min ago',
-                  style: GoogleFonts.inter(
-                      fontSize: 11, color: AppTheme.textMid)),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('PENDING',
+                    style: GoogleFonts.nunito(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.primary)),
+              ),
             ],
           ),
           const Divider(height: 20, color: AppTheme.divider),
-          // Pickup
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -502,11 +541,10 @@ class _NewOrderScreenState extends State<NewOrderScreen>
                   const Icon(Icons.circle_outlined,
                       color: AppTheme.primary, size: 20),
                   Container(
-                    width: 2,
-                    height: 40,
-                    color: AppTheme.primary.withValues(alpha: 0.4),
-                    margin: const EdgeInsets.symmetric(vertical: 2),
-                  ),
+                      width: 2,
+                      height: 40,
+                      color: AppTheme.primary.withValues(alpha: 0.4),
+                      margin: const EdgeInsets.symmetric(vertical: 2)),
                 ],
               ),
               const SizedBox(width: 12),
@@ -521,9 +559,13 @@ class _NewOrderScreenState extends State<NewOrderScreen>
                             color: AppTheme.textLight,
                             letterSpacing: 0.5)),
                     const SizedBox(height: 2),
-                    Text('Kingston Fresh Market, 45 Constant Spring Rd',
+                    Text(_merchantName,
                         style: GoogleFonts.inter(
                             fontSize: 13, color: AppTheme.textDark)),
+                    if (_merchantAddress != '—')
+                      Text(_merchantAddress,
+                          style: GoogleFonts.inter(
+                              fontSize: 11, color: AppTheme.textMid)),
                   ],
                 ),
               ),
@@ -532,23 +574,25 @@ class _NewOrderScreenState extends State<NewOrderScreen>
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.location_on,
-                  color: AppTheme.primary, size: 20),
+              const Icon(Icons.location_on, color: AppTheme.primary, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('DELIVERY',
+                    Text('DELIVERY TO',
                         style: GoogleFonts.nunito(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                             color: AppTheme.textLight,
                             letterSpacing: 0.5)),
                     const SizedBox(height: 2),
-                    Text('12 Mona Road, Kingston 6',
+                    Text(_customerName,
                         style: GoogleFonts.inter(
                             fontSize: 13, color: AppTheme.textDark)),
+                    Text(_deliveryAddress,
+                        style: GoogleFonts.inter(
+                            fontSize: 11, color: AppTheme.textMid)),
                   ],
                 ),
               ),
@@ -561,9 +605,8 @@ class _NewOrderScreenState extends State<NewOrderScreen>
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8)),
                 child: const Icon(Icons.inventory_2,
                     color: AppTheme.primary, size: 16),
               ),
@@ -572,14 +615,16 @@ class _NewOrderScreenState extends State<NewOrderScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('2 items',
+                    Text('${items.length} item${items.length == 1 ? '' : 's'}',
                         style: GoogleFonts.montserrat(
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
                             color: AppTheme.textDark)),
-                    Text('Fresh Produce Package, Grocery Bag',
+                    Text(itemsSummary,
                         style: GoogleFonts.inter(
-                            fontSize: 11, color: AppTheme.textMid)),
+                            fontSize: 11, color: AppTheme.textMid),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -588,10 +633,9 @@ class _NewOrderScreenState extends State<NewOrderScreen>
           const Divider(height: 20, color: AppTheme.divider),
           Row(
             children: [
-              const Icon(Icons.payments,
-                  color: AppTheme.textMid, size: 18),
+              const Icon(Icons.payments, color: AppTheme.textMid, size: 18),
               const SizedBox(width: 8),
-              Text('COD – Collect \$1,250',
+              Text('$_paymentMethod – ${_formatPrice(_total)}',
                   style: GoogleFonts.inter(
                       fontSize: 13, color: AppTheme.textDark)),
             ],
