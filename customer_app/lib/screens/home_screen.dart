@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -16,11 +17,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedCategory = 0;
-  String _userName = 'Marcus Brown';
+  String _userName = '';
+  bool _nameLoaded = false;
   String? _avatarPath;
 
   static const _keyName = 'shipeast_user_name';
   static const _keyAvatar = 'shipeast_avatar_path';
+
+  StreamSubscription<Map<String, dynamic>?>? _nameSub;
 
   // Firestore merchants by category index
   final Map<int, List<Map<String, dynamic>>> _firestoreMerchants = {};
@@ -102,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
       statusBarIconBrightness: Brightness.light,
     ));
     _loadProfile();
+    _loadUserName();
     FirestoreService.seedMerchantsIfEmpty();
     _subscribeMerchants(0);
     _subscribeMerchants(1);
@@ -110,6 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _nameSub?.cancel();
     for (final sub in _subs.values) {
       sub.cancel();
     }
@@ -126,10 +132,29 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _loadUserName() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    _nameSub = FirestoreService.watchUserProfile(uid).listen((data) {
+      if (!mounted) return;
+      final name = data?['name'] as String?;
+      if (name != null && name.isNotEmpty) {
+        setState(() {
+          _userName = name;
+          _nameLoaded = true;
+        });
+      }
+    });
+  }
+
   Future<void> _loadProfile() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedName = prefs.getString(_keyName);
     setState(() {
-      _userName = prefs.getString(_keyName) ?? 'Marcus Brown';
+      // Use saved name as quick initial value; Firestore will override once loaded
+      if (!_nameLoaded && savedName != null && savedName.isNotEmpty) {
+        _userName = savedName;
+      }
       _avatarPath = prefs.getString(_keyAvatar);
     });
   }
@@ -427,7 +452,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '$_greeting, $_firstName 👋',
+                          _userName.isEmpty
+                              ? '$_greeting 👋'
+                              : '$_greeting, $_firstName 👋',
                           style: GoogleFonts.montserrat(
                             fontSize: 17,
                             fontWeight: FontWeight.w900,

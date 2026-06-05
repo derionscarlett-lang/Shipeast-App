@@ -249,6 +249,12 @@ class FirestoreService {
           .doc(addressId)
           .delete();
 
+  // ─── User Profile ────────────────────────────────────────────────────────────
+
+  static Stream<Map<String, dynamic>?> watchUserProfile(String uid) =>
+      _db.collection('users').doc(uid).snapshots().map((s) =>
+          s.exists ? <String, dynamic>{'id': s.id, ...s.data()!} : null);
+
   // ─── Rating ──────────────────────────────────────────────────────────────────
 
   static Future<void> submitRating({
