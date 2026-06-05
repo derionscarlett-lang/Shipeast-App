@@ -172,6 +172,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return palette[itemIndex % palette.length];
   }
 
+  static int _parseDeliveryFee(String s) {
+    if (s.toLowerCase().contains('free')) return 0;
+    final match = RegExp(r'\d+').firstMatch(s);
+    return match != null ? int.tryParse(match.group(0)!) ?? 100 : 100;
+  }
+
   void _showPackageForm(String category) {
     final pickupCtrl = TextEditingController();
     final deliveryCtrl = TextEditingController();
@@ -655,10 +661,12 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.pushNamed(context, '/merchant', arguments: {
           'id': m['id'] ?? '',
           'name': m['name'] ?? '',
+          'emoji': m['emoji'] as String? ?? '🍽️',
           'category': _categoryLabels[_selectedCategory],
           'rating': ratingStr,
           'deliveryTime': m['deliveryTime'] ?? '25–35 min',
           'deliveryFee': m['deliveryFee'] ?? 'Free delivery',
+          'deliveryFeeAmount': _parseDeliveryFee(m['deliveryFee'] as String? ?? ''),
           'isOpen': isOpen,
         });
       },

@@ -21,14 +21,17 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
 
   late List<_Particle> _particles;
 
-  static const _items = [
+  String _orderId = '';
+  String _merchantName = '';
+  List<Map<String, dynamic>> _items = const [
     {'name': 'Full Jerk Chicken', 'qty': 1, 'price': 1200},
     {'name': 'Sorrel Punch', 'qty': 1, 'price': 350},
   ];
-  static const _deliveryFee = 250;
-  static const _serviceFee = 125;
-  static const _subtotal = 1550;
-  static const _total = 1925;
+  int _subtotal = 1550;
+  int _deliveryFee = 250;
+  int _serviceFee = 125;
+  int _total = 1925;
+  bool _argsLoaded = false;
 
   @override
   void initState() {
@@ -57,6 +60,34 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) _confettiCtrl.forward();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_argsLoaded) {
+      _argsLoaded = true;
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null) {
+        _orderId = args['orderId'] as String? ?? '';
+        _merchantName = args['merchantName'] as String? ?? '';
+        _subtotal = args['subtotal'] as int? ?? 1550;
+        _deliveryFee = args['deliveryFee'] as int? ?? 250;
+        _serviceFee = args['serviceFee'] as int? ?? 125;
+        _total = args['total'] as int? ?? 1925;
+        final rawItems = args['items'] as List?;
+        if (rawItems != null && rawItems.isNotEmpty) {
+          _items = rawItems
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .map((e) => {
+                    'name': e['name'] ?? '',
+                    'qty': e['quantity'] ?? 1,
+                    'price': e['price'] ?? 0,
+                  })
+              .toList();
+        }
+      }
+    }
   }
 
   @override
@@ -133,7 +164,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                     ),
                     const SizedBox(height: 7),
                     Text(
-                      'Your order is confirmed & sent to Island Jerk Palace. We\'ll notify you at every step.',
+                      'Your order is confirmed & sent to ${_merchantName.isNotEmpty ? _merchantName : 'the merchant'}. We\'ll notify you at every step.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         fontSize: 12,
@@ -164,7 +195,9 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            '#SE-20268814',
+                            _orderId.isNotEmpty
+                                ? '#${_orderId.substring(0, _orderId.length.clamp(0, 8)).toUpperCase()}'
+                                : '#SE-ORDER',
                             style: GoogleFonts.montserrat(
                               fontSize: 20,
                               fontWeight: FontWeight.w900,
@@ -372,9 +405,9 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                     ],
                   ),
                 )),
-            _receiptRow('Subtotal', 'J\$$_subtotal', false),
-            _receiptRow('Delivery fee', 'J\$$_deliveryFee', false),
-            _receiptRow('Service fee', 'J\$$_serviceFee', false),
+            _receiptRow('Subtotal', 'J\$${_fmt(_subtotal)}', false),
+            _receiptRow('Delivery fee', _deliveryFee == 0 ? 'Free' : 'J\$${_fmt(_deliveryFee)}', false),
+            _receiptRow('Service fee', 'J\$${_fmt(_serviceFee)}', false),
             Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 15, vertical: 12),

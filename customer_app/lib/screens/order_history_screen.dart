@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../services/firestore_service.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -14,77 +18,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   int _activeTab = 0;
   static const _tabs = ['All', 'Active', 'Completed', 'Cancelled'];
 
-  static const List<Map<String, dynamic>> _orders = [
-    {
-      'merchant': 'Island Jerk Palace',
-      'iconData': Icons.restaurant,
-      'emoji': null,
-      'status': 'Active',
-      'statusColor': 0xFF16A34A,
-      'statusBg': 0xFFDCFCE7,
-      'items': 'Full Jerk Chicken, Sorrel Punch',
-      'total': '\$1,925',
-      'date': 'Today, 9:41 AM',
-      'orderId': '#SE-20268814',
-    },
-    {
-      'merchant': 'Kingston Burger Co.',
-      'iconData': Icons.restaurant,
-      'emoji': null,
-      'status': 'Completed',
-      'statusColor': 0xFF2563EB,
-      'statusBg': 0xFFEFF6FF,
-      'items': 'Smash Burger, Loaded Fries, Coke',
-      'total': '\$2,450',
-      'date': 'Yesterday, 2:15 PM',
-      'orderId': '#SE-20268799',
-    },
-    {
-      'merchant': 'Spice Island Cuisine',
-      'iconData': Icons.restaurant,
-      'emoji': null,
-      'status': 'Completed',
-      'statusColor': 0xFF2563EB,
-      'statusBg': 0xFFEFF6FF,
-      'items': 'Curry Goat, Rice & Peas, Ting',
-      'total': '\$1,780',
-      'date': 'May 12, 6:30 PM',
-      'orderId': '#SE-20268751',
-    },
-    {
-      'merchant': 'FreshMart Grocery',
-      'iconData': Icons.shopping_cart,
-      'emoji': null,
-      'status': 'Cancelled',
-      'statusColor': 0xFFC8102E,
-      'statusBg': 0xFFFFF0F2,
-      'items': 'Bananas, Bread, Milk, Eggs',
-      'total': '\$890',
-      'date': 'May 10, 11:00 AM',
-      'orderId': '#SE-20268722',
-    },
-    {
-      'merchant': 'Tropical Pharmacy',
-      'iconData': Icons.local_pharmacy,
-      'emoji': null,
-      'status': 'Completed',
-      'statusColor': 0xFF2563EB,
-      'statusBg': 0xFFEFF6FF,
-      'items': 'Panadol, Vitamin C, Bandages',
-      'total': '\$1,120',
-      'date': 'May 8, 3:45 PM',
-      'orderId': '#SE-20268688',
-    },
-  ];
-
-  List<Map<String, dynamic>> get _filtered {
-    if (_activeTab == 0) return List<Map<String, dynamic>>.from(_orders);
-    final label = _tabs[_activeTab];
-    return _orders
-        .where((o) => o['status'] == label)
-        .map((o) => Map<String, dynamic>.from(o))
-        .toList();
-  }
+  List<Map<String, dynamic>> _orders = [];
+  StreamSubscription<List<Map<String, dynamic>>>? _sub;
 
   @override
   void initState() {
@@ -93,6 +28,100 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ));
+    _subscribe();
+  }
+
+  void _subscribe() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    _sub = FirestoreService.orderHistoryStream(uid).listen((orders) {
+      if (mounted) setState(() => _orders = orders);
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> get _filtered {
+    if (_activeTab == 0) return _orders;
+    final label = _tabs[_activeTab];
+    return _orders.where((o) {
+      final status = o['status'] as String? ?? '';
+      if (label == 'Active') {
+        return status == 'pending' || status == 'accepted' || status == 'in_transit';
+      }
+      if (label == 'Completed') return status == 'delivered';
+      if (label == 'Cancelled') return status == 'cancelled';
+      return false;
+    }).toList();
+  }
+
+  String _displayStatus(String status) {
+    switch (status) {
+      case 'pending': return 'Active';
+      case 'accepted': return 'Active';
+      case 'in_transit': return 'Active';
+      case 'delivered': return 'Completed';
+      case 'cancelled': return 'Cancelled';
+      default: return status;
+    }
+  }
+
+  Map<String, int> _statusColors(String status) {
+    switch (status) {
+      case 'pending':
+      case 'accepted':
+      case 'in_transit':
+        return {'color': 0xFF16A34A, 'bg': 0xFFDCFCE7};
+      case 'delivered':
+        return {'color': 0xFF2563EB, 'bg': 0xFFEFF6FF};
+      case 'cancelled':
+        return {'color': 0xFFC8102E, 'bg': 0xFFFFF0F2};
+      default:
+        return {'color': 0xFF888888, 'bg': 0xFFF5F5F7};
+    }
+  }
+
+  String _formatDate(dynamic createdAt) {
+    if (createdAt == null) return '';
+    try {
+      final dt = (createdAt as Timestamp).toDate();
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+      if (diff.inDays == 0) {
+        final h = dt.hour.toString().padLeft(2, '0');
+        final m = dt.minute.toString().padLeft(2, '0');
+        return 'Today, $h:$m';
+      }
+      if (diff.inDays == 1) return 'Yesterday';
+      return '${_monthName(dt.month)} ${dt.day}, ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String _monthName(int m) {
+    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[m];
+  }
+
+  String _itemsLabel(List<dynamic> items) {
+    if (items.isEmpty) return '';
+    return items
+        .take(3)
+        .map((i) => i['name'] as String? ?? '')
+        .where((n) => n.isNotEmpty)
+        .join(', ');
+  }
+
+  String _formatTotal(dynamic total) {
+    final t = (total as num?)?.toInt() ?? 0;
+    if (t >= 1000) return 'J\$${t ~/ 1000},${(t % 1000).toString().padLeft(3, '0')}';
+    return 'J\$$t';
   }
 
   @override
@@ -131,8 +160,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: const Center(
-                    child: Icon(Icons.arrow_back_ios, size: 16,
-                        color: Color(0xFF444444)),
+                    child: Icon(Icons.arrow_back_ios,
+                        size: 16, color: Color(0xFF444444)),
                   ),
                 ),
               ),
@@ -195,8 +224,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.inventory_2,
-                size: 52, color: Color(0xFFCCCCCC)),
+            const Icon(Icons.inventory_2, size: 52, color: Color(0xFFCCCCCC)),
             const SizedBox(height: 12),
             Text(
               'No orders here yet',
@@ -226,7 +254,24 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     );
   }
 
-  Widget _buildOrderCard(Map<String, dynamic> order) => Container(
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    final status = order['status'] as String? ?? 'pending';
+    final displayStatus = _displayStatus(status);
+    final colors = _statusColors(status);
+    final merchantName = order['merchantName'] as String? ?? 'Merchant';
+    final orderId = order['id'] as String? ?? '';
+    final rawItems = order['items'] as List? ?? [];
+    final itemsLabel = _itemsLabel(rawItems);
+    final dateStr = _formatDate(order['createdAt']);
+    final totalStr = _formatTotal(order['total']);
+    final shortId = orderId.length > 8
+        ? '#${orderId.substring(0, 8).toUpperCase()}'
+        : '#${orderId.toUpperCase()}';
+
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/order-status',
+          arguments: {'orderId': orderId}),
+      child: Container(
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -251,8 +296,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                     color: const Color(0xFFF5F5F7),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Center(
-                    child: _merchantIcon(order),
+                  child: const Center(
+                    child: Icon(Icons.receipt_long,
+                        size: 20, color: Color(0xFF888888)),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -261,7 +307,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        order['merchant'] as String,
+                        merchantName,
                         style: GoogleFonts.montserrat(
                           fontSize: 13,
                           fontWeight: FontWeight.w900,
@@ -270,7 +316,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        order['orderId'] as String,
+                        shortId,
                         style: GoogleFonts.inter(
                           fontSize: 10,
                           color: const Color(0xFFAAAAAA),
@@ -284,45 +330,47 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Color(order['statusBg'] as int),
+                    color: Color(colors['bg']!),
                     borderRadius: BorderRadius.circular(7),
                   ),
                   child: Text(
-                    order['status'] as String,
+                    displayStatus,
                     style: GoogleFonts.nunito(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
-                      color: Color(order['statusColor'] as int),
+                      color: Color(colors['color']!),
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            Text(
-              order['items'] as String,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: const Color(0xFF666666),
-                fontWeight: FontWeight.w500,
+            if (itemsLabel.isNotEmpty)
+              Text(
+                itemsLabel,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: const Color(0xFF666666),
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
             const SizedBox(height: 7),
             Row(
               children: [
-                Text(
-                  order['date'] as String,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: const Color(0xFFAAAAAA),
-                    fontWeight: FontWeight.w500,
+                if (dateStr.isNotEmpty)
+                  Text(
+                    dateStr,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: const Color(0xFFAAAAAA),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
                 const Spacer(),
                 Text(
-                  order['total'] as String,
+                  totalStr,
                   style: GoogleFonts.montserrat(
                     fontSize: 13,
                     fontWeight: FontWeight.w900,
@@ -353,14 +401,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             ),
           ],
         ),
-      );
-
-  Widget _merchantIcon(Map<String, dynamic> order) {
-    final iconData = order['iconData'] as IconData?;
-    final emoji = order['emoji'] as String?;
-    if (iconData != null) {
-      return Icon(iconData, size: 22, color: const Color(0xFF666666));
-    }
-    return Text(emoji ?? '', style: const TextStyle(fontSize: 20));
+      ),
+    );
   }
 }

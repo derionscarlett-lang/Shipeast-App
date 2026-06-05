@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../services/firestore_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -14,6 +15,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
   int _selectedPayment = 0; // 0 = PayPal, 1 = COD
   final _promoController = TextEditingController();
   bool _promoApplied = false;
+  bool _placingOrder = false;
+
+  // Order context from checkout
+  String _merchantId = '';
+  String _merchantName = '';
+  List<Map<String, dynamic>> _items = [];
+  int _subtotal = 0;
+  int _deliveryFee = 0;
+  int _serviceFee = 0;
+  int _total = 0;
+  String _deliveryAddress = '';
+  bool _argsLoaded = false;
 
   @override
   void initState() {
@@ -22,6 +35,35 @@ class _PaymentScreenState extends State<PaymentScreen> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_argsLoaded) {
+      _argsLoaded = true;
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null) {
+        _merchantId = args['merchantId'] as String? ?? '';
+        _merchantName = args['merchantName'] as String? ?? '';
+        _items = (args['items'] as List?)
+                ?.map((e) => Map<String, dynamic>.from(e as Map))
+                .toList() ??
+            [];
+        _subtotal = args['subtotal'] as int? ?? 0;
+        _deliveryFee = args['deliveryFee'] as int? ?? 0;
+        _serviceFee = args['serviceFee'] as int? ?? 0;
+        _total = args['total'] as int? ?? 0;
+        _deliveryAddress = args['deliveryAddress'] as String? ?? '';
+      }
+    }
+  }
+
+  String _formatPrice(int p) {
+    if (p >= 1000) {
+      return '${p ~/ 1000},${(p % 1000).toString().padLeft(3, '0')}';
+    }
+    return '$p';
   }
 
   @override
@@ -403,7 +445,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ),
               ),
               Text(
-                'J\$1,925',
+                'J\$${_formatPrice(_total > 0 ? _total : 1925)}',
                 style: GoogleFonts.montserrat(
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
@@ -416,11 +458,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       );
 
   Widget _buildPlaceOrderButton() => ElevatedButton(
-        onPressed: () => Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/order-confirmed',
-          (route) => route.settings.name == '/home',
-        ),
+        onPressed: _placingOrder ? null : _placeOrder,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.primary,
           foregroundColor: Colors.white,
@@ -429,19 +467,74 @@ class _PaymentScreenState extends State<PaymentScreen> {
               borderRadius: BorderRadius.circular(13)),
           elevation: 0,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.lock, size: 14),
-            const SizedBox(width: 6),
-            Text(
-              'Place Order · J\$1,925',
-              style: GoogleFonts.nunito(
-                  fontSize: 14, fontWeight: FontWeight.w900),
-            ),
-          ],
-        ),
+        child: _placingOrder
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2.5),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Place Order · J\$${_formatPrice(_total > 0 ? _total : 1925)}',
+                    style: GoogleFonts.nunito(
+                        fontSize: 14, fontWeight: FontWeight.w900),
+                  ),
+                ],
+              ),
       );
+
+  Future<void> _placeOrder() async {
+    if (_placingOrder) return;
+    setState(() => _placingOrder = true);
+    try {
+      final paymentMethod = _selectedPayment == 0 ? 'PayPal' : 'Cash on Delivery';
+      String orderId;
+      if (_merchantId.isNotEmpty && _items.isNotEmpty) {
+        orderId = await FirestoreService.placeOrder(
+          merchantId: _merchantId,
+          merchantName: _merchantName,
+          items: _items,
+          subtotal: _subtotal,
+          deliveryFee: _deliveryFee,
+          serviceFee: _serviceFee,
+          total: _total,
+          paymentMethod: paymentMethod,
+          deliveryAddress: _deliveryAddress,
+        );
+      } else {
+        // No real order context — navigate without writing to Firestore
+        orderId = '';
+      }
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/order-confirmed',
+        (route) => route.settings.name == '/home',
+        arguments: {
+          'orderId': orderId,
+          'merchantName': _merchantName,
+          'items': _items,
+          'subtotal': _subtotal > 0 ? _subtotal : 1550,
+          'deliveryFee': _deliveryFee,
+          'serviceFee': _serviceFee > 0 ? _serviceFee : 275,
+          'total': _total > 0 ? _total : 1925,
+        },
+      );
+    } catch (_) {
+      if (mounted) setState(() => _placingOrder = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not place order. Please try again.'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
 
   Widget _coCard({required Widget child}) => Container(
         decoration: BoxDecoration(

@@ -15,7 +15,9 @@ class _CartScreenState extends State<CartScreen> {
   final _instructionsController = TextEditingController();
   bool _initialized = false;
 
-  static const int _deliveryFee = 100;
+  String _merchantId = '';
+  String _merchantName = '';
+  int _deliveryFee = 0;
   static const int _serviceFee = 275;
 
   @override
@@ -37,20 +39,13 @@ class _CartScreenState extends State<CartScreen> {
         _items = (args['items'] as List)
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
+        _merchantId = args['merchantId'] as String? ?? '';
+        _merchantName = args['merchantName'] as String? ?? '';
+        _deliveryFee = args['deliveryFeeAmount'] as int? ?? 0;
       } else {
         _items = [
-          {
-            'name': 'Full Jerk Chicken',
-            'imageUrl': 'https://images.unsplash.com/photo-1544025162-d76538591398?w=300',
-            'price': 1200,
-            'quantity': 1,
-          },
-          {
-            'name': 'Sorrel Punch',
-            'imageUrl': 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300',
-            'price': 350,
-            'quantity': 1,
-          },
+          {'name': 'Full Jerk Chicken', 'price': 1200, 'quantity': 1},
+          {'name': 'Sorrel Punch', 'price': 350, 'quantity': 1},
         ];
       }
       _initialized = true;
@@ -109,7 +104,7 @@ class _CartScreenState extends State<CartScreen> {
                                 const Icon(Icons.location_on, size: 12,
                                     color: Color(0xFF999999)),
                                 Text(
-                                  ' Island Jerk Palace',
+                                  _merchantName.isNotEmpty ? ' $_merchantName' : '',
                                   style: GoogleFonts.nunito(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w800,
@@ -420,7 +415,15 @@ class _CartScreenState extends State<CartScreen> {
       );
 
   Widget _buildCheckoutButton() => GestureDetector(
-        onTap: () => Navigator.pushNamed(context, '/checkout'),
+        onTap: () => Navigator.pushNamed(context, '/checkout', arguments: {
+          'merchantId': _merchantId,
+          'merchantName': _merchantName,
+          'items': _items,
+          'subtotal': _subtotal,
+          'deliveryFee': _deliveryFee,
+          'serviceFee': _serviceFee,
+          'total': _total,
+        }),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(

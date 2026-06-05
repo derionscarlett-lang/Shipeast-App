@@ -16,6 +16,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<Map<String, String>> _addresses = [];
   bool _loading = true;
 
+  // Order context forwarded from cart
+  Map<String, dynamic> _orderArgs = {};
+
   @override
   void initState() {
     super.initState();
@@ -24,6 +27,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       statusBarIconBrightness: Brightness.dark,
     ));
     _loadAddresses();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_orderArgs.isEmpty) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null) _orderArgs = Map<String, dynamic>.from(args);
+    }
   }
 
   Future<void> _loadAddresses() async {
@@ -347,7 +359,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             _showSnackbar('Please add a delivery address first');
             return;
           }
-          Navigator.pushNamed(context, '/payment');
+          Navigator.pushNamed(context, '/payment', arguments: {
+            ..._orderArgs,
+            'deliveryAddress': selectedAddressText,
+          });
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.primary,
