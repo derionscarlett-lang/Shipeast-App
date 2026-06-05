@@ -92,6 +92,7 @@ tr:hover td{background:#fafbfd;}
 .bg-blue{background:#e3f0fd;color:#1558b0;}
 .bg-gray{background:#f0f0f2;color:#5a5f6b;}
 .bg-orange{background:#fff3e0;color:#d84315;}
+.bg-purple{background:#f3e8fd;color:#7c3aed;}
 .btn{padding:9px 18px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:all .2s;}
 .btn-red{background:var(--red);color:#fff;}
 .btn-red:hover{background:var(--rd);}
@@ -306,10 +307,10 @@ tr:hover td{background:#fafbfd;}
       <!-- ── DASHBOARD ── -->
       <div class="page active" id="page-dashboard">
         <div class="sg" id="dash-stats">
-          <div class="sc"><div class="sc-ico">📦</div><div class="sc-lbl">Total Orders</div><div class="sc-val" id="stat-orders">—</div><div class="sc-sub">Loading…</div></div>
-          <div class="sc"><div class="sc-ico">✅</div><div class="sc-lbl">Delivered</div><div class="sc-val" id="stat-delivered">—</div><div class="sc-sub">Completed</div></div>
-          <div class="sc"><div class="sc-ico">🔄</div><div class="sc-lbl">Active Orders</div><div class="sc-val" id="stat-active">—</div><div class="sc-sub">In progress</div></div>
-          <div class="sc"><div class="sc-ico">🚗</div><div class="sc-lbl">Drivers Online</div><div class="sc-val" id="stat-drivers">—</div><div class="sc-sub">Available now</div></div>
+          <div class="sc"><div class="sc-ico">📦</div><div class="sc-lbl">Orders Today</div><div class="sc-val" id="stat-orders">—</div><div class="sc-sub">Placed today</div></div>
+          <div class="sc"><div class="sc-ico">💰</div><div class="sc-lbl">Revenue Today</div><div class="sc-val" id="stat-delivered" style="font-size:22px">—</div><div class="sc-sub">Delivered orders</div></div>
+          <div class="sc"><div class="sc-ico">🕐</div><div class="sc-lbl">Pending Orders</div><div class="sc-val" id="stat-active">—</div><div class="sc-sub">Awaiting driver</div></div>
+          <div class="sc"><div class="sc-ico">🚗</div><div class="sc-lbl">Active Drivers</div><div class="sc-val" id="stat-drivers">—</div><div class="sc-sub">Online now</div></div>
         </div>
         <div class="card">
           <div class="card-title">Recent Orders</div>
@@ -529,7 +530,7 @@ tr:hover td{background:#fafbfd;}
       </div>
     </div>
     <div class="fr"><label>Address</label><input id="m-address" placeholder="Street address, Parish"/></div>
-    <div class="fr"><label>Logo / Image (filename)</label><input id="m-image" placeholder="logo.jpg (optional)"/></div>
+    <div class="fr"><label>Merchant Image URL <small style="font-weight:400;color:#8a8f9e">(recommended: 800×400px — Imgur, Firebase Storage, etc.)</small></label><input id="m-imageurl" placeholder="https://i.imgur.com/example.jpg (optional)"/></div>
     <div class="m-actions">
       <button class="btn btn-outline" data-close="modal-merchant">Cancel</button>
       <button class="btn btn-red" id="mer-save-btn" onclick="saveMerchant()">Add Merchant</button>
@@ -563,12 +564,22 @@ var analyticsStats={
   'This Month':[{lbl:'Revenue',val:'$—'},{lbl:'Orders',val:'—'},{lbl:'Customers',val:'—'},{lbl:'Avg Order Value',val:'$—'}],
 };
 var currentPeriod='Today',ordersFilter='All',driverMode='add',driverEditId=null,merchantMode='add',merchantEditId=null,unsubscribers=[];
+var panelMerchantId=null,menuItemsUnsub=null,menuItemEditId=null,panelMenuItems=[];
 
 // ══════════════════════ HELPERS ══════════════════════
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function badge(s){
-  var m={Delivered:'green','On the Way':'yellow',Cancelled:'red',Pending:'blue',Active:'green',Expired:'gray',Online:'green','On Delivery':'yellow',Offline:'gray',Open:'green',Closed:'red',Inactive:'gray',approved:'green',pending:'yellow',rejected:'red'};
-  return '<span class="bdg bg-'+(m[s]||'gray')+'">'+esc(s)+'</span>';
+  var colors={
+    delivered:'green',pending:'blue',cancelled:'red',accepted:'orange',
+    confirmed:'orange',in_transit:'yellow',picked_up:'purple',
+    Delivered:'green','On the Way':'yellow',Cancelled:'red',Pending:'blue',
+    Active:'green',Expired:'gray',Online:'green','On Delivery':'yellow',
+    Offline:'gray',Open:'green',Closed:'red',Inactive:'gray',
+    approved:'green',rejected:'red'
+  };
+  var labels={in_transit:'In Transit',picked_up:'Picked Up',accepted:'Accepted',
+    confirmed:'Confirmed',delivered:'Delivered',pending:'Pending',cancelled:'Cancelled'};
+  return '<span class="bdg bg-'+(colors[s]||'gray')+'">'+(labels[s]||esc(s))+'</span>';
 }
 function stars(r){
   var f=Math.round(Number(r)||0),s='';
@@ -679,7 +690,7 @@ function startListeners(){
           return {id:d.id,name:o.name||'—',category:o.category||'Food',owner:o.owner||'—',
             phone:o.phone||'—',email:o.email||'—',address:o.address||'—',hours:o.hours||'—',
             fee:o.fee||'$0',ordersToday:o.ordersToday||0,rating:o.rating||5.0,
-            open:o.open!==undefined?o.open:true,image:o.image||'',_docId:d.id};
+            open:o.open!==undefined?o.open:true,imageUrl:o.imageUrl||o.image||'',_docId:d.id};
         });
         renderMerchants();renderTopMerch();
       },
@@ -723,30 +734,37 @@ function stopListeners(){unsubscribers.forEach(function(u){u();});unsubscribers=
 
 // ══════════════════════ DASHBOARD ══════════════════════
 function renderDashboard(){
-  var total=orders.length;
-  var delivered=orders.filter(function(o){return o.status==='Delivered';}).length;
-  var active=orders.filter(function(o){return ['Pending','On the Way','Confirmed','Picked Up'].indexOf(o.status)>-1;}).length;
-  var onlineDrv=drivers.filter(function(d){return d.status==='Online'||d.status==='On Delivery';}).length;
-  var statO=document.getElementById('stat-orders');if(statO)statO.textContent=total;
-  var statD=document.getElementById('stat-delivered');if(statD)statD.textContent=delivered;
-  var statA=document.getElementById('stat-active');if(statA)statA.textContent=active;
+  var now=new Date();
+  var todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  var todayOrders=orders.filter(function(o){return o._ts&&o._ts>=todayStart;});
+  var pendingOrders=orders.filter(function(o){return o.status==='pending'||o.status==='Pending';}).length;
+  var revenueToday=todayOrders.filter(function(o){
+    return o.status==='delivered'||o.status==='Delivered';
+  }).reduce(function(s,o){return s+parseAmt(o.amount);},0);
+  var onlineDrv=drivers.filter(function(d){return d.isOnline;}).length;
+  var statO=document.getElementById('stat-orders');if(statO)statO.textContent=todayOrders.length;
+  var statD=document.getElementById('stat-delivered');if(statD)statD.textContent='J$'+revenueToday.toLocaleString();
+  var statA=document.getElementById('stat-active');if(statA)statA.textContent=pendingOrders;
   var statDr=document.getElementById('stat-drivers');if(statDr)statDr.textContent=onlineDrv;
   var html='';
-  orders.slice(0,6).forEach(function(o){
+  orders.slice(0,10).forEach(function(o){
     html+='<tr><td><b style="color:var(--red)">'+esc(o.id)+'</b></td><td>'+esc(o.customer)+'</td><td>'+esc(o.merchant)+'</td>'+
       '<td>'+esc(o.driver)+'</td><td><b>'+esc(o.amount)+'</b></td><td>'+badge(o.status)+'</td>'+
-      '<td><button class="aicon ai-v" data-action="view-order" data-oid="'+esc(o.id)+'">👁</button></td></tr>';
+      '<td><button class="aicon ai-v" data-action="view-order" data-oid="'+esc(o._docId||o.id)+'">👁</button></td></tr>';
   });
   if(!html)html='<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--g3)">No orders yet</td></tr>';
   document.getElementById('dash-tbody').innerHTML=html;
 }
 
 // ══════════════════════ ORDERS ══════════════════════
+function isActiveStatus(s){return['pending','accepted','confirmed','in_transit','picked_up','Pending','On the Way','Confirmed','Picked Up'].indexOf(s)>-1;}
+function isDeliveredStatus(s){return s==='delivered'||s==='Delivered';}
+function isCancelledStatus(s){return s==='cancelled'||s==='Cancelled';}
 function updateOrdersTabs(){
   var all=orders.length;
-  var active=orders.filter(function(o){return ['Pending','On the Way','Confirmed','Picked Up'].indexOf(o.status)>-1;}).length;
-  var completed=orders.filter(function(o){return o.status==='Delivered';}).length;
-  var cancelled=orders.filter(function(o){return o.status==='Cancelled';}).length;
+  var active=orders.filter(function(o){return isActiveStatus(o.status);}).length;
+  var completed=orders.filter(function(o){return isDeliveredStatus(o.status);}).length;
+  var cancelled=orders.filter(function(o){return isCancelledStatus(o.status);}).length;
   var tabs=document.getElementById('orders-tabs');
   if(tabs)tabs.innerHTML=
     '<div class="tab'+(ordersFilter==='All'?' active':'')+'" data-filter="All">All <b>'+all+'</b></div>'+
@@ -760,8 +778,9 @@ function renderOrders(){
   search=(search||'').toLowerCase();
   var rows=orders.filter(function(o){
     var tm=ordersFilter==='All'||
-      (ordersFilter==='Active'&&['Pending','On the Way','Confirmed','Picked Up'].indexOf(o.status)>-1)||
-      (ordersFilter==='Completed'&&o.status==='Delivered')||(ordersFilter==='Cancelled'&&o.status==='Cancelled');
+      (ordersFilter==='Active'&&isActiveStatus(o.status))||
+      (ordersFilter==='Completed'&&isDeliveredStatus(o.status))||
+      (ordersFilter==='Cancelled'&&isCancelledStatus(o.status));
     var sm=!search||o.id.toLowerCase().includes(search)||o.customer.toLowerCase().includes(search)||o.merchant.toLowerCase().includes(search);
     return tm&&sm;
   });
@@ -770,7 +789,7 @@ function renderOrders(){
     html+='<tr><td><b style="color:var(--red)">'+esc(o.id)+'</b></td><td>'+esc(o.customer)+'</td><td>'+esc(o.merchant)+'</td>'+
       '<td>'+esc(o.driver)+'</td><td><b>'+esc(o.amount)+'</b></td><td><span class="bdg bg-gray">'+esc(o.payment)+'</span></td>'+
       '<td>'+badge(o.status)+'</td><td style="color:var(--g3)">'+esc(o.time)+'</td>'+
-      '<td><button class="aicon ai-v" data-action="view-order" data-oid="'+esc(o.id)+'">👁</button></td></tr>';
+      '<td><button class="aicon ai-v" data-action="view-order" data-oid="'+esc(o._docId||o.id)+'">👁</button></td></tr>';
   });
   if(!rows.length)html='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g3)">No orders found</td></tr>';
   document.getElementById('orders-tbody').innerHTML=html;
@@ -778,7 +797,7 @@ function renderOrders(){
 
 // ══════════════════════ ORDER SIDE PANEL ══════════════════════
 function openOrderPanel(oid){
-  var o=orders.find(function(x){return x.id===oid;});
+  var o=orders.find(function(x){return x._docId===oid||x.id===oid;});
   if(!o)return;
   document.getElementById('sp-sub').textContent='Order Details';
   document.getElementById('sp-title').textContent=o.id;
@@ -815,8 +834,37 @@ function openOrderPanel(oid){
     '<div class="sp-sec"><div class="sp-sec-title">Order Total</div>'+
       '<div class="sp-row"><span class="sp-lbl">Amount</span><span class="sp-val" style="font-size:18px;font-family:Montserrat,sans-serif;font-weight:800;color:var(--red)">'+esc(o.amount)+'</span></div>'+
     '</div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Items</div>'+itemsHtml+'</div>';
+    '<div class="sp-sec"><div class="sp-sec-title">Items</div>'+itemsHtml+'</div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Admin Actions</div>'+
+      '<div class="fr"><label>Assign Driver</label>'+
+        '<select id="sp-assign-driver">'+
+          '<option value="">— Unassigned —</option>'+
+          drivers.filter(function(d){return d.approved;}).map(function(d){
+            return '<option value="'+esc(d.id)+'"'+(o.driverId===d.id?' selected':'')+'>'+esc(d.name)+(d.isOnline?' 🟢':' ⚫')+'</option>';
+          }).join('')+
+        '</select>'+
+      '</div>'+
+      '<div class="fr"><label>Update Status</label>'+
+        '<select id="sp-update-status">'+
+          ['pending','confirmed','accepted','in_transit','picked_up','delivered','cancelled'].map(function(s){
+            return '<option value="'+s+'"'+(o.status===s?' selected':'')+'>'+({in_transit:'In Transit',picked_up:'Picked Up',accepted:'Accepted',confirmed:'Confirmed',delivered:'Delivered',pending:'Pending',cancelled:'Cancelled'}[s]||s)+'</option>';
+          }).join('')+
+        '</select>'+
+      '</div>'+
+      '<button class="btn btn-red" style="width:100%;padding:12px;margin-top:4px" onclick="saveOrderChanges(\''+esc(o._docId)+'\')">Save Changes</button>'+
+    '</div>';
   openSidePanel();
+}
+function saveOrderChanges(docId){
+  var driverId=(document.getElementById('sp-assign-driver')||{}).value||'';
+  var status=(document.getElementById('sp-update-status')||{}).value||'';
+  var upd={updatedAt:serverTimestamp()};
+  if(driverId){var drv=drivers.find(function(d){return d.id===driverId;});if(drv){upd.driverId=driverId;upd.driverName=drv.name;upd.driverPhone=drv.phone||'—';}}
+  if(status)upd.status=status;
+  if(Object.keys(upd).length<=1){alert('No changes selected.');return;}
+  updateDoc(doc(db,'orders',docId),upd).then(function(){
+    alert('Order updated successfully!');closeSidePanel();
+  }).catch(function(e){alert('Error: '+e.message);});
 }
 
 // ══════════════════════ DRIVERS ══════════════════════
@@ -960,7 +1008,7 @@ function renderMerchants(){
   var html='';
   merchants.forEach(function(m){
     html+='<tr>'+
-      '<td><div style="display:flex;align-items:center;gap:10px">'+catIcon(m.category)+'<b>'+esc(m.name)+'</b></div></td>'+
+      '<td><div style="display:flex;align-items:center;gap:10px">'+(m.imageUrl?'<img src="'+esc(m.imageUrl)+'" style="width:32px;height:32px;border-radius:6px;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">':catIcon(m.category))+'<b>'+esc(m.name)+'</b></div></td>'+
       '<td><span class="bdg bg-blue">'+esc(m.category)+'</span></td>'+
       '<td style="color:var(--g3)">'+esc(m.phone)+'</td>'+
       '<td style="font-size:12px;max-width:140px">'+esc(m.address)+'</td>'+
@@ -992,7 +1040,7 @@ function openMerchantModal(mode,id){
   document.getElementById('m-hours').value  =m?(m.hours||''):'';
   document.getElementById('m-address').value=m?m.address:'';
   document.getElementById('m-status').value =m?(m.open?'Open':'Closed'):'Open';
-  document.getElementById('m-image').value  =m?(m.image||''):'';
+  document.getElementById('m-imageurl').value=m?(m.imageUrl||m.image||''):'';
   openModal('modal-merchant');
 }
 function saveMerchant(){
@@ -1002,7 +1050,7 @@ function saveMerchant(){
     phone:document.getElementById('m-phone').value.trim()||'—',email:document.getElementById('m-email').value.trim()||'—',
     address:document.getElementById('m-address').value.trim()||'—',hours:document.getElementById('m-hours').value.trim()||'—',
     fee:'$'+(document.getElementById('m-fee').value.trim()||'0'),open:document.getElementById('m-status').value==='Open',
-    image:document.getElementById('m-image').value.trim()||'',updatedAt:serverTimestamp()};
+    imageUrl:document.getElementById('m-imageurl').value.trim()||'',updatedAt:serverTimestamp()};
   var promise;
   if(merchantMode==='add'){obj.ordersToday=0;obj.rating=5.0;obj.createdAt=serverTimestamp();promise=addDoc(collection(db,'merchants'),obj);}
   else{promise=updateDoc(doc(db,'merchants',merchantEditId),obj);}
@@ -1018,6 +1066,7 @@ function toggleMerchant(id){
   updateDoc(doc(db,'merchants',id),{open:!m.open}).catch(function(e){alert('Error: '+e.message);});
 }
 function openMerchantPanel(id){
+  panelMerchantId=id;
   var m=merchants.find(function(x){return x.id===id;});if(!m)return;
   document.getElementById('sp-sub').textContent='Merchant Profile';
   document.getElementById('sp-title').textContent=m.name;
@@ -1026,9 +1075,9 @@ function openMerchantPanel(id){
     return '<div class="sp-row"><span class="sp-lbl">'+esc(o.id)+' — '+esc(o.customer)+'</span><span class="sp-val">'+badge(o.status)+'</span></div>';
   }).join(''):'<div style="color:var(--g3);font-size:13px;padding:8px 0">No recent orders</div>';
   var cm=catMeta[m.category]||{ico:'🏪',bg:'#f0f0f2',col:'#5a5f6b'};
-  document.getElementById('sp-body').innerHTML=
-    '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">'+
-      '<div style="width:56px;height:56px;border-radius:12px;background:'+cm.bg+';color:'+cm.col+';display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">'+cm.ico+'</div>'+
+  var heroImg=m.imageUrl?'<img src="'+esc(m.imageUrl)+'" style="width:56px;height:56px;border-radius:12px;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">':'<div style="width:56px;height:56px;border-radius:12px;background:'+cm.bg+';color:'+cm.col+';display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">'+cm.ico+'</div>';
+  var detailsHtml=
+    '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">'+heroImg+
       '<div><div style="font-family:Montserrat,sans-serif;font-size:17px;font-weight:700">'+esc(m.name)+'</div><div style="margin-top:4px">'+badge(m.open?'Open':'Closed')+'</div></div></div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Business Details</div>'+
       '<div class="sp-row"><span class="sp-lbl">Category</span><span class="sp-val"><span class="bdg bg-blue">'+esc(m.category)+'</span></span></div>'+
@@ -1043,7 +1092,111 @@ function openMerchantPanel(id){
       '<div class="sp-row"><span class="sp-lbl">Orders Today</span><span class="sp-val" style="color:var(--red);font-size:20px;font-family:Montserrat,sans-serif;font-weight:800">'+m.ordersToday+'</span></div>'+
       '<div class="sp-row"><span class="sp-lbl">Rating</span><span class="sp-val">'+stars(m.rating)+'</span></div></div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Recent Orders</div>'+recentHtml+'</div>';
+  document.getElementById('sp-body').innerHTML=
+    '<div style="display:flex;gap:4px;background:var(--gray);border-radius:9px;padding:4px;margin-bottom:18px">'+
+      '<div id="mptab-details" class="tab active" onclick="switchMerchantTab(\'details\')" style="flex:1;text-align:center">Details</div>'+
+      '<div id="mptab-menu" class="tab" onclick="switchMerchantTab(\'menu\')" style="flex:1;text-align:center">Menu Items</div>'+
+    '</div>'+
+    '<div id="merch-tab-details">'+detailsHtml+'</div>'+
+    '<div id="merch-tab-menu" style="display:none"></div>';
   openSidePanel();
+}
+function switchMerchantTab(tab){
+  document.getElementById('mptab-details').classList.toggle('active',tab==='details');
+  document.getElementById('mptab-menu').classList.toggle('active',tab==='menu');
+  document.getElementById('merch-tab-details').style.display=tab==='details'?'':'none';
+  document.getElementById('merch-tab-menu').style.display=tab==='menu'?'':'none';
+  if(tab==='menu')loadMenuItemsTab(panelMerchantId);
+}
+function loadMenuItemsTab(merchantId){
+  if(menuItemsUnsub){menuItemsUnsub();menuItemsUnsub=null;}
+  menuItemEditId=null;
+  var el=document.getElementById('merch-tab-menu');if(!el)return;
+  el.innerHTML=
+    '<div style="background:var(--gray);border-radius:10px;padding:14px;margin-bottom:16px">'+
+      '<div id="mi-form-title" style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;margin-bottom:12px">Add Menu Item</div>'+
+      '<div class="fr"><label>Name *</label><input id="mi-name" placeholder="Item name"/></div>'+
+      '<div class="fr"><label>Description</label><input id="mi-desc" placeholder="Brief description"/></div>'+
+      '<div class="fr"><label>Price (JMD) *</label><input id="mi-price" type="number" placeholder="1200" min="0"/></div>'+
+      '<div class="fr"><label>Category</label>'+
+        '<select id="mi-cat"><option value="mains">Mains</option><option value="sides">Sides</option><option value="drinks">Drinks</option><option value="popular">Popular</option></select>'+
+      '</div>'+
+      '<div class="fr"><label>Image URL <small style="font-weight:400;color:#8a8f9e">(optional)</small></label><input id="mi-img" placeholder="https://..."/></div>'+
+      '<div style="display:flex;gap:8px;margin-top:8px">'+
+        '<button class="btn btn-outline" id="mi-cancel-btn" onclick="cancelMenuItemEdit()" style="flex:1;display:none">Cancel</button>'+
+        '<button class="btn btn-red" onclick="saveMenuItem()" style="flex:1">Save Item</button>'+
+      '</div>'+
+    '</div>'+
+    '<div id="menu-items-list"><div style="color:var(--g3);font-size:13px;padding:20px;text-align:center">Loading…</div></div>';
+  try{
+    menuItemsUnsub=onSnapshot(
+      collection(db,'merchants',merchantId,'menuItems'),
+      function(snap){
+        panelMenuItems=snap.docs.map(function(d){var o=d.data();return{id:d.id,name:o.name||'',description:o.description||'',price:Number(o.price)||0,category:o.category||'mains',imageUrl:o.imageUrl||''}; });
+        renderMenuItems();
+      },
+      function(e){console.warn('menuItems:',e.message);}
+    );
+  }catch(e){console.warn('menuItems init:',e.message);}
+}
+function renderMenuItems(){
+  var listEl=document.getElementById('menu-items-list');if(!listEl)return;
+  if(!panelMenuItems.length){listEl.innerHTML='<div style="color:var(--g3);font-size:13px;text-align:center;padding:24px 0">No menu items yet — add one above</div>';return;}
+  listEl.innerHTML=panelMenuItems.map(function(item){
+    return '<div style="background:white;border-radius:10px;padding:11px 13px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">'+
+      '<div style="display:flex;align-items:center;gap:10px">'+
+        (item.imageUrl?'<img src="'+esc(item.imageUrl)+'" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">':
+          '<div style="width:40px;height:40px;border-radius:8px;background:var(--gray);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🍽️</div>')+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px">'+esc(item.name)+'</div>'+
+          (item.description?'<div style="font-size:11px;color:var(--g3);margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(item.description)+'</div>':'')+
+          '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">'+
+            '<b style="color:var(--red);font-family:Montserrat,sans-serif;font-size:13px">J$'+item.price.toLocaleString()+'</b>'+
+            '<span class="bdg bg-blue" style="font-size:10px;text-transform:capitalize">'+esc(item.category)+'</span>'+
+          '</div>'+
+        '</div>'+
+        '<div style="display:flex;gap:4px;flex-shrink:0">'+
+          '<button class="aicon ai-e" data-action="edit-menu-item" data-id="'+esc(item.id)+'" title="Edit">✎</button>'+
+          '<button class="aicon ai-d" data-action="del-menu-item" data-id="'+esc(item.id)+'" title="Delete">🗑</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function editMenuItemFn(id){
+  var item=panelMenuItems.find(function(i){return i.id===id;});if(!item)return;
+  menuItemEditId=id;
+  document.getElementById('mi-form-title').textContent='Edit Menu Item';
+  document.getElementById('mi-name').value=item.name;
+  document.getElementById('mi-desc').value=item.description;
+  document.getElementById('mi-price').value=item.price;
+  document.getElementById('mi-cat').value=item.category;
+  document.getElementById('mi-img').value=item.imageUrl;
+  var cb=document.getElementById('mi-cancel-btn');if(cb)cb.style.display='';
+  document.getElementById('mi-name').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function cancelMenuItemEdit(){
+  menuItemEditId=null;
+  document.getElementById('mi-form-title').textContent='Add Menu Item';
+  ['mi-name','mi-desc','mi-price','mi-img'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('mi-cat').value='mains';
+  var cb=document.getElementById('mi-cancel-btn');if(cb)cb.style.display='none';
+}
+function saveMenuItem(){
+  var name=(document.getElementById('mi-name').value||'').trim();
+  var price=parseInt(document.getElementById('mi-price').value)||0;
+  if(!name){alert('Item name is required.');return;}
+  if(!price){alert('Price is required.');return;}
+  var obj={name:name,description:(document.getElementById('mi-desc').value||'').trim(),price:price,
+    category:document.getElementById('mi-cat').value,imageUrl:(document.getElementById('mi-img').value||'').trim()};
+  var promise=menuItemEditId
+    ?updateDoc(doc(db,'merchants',panelMerchantId,'menuItems',menuItemEditId),obj)
+    :addDoc(collection(db,'merchants',panelMerchantId,'menuItems'),obj);
+  promise.then(function(){cancelMenuItemEdit();}).catch(function(e){alert('Error: '+e.message);});
+}
+function deleteMenuItemFn(id){
+  if(!confirm('Delete this menu item?'))return;
+  deleteDoc(doc(db,'merchants',panelMerchantId,'menuItems',id)).catch(function(e){alert('Error: '+e.message);});
 }
 
 // ══════════════════════ NOTIFICATIONS ══════════════════════
@@ -1132,7 +1285,7 @@ function renderAnalytics(){
   }
   ['Today','This Week','This Month'].forEach(function(p){
     var os=forPeriod(p);
-    var completed=os.filter(function(o){return o.status==='Delivered';});
+    var completed=os.filter(function(o){return isDeliveredStatus(o.status);});
     var revenue=completed.reduce(function(s,o){return s+parseAmt(o.amount);},0);
     var uniq=new Set(os.map(function(o){return o.customer;})).size;
     var avg=completed.length?Math.round(revenue/completed.length):0;
@@ -1199,16 +1352,25 @@ function renderZones(){
   }).join('');
 }
 function renderTopMerch(){
-  var data=merchants.length
-    ?merchants.slice().sort(function(a,b){return b.ordersToday-a.ordersToday;}).slice(0,4).map(function(m){return {n:m.name,o:m.ordersToday,r:m.fee};})
-    :[{n:'—',o:0,r:'$0'}];
+  var mCounts={},mRevenue={};
+  orders.forEach(function(o){
+    var n=o.merchant||'Unknown';
+    mCounts[n]=(mCounts[n]||0)+1;
+    mRevenue[n]=(mRevenue[n]||0)+parseAmt(o.amount);
+  });
+  var data=Object.keys(mCounts).map(function(n){return{n:n,o:mCounts[n],r:'J$'+Math.round(mRevenue[n]).toLocaleString()};});
+  data.sort(function(a,b){return b.o-a.o;});
+  data=data.slice(0,4);
+  if(!data.length)data=[{n:'—',o:0,r:'J$0'}];
   document.getElementById('top-merch').innerHTML=data.map(function(m){
     return '<tr><td><b>'+esc(m.n)+'</b></td><td><b style="color:var(--red)">'+m.o+'</b></td><td><b>'+esc(m.r)+'</b></td></tr>';
   }).join('');
 }
 function renderPaySplit(){
-  var paypal=orders.filter(function(o){return o.payment&&o.payment.toLowerCase().includes('paypal');}).length;
-  var cod=orders.filter(function(o){return o.payment&&(o.payment.toLowerCase().includes('cod')||o.payment.toLowerCase().includes('cash'));}).length;
+  var paySrc=orders;
+  try{var pStart={'Today':new Date(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()),'This Week':(function(){var d=new Date();d.setDate(d.getDate()-d.getDay());d.setHours(0,0,0,0);return d;})(),'This Month':new Date(new Date().getFullYear(),new Date().getMonth(),1)}[currentPeriod];if(pStart)paySrc=orders.filter(function(o){return o._ts&&o._ts>=pStart;});}catch(e){}
+  var paypal=paySrc.filter(function(o){return o.payment&&o.payment.toLowerCase().includes('paypal');}).length;
+  var cod=paySrc.filter(function(o){return o.payment&&(o.payment.toLowerCase().includes('cod')||o.payment.toLowerCase().includes('cash'));}).length;
   var total=paypal+cod||1;var ppPct=Math.round((paypal/total)*100)||0;var codPct=100-ppPct;
   document.getElementById('pay-split').innerHTML=
     '<div class="prow"><div class="prow-lbl">PayPal</div><div class="ptrack"><div class="pfill" style="width:'+ppPct+'%;background:var(--red)"></div></div><div class="prow-pct" style="color:var(--red)">'+ppPct+'%</div></div>'+
@@ -1226,7 +1388,12 @@ function setPeriod(period){
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function openSidePanel(){document.getElementById('sp-overlay').classList.add('open');document.getElementById('spanel').classList.add('open');}
-function closeSidePanel(){document.getElementById('sp-overlay').classList.remove('open');document.getElementById('spanel').classList.remove('open');}
+function closeSidePanel(){
+  document.getElementById('sp-overlay').classList.remove('open');
+  document.getElementById('spanel').classList.remove('open');
+  if(menuItemsUnsub){menuItemsUnsub();menuItemsUnsub=null;}
+  panelMerchantId=null;panelMenuItems=[];
+}
 
 // ══════════════════════ EVENT DELEGATION ══════════════════════
 document.addEventListener('click',function(e){
@@ -1251,10 +1418,12 @@ document.addEventListener('click',function(e){
     case 'del-driver':     deleteDriver(id);break;
     case 'approve-driver': approveDriver(id);break;
     case 'reject-driver':  rejectDriver(id);break;
-    case 'view-merchant':  openMerchantPanel(id);break;
-    case 'edit-merchant':  openMerchantModal('edit',id);break;
-    case 'del-merchant':   deleteMerchant(id);break;
-    case 'del-promo':      deletePromo(id);break;
+    case 'view-merchant':   openMerchantPanel(id);break;
+    case 'edit-merchant':   openMerchantModal('edit',id);break;
+    case 'del-merchant':    deleteMerchant(id);break;
+    case 'del-promo':       deletePromo(id);break;
+    case 'edit-menu-item':  editMenuItemFn(id);break;
+    case 'del-menu-item':   deleteMenuItemFn(id);break;
   }
 });
 document.addEventListener('change',function(e){
@@ -1295,6 +1464,10 @@ window.sendNotif=sendNotif;
 window.createPromo=createPromo;
 window.updPhonePreview=updPhonePreview;
 window.updPromoPreview=updPromoPreview;
+window.switchMerchantTab=switchMerchantTab;
+window.saveMenuItem=saveMenuItem;
+window.cancelMenuItemEdit=cancelMenuItemEdit;
+window.saveOrderChanges=saveOrderChanges;
 
 // ── Firebase 10.x modular SDK — admin panel complete ──
 // SETUP: Firebase Console → shipeast-1a1f6 → Authentication → Add user → admin@shipeast.com
