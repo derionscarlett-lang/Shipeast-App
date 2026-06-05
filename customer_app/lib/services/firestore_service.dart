@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class FirestoreService {
   static final _db = FirebaseFirestore.instance;
@@ -293,16 +295,110 @@ class FirestoreService {
         final snap = await tx.get(ref);
         if (!snap.exists) return;
         final data = snap.data()!;
-        final total =
+        final newTotal =
             ((data['totalRatings'] as num?)?.toInt() ?? 0) + driverRating;
-        final count =
+        final newCount =
             ((data['ratingCount'] as num?)?.toInt() ?? 0) + 1;
         tx.update(ref, {
-          'totalRatings': total,
-          'ratingCount': count,
-          'averageRating': total / count,
+          'totalRatings': newTotal,
+          'ratingCount': newCount,
+          'averageRating': newTotal / newCount,
         });
       });
     }
+  }
+
+  // ─── Avatar ──────────────────────────────────────────────────────────────────
+
+  static Future<String> uploadAvatar(String uid, File file) async {
+    final ref = FirebaseStorage.instance.ref('users/$uid/avatar.jpg');
+    await ref.putFile(file);
+    final url = await ref.getDownloadURL();
+    await _db.collection('users').doc(uid).set(
+      {'avatarUrl': url},
+      SetOptions(merge: true),
+    );
+    return url;
+  }
+
+  // ─── User Stats ──────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getUserStats(String uid) async {
+    int orderCount = 0;
+    double avgRating = 0;
+    int savedCount = 0;
+
+    try {
+      final ordersSnap = await _db
+          .collection('orders')
+          .where('customerId', isEqualTo: uid)
+          .get();
+      orderCount = ordersSnap.docs.length;
+
+      final ratedOrders = ordersSnap.docs
+          .where((d) => d.data()['driverRating'] != null)
+          .toList();
+      if (ratedOrders.isNotEmpty) {
+        final total = ratedOrders.fold<int>(
+            0, (acc, d) => acc + ((d.data()['driverRating'] as num?)?.toInt() ?? 0));
+        avgRating = total / ratedOrders.length;
+      }
+    } catch (_) {}
+
+    try {
+      final addrSnap = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('addresses')
+          .get();
+      savedCount = addrSnap.docs.length;
+    } catch (_) {}
+
+    return {
+      'orderCount': orderCount,
+      'avgRating': avgRating,
+      'savedCount': savedCount,
+    };
+  }
+
+  // ─── Notifications ────────────────────────────────────────────────────────────
+
+  static Stream<List<Map<String, dynamic>>> notificationsStream() =>
+      _db.collection('notifications').snapshots().map((s) {
+        final docs = s.docs
+            .where((d) {
+              final t = d.data()['target'] as String? ?? 'all';
+              return t == 'all' || t == 'customers';
+            })
+            .map((d) => <String, dynamic>{'id': d.id, ...d.data()})
+            .toList();
+        docs.sort((a, b) {
+          final at = (a['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+          final bt = (b['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+          return bt.compareTo(at);
+        });
+        return docs;
+      });
+
+  static Future<void> markNotificationsRead(String uid) =>
+      _db.collection('users').doc(uid).set(
+        {'notificationsReadAt': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+
+  static Stream<int> unreadNotificationsCountStream(String uid) {
+    return _db.collection('users').doc(uid).snapshots().asyncMap((snap) async {
+      final readAt = (snap.data()?['notificationsReadAt'] as Timestamp?)?.toDate();
+      final notifSnap = await _db.collection('notifications').get();
+      final unread = notifSnap.docs.where((d) {
+        final target = d.data()['target'] as String? ?? 'all';
+        if (target != 'all' && target != 'customers') return false;
+        if (readAt == null) return true;
+        final ts = (d.data()['createdAt'] as Timestamp?)?.toDate();
+        if (ts == null) return false;
+        return ts.isAfter(readAt);
+      }).length;
+      return unread;
+    });
   }
 }

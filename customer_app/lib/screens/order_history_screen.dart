@@ -19,6 +19,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   static const _tabs = ['All', 'Active', 'Completed', 'Cancelled'];
 
   List<Map<String, dynamic>> _orders = [];
+  bool _loading = true;
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
 
   @override
@@ -33,9 +34,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   void _subscribe() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     _sub = FirestoreService.orderHistoryStream(uid).listen((orders) {
-      if (mounted) setState(() => _orders = orders);
+      if (mounted) setState(() { _orders = orders; _loading = false; });
+    }, onError: (_) {
+      if (mounted) setState(() => _loading = false);
     });
   }
 
@@ -212,6 +218,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       );
 
   Widget _buildList() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
+    }
     final items = _filtered;
     if (items.isEmpty) {
       return Center(
@@ -373,7 +382,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, '/merchant'),
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    '/order-status',
+                    arguments: {'orderId': order['id'] as String? ?? ''},
+                  ),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 11, vertical: 6),
@@ -382,7 +395,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'Reorder',
+                      'Track',
                       style: GoogleFonts.nunito(
                         fontSize: 10,
                         fontWeight: FontWeight.w900,

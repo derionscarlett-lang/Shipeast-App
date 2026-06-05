@@ -24,6 +24,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
   String _orderId = '';
   String _merchantName = '';
   String _deliveryAddress = '';
+  String _paymentMethod = 'Cash on Delivery';
   List<Map<String, dynamic>> _items = const [];
   int _subtotal = 0;
   int _deliveryFee = 0;
@@ -70,6 +71,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
         _orderId = args['orderId'] as String? ?? '';
         _merchantName = args['merchantName'] as String? ?? '';
         _deliveryAddress = args['deliveryAddress'] as String? ?? '';
+        _paymentMethod = args['paymentMethod'] as String? ?? 'Cash on Delivery';
         _subtotal = args['subtotal'] as int? ?? 0;
         _deliveryFee = args['deliveryFee'] as int? ?? 0;
         _serviceFee = args['serviceFee'] as int? ?? 0;
@@ -449,7 +451,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                       size: 14, color: Color(0xFF777777)),
                   const SizedBox(width: 7),
                   Text(
-                    'Paid via Cash on Delivery',
+                    'Paid via $_paymentMethod',
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       color: const Color(0xFF777777),

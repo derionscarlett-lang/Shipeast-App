@@ -1,9 +1,12 @@
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'services/firestore_service.dart';
 import 'providers/cart_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -23,6 +26,8 @@ import 'screens/rate_driver_screen.dart';
 import 'screens/saved_addresses_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/help_support_screen.dart';
+import 'screens/notifications_screen.dart';
+import 'screens/privacy_security_screen.dart';
 import 'theme/app_theme.dart';
 
 Future<void> _initFirebase() async {
@@ -76,6 +81,8 @@ class ShipEastApp extends StatelessWidget {
           '/saved-addresses': (_) => const SavedAddressesScreen(),
           '/search': (_) => const SearchScreen(),
           '/help-support': (_) => const HelpSupportScreen(),
+          '/notifications': (_) => const NotificationsScreen(),
+          '/privacy-security': (_) => const PrivacySecurityScreen(),
         },
       ),
     );
@@ -91,16 +98,38 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
+  int _unreadNotifications = 0;
+  StreamSubscription<int>? _unreadSub;
 
   static const List<Map<String, dynamic>> _navItems = [
     {'label': 'Home', 'icon': Icons.home},
     {'label': 'Search', 'icon': Icons.search},
     {'label': 'Orders', 'icon': Icons.receipt_long},
+    {'label': 'Alerts', 'icon': Icons.notifications},
     {'label': 'Profile', 'icon': Icons.person},
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _subscribeUnread();
+  }
+
+  void _subscribeUnread() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    _unreadSub = FirestoreService.unreadNotificationsCountStream(uid).listen((count) {
+      if (mounted) setState(() => _unreadNotifications = count);
+    });
+  }
+
+  @override
+  void dispose() {
+    _unreadSub?.cancel();
+    super.dispose();
+  }
+
   Widget? _buildCartFab(BuildContext context) {
-    if (_selectedIndex > 1) return null;
     return Consumer<CartProvider>(
       builder: (ctx, cart, _) {
         if (cart.cartCount == 0) return const SizedBox.shrink();
@@ -149,6 +178,7 @@ class _MainShellState extends State<MainShell> {
           HomeScreen(),
           SearchScreen(),
           OrderHistoryScreen(),
+          NotificationsScreen(),
           ProfileScreen(),
         ],
       ),
@@ -165,6 +195,8 @@ class _MainShellState extends State<MainShell> {
             child: Row(
               children: List.generate(_navItems.length, (i) {
                 final active = _selectedIndex == i;
+                final isAlerts = _navItems[i]['label'] == 'Alerts';
+                final showBadge = isAlerts && _unreadNotifications > 0 && !active;
                 return Expanded(
                   child: GestureDetector(
                     onTap: () => setState(() => _selectedIndex = i),
@@ -172,12 +204,42 @@ class _MainShellState extends State<MainShell> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          _navItems[i]['icon'] as IconData,
-                          size: 22,
-                          color: active
-                              ? AppTheme.primary
-                              : const Color(0xFFC0C0C0),
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(
+                              _navItems[i]['icon'] as IconData,
+                              size: 22,
+                              color: active
+                                  ? AppTheme.primary
+                                  : const Color(0xFFC0C0C0),
+                            ),
+                            if (showBadge)
+                              Positioned(
+                                top: -4,
+                                right: -6,
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: AppTheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                      minWidth: 14, minHeight: 14),
+                                  child: Text(
+                                    _unreadNotifications > 9
+                                        ? '9+'
+                                        : '$_unreadNotifications',
+                                    style: const TextStyle(
+                                      fontSize: 7,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 2),
                         Text(

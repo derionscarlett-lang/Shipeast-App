@@ -144,7 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 5),
                     _textField(
                       controller: _nameController,
-                      hint: 'Marcus Thompson',
+                      hint: 'Your full name',
                       isActive: true,
                     ),
                     const SizedBox(height: 12),

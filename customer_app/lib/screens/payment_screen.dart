@@ -793,6 +793,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           'serviceFee': _serviceFee,
           'total': _finalTotal,
           'deliveryAddress': _deliveryAddress,
+          'paymentMethod': _selectedPayment == 0 ? 'PayPal' : 'Cash on Delivery',
         },
       );
     } catch (_) {

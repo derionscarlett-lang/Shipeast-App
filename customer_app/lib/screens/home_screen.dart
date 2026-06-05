@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../services/firestore_service.dart';
 import '../widgets/shimmer_box.dart';
@@ -20,16 +18,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedCategory = 0;
   String _userName = '';
-  bool _nameLoaded = false;
-  String? _avatarPath;
-
-  static const _keyName = 'shipeast_user_name';
-  static const _keyAvatar = 'shipeast_avatar_path';
+  String? _avatarUrl;
 
   StreamSubscription<Map<String, dynamic>?>? _nameSub;
 
   // Firestore merchants by category index
   final Map<int, List<Map<String, dynamic>>> _firestoreMerchants = {};
+  final Map<int, bool> _merchantsLoaded = {};
   final Map<int, StreamSubscription<List<Map<String, dynamic>>>> _subs = {};
 
   static const _categoryLabels = ['Food', 'Grocery', 'Packages', 'Pharmacy'];
@@ -49,31 +44,6 @@ class _HomeScreenState extends State<HomeScreen> {
     {'emoji': '📄', 'label': 'Documents', 'color': Color(0xFF10B981)},
     {'emoji': '📦', 'label': 'Custom Package', 'color': Color(0xFF6B7280)},
   ];
-
-  // Fallback static merchants (shown while Firestore loads or if empty)
-  static const Map<int, List<Map<String, dynamic>>> _placeholderMerchants = {
-    0: [
-      {'id': '', 'name': 'Island Jerk Palace', 'emoji': '🍗', 'rating': 4.8, 'deliveryTime': '25–35 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🔥 Popular'},
-      {'id': '', 'name': 'Kingston Eats', 'emoji': '🍽️', 'rating': 4.5, 'deliveryTime': '20–30 min', 'deliveryFee': '\$100 delivery', 'isOpen': true, 'promo': null},
-      {'id': '', 'name': "Mama's Kitchen", 'emoji': '🥘', 'rating': 4.7, 'deliveryTime': '30–45 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '❤️ Local Fave'},
-      {'id': '', 'name': 'Rasta Pasta', 'emoji': '🍝', 'rating': 4.3, 'deliveryTime': '25–40 min', 'deliveryFee': '\$150 delivery', 'isOpen': false, 'promo': null},
-      {'id': '', 'name': 'Seafood Shack', 'emoji': '🦞', 'rating': 4.9, 'deliveryTime': '35–50 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '⭐ Top Rated'},
-    ],
-    1: [
-      {'id': '', 'name': 'FreshMart', 'emoji': '🛒', 'rating': 4.6, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': null},
-      {'id': '', 'name': 'SaveMore Supermarket', 'emoji': '🏪', 'rating': 4.4, 'deliveryTime': '30–45 min', 'deliveryFee': '\$150 delivery', 'isOpen': true, 'promo': '💰 Best Value'},
-      {'id': '', 'name': 'Green Valley Farms', 'emoji': '🥬', 'rating': 4.7, 'deliveryTime': '25–35 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🌿 Organic'},
-      {'id': '', 'name': 'Daily Essentials', 'emoji': '🧴', 'rating': 4.2, 'deliveryTime': '15–25 min', 'deliveryFee': '\$100 delivery', 'isOpen': true, 'promo': null},
-      {'id': '', 'name': 'Farm Fresh', 'emoji': '🥑', 'rating': 4.5, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': false, 'promo': null},
-    ],
-    3: [
-      {'id': '', 'name': 'PharmaCare Rx', 'emoji': '💊', 'rating': 4.8, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🏥 Certified'},
-      {'id': '', 'name': 'MedPlus Pharmacy', 'emoji': '🩺', 'rating': 4.5, 'deliveryTime': '25–35 min', 'deliveryFee': '\$100 delivery', 'isOpen': true, 'promo': null},
-      {'id': '', 'name': 'HealthFirst', 'emoji': '🌡️', 'rating': 4.6, 'deliveryTime': '15–25 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '⚡ Fast'},
-      {'id': '', 'name': 'CityDrug', 'emoji': '💉', 'rating': 4.3, 'deliveryTime': '30–40 min', 'deliveryFee': '\$150 delivery', 'isOpen': false, 'promo': null},
-      {'id': '', 'name': 'Wellness Plus', 'emoji': '🌿', 'rating': 4.7, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': null},
-    ],
-  };
 
   // Category gradient palettes
   static const _catGrads = <int, List<List<Color>>>{
@@ -107,7 +77,6 @@ class _HomeScreenState extends State<HomeScreen> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ));
-    _loadProfile();
     _loadUserName();
     FirestoreService.seedMerchantsIfEmpty();
     _subscribeMerchants(0);
@@ -129,7 +98,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _subs[catIndex] =
         FirestoreService.merchantsByCategory(label).listen((merchants) {
       if (mounted) {
-        setState(() => _firestoreMerchants[catIndex] = merchants);
+        setState(() {
+          _firestoreMerchants[catIndex] = merchants;
+          _merchantsLoaded[catIndex] = true;
+        });
       }
     });
   }
@@ -139,25 +111,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (uid == null) return;
     _nameSub = FirestoreService.watchUserProfile(uid).listen((data) {
       if (!mounted) return;
-      final name = data?['name'] as String?;
-      if (name != null && name.isNotEmpty) {
-        setState(() {
+      setState(() {
+        final name = data?['name'] as String?;
+        if (name != null && name.isNotEmpty) {
           _userName = name;
-          _nameLoaded = true;
-        });
-      }
-    });
-  }
-
-  Future<void> _loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedName = prefs.getString(_keyName);
-    setState(() {
-      // Use saved name as quick initial value; Firestore will override once loaded
-      if (!_nameLoaded && savedName != null && savedName.isNotEmpty) {
-        _userName = savedName;
-      }
-      _avatarPath = prefs.getString(_keyAvatar);
+        }
+        _avatarUrl = data?['avatarUrl'] as String?;
+      });
     });
   }
 
@@ -174,7 +134,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _goToProfile() {
-    Navigator.pushNamed(context, '/profile').then((_) => _loadProfile());
+    Navigator.pushNamed(context, '/profile');
+  }
+
+  Widget _avatarInitials() {
+    final initials = _userName.isNotEmpty
+        ? _userName.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+        : '';
+    return Center(
+      child: initials.isNotEmpty
+          ? Text(initials,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white))
+          : const Icon(Icons.person, size: 20, color: Colors.white),
+    );
   }
 
   void _showSnackbar(String msg) {
@@ -188,10 +163,10 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 
-  List<Map<String, dynamic>> _merchantsFor(int catIndex) {
-    final fs = _firestoreMerchants[catIndex];
-    if (fs != null && fs.isNotEmpty) return fs;
-    return _placeholderMerchants[catIndex] ?? [];
+  // Returns null when still loading, empty list when loaded but no merchants
+  List<Map<String, dynamic>>? _merchantsFor(int catIndex) {
+    if (_merchantsLoaded[catIndex] != true) return null;
+    return _firestoreMerchants[catIndex] ?? [];
   }
 
   List<Color> _gradientFor(int catIndex, int itemIndex) {
@@ -477,11 +452,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
                       ),
                       child: ClipOval(
-                        child: _avatarPath != null
-                            ? Image.file(File(_avatarPath!), fit: BoxFit.cover,
-                                errorBuilder: (ctx, err, st) =>
-                                    const Center(child: Icon(Icons.person, size: 20, color: Colors.white)))
-                            : const Center(child: Icon(Icons.person, size: 20, color: Colors.white)),
+                        child: _avatarUrl != null
+                            ? CachedNetworkImage(
+                                imageUrl: _avatarUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (ctx, url) => _avatarInitials(),
+                                errorWidget: (ctx, url, err) => _avatarInitials(),
+                              )
+                            : _avatarInitials(),
                       ),
                     ),
                   ),
@@ -670,11 +648,64 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           const SizedBox(height: 11),
-          ...merchants.asMap().entries.map((e) => _merchantCard(e.key, e.value)),
+          if (merchants == null)
+            // Loading shimmer
+            ...List.generate(3, (_) => _shimmerMerchantCard())
+          else if (merchants.isEmpty)
+            _buildMerchantsEmpty()
+          else
+            ...merchants.asMap().entries.map((e) => _merchantCard(e.key, e.value)),
         ],
       ),
     );
   }
+
+  Widget _shimmerMerchantCard() => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 2))],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ShimmerBox(width: double.infinity, height: 115, radius: 0),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  ShimmerBox(width: 160, height: 14, radius: 5),
+                  SizedBox(height: 8),
+                  ShimmerBox(width: 220, height: 10, radius: 4),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _buildMerchantsEmpty() => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.storefront, size: 48, color: Color(0xFFDDDDDD)),
+            const SizedBox(height: 12),
+            Text(
+              'No merchants available',
+              style: GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.dark),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Check back soon',
+              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF888888)),
+            ),
+          ],
+        ),
+      );
 
   Widget _merchantCard(int index, Map<String, dynamic> m) {
     final grads = _gradientFor(_selectedCategory, index);
