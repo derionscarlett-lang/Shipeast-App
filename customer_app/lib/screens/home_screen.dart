@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
+import '../services/firestore_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +21,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static const _keyName = 'shipeast_user_name';
   static const _keyAvatar = 'shipeast_avatar_path';
+
+  // Firestore merchants by category index
+  final Map<int, List<Map<String, dynamic>>> _firestoreMerchants = {};
+  final Map<int, StreamSubscription<List<Map<String, dynamic>>>> _subs = {};
+
+  static const _categoryLabels = ['Food', 'Grocery', 'Packages', 'Pharmacy'];
 
   final List<Map<String, dynamic>> _categories = const [
     {'icon': Icons.restaurant, 'label': 'Food'},
@@ -36,178 +44,53 @@ class _HomeScreenState extends State<HomeScreen> {
     {'emoji': '📦', 'label': 'Custom Package', 'color': Color(0xFF6B7280)},
   ];
 
-  static const Map<int, List<Map<String, dynamic>>> _categoryMerchants = {
+  // Fallback static merchants (shown while Firestore loads or if empty)
+  static const Map<int, List<Map<String, dynamic>>> _placeholderMerchants = {
     0: [
-      {
-        'name': 'Island Jerk Palace',
-        'emoji': '🍗',
-        'rating': '4.8',
-        'time': '25–35 min',
-        'delivery': 'Free delivery',
-        'open': true,
-        'promo': '🔥 Popular',
-        'gradStart': Color(0xFF7F1D1D),
-        'gradEnd': Color(0xFF991B1B),
-      },
-      {
-        'name': 'Kingston Eats',
-        'emoji': '🍽️',
-        'rating': '4.5',
-        'time': '20–30 min',
-        'delivery': 'J\$100 delivery',
-        'open': true,
-        'promo': null,
-        'gradStart': Color(0xFFB45309),
-        'gradEnd': Color(0xFFD97706),
-      },
-      {
-        'name': "Mama's Kitchen",
-        'emoji': '🥘',
-        'rating': '4.7',
-        'time': '30–45 min',
-        'delivery': 'Free delivery',
-        'open': true,
-        'promo': '❤️ Local Fave',
-        'gradStart': Color(0xFF92400E),
-        'gradEnd': Color(0xFFB45309),
-      },
-      {
-        'name': 'Rasta Pasta',
-        'emoji': '🍝',
-        'rating': '4.3',
-        'time': '25–40 min',
-        'delivery': 'J\$150 delivery',
-        'open': false,
-        'promo': null,
-        'gradStart': Color(0xFF14532D),
-        'gradEnd': Color(0xFF166534),
-      },
-      {
-        'name': 'Seafood Shack',
-        'emoji': '🦞',
-        'rating': '4.9',
-        'time': '35–50 min',
-        'delivery': 'Free delivery',
-        'open': true,
-        'promo': '⭐ Top Rated',
-        'gradStart': Color(0xFF1E3A5F),
-        'gradEnd': Color(0xFF1D4ED8),
-      },
+      {'id': '', 'name': 'Island Jerk Palace', 'emoji': '🍗', 'rating': 4.8, 'deliveryTime': '25–35 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🔥 Popular'},
+      {'id': '', 'name': 'Kingston Eats', 'emoji': '🍽️', 'rating': 4.5, 'deliveryTime': '20–30 min', 'deliveryFee': 'J\$100 delivery', 'isOpen': true, 'promo': null},
+      {'id': '', 'name': "Mama's Kitchen", 'emoji': '🥘', 'rating': 4.7, 'deliveryTime': '30–45 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '❤️ Local Fave'},
+      {'id': '', 'name': 'Rasta Pasta', 'emoji': '🍝', 'rating': 4.3, 'deliveryTime': '25–40 min', 'deliveryFee': 'J\$150 delivery', 'isOpen': false, 'promo': null},
+      {'id': '', 'name': 'Seafood Shack', 'emoji': '🦞', 'rating': 4.9, 'deliveryTime': '35–50 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '⭐ Top Rated'},
     ],
     1: [
-      {
-        'name': 'FreshMart',
-        'emoji': '🛒',
-        'rating': '4.6',
-        'time': '20–30 min',
-        'delivery': 'Free delivery',
-        'open': true,
-        'promo': null,
-        'gradStart': Color(0xFF064E3B),
-        'gradEnd': Color(0xFF065F46),
-      },
-      {
-        'name': 'SaveMore Supermarket',
-        'emoji': '🏪',
-        'rating': '4.4',
-        'time': '30–45 min',
-        'delivery': 'J\$150 delivery',
-        'open': true,
-        'promo': '💰 Best Value',
-        'gradStart': Color(0xFF1F4E79),
-        'gradEnd': Color(0xFF2563EB),
-      },
-      {
-        'name': 'Green Valley Farms',
-        'emoji': '🥬',
-        'rating': '4.7',
-        'time': '25–35 min',
-        'delivery': 'Free delivery',
-        'open': true,
-        'promo': '🌿 Organic',
-        'gradStart': Color(0xFF15803D),
-        'gradEnd': Color(0xFF16A34A),
-      },
-      {
-        'name': 'Daily Essentials',
-        'emoji': '🧴',
-        'rating': '4.2',
-        'time': '15–25 min',
-        'delivery': 'J\$100 delivery',
-        'open': true,
-        'promo': null,
-        'gradStart': Color(0xFF7C3AED),
-        'gradEnd': Color(0xFF6D28D9),
-      },
-      {
-        'name': 'Farm Fresh',
-        'emoji': '🥑',
-        'rating': '4.5',
-        'time': '20–30 min',
-        'delivery': 'Free delivery',
-        'open': false,
-        'promo': null,
-        'gradStart': Color(0xFF065F46),
-        'gradEnd': Color(0xFF047857),
-      },
+      {'id': '', 'name': 'FreshMart', 'emoji': '🛒', 'rating': 4.6, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': null},
+      {'id': '', 'name': 'SaveMore Supermarket', 'emoji': '🏪', 'rating': 4.4, 'deliveryTime': '30–45 min', 'deliveryFee': 'J\$150 delivery', 'isOpen': true, 'promo': '💰 Best Value'},
+      {'id': '', 'name': 'Green Valley Farms', 'emoji': '🥬', 'rating': 4.7, 'deliveryTime': '25–35 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🌿 Organic'},
+      {'id': '', 'name': 'Daily Essentials', 'emoji': '🧴', 'rating': 4.2, 'deliveryTime': '15–25 min', 'deliveryFee': 'J\$100 delivery', 'isOpen': true, 'promo': null},
+      {'id': '', 'name': 'Farm Fresh', 'emoji': '🥑', 'rating': 4.5, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': false, 'promo': null},
     ],
-    2: [],
     3: [
-      {
-        'name': 'PharmaCare Rx',
-        'emoji': '💊',
-        'rating': '4.8',
-        'time': '20–30 min',
-        'delivery': 'Free delivery',
-        'open': true,
-        'promo': '🏥 Certified',
-        'gradStart': Color(0xFF1E40AF),
-        'gradEnd': Color(0xFF2563EB),
-      },
-      {
-        'name': 'MedPlus Pharmacy',
-        'emoji': '🩺',
-        'rating': '4.5',
-        'time': '25–35 min',
-        'delivery': 'J\$100 delivery',
-        'open': true,
-        'promo': null,
-        'gradStart': Color(0xFF0E7490),
-        'gradEnd': Color(0xFF0891B2),
-      },
-      {
-        'name': 'HealthFirst',
-        'emoji': '🌡️',
-        'rating': '4.6',
-        'time': '15–25 min',
-        'delivery': 'Free delivery',
-        'open': true,
-        'promo': '⚡ Fast',
-        'gradStart': Color(0xFF7C3AED),
-        'gradEnd': Color(0xFF8B5CF6),
-      },
-      {
-        'name': 'CityDrug',
-        'emoji': '💉',
-        'rating': '4.3',
-        'time': '30–40 min',
-        'delivery': 'J\$150 delivery',
-        'open': false,
-        'promo': null,
-        'gradStart': Color(0xFF6B7280),
-        'gradEnd': Color(0xFF4B5563),
-      },
-      {
-        'name': 'Wellness Plus',
-        'emoji': '🌿',
-        'rating': '4.7',
-        'time': '20–30 min',
-        'delivery': 'Free delivery',
-        'open': true,
-        'promo': null,
-        'gradStart': Color(0xFF14532D),
-        'gradEnd': Color(0xFF15803D),
-      },
+      {'id': '', 'name': 'PharmaCare Rx', 'emoji': '💊', 'rating': 4.8, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🏥 Certified'},
+      {'id': '', 'name': 'MedPlus Pharmacy', 'emoji': '🩺', 'rating': 4.5, 'deliveryTime': '25–35 min', 'deliveryFee': 'J\$100 delivery', 'isOpen': true, 'promo': null},
+      {'id': '', 'name': 'HealthFirst', 'emoji': '🌡️', 'rating': 4.6, 'deliveryTime': '15–25 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '⚡ Fast'},
+      {'id': '', 'name': 'CityDrug', 'emoji': '💉', 'rating': 4.3, 'deliveryTime': '30–40 min', 'deliveryFee': 'J\$150 delivery', 'isOpen': false, 'promo': null},
+      {'id': '', 'name': 'Wellness Plus', 'emoji': '🌿', 'rating': 4.7, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': null},
+    ],
+  };
+
+  // Category gradient palettes
+  static const _catGrads = <int, List<List<Color>>>{
+    0: [
+      [Color(0xFF7F1D1D), Color(0xFF991B1B)],
+      [Color(0xFFB45309), Color(0xFFD97706)],
+      [Color(0xFF92400E), Color(0xFFB45309)],
+      [Color(0xFF14532D), Color(0xFF166534)],
+      [Color(0xFF1E3A5F), Color(0xFF1D4ED8)],
+    ],
+    1: [
+      [Color(0xFF064E3B), Color(0xFF065F46)],
+      [Color(0xFF1F4E79), Color(0xFF2563EB)],
+      [Color(0xFF15803D), Color(0xFF16A34A)],
+      [Color(0xFF7C3AED), Color(0xFF6D28D9)],
+      [Color(0xFF065F46), Color(0xFF047857)],
+    ],
+    3: [
+      [Color(0xFF1E40AF), Color(0xFF2563EB)],
+      [Color(0xFF0E7490), Color(0xFF0891B2)],
+      [Color(0xFF7C3AED), Color(0xFF8B5CF6)],
+      [Color(0xFF6B7280), Color(0xFF4B5563)],
+      [Color(0xFF14532D), Color(0xFF15803D)],
     ],
   };
 
@@ -219,6 +102,28 @@ class _HomeScreenState extends State<HomeScreen> {
       statusBarIconBrightness: Brightness.light,
     ));
     _loadProfile();
+    FirestoreService.seedMerchantsIfEmpty();
+    _subscribeMerchants(0);
+    _subscribeMerchants(1);
+    _subscribeMerchants(3);
+  }
+
+  @override
+  void dispose() {
+    for (final sub in _subs.values) {
+      sub.cancel();
+    }
+    super.dispose();
+  }
+
+  void _subscribeMerchants(int catIndex) {
+    final label = _categoryLabels[catIndex];
+    _subs[catIndex] =
+        FirestoreService.merchantsByCategory(label).listen((merchants) {
+      if (mounted) {
+        setState(() => _firestoreMerchants[catIndex] = merchants);
+      }
+    });
   }
 
   Future<void> _loadProfile() async {
@@ -254,6 +159,17 @@ class _HomeScreenState extends State<HomeScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       duration: const Duration(seconds: 2),
     ));
+  }
+
+  List<Map<String, dynamic>> _merchantsFor(int catIndex) {
+    final fs = _firestoreMerchants[catIndex];
+    if (fs != null && fs.isNotEmpty) return fs;
+    return _placeholderMerchants[catIndex] ?? [];
+  }
+
+  List<Color> _gradientFor(int catIndex, int itemIndex) {
+    final palette = _catGrads[catIndex] ?? _catGrads[0]!;
+    return palette[itemIndex % palette.length];
   }
 
   void _showPackageForm(String category) {
@@ -314,38 +230,29 @@ class _HomeScreenState extends State<HomeScreen> {
                   _formLabel('Item Category'),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 13, vertical: 13),
+                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF5F5F7),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: const Color(0xFFEBEBEB), width: 1.5),
+                      border: Border.all(color: const Color(0xFFEBEBEB), width: 1.5),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.inventory_2,
-                            size: 17, color: Color(0xFF888888)),
+                        const Icon(Icons.inventory_2, size: 17, color: Color(0xFF888888)),
                         const SizedBox(width: 8),
-                        Text(
-                          category,
-                          style: GoogleFonts.inter(
-                              fontSize: 13,
-                              color: const Color(0xFF333333)),
-                        ),
+                        Text(category,
+                            style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333))),
                       ],
                     ),
                   ),
                   const SizedBox(height: 14),
                   _formLabel('Pickup Location'),
                   const SizedBox(height: 6),
-                  _formField(pickupCtrl, 'Enter pickup address',
-                      Icons.my_location, TextInputType.streetAddress),
+                  _formField(pickupCtrl, 'Enter pickup address', Icons.my_location, TextInputType.streetAddress),
                   const SizedBox(height: 14),
                   _formLabel('Delivery Location'),
                   const SizedBox(height: 6),
-                  _formField(deliveryCtrl, 'Enter delivery address',
-                      Icons.location_on, TextInputType.streetAddress),
+                  _formField(deliveryCtrl, 'Enter delivery address', Icons.location_on, TextInputType.streetAddress),
                   const SizedBox(height: 14),
                   _formLabel('Estimated Weight (kg)'),
                   const SizedBox(height: 6),
@@ -356,31 +263,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 6),
                   StatefulBuilder(
                     builder: (ctx2, setToggle) => Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 13, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF5F5F7),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: const Color(0xFFEBEBEB), width: 1.5),
+                        border: Border.all(color: const Color(0xFFEBEBEB), width: 1.5),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.inventory,
-                              size: 17, color: Color(0xFF888888)),
+                          const Icon(Icons.inventory, size: 17, color: Color(0xFF888888)),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              packingRequired ? 'Yes' : 'No',
-                              style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: const Color(0xFF333333)),
-                            ),
+                            child: Text(packingRequired ? 'Yes' : 'No',
+                                style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333))),
                           ),
                           Switch(
                             value: packingRequired,
-                            onChanged: (v) =>
-                                setToggle(() => packingRequired = v),
+                            onChanged: (v) => setToggle(() => packingRequired = v),
                             activeThumbColor: AppTheme.primary,
                           ),
                         ],
@@ -394,58 +293,35 @@ class _HomeScreenState extends State<HomeScreen> {
                     controller: instructionsCtrl,
                     minLines: 2,
                     maxLines: 4,
-                    style: GoogleFonts.inter(
-                        fontSize: 13, color: const Color(0xFF333333)),
+                    style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333)),
                     decoration: InputDecoration(
                       hintText: 'Any special handling instructions...',
-                      hintStyle: GoogleFonts.inter(
-                          fontSize: 12, color: const Color(0xFFBBBBBB)),
+                      hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFBBBBBB)),
                       filled: true,
                       fillColor: const Color(0xFFF5F5F7),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                            color: Color(0xFFEBEBEB), width: 1.5),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                            color: Color(0xFFEBEBEB), width: 1.5),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                            color: AppTheme.primary, width: 1.5),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 13, vertical: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
                       isDense: true,
                     ),
                   ),
                   const SizedBox(height: 22),
                   ElevatedButton(
                     onPressed: () {
-                      if (pickupCtrl.text.trim().isEmpty ||
-                          deliveryCtrl.text.trim().isEmpty) {
-                        return;
-                      }
+                      if (pickupCtrl.text.trim().isEmpty || deliveryCtrl.text.trim().isEmpty) return;
                       Navigator.pop(ctx);
-                      _showSnackbar(
-                          'Package request submitted! We\'ll contact you shortly.');
+                      _showSnackbar("Package request submitted! We'll contact you shortly.");
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
                       elevation: 0,
                     ),
-                    child: Text(
-                      'Submit Request',
-                      style: GoogleFonts.nunito(
-                          fontSize: 14, fontWeight: FontWeight.w900),
-                    ),
+                    child: Text('Submit Request',
+                        style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w900)),
                   ),
                 ],
               ),
@@ -458,49 +334,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _formLabel(String text) => Text(
         text,
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF666666),
-        ),
+        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF666666)),
       );
 
-  Widget _formField(TextEditingController ctrl, String hint, IconData icon,
-      TextInputType type) {
+  Widget _formField(TextEditingController ctrl, String hint, IconData icon, TextInputType type) {
     return TextField(
       controller: ctrl,
       keyboardType: type,
-      style:
-          GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333)),
+      style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333)),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle:
-            GoogleFonts.inter(fontSize: 12, color: const Color(0xFFBBBBBB)),
+        hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFBBBBBB)),
         prefixIcon: Padding(
           padding: const EdgeInsets.only(left: 12, right: 8),
           child: Icon(icon, size: 17, color: const Color(0xFF888888)),
         ),
-        prefixIconConstraints:
-            const BoxConstraints(minWidth: 0, minHeight: 0),
+        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
         filled: true,
         fillColor: const Color(0xFFF5F5F7),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:
-              const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:
-              const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:
-              const BorderSide(color: AppTheme.primary, width: 1.5),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
         isDense: true,
       ),
     );
@@ -552,8 +407,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.location_on,
-                                size: 12, color: Color(0xB3FFFFFF)),
+                            const Icon(Icons.location_on, size: 12, color: Color(0xB3FFFFFF)),
                             const SizedBox(width: 3),
                             Text(
                               'St. Thomas, Jamaica',
@@ -585,25 +439,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.18),
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 1.5,
-                        ),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
                       ),
                       child: ClipOval(
                         child: _avatarPath != null
-                            ? Image.file(
-                                File(_avatarPath!),
-                                fit: BoxFit.cover,
-                                errorBuilder: (ctx, err, st) => const Center(
-                                  child: Icon(Icons.person,
-                                      size: 20, color: Colors.white),
-                                ),
-                              )
-                            : const Center(
-                                child: Icon(Icons.person,
-                                    size: 20, color: Colors.white),
-                              ),
+                            ? Image.file(File(_avatarPath!), fit: BoxFit.cover,
+                                errorBuilder: (ctx, err, st) =>
+                                    const Center(child: Icon(Icons.person, size: 20, color: Colors.white)))
+                            : const Center(child: Icon(Icons.person, size: 20, color: Colors.white)),
                       ),
                     ),
                   ),
@@ -613,24 +456,15 @@ class _HomeScreenState extends State<HomeScreen> {
               GestureDetector(
                 onTap: () => Navigator.pushNamed(context, '/search'),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 13, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(11),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(11)),
                   child: Row(
                     children: [
-                      const Icon(Icons.search,
-                          size: 18, color: Color(0xFFBDBDBD)),
+                      const Icon(Icons.search, size: 18, color: Color(0xFFBDBDBD)),
                       const SizedBox(width: 9),
                       Text(
                         'Search food, merchants, items...',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: const Color(0xFFBDBDBD),
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFBDBDBD), fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
@@ -656,13 +490,7 @@ class _HomeScreenState extends State<HomeScreen> {
             colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
           ),
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1D4ED8).withValues(alpha: 0.28),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: const Color(0xFF1D4ED8).withValues(alpha: 0.28), blurRadius: 14, offset: const Offset(0, 4))],
         ),
         child: Row(
           children: [
@@ -672,28 +500,16 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Order for Family in Jamaica',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
+                  Text('Order for Family in Jamaica',
+                      style: GoogleFonts.montserrat(fontSize: 13, fontWeight: FontWeight.w900, color: Colors.white)),
                   const SizedBox(height: 2),
-                  Text(
-                    'Living overseas? Send groceries & gifts home',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
-                  ),
+                  Text('Living overseas? Send groceries & gifts home',
+                      style: GoogleFonts.inter(fontSize: 10, color: Colors.white.withValues(alpha: 0.7))),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward_ios,
-                size: 16, color: Colors.white),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white),
           ],
         ),
       ),
@@ -706,69 +522,34 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Categories',
-            style: GoogleFonts.montserrat(
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.dark,
-            ),
-          ),
+          Text('Categories',
+              style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w900, color: AppTheme.dark)),
           const SizedBox(height: 11),
           SizedBox(
             height: 40,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _categories.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(width: 8),
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
               itemBuilder: (context, i) {
                 final active = _selectedCategory == i;
                 return GestureDetector(
                   onTap: () => setState(() => _selectedCategory = i),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 7),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
-                      color: active
-                          ? const Color(0xFFFFF0F2)
-                          : Colors.white,
+                      color: active ? const Color(0xFFFFF0F2) : Colors.white,
                       borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: active
-                            ? AppTheme.primary
-                            : Colors.transparent,
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.06),
-                          blurRadius: 6,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
+                      border: Border.all(color: active ? AppTheme.primary : Colors.transparent, width: 2),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 1))],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          _categories[i]['icon'] as IconData,
-                          size: 14,
-                          color: active
-                              ? AppTheme.primary
-                              : const Color(0xFF555555),
-                        ),
+                        Icon(_categories[i]['icon'] as IconData, size: 14, color: active ? AppTheme.primary : const Color(0xFF555555)),
                         const SizedBox(width: 5),
-                        Text(
-                          _categories[i]['label'] as String,
-                          style: GoogleFonts.nunito(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            color: active
-                                ? AppTheme.primary
-                                : const Color(0xFF333333),
-                          ),
-                        ),
+                        Text(_categories[i]['label'] as String,
+                            style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w900, color: active ? AppTheme.primary : const Color(0xFF333333))),
                       ],
                     ),
                   ),
@@ -787,77 +568,42 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Select Package Type',
-            style: GoogleFonts.montserrat(
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.dark,
-            ),
-          ),
+          Text('Select Package Type',
+              style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w900, color: AppTheme.dark)),
           const SizedBox(height: 4),
-          Text(
-            'Choose what you need shipped and fill in the details.',
-            style: GoogleFonts.inter(
-                fontSize: 11, color: const Color(0xFF888888)),
-          ),
+          Text('Choose what you need shipped and fill in the details.',
+              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF888888))),
           const SizedBox(height: 12),
           GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
-            gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.4,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.4,
             ),
             itemCount: _packageCategories.length,
             itemBuilder: (context, i) {
               final pkg = _packageCategories[i];
               final color = pkg['color'] as Color;
               return GestureDetector(
-                onTap: () =>
-                    _showPackageForm(pkg['label'] as String),
+                onTap: () => _showPackageForm(pkg['label'] as String),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.07),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8, offset: const Offset(0, 2))],
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            pkg['emoji'] as String,
-                            style: const TextStyle(fontSize: 22),
-                          ),
-                        ),
+                        width: 48, height: 48,
+                        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+                        child: Center(child: Text(pkg['emoji'] as String, style: const TextStyle(fontSize: 22))),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        pkg['label'] as String,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.dark,
-                        ),
-                      ),
+                      Text(pkg['label'] as String,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w900, color: AppTheme.dark)),
                     ],
                   ),
                 ),
@@ -870,8 +616,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMerchants() {
-    final merchants =
-        _categoryMerchants[_selectedCategory] ?? [];
+    final merchants = _merchantsFor(_selectedCategory);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
       child: Column(
@@ -880,50 +625,49 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Popular Near You',
-                style: GoogleFonts.montserrat(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.dark,
-                ),
-              ),
+              Text('Popular Near You',
+                  style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w900, color: AppTheme.dark)),
               GestureDetector(
-                onTap: () =>
-                    _showSnackbar('All merchants coming soon!'),
-                child: Text(
-                  'See all',
-                  style: GoogleFonts.nunito(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.primary,
-                  ),
-                ),
+                onTap: () => _showSnackbar('All merchants coming soon!'),
+                child: Text('See all',
+                    style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.primary)),
               ),
             ],
           ),
           const SizedBox(height: 11),
-          ...merchants.map(_merchantCard),
+          ...merchants.asMap().entries.map((e) => _merchantCard(e.key, e.value)),
         ],
       ),
     );
   }
 
-  Widget _merchantCard(Map<String, dynamic> m) {
+  Widget _merchantCard(int index, Map<String, dynamic> m) {
+    final grads = _gradientFor(_selectedCategory, index);
+    final rating = m['rating'];
+    final ratingStr = rating is double
+        ? rating.toStringAsFixed(1)
+        : rating?.toString() ?? '4.5';
+    final isOpen = m['isOpen'] as bool? ?? true;
+    final promo = m['promo'] as String?;
+
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/merchant'),
+      onTap: () {
+        Navigator.pushNamed(context, '/merchant', arguments: {
+          'id': m['id'] ?? '',
+          'name': m['name'] ?? '',
+          'category': _categoryLabels[_selectedCategory],
+          'rating': ratingStr,
+          'deliveryTime': m['deliveryTime'] ?? '25–35 min',
+          'deliveryFee': m['deliveryFee'] ?? 'Free delivery',
+          'isOpen': isOpen,
+        });
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 2))],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -938,57 +682,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          m['gradStart'] as Color,
-                          m['gradEnd'] as Color,
-                        ],
+                        colors: grads,
                       ),
                     ),
                   ),
-                  if (m['promo'] != null)
+                  if (promo != null)
                     Positioned(
-                      top: 9,
-                      left: 9,
+                      top: 9, left: 9,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          m['promo'] as String,
-                          style: GoogleFonts.nunito(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(color: AppTheme.primary, borderRadius: BorderRadius.circular(5)),
+                        child: Text(promo, style: GoogleFonts.nunito(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)),
                       ),
                     ),
-                  Center(
-                    child: Text(
-                      m['emoji'] as String,
-                      style: const TextStyle(fontSize: 50),
-                    ),
-                  ),
+                  Center(child: Text(m['emoji'] as String? ?? '🍽️', style: const TextStyle(fontSize: 50))),
                   Positioned(
-                    top: 9,
-                    right: 9,
+                    top: 9, right: 9,
                     child: GestureDetector(
-                      onTap: () =>
-                          _showSnackbar('Added to favourites!'),
+                      onTap: () => _showSnackbar('Added to favourites!'),
                       child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.88),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.favorite_border,
-                              size: 16, color: Color(0xFF888888)),
-                        ),
+                        width: 30, height: 30,
+                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.88), shape: BoxShape.circle),
+                        child: const Center(child: Icon(Icons.favorite_border, size: 16, color: Color(0xFF888888))),
                       ),
                     ),
                   ),
@@ -1000,26 +715,20 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    m['name'] as String,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.dark,
-                    ),
-                  ),
+                  Text(m['name'] as String? ?? '',
+                      style: GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.dark)),
                   const SizedBox(height: 5),
                   Wrap(
                     spacing: 5,
                     runSpacing: 4,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      _ratingChip(m['rating'] as String),
+                      _ratingChip(ratingStr),
                       _dot(),
-                      _chip(m['time'] as String),
+                      _chip(m['deliveryTime'] as String? ?? ''),
                       _dot(),
-                      _chip(m['delivery'] as String),
-                      _statusBadge(m['open'] as bool),
+                      _chip(m['deliveryFee'] as String? ?? ''),
+                      _statusBadge(isOpen),
                     ],
                   ),
                 ],
@@ -1035,51 +744,25 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.star, size: 11, color: Color(0xFFFACC15)),
-          Text(
-            ' $rating',
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF777777),
-            ),
-          ),
+          Text(' $rating', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF777777))),
         ],
       );
 
-  Widget _chip(String text) => Text(
-        text,
-        style: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF777777),
-        ),
-      );
+  Widget _chip(String text) =>
+      Text(text, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF777777)));
 
-  Widget _dot() => Text(
-        '·',
-        style: GoogleFonts.inter(
-            fontSize: 10, color: const Color(0xFFDDDDDD)),
-      );
+  Widget _dot() =>
+      Text('·', style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFFDDDDDD)));
 
   Widget _statusBadge(bool open) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
         decoration: BoxDecoration(
-          color: open
-              ? const Color(0xFFEDFCF2)
-              : const Color(0xFFFEF2F2),
+          color: open ? const Color(0xFFEDFCF2) : const Color(0xFFFEF2F2),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           open ? 'Open' : 'Closed',
-          style: GoogleFonts.nunito(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            color: open
-                ? const Color(0xFF16A34A)
-                : const Color(0xFFDC2626),
-          ),
+          style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w800, color: open ? const Color(0xFF16A34A) : const Color(0xFFDC2626)),
         ),
       );
-
 }
