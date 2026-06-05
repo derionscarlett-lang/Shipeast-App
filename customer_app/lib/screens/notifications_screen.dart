@@ -33,10 +33,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _subscribe() {
-    _notifSub = FirestoreService.notificationsStream().listen((notifs) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    _notifSub = FirestoreService.notificationsStream(uid: uid).listen((notifs) {
       if (mounted) setState(() { _notifications = notifs; _loading = false; });
     });
-    final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       _profileSub = FirestoreService.watchUserProfile(uid).listen((data) {
         if (mounted) {

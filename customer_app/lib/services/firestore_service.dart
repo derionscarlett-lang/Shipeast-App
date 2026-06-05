@@ -281,30 +281,35 @@ class FirestoreService {
     required String comment,
     required List<String> tags,
   }) async {
-    await _db.collection('orders').doc(orderId).update({
+    if (orderId.isEmpty) return;
+    final orderRef = _db.collection('orders').doc(orderId);
+    final orderData = {
       'rated': true,
       'driverRating': driverRating,
       'merchantRating': merchantRating,
       'comment': comment,
       'tags': tags,
-    });
-
+    };
     if (driverId.isNotEmpty) {
-      final ref = _db.collection('drivers').doc(driverId);
+      final driverRef = _db.collection('drivers').doc(driverId);
       await _db.runTransaction((tx) async {
-        final snap = await tx.get(ref);
-        if (!snap.exists) return;
-        final data = snap.data()!;
-        final newTotal =
-            ((data['totalRatings'] as num?)?.toInt() ?? 0) + driverRating;
-        final newCount =
-            ((data['ratingCount'] as num?)?.toInt() ?? 0) + 1;
-        tx.update(ref, {
-          'totalRatings': newTotal,
-          'ratingCount': newCount,
-          'averageRating': newTotal / newCount,
-        });
+        final snap = await tx.get(driverRef);
+        if (snap.exists) {
+          final data = snap.data()!;
+          final newTotal =
+              ((data['totalRatings'] as num?)?.toInt() ?? 0) + driverRating;
+          final newCount =
+              ((data['ratingCount'] as num?)?.toInt() ?? 0) + 1;
+          tx.update(driverRef, {
+            'totalRatings': newTotal,
+            'ratingCount': newCount,
+            'averageRating': newTotal / newCount,
+          });
+        }
+        tx.update(orderRef, orderData);
       });
+    } else {
+      await orderRef.update(orderData);
     }
   }
 
@@ -363,12 +368,12 @@ class FirestoreService {
 
   // ─── Notifications ────────────────────────────────────────────────────────────
 
-  static Stream<List<Map<String, dynamic>>> notificationsStream() =>
+  static Stream<List<Map<String, dynamic>>> notificationsStream({String? uid}) =>
       _db.collection('notifications').snapshots().map((s) {
         final docs = s.docs
             .where((d) {
               final t = d.data()['target'] as String? ?? 'all';
-              return t == 'all' || t == 'customers';
+              return t == 'all' || t == 'customers' || (uid != null && t == uid);
             })
             .map((d) => <String, dynamic>{'id': d.id, ...d.data()})
             .toList();
@@ -392,7 +397,7 @@ class FirestoreService {
       final notifSnap = await _db.collection('notifications').get();
       final unread = notifSnap.docs.where((d) {
         final target = d.data()['target'] as String? ?? 'all';
-        if (target != 'all' && target != 'customers') return false;
+        if (target != 'all' && target != 'customers' && target != uid) return false;
         if (readAt == null) return true;
         final ts = (d.data()['createdAt'] as Timestamp?)?.toDate();
         if (ts == null) return false;
