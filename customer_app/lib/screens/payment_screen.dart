@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/cart_provider.dart';
 import '../theme/app_theme.dart';
 import '../services/firestore_service.dart';
 
@@ -445,7 +447,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 ),
               ),
               Text(
-                'J\$${_formatPrice(_total > 0 ? _total : 1925)}',
+                '\$${_formatPrice(_total > 0 ? _total : 1925)}',
                 style: GoogleFonts.montserrat(
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
@@ -480,7 +482,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   const Icon(Icons.lock, size: 14),
                   const SizedBox(width: 6),
                   Text(
-                    'Place Order · J\$${_formatPrice(_total > 0 ? _total : 1925)}',
+                    'Place Order · \$${_formatPrice(_total > 0 ? _total : 1925)}',
                     style: GoogleFonts.nunito(
                         fontSize: 14, fontWeight: FontWeight.w900),
                   ),
@@ -511,6 +513,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         orderId = '';
       }
       if (!mounted) return;
+      Provider.of<CartProvider>(context, listen: false).clearCart();
       Navigator.pushNamedAndRemoveUntil(
         context,
         '/order-confirmed',

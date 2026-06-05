@@ -1,7 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/cart_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/shimmer_box.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -11,13 +15,7 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  late List<Map<String, dynamic>> _items;
   final _instructionsController = TextEditingController();
-  bool _initialized = false;
-
-  String _merchantId = '';
-  String _merchantName = '';
-  int _deliveryFee = 0;
   static const int _serviceFee = 275;
 
   @override
@@ -30,99 +28,71 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_initialized) {
-      final args =
-          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-      if (args != null && args['items'] != null) {
-        _items = (args['items'] as List)
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-        _merchantId = args['merchantId'] as String? ?? '';
-        _merchantName = args['merchantName'] as String? ?? '';
-        _deliveryFee = args['deliveryFeeAmount'] as int? ?? 0;
-      } else {
-        _items = [
-          {'name': 'Full Jerk Chicken', 'price': 1200, 'quantity': 1},
-          {'name': 'Sorrel Punch', 'price': 350, 'quantity': 1},
-        ];
-      }
-      _initialized = true;
-    }
-  }
-
-  @override
   void dispose() {
     _instructionsController.dispose();
     super.dispose();
   }
 
-  int get _subtotal => _items.fold(
-      0,
-      (sum, item) =>
-          sum + (item['price'] as int) * (item['quantity'] as int));
-
-  int get _total => _subtotal + _deliveryFee + _serviceFee;
-
-  int get _totalItems =>
-      _items.fold(0, (sum, item) => sum + (item['quantity'] as int));
-
-  void _increment(int index) =>
-      setState(() => _items[index]['quantity'] = (_items[index]['quantity'] as int) + 1);
-
-  void _decrement(int index) {
-    final qty = _items[index]['quantity'] as int;
-    if (qty > 1) {
-      setState(() => _items[index]['quantity'] = qty - 1);
-    } else {
-      setState(() => _items.removeAt(index));
+  String _formatPrice(int price) {
+    if (price >= 1000) {
+      final thousands = price ~/ 1000;
+      final hundreds = price % 1000;
+      return '$thousands,${hundreds.toString().padLeft(3, '0')}';
     }
+    return '$price';
   }
 
   @override
   Widget build(BuildContext context) {
+    final cart = context.watch<CartProvider>();
+    final items = cart.itemList;
+    final subtotal = cart.cartTotal;
+    final deliveryFee = cart.deliveryFeeAmount;
+    final total = subtotal + deliveryFee + _serviceFee;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildHeader(),
+            _buildHeader(cart.cartCount),
             Expanded(
-              child: _items.isEmpty
+              child: items.isEmpty
                   ? _buildEmptyState()
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 3, bottom: 7),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.location_on, size: 12,
-                                    color: Color(0xFF999999)),
-                                Text(
-                                  _merchantName.isNotEmpty ? ' $_merchantName' : '',
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF999999),
-                                    letterSpacing: 0.4,
+                          if (cart.merchantName.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 3, bottom: 7),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.store, size: 12,
+                                      color: Color(0xFF999999)),
+                                  Text(
+                                    ' ${cart.merchantName}',
+                                    style: GoogleFonts.nunito(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF999999),
+                                      letterSpacing: 0.4,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          ..._items.asMap().entries.map(
-                                (e) => _itemCard(e.key, e.value),
+                                ],
                               ),
+                            ),
+                          ...items.map((item) => _itemCard(item, cart)),
+                          const SizedBox(height: 4),
+                          _buildAddMoreButton(),
+                          const SizedBox(height: 8),
                           _buildInstructionsCard(),
-                          _buildSummaryCard(),
-                          const SizedBox(height: 2),
-                          _buildCheckoutButton(),
-                          const SizedBox(height: 12),
+                          _buildSummaryCard(subtotal, deliveryFee, total),
+                          const SizedBox(height: 8),
+                          _buildCheckoutButton(cart, subtotal, deliveryFee, total),
+                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
@@ -133,7 +103,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildHeader() => Container(
+  Widget _buildHeader(int totalItems) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -151,8 +121,8 @@ class _CartScreenState extends State<CartScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
-                  child: Icon(Icons.arrow_back_ios, size: 16,
-                      color: Color(0xFF444444)),
+                  child: Icon(Icons.arrow_back_ios,
+                      size: 16, color: Color(0xFF444444)),
                 ),
               ),
             ),
@@ -166,7 +136,7 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            if (_totalItems > 0)
+            if (totalItems > 0)
               Container(
                 width: 20,
                 height: 20,
@@ -176,7 +146,7 @@ class _CartScreenState extends State<CartScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    '$_totalItems',
+                    '$totalItems',
                     style: GoogleFonts.nunito(
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
@@ -189,7 +159,7 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
 
-  Widget _itemCard(int index, Map<String, dynamic> item) => Container(
+  Widget _itemCard(CartItem item, CartProvider cart) => Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
         decoration: BoxDecoration(
@@ -210,7 +180,19 @@ class _CartScreenState extends State<CartScreen> {
               child: SizedBox(
                 width: 52,
                 height: 52,
-                child: Container(
+                child: item.imageUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: item.imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (ctx, url) =>
+                            const ShimmerBox(width: 52, height: 52, radius: 9),
+                        errorWidget: (ctx, url, err) => Container(
+                          color: const Color(0xFFF0F0F0),
+                          child: const Icon(Icons.restaurant,
+                              size: 24, color: Color(0xFFBBBBBB)),
+                        ),
+                      )
+                    : Container(
                         color: const Color(0xFFF0F0F0),
                         child: const Icon(Icons.restaurant,
                             size: 24, color: Color(0xFFBBBBBB)),
@@ -223,7 +205,7 @@ class _CartScreenState extends State<CartScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item['name'] as String,
+                    item.name,
                     style: GoogleFonts.montserrat(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
@@ -232,7 +214,7 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '\$${_formatPrice(item['price'] as int)}',
+                    '\$${_formatPrice(item.price)}',
                     style: GoogleFonts.montserrat(
                       fontSize: 15,
                       fontWeight: FontWeight.w900,
@@ -248,12 +230,12 @@ class _CartScreenState extends State<CartScreen> {
                   icon: '−',
                   bgColor: const Color(0xFFF2F2F2),
                   textColor: const Color(0xFF444444),
-                  onTap: () => _decrement(index),
+                  onTap: () => cart.removeItem(item.id),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Text(
-                    '${item['quantity']}',
+                    '${item.quantity}',
                     style: GoogleFonts.montserrat(
                       fontSize: 13,
                       fontWeight: FontWeight.w900,
@@ -265,7 +247,7 @@ class _CartScreenState extends State<CartScreen> {
                   icon: '+',
                   bgColor: AppTheme.primary,
                   textColor: Colors.white,
-                  onTap: () => _increment(index),
+                  onTap: () => cart.incrementItem(item.id),
                 ),
               ],
             ),
@@ -296,6 +278,22 @@ class _CartScreenState extends State<CartScreen> {
                     fontWeight: FontWeight.w700,
                     height: 1)),
           ),
+        ),
+      );
+
+  Widget _buildAddMoreButton() => OutlinedButton.icon(
+        onPressed: () => Navigator.pop(context),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppTheme.primary,
+          side: const BorderSide(color: AppTheme.primary, width: 1.5),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(13)),
+        ),
+        icon: const Icon(Icons.add_shopping_cart, size: 16),
+        label: Text(
+          'Add More Items',
+          style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w900),
         ),
       );
 
@@ -344,7 +342,8 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
 
-  Widget _buildSummaryCard() => Container(
+  Widget _buildSummaryCard(int subtotal, int deliveryFee, int total) =>
+      Container(
         margin: const EdgeInsets.only(bottom: 0),
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
@@ -360,8 +359,9 @@ class _CartScreenState extends State<CartScreen> {
         ),
         child: Column(
           children: [
-            _summaryRow('Subtotal', _formatPrice(_subtotal)),
-            _summaryRow('Delivery fee', _formatPrice(_deliveryFee)),
+            _summaryRow('Subtotal', _formatPrice(subtotal)),
+            _summaryRow('Delivery fee',
+                deliveryFee == 0 ? 'Free' : _formatPrice(deliveryFee)),
             _summaryRow('Service fee', _formatPrice(_serviceFee)),
             const SizedBox(height: 4),
             Container(
@@ -381,7 +381,7 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                   ),
                   Text(
-                    '\$${_formatPrice(_total)}',
+                    '\$${_formatPrice(total)}',
                     style: GoogleFonts.montserrat(
                       fontSize: 15,
                       fontWeight: FontWeight.w900,
@@ -405,7 +405,9 @@ class _CartScreenState extends State<CartScreen> {
                     fontSize: 12,
                     color: const Color(0xFF666666),
                     fontWeight: FontWeight.w500)),
-            Text('\$$value',
+            Text(value.startsWith('\$') || value == 'Free'
+                    ? value
+                    : '\$$value',
                 style: GoogleFonts.inter(
                     fontSize: 12,
                     color: const Color(0xFF666666),
@@ -414,21 +416,30 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
 
-  Widget _buildCheckoutButton() => GestureDetector(
+  Widget _buildCheckoutButton(
+          CartProvider cart, int subtotal, int deliveryFee, int total) =>
+      GestureDetector(
         onTap: () => Navigator.pushNamed(context, '/checkout', arguments: {
-          'merchantId': _merchantId,
-          'merchantName': _merchantName,
-          'items': _items,
-          'subtotal': _subtotal,
-          'deliveryFee': _deliveryFee,
+          'merchantId': cart.merchantId,
+          'merchantName': cart.merchantName,
+          'items': cart.toOrderItems(),
+          'subtotal': subtotal,
+          'deliveryFee': deliveryFee,
           'serviceFee': _serviceFee,
-          'total': _total,
+          'total': total,
         }),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
             color: AppTheme.primary,
             borderRadius: BorderRadius.circular(13),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primary.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -442,7 +453,7 @@ class _CartScreenState extends State<CartScreen> {
                 ),
               ),
               Text(
-                '\$${_formatPrice(_total)} →',
+                '\$${_formatPrice(total)} →',
                 style: GoogleFonts.montserrat(
                   fontSize: 13,
                   fontWeight: FontWeight.w900,
@@ -458,8 +469,8 @@ class _CartScreenState extends State<CartScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.shopping_cart_outlined, size: 56,
-                color: Color(0xFFCCCCCC)),
+            const Icon(Icons.shopping_cart_outlined,
+                size: 56, color: Color(0xFFCCCCCC)),
             const SizedBox(height: 14),
             Text(
               'Your cart is empty',
@@ -475,16 +486,18 @@ class _CartScreenState extends State<CartScreen> {
               style: GoogleFonts.inter(
                   fontSize: 12, color: const Color(0xFF888888)),
             ),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Browse Merchants',
+                style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.primary),
+              ),
+            ),
           ],
         ),
       );
-
-  String _formatPrice(int price) {
-    if (price >= 1000) {
-      final thousands = price ~/ 1000;
-      final hundreds = price % 1000;
-      return '$thousands,${hundreds.toString().padLeft(3, '0')}';
-    }
-    return '$price';
-  }
 }

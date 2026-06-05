@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../services/firestore_service.dart';
+import '../widgets/shimmer_box.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -12,39 +16,38 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _ctrl = TextEditingController();
   String _query = '';
+  List<Map<String, dynamic>> _allMerchants = [];
+  StreamSubscription<List<Map<String, dynamic>>>? _sub;
 
-  static const List<Map<String, String>> _allMerchants = [
-    {'name': 'Island Jerk Palace', 'category': 'Food', 'emoji': '🍗', 'rating': '4.8', 'time': '25–35 min'},
-    {'name': 'Kingston Eats', 'category': 'Food', 'emoji': '🍽️', 'rating': '4.5', 'time': '20–30 min'},
-    {'name': "Mama's Kitchen", 'category': 'Food', 'emoji': '🥘', 'rating': '4.7', 'time': '30–45 min'},
-    {'name': 'Rasta Pasta', 'category': 'Food', 'emoji': '🍝', 'rating': '4.3', 'time': '25–40 min'},
-    {'name': 'Seafood Shack', 'category': 'Food', 'emoji': '🦞', 'rating': '4.9', 'time': '35–50 min'},
-    {'name': 'FreshMart', 'category': 'Grocery', 'emoji': '🛒', 'rating': '4.6', 'time': '20–30 min'},
-    {'name': 'SaveMore Supermarket', 'category': 'Grocery', 'emoji': '🏪', 'rating': '4.4', 'time': '30–45 min'},
-    {'name': 'Green Valley Farms', 'category': 'Grocery', 'emoji': '🥬', 'rating': '4.7', 'time': '25–35 min'},
-    {'name': 'Daily Essentials', 'category': 'Grocery', 'emoji': '🧴', 'rating': '4.2', 'time': '15–25 min'},
-    {'name': 'Farm Fresh', 'category': 'Grocery', 'emoji': '🥑', 'rating': '4.5', 'time': '20–30 min'},
-    {'name': 'PharmaCare Rx', 'category': 'Pharmacy', 'emoji': '💊', 'rating': '4.8', 'time': '20–30 min'},
-    {'name': 'MedPlus Pharmacy', 'category': 'Pharmacy', 'emoji': '🩺', 'rating': '4.5', 'time': '25–35 min'},
-    {'name': 'HealthFirst', 'category': 'Pharmacy', 'emoji': '🌡️', 'rating': '4.6', 'time': '15–25 min'},
-    {'name': 'CityDrug', 'category': 'Pharmacy', 'emoji': '💉', 'rating': '4.3', 'time': '30–40 min'},
-    {'name': 'Wellness Plus', 'category': 'Pharmacy', 'emoji': '🌿', 'rating': '4.7', 'time': '20–30 min'},
-  ];
-
-  List<Map<String, String>> get _filtered {
-    if (_query.trim().isEmpty) return const [];
-    final q = _query.toLowerCase();
-    return _allMerchants
-        .where((m) =>
-            m['name']!.toLowerCase().contains(q) ||
-            m['category']!.toLowerCase().contains(q))
-        .toList();
+  @override
+  void initState() {
+    super.initState();
+    _sub = FirestoreService.allMerchantsStream().listen((merchants) {
+      if (mounted) setState(() => _allMerchants = merchants);
+    });
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _sub?.cancel();
     super.dispose();
+  }
+
+  List<Map<String, dynamic>> get _filtered {
+    if (_query.trim().isEmpty) return const [];
+    final q = _query.toLowerCase();
+    return _allMerchants
+        .where((m) =>
+            (m['name'] as String? ?? '').toLowerCase().contains(q) ||
+            (m['category'] as String? ?? '').toLowerCase().contains(q))
+        .toList();
+  }
+
+  static int _parseDeliveryFee(String s) {
+    if (s.toLowerCase().contains('free')) return 0;
+    final match = RegExp(r'\d+').firstMatch(s);
+    return match != null ? int.tryParse(match.group(0)!) ?? 100 : 100;
   }
 
   @override
@@ -102,7 +105,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     child: TextField(
                       controller: _ctrl,
-                      autofocus: true,
+                      autofocus: false,
                       style: GoogleFonts.inter(
                           fontSize: 13, color: const Color(0xFF333333)),
                       decoration: InputDecoration(
@@ -182,14 +185,36 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       );
 
-  Widget _buildResults(List<Map<String, String>> results) =>
+  Widget _buildResults(List<Map<String, dynamic>> results) =>
       ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: results.length,
         itemBuilder: (context, i) {
           final m = results[i];
+          final imageUrl = m['imageUrl'] as String? ?? '';
+          final isOpen = m['isOpen'] as bool? ?? true;
+          final rating = m['rating'];
+          final ratingStr = rating is double
+              ? rating.toStringAsFixed(1)
+              : rating?.toString() ?? '4.5';
+          final deliveryFee = m['deliveryFee'] as String? ?? 'Free delivery';
+          final deliveryTime = m['deliveryTime'] as String? ?? '25–35 min';
+          final category = m['category'] as String? ?? '';
+
           return GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/merchant'),
+            onTap: () => Navigator.pushNamed(context, '/merchant',
+                arguments: {
+                  'id': m['id'] ?? '',
+                  'name': m['name'] ?? '',
+                  'emoji': m['emoji'] as String? ?? '🍽️',
+                  'imageUrl': imageUrl,
+                  'category': category,
+                  'rating': ratingStr,
+                  'deliveryTime': deliveryTime,
+                  'deliveryFee': deliveryFee,
+                  'deliveryFeeAmount': _parseDeliveryFee(deliveryFee),
+                  'isOpen': isOpen,
+                }),
             child: Container(
               margin: const EdgeInsets.only(bottom: 9),
               padding: const EdgeInsets.all(13),
@@ -206,19 +231,20 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F7),
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        _categoryIcon(m['category']!),
-                        size: 24,
-                        color: const Color(0xFF666666),
-                      ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: imageUrl.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (ctx, url) => const ShimmerBox(
+                                  width: 56, height: 56, radius: 11),
+                              errorWidget: (ctx, url, err) => _iconFallback(category),
+                            )
+                          : _iconFallback(category),
                     ),
                   ),
                   const SizedBox(width: 13),
@@ -227,7 +253,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          m['name']!,
+                          m['name'] as String? ?? '',
                           style: GoogleFonts.montserrat(
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
@@ -245,7 +271,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                m['category']!,
+                                category,
                                 style: GoogleFonts.inter(
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700,
@@ -257,11 +283,43 @@ class _SearchScreenState extends State<SearchScreen> {
                             const Icon(Icons.star,
                                 size: 11, color: Color(0xFFFACC15)),
                             Text(
-                              ' ${m['rating']}  ·  ${m['time']}',
+                              ' $ratingStr  ·  $deliveryTime',
                               style: GoogleFonts.inter(
                                 fontSize: 10,
                                 color: const Color(0xFF888888),
                               ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isOpen
+                                    ? const Color(0xFFEDFCF2)
+                                    : const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                isOpen ? 'Open' : 'Closed',
+                                style: GoogleFonts.inter(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: isOpen
+                                      ? const Color(0xFF16A34A)
+                                      : const Color(0xFFDC2626),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              deliveryFee,
+                              style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  color: const Color(0xFF888888)),
                             ),
                           ],
                         ),
@@ -275,6 +333,17 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           );
         },
+      );
+
+  Widget _iconFallback(String category) => Container(
+        color: const Color(0xFFF5F5F7),
+        child: Center(
+          child: Icon(
+            _categoryIcon(category),
+            size: 26,
+            color: const Color(0xFF888888),
+          ),
+        ),
       );
 
   IconData _categoryIcon(String category) {

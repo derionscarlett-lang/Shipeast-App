@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../services/firestore_service.dart';
+import '../widgets/shimmer_box.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,23 +54,23 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Map<int, List<Map<String, dynamic>>> _placeholderMerchants = {
     0: [
       {'id': '', 'name': 'Island Jerk Palace', 'emoji': '🍗', 'rating': 4.8, 'deliveryTime': '25–35 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🔥 Popular'},
-      {'id': '', 'name': 'Kingston Eats', 'emoji': '🍽️', 'rating': 4.5, 'deliveryTime': '20–30 min', 'deliveryFee': 'J\$100 delivery', 'isOpen': true, 'promo': null},
+      {'id': '', 'name': 'Kingston Eats', 'emoji': '🍽️', 'rating': 4.5, 'deliveryTime': '20–30 min', 'deliveryFee': '\$100 delivery', 'isOpen': true, 'promo': null},
       {'id': '', 'name': "Mama's Kitchen", 'emoji': '🥘', 'rating': 4.7, 'deliveryTime': '30–45 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '❤️ Local Fave'},
-      {'id': '', 'name': 'Rasta Pasta', 'emoji': '🍝', 'rating': 4.3, 'deliveryTime': '25–40 min', 'deliveryFee': 'J\$150 delivery', 'isOpen': false, 'promo': null},
+      {'id': '', 'name': 'Rasta Pasta', 'emoji': '🍝', 'rating': 4.3, 'deliveryTime': '25–40 min', 'deliveryFee': '\$150 delivery', 'isOpen': false, 'promo': null},
       {'id': '', 'name': 'Seafood Shack', 'emoji': '🦞', 'rating': 4.9, 'deliveryTime': '35–50 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '⭐ Top Rated'},
     ],
     1: [
       {'id': '', 'name': 'FreshMart', 'emoji': '🛒', 'rating': 4.6, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': null},
-      {'id': '', 'name': 'SaveMore Supermarket', 'emoji': '🏪', 'rating': 4.4, 'deliveryTime': '30–45 min', 'deliveryFee': 'J\$150 delivery', 'isOpen': true, 'promo': '💰 Best Value'},
+      {'id': '', 'name': 'SaveMore Supermarket', 'emoji': '🏪', 'rating': 4.4, 'deliveryTime': '30–45 min', 'deliveryFee': '\$150 delivery', 'isOpen': true, 'promo': '💰 Best Value'},
       {'id': '', 'name': 'Green Valley Farms', 'emoji': '🥬', 'rating': 4.7, 'deliveryTime': '25–35 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🌿 Organic'},
-      {'id': '', 'name': 'Daily Essentials', 'emoji': '🧴', 'rating': 4.2, 'deliveryTime': '15–25 min', 'deliveryFee': 'J\$100 delivery', 'isOpen': true, 'promo': null},
+      {'id': '', 'name': 'Daily Essentials', 'emoji': '🧴', 'rating': 4.2, 'deliveryTime': '15–25 min', 'deliveryFee': '\$100 delivery', 'isOpen': true, 'promo': null},
       {'id': '', 'name': 'Farm Fresh', 'emoji': '🥑', 'rating': 4.5, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': false, 'promo': null},
     ],
     3: [
       {'id': '', 'name': 'PharmaCare Rx', 'emoji': '💊', 'rating': 4.8, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🏥 Certified'},
-      {'id': '', 'name': 'MedPlus Pharmacy', 'emoji': '🩺', 'rating': 4.5, 'deliveryTime': '25–35 min', 'deliveryFee': 'J\$100 delivery', 'isOpen': true, 'promo': null},
+      {'id': '', 'name': 'MedPlus Pharmacy', 'emoji': '🩺', 'rating': 4.5, 'deliveryTime': '25–35 min', 'deliveryFee': '\$100 delivery', 'isOpen': true, 'promo': null},
       {'id': '', 'name': 'HealthFirst', 'emoji': '🌡️', 'rating': 4.6, 'deliveryTime': '15–25 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '⚡ Fast'},
-      {'id': '', 'name': 'CityDrug', 'emoji': '💉', 'rating': 4.3, 'deliveryTime': '30–40 min', 'deliveryFee': 'J\$150 delivery', 'isOpen': false, 'promo': null},
+      {'id': '', 'name': 'CityDrug', 'emoji': '💉', 'rating': 4.3, 'deliveryTime': '30–40 min', 'deliveryFee': '\$150 delivery', 'isOpen': false, 'promo': null},
       {'id': '', 'name': 'Wellness Plus', 'emoji': '🌿', 'rating': 4.7, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': null},
     ],
   };
@@ -682,6 +684,7 @@ class _HomeScreenState extends State<HomeScreen> {
         : rating?.toString() ?? '4.5';
     final isOpen = m['isOpen'] as bool? ?? true;
     final promo = m['promo'] as String?;
+    final imageUrl = m['imageUrl'] as String? ?? '';
 
     return GestureDetector(
       onTap: () {
@@ -689,6 +692,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'id': m['id'] ?? '',
           'name': m['name'] ?? '',
           'emoji': m['emoji'] as String? ?? '🍽️',
+          'imageUrl': m['imageUrl'] as String? ?? '',
           'category': _categoryLabels[_selectedCategory],
           'rating': ratingStr,
           'deliveryTime': m['deliveryTime'] ?? '25–35 min',
@@ -712,15 +716,38 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: grads,
-                      ),
-                    ),
-                  ),
+                  // Background: image or gradient fallback
+                  imageUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: imageUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (ctx, url) => ShimmerBox(
+                            width: double.infinity,
+                            height: 115,
+                            radius: 0,
+                          ),
+                          errorWidget: (ctx, url, err) => Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: grads,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: grads,
+                            ),
+                          ),
+                        ),
+                  // Scrim so text remains readable
+                  if (imageUrl.isNotEmpty)
+                    Container(color: Colors.black.withValues(alpha: 0.22)),
                   if (promo != null)
                     Positioned(
                       top: 9, left: 9,
@@ -730,7 +757,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Text(promo, style: GoogleFonts.nunito(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)),
                       ),
                     ),
-                  Center(child: Text(m['emoji'] as String? ?? '🍽️', style: const TextStyle(fontSize: 50))),
+                  if (imageUrl.isEmpty)
+                    Center(child: Text(m['emoji'] as String? ?? '🍽️', style: const TextStyle(fontSize: 50))),
                   Positioned(
                     top: 9, right: 9,
                     child: GestureDetector(

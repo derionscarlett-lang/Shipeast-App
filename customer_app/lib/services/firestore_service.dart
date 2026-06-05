@@ -14,21 +14,21 @@ class FirestoreService {
       final merchants = <Map<String, dynamic>>[
         // FOOD
         {'name': 'Island Jerk Palace', 'category': 'Food', 'emoji': '🍗', 'rating': 4.8, 'deliveryTime': '25–35 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🔥 Popular', 'address': '15 Harbour Street, Kingston', 'phone': '876-555-0001', 'imageUrl': 'https://images.unsplash.com/photo-1544025162-d76538591398?w=400'},
-        {'name': 'Kingston Eats', 'category': 'Food', 'emoji': '🍽️', 'rating': 4.5, 'deliveryTime': '20–30 min', 'deliveryFee': 'J\$100 delivery', 'isOpen': true, 'promo': null, 'address': '45 Constant Spring Rd, Kingston', 'phone': '876-555-0002', 'imageUrl': 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400'},
+        {'name': 'Kingston Eats', 'category': 'Food', 'emoji': '🍽️', 'rating': 4.5, 'deliveryTime': '20–30 min', 'deliveryFee': '\$100 delivery', 'isOpen': true, 'promo': null, 'address': '45 Constant Spring Rd, Kingston', 'phone': '876-555-0002', 'imageUrl': 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400'},
         {'name': "Mama's Kitchen", 'category': 'Food', 'emoji': '🥘', 'rating': 4.7, 'deliveryTime': '30–45 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '❤️ Local Fave', 'address': '12 Main Street, Yallahs', 'phone': '876-555-0003', 'imageUrl': 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400'},
-        {'name': 'Rasta Pasta', 'category': 'Food', 'emoji': '🍝', 'rating': 4.3, 'deliveryTime': '25–40 min', 'deliveryFee': 'J\$150 delivery', 'isOpen': false, 'promo': null, 'address': '7 Orange Street, Kingston', 'phone': '876-555-0004', 'imageUrl': 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400'},
+        {'name': 'Rasta Pasta', 'category': 'Food', 'emoji': '🍝', 'rating': 4.3, 'deliveryTime': '25–40 min', 'deliveryFee': '\$150 delivery', 'isOpen': false, 'promo': null, 'address': '7 Orange Street, Kingston', 'phone': '876-555-0004', 'imageUrl': 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400'},
         {'name': 'Seafood Shack', 'category': 'Food', 'emoji': '🦞', 'rating': 4.9, 'deliveryTime': '35–50 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '⭐ Top Rated', 'address': '1 Port Royal Street, Kingston', 'phone': '876-555-0005', 'imageUrl': 'https://images.unsplash.com/photo-1559737558-2f5a35f4523b?w=400'},
         // GROCERY
         {'name': 'FreshMart', 'category': 'Grocery', 'emoji': '🛒', 'rating': 4.6, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': null, 'address': '88 Half Way Tree Rd, Kingston', 'phone': '876-555-0010', 'imageUrl': 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400'},
-        {'name': 'SaveMore Supermarket', 'category': 'Grocery', 'emoji': '🏪', 'rating': 4.4, 'deliveryTime': '30–45 min', 'deliveryFee': 'J\$150 delivery', 'isOpen': true, 'promo': '💰 Best Value', 'address': '22 Constant Spring Rd, Kingston', 'phone': '876-555-0011', 'imageUrl': 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400'},
+        {'name': 'SaveMore Supermarket', 'category': 'Grocery', 'emoji': '🏪', 'rating': 4.4, 'deliveryTime': '30–45 min', 'deliveryFee': '\$150 delivery', 'isOpen': true, 'promo': '💰 Best Value', 'address': '22 Constant Spring Rd, Kingston', 'phone': '876-555-0011', 'imageUrl': 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400'},
         {'name': 'Green Valley Farms', 'category': 'Grocery', 'emoji': '🥬', 'rating': 4.7, 'deliveryTime': '25–35 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🌿 Organic', 'address': '5 Barbican Rd, Kingston', 'phone': '876-555-0012', 'imageUrl': 'https://images.unsplash.com/photo-1490818387583-1baba5e638af?w=400'},
-        {'name': 'Daily Essentials', 'category': 'Grocery', 'emoji': '🧴', 'rating': 4.2, 'deliveryTime': '15–25 min', 'deliveryFee': 'J\$100 delivery', 'isOpen': true, 'promo': null, 'address': '34 Maxfield Ave, Kingston', 'phone': '876-555-0013', 'imageUrl': 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400'},
+        {'name': 'Daily Essentials', 'category': 'Grocery', 'emoji': '🧴', 'rating': 4.2, 'deliveryTime': '15–25 min', 'deliveryFee': '\$100 delivery', 'isOpen': true, 'promo': null, 'address': '34 Maxfield Ave, Kingston', 'phone': '876-555-0013', 'imageUrl': 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400'},
         {'name': 'Farm Fresh', 'category': 'Grocery', 'emoji': '🥑', 'rating': 4.5, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': false, 'promo': null, 'address': '19 Mona Rd, Kingston', 'phone': '876-555-0014', 'imageUrl': 'https://images.unsplash.com/photo-1506617420156-8e4536971650?w=400'},
         // PHARMACY
         {'name': 'PharmaCare Rx', 'category': 'Pharmacy', 'emoji': '💊', 'rating': 4.8, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '🏥 Certified', 'address': '55 King Street, Kingston', 'phone': '876-555-0020', 'imageUrl': 'https://images.unsplash.com/photo-1585435557343-3b092031a831?w=400'},
-        {'name': 'MedPlus Pharmacy', 'category': 'Pharmacy', 'emoji': '🩺', 'rating': 4.5, 'deliveryTime': '25–35 min', 'deliveryFee': 'J\$100 delivery', 'isOpen': true, 'promo': null, 'address': '12 Portmore Pkwy, St. Catherine', 'phone': '876-555-0021', 'imageUrl': 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=400'},
+        {'name': 'MedPlus Pharmacy', 'category': 'Pharmacy', 'emoji': '🩺', 'rating': 4.5, 'deliveryTime': '25–35 min', 'deliveryFee': '\$100 delivery', 'isOpen': true, 'promo': null, 'address': '12 Portmore Pkwy, St. Catherine', 'phone': '876-555-0021', 'imageUrl': 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=400'},
         {'name': 'HealthFirst', 'category': 'Pharmacy', 'emoji': '🌡️', 'rating': 4.6, 'deliveryTime': '15–25 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': '⚡ Fast', 'address': '3 Dunrobin Ave, Kingston', 'phone': '876-555-0022', 'imageUrl': 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400'},
-        {'name': 'CityDrug', 'category': 'Pharmacy', 'emoji': '💉', 'rating': 4.3, 'deliveryTime': '30–40 min', 'deliveryFee': 'J\$150 delivery', 'isOpen': false, 'promo': null, 'address': '77 Spanish Town Rd, Kingston', 'phone': '876-555-0023', 'imageUrl': 'https://images.unsplash.com/photo-1563213126-a4273aed2016?w=400'},
+        {'name': 'CityDrug', 'category': 'Pharmacy', 'emoji': '💉', 'rating': 4.3, 'deliveryTime': '30–40 min', 'deliveryFee': '\$150 delivery', 'isOpen': false, 'promo': null, 'address': '77 Spanish Town Rd, Kingston', 'phone': '876-555-0023', 'imageUrl': 'https://images.unsplash.com/photo-1563213126-a4273aed2016?w=400'},
         {'name': 'Wellness Plus', 'category': 'Pharmacy', 'emoji': '🌿', 'rating': 4.7, 'deliveryTime': '20–30 min', 'deliveryFee': 'Free delivery', 'isOpen': true, 'promo': null, 'address': '9 Liguanea Ave, Kingston', 'phone': '876-555-0024', 'imageUrl': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400'},
       ];
 
@@ -97,6 +97,10 @@ class FirestoreService {
           .snapshots()
           .map((s) =>
               s.docs.map((d) => <String, dynamic>{'id': d.id, ...d.data()}).toList());
+
+  static Stream<List<Map<String, dynamic>>> allMerchantsStream() =>
+      _db.collection('merchants').snapshots().map((s) =>
+          s.docs.map((d) => <String, dynamic>{'id': d.id, ...d.data()}).toList());
 
   static Stream<List<Map<String, dynamic>>> menuItemsStream(String merchantId) =>
       _db

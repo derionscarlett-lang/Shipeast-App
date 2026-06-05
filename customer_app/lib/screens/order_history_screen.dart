@@ -120,8 +120,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
   String _formatTotal(dynamic total) {
     final t = (total as num?)?.toInt() ?? 0;
-    if (t >= 1000) return 'J\$${t ~/ 1000},${(t % 1000).toString().padLeft(3, '0')}';
-    return 'J\$$t';
+    if (t >= 1000) return '\$${t ~/ 1000},${(t % 1000).toString().padLeft(3, '0')}';
+    return '\$$t';
   }
 
   @override

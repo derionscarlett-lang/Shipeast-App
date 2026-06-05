@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/cart_provider.dart';
 import '../theme/app_theme.dart';
 import '../services/firestore_service.dart';
+import '../widgets/shimmer_box.dart';
 
 class MerchantMenuScreen extends StatefulWidget {
   const MerchantMenuScreen({super.key});
@@ -17,6 +21,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   String _merchantId = '';
   String _merchantName = 'Merchant';
   String _merchantEmoji = '🍽️';
+  String _merchantImageUrl = '';
   String _merchantRating = '4.5';
   String _merchantDeliveryTime = '25–35 min';
   String _merchantDeliveryFee = 'Free delivery';
@@ -29,12 +34,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   bool _loading = true;
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
 
-  // Selected tab: 0 = Popular (all), then per-category tabs
   int _selectedTab = 0;
-
-  // Cart: itemId -> quantity
-  final Map<String, int> _cart = {};
-
   bool _argsLoaded = false;
 
   @override
@@ -57,6 +57,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         _merchantId = args['id'] as String? ?? '';
         _merchantName = args['name'] as String? ?? 'Merchant';
         _merchantEmoji = args['emoji'] as String? ?? '🍽️';
+        _merchantImageUrl = args['imageUrl'] as String? ?? '';
         _merchantRating = args['rating'] as String? ?? '4.5';
         _merchantDeliveryTime = args['deliveryTime'] as String? ?? '25–35 min';
         _merchantDeliveryFee = args['deliveryFee'] as String? ?? 'Free delivery';
@@ -65,6 +66,52 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         _merchantCategory = args['category'] as String? ?? 'Food';
       }
       _subscribeMenuItems();
+
+      final cart = Provider.of<CartProvider>(context, listen: false);
+      if (cart.cartCount > 0 &&
+          cart.merchantId.isNotEmpty &&
+          cart.merchantId != _merchantId &&
+          _merchantId.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: Text('Start new order?',
+                  style: GoogleFonts.montserrat(fontWeight: FontWeight.w900)),
+              content: Text(
+                'Your cart has items from ${cart.merchantName}. Clear cart to order from $_merchantName?',
+                style: GoogleFonts.inter(fontSize: 13),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Keep Cart',
+                      style: GoogleFonts.nunito(
+                          color: const Color(0xFF888888),
+                          fontWeight: FontWeight.w700)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    cart.clearCart();
+                    cart.setMerchant(
+                        _merchantId, _merchantName, _merchantDeliveryFeeAmount);
+                    Navigator.pop(context);
+                  },
+                  child: Text('Clear & Start New',
+                      style: GoogleFonts.nunito(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.w900)),
+                ),
+              ],
+            ),
+          );
+        });
+      } else {
+        cart.setMerchant(_merchantId, _merchantName, _merchantDeliveryFeeAmount);
+      }
     }
   }
 
@@ -81,7 +128,9 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         });
       }
     }, onError: (_) {
-      if (mounted) { setState(() => _loading = false); }
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     });
   }
 
@@ -91,7 +140,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     super.dispose();
   }
 
-  // Unique category tabs derived from loaded items
   List<String> get _categoryTabs {
     final seen = <String>{};
     final cats = <String>[];
@@ -102,7 +150,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     return cats;
   }
 
-  // Tab labels: "Popular" first, then each category capitalized
   List<String> get _tabLabels {
     return ['Popular', ..._categoryTabs.map(_capitalize)];
   }
@@ -116,58 +163,22 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     return _menuItems.where((i) => i['category'] == cat).toList();
   }
 
-  int get _cartCount =>
-      _cart.values.fold(0, (sum, qty) => sum + qty);
-
-  int get _cartTotal {
-    int total = 0;
-    for (final entry in _cart.entries) {
-      final item = _menuItems.firstWhere(
-        (m) => m['id'] == entry.key,
-        orElse: () => {},
-      );
-      if (item.isEmpty) continue;
-      total += ((item['price'] as num?)?.toInt() ?? 0) * entry.value;
-    }
-    return total;
+  void _addToCart(Map<String, dynamic> item) {
+    final cart = context.read<CartProvider>();
+    final itemId = item['id'] as String? ?? '';
+    if (itemId.isEmpty) return;
+    cart.addItem(CartItem(
+      id: itemId,
+      name: item['name'] as String? ?? '',
+      description: item['description'] as String? ?? '',
+      price: (item['price'] as num?)?.toInt() ?? 0,
+      imageUrl: item['imageUrl'] as String? ?? '',
+      quantity: 1,
+    ));
   }
-
-  void _addToCart(String itemId) =>
-      setState(() => _cart[itemId] = (_cart[itemId] ?? 0) + 1);
 
   void _removeFromCart(String itemId) {
-    final qty = _cart[itemId] ?? 0;
-    setState(() {
-      if (qty > 1) {
-        _cart[itemId] = qty - 1;
-      } else {
-        _cart.remove(itemId);
-      }
-    });
-  }
-
-  void _goToCart() {
-    final cartItems = _cart.entries.map((e) {
-      final item = _menuItems.firstWhere(
-        (m) => m['id'] == e.key,
-        orElse: () => {},
-      );
-      if (item.isEmpty) return null;
-      return <String, dynamic>{
-        'id': e.key,
-        'name': item['name'],
-        'description': item['description'],
-        'price': item['price'],
-        'quantity': e.value,
-      };
-    }).whereType<Map<String, dynamic>>().toList();
-
-    Navigator.pushNamed(context, '/cart', arguments: {
-      'items': cartItems,
-      'merchantId': _merchantId,
-      'merchantName': _merchantName,
-      'deliveryFeeAmount': _merchantDeliveryFeeAmount,
-    });
+    context.read<CartProvider>().removeItem(itemId);
   }
 
   void _showSnackbar(String msg) {
@@ -181,8 +192,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     ));
   }
 
-  // ─── Gradient for hero banner based on category ───────────────────────────
-
   static const _categoryGradients = <String, List<Color>>{
     'Food': [Color(0xFF7F1D1D), Color(0xFF991B1B)],
     'Grocery': [Color(0xFF064E3B), Color(0xFF065F46)],
@@ -195,58 +204,85 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cart = context.watch<CartProvider>();
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
+      floatingActionButton: cart.cartCount > 0
+          ? FloatingActionButton(
+              backgroundColor: AppTheme.primary,
+              elevation: 4,
+              onPressed: () => Navigator.pushNamed(context, '/cart'),
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  const Icon(Icons.shopping_cart, color: Colors.white, size: 22),
+                  Positioned(
+                    top: -8,
+                    right: -8,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppTheme.primary, width: 1.5),
+                      ),
+                      child: Text(
+                        cart.cartCount > 9 ? '9+' : '${cart.cartCount}',
+                        style: const TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : null,
       body: Column(
         children: [
           _buildHero(),
           _buildInfoBar(),
           Expanded(
-            child: Stack(
-              children: [
-                _loading
-                    ? _buildShimmerList()
-                    : _menuItems.isEmpty
-                        ? _buildEmptyState()
-                        : SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(10, 11, 10, 4),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.local_fire_department,
-                                          size: 14, color: Color(0xFFEF4444)),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _selectedTab == 0
-                                            ? 'MOST ORDERED'
-                                            : _tabLabels[_selectedTab].toUpperCase(),
-                                        style: GoogleFonts.montserrat(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w900,
-                                          color: AppTheme.dark,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ],
+            child: _loading
+                ? _buildShimmerList()
+                : _menuItems.isEmpty
+                    ? _buildEmptyState()
+                    : SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(10, 11, 10, 4),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.local_fire_department,
+                                      size: 14, color: Color(0xFFEF4444)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _selectedTab == 0
+                                        ? 'MOST ORDERED'
+                                        : _tabLabels[_selectedTab]
+                                            .toUpperCase(),
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppTheme.dark,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
-                                ),
-                                ..._visibleItems.map(_menuItemCard),
-                                const SizedBox(height: 80),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                if (_cartCount > 0)
-                  Positioned(
-                    bottom: 10,
-                    left: 10,
-                    right: 10,
-                    child: _buildFloatCart(),
-                  ),
-              ],
-            ),
+                            ..._visibleItems
+                                .map((item) => _menuItemCard(item, cart)),
+                            const SizedBox(height: 80),
+                          ],
+                        ),
+                      ),
           ),
         ],
       ),
@@ -263,29 +299,68 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
           colors: _heroGradient,
         ),
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Positioned(
-              top: 10,
-              left: 10,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.82),
-                    shape: BoxShape.circle,
+      child: _merchantImageUrl.isNotEmpty
+          ? Stack(
+              fit: StackFit.expand,
+              children: [
+                CachedNetworkImage(
+                  imageUrl: _merchantImageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (ctx, url) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: _heroGradient,
+                      ),
+                    ),
                   ),
-                  child: const Center(
-                    child: Icon(Icons.arrow_back_ios,
-                        size: 16, color: Color(0xFF333333)),
+                  errorWidget: (ctx, url, err) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: _heroGradient,
+                      ),
+                    ),
                   ),
+                ),
+                Container(color: Colors.black.withValues(alpha: 0.35)),
+                _heroContent(),
+              ],
+            )
+          : Stack(
+              fit: StackFit.expand,
+              children: [_heroContent()],
+            ),
+    );
+  }
+
+  Widget _heroContent() {
+    return SafeArea(
+      bottom: false,
+      child: Stack(
+        children: [
+          Positioned(
+            top: 10,
+            left: 10,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(Icons.arrow_back_ios,
+                      size: 16, color: Color(0xFF333333)),
                 ),
               ),
             ),
+          ),
+          if (_merchantImageUrl.isEmpty)
             Center(
               child: Container(
                 width: 80,
@@ -300,27 +375,26 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                 ),
               ),
             ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: GestureDetector(
-                onTap: () => _showSnackbar('Added to favourites!'),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.82),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.favorite_border,
-                        size: 16, color: Color(0xFF888888)),
-                  ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: GestureDetector(
+              onTap: () => _showSnackbar('Added to favourites!'),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(Icons.favorite_border,
+                      size: 16, color: Color(0xFF888888)),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -431,9 +505,8 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                         tabs[i],
                         style: GoogleFonts.nunito(
                           fontSize: 11,
-                          fontWeight: active
-                              ? FontWeight.w900
-                              : FontWeight.w700,
+                          fontWeight:
+                              active ? FontWeight.w900 : FontWeight.w700,
                           color: active
                               ? AppTheme.primary
                               : const Color(0xFF888888),
@@ -450,10 +523,11 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
   }
 
-  Widget _menuItemCard(Map<String, dynamic> item) {
+  Widget _menuItemCard(Map<String, dynamic> item, CartProvider cart) {
     final itemId = item['id'] as String? ?? '';
-    final qty = _cart[itemId] ?? 0;
+    final qty = cart.items[itemId]?.quantity ?? 0;
     final price = (item['price'] as num?)?.toInt() ?? 0;
+    final imageUrl = item['imageUrl'] as String? ?? '';
 
     return Container(
       margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
@@ -474,12 +548,26 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(11),
-            child: Container(
+            child: SizedBox(
               width: 68,
               height: 68,
-              color: const Color(0xFFF0F0F0),
-              child: const Icon(Icons.restaurant,
-                  size: 30, color: Color(0xFFBBBBBB)),
+              child: imageUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (ctx, url) =>
+                          const ShimmerBox(width: 68, height: 68, radius: 11),
+                      errorWidget: (ctx, url, err) => Container(
+                        color: const Color(0xFFF0F0F0),
+                        child: const Icon(Icons.fastfood,
+                            size: 30, color: Color(0xFFBBBBBB)),
+                      ),
+                    )
+                  : Container(
+                      color: const Color(0xFFF0F0F0),
+                      child: const Icon(Icons.fastfood,
+                          size: 30, color: Color(0xFFBBBBBB)),
+                    ),
             ),
           ),
           const SizedBox(width: 11),
@@ -509,7 +597,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'J\$${_formatPrice(price)}',
+                      '\$${_formatPrice(price)}',
                       style: GoogleFonts.montserrat(
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
@@ -518,7 +606,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     ),
                     qty == 0
                         ? GestureDetector(
-                            onTap: () => _addToCart(itemId),
+                            onTap: () => _addToCart(item),
                             child: Container(
                               width: 30,
                               height: 30,
@@ -576,7 +664,9 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     color: AppTheme.dark)),
           ),
           GestureDetector(
-            onTap: () => _addToCart(itemId),
+            onTap: () => _addToCart(
+                _menuItems.firstWhere((m) => m['id'] == itemId,
+                    orElse: () => {})),
             child: Container(
               width: 26,
               height: 26,
@@ -596,60 +686,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         ],
       );
 
-  Widget _buildFloatCart() => GestureDetector(
-        onTap: _goToCart,
-        child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          decoration: BoxDecoration(
-            color: AppTheme.primary,
-            borderRadius: BorderRadius.circular(13),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primary.withValues(alpha: 0.45),
-                blurRadius: 20,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: Text(
-                  '$_cartCount ${_cartCount == 1 ? 'item' : 'items'}',
-                  style: GoogleFonts.nunito(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              Text(
-                'View Cart',
-                style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white),
-              ),
-              Text(
-                'J\$${_formatPrice(_cartTotal)} →',
-                style: GoogleFonts.montserrat(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white),
-              ),
-            ],
-          ),
-        ),
-      );
-
   Widget _buildShimmerList() {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(10, 11, 10, 80),
@@ -664,18 +700,18 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         child: Row(
           children: [
             const SizedBox(width: 11),
-            _ShimmerBox(width: 68, height: 68, radius: 11),
+            const ShimmerBox(width: 68, height: 68, radius: 11),
             const SizedBox(width: 11),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ShimmerBox(width: 140, height: 13, radius: 6),
-                  const SizedBox(height: 7),
-                  _ShimmerBox(width: 100, height: 10, radius: 5),
-                  const SizedBox(height: 10),
-                  _ShimmerBox(width: 60, height: 13, radius: 6),
+                children: const [
+                  ShimmerBox(width: 140, height: 13, radius: 6),
+                  SizedBox(height: 7),
+                  ShimmerBox(width: 100, height: 10, radius: 5),
+                  SizedBox(height: 10),
+                  ShimmerBox(width: 60, height: 13, radius: 6),
                 ],
               ),
             ),
@@ -717,61 +753,5 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       return '$thousands,${hundreds.toString().padLeft(3, '0')}';
     }
     return '$price';
-  }
-}
-
-class _ShimmerBox extends StatefulWidget {
-  final double width;
-  final double height;
-  final double radius;
-
-  const _ShimmerBox(
-      {required this.width, required this.height, required this.radius});
-
-  @override
-  State<_ShimmerBox> createState() => _ShimmerBoxState();
-}
-
-class _ShimmerBoxState extends State<_ShimmerBox>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat();
-    _anim = Tween<double>(begin: -2.0, end: 2.0).animate(_ctrl);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, child) => Container(
-        width: widget.width,
-        height: widget.height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(widget.radius),
-          gradient: LinearGradient(
-            begin: Alignment(_anim.value - 1, 0),
-            end: Alignment(_anim.value, 0),
-            colors: const [
-              Color(0xFFEEEEEE),
-              Color(0xFFDDDDDD),
-              Color(0xFFEEEEEE),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

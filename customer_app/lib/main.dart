@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'providers/cart_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/login_screen.dart';
@@ -48,31 +50,34 @@ class ShipEastApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ShipEast',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme,
-      initialRoute: '/',
-      routes: {
-        '/': (_) => const SplashScreen(),
-        '/welcome': (_) => const WelcomeScreen(),
-        '/login': (_) => const LoginScreen(),
-        '/register': (_) => const RegisterScreen(),
-        '/home': (_) => const MainShell(),
-        '/merchant': (_) => const MerchantMenuScreen(),
-        '/cart': (_) => const CartScreen(),
-        '/checkout': (_) => const CheckoutScreen(),
-        '/payment': (_) => const PaymentScreen(),
-        '/order-confirmed': (_) => const OrderConfirmedScreen(),
-        '/order-status': (_) => const OrderStatusScreen(),
-        '/order-history': (_) => const OrderHistoryScreen(),
-        '/overseas-order': (_) => const OverseasOrderScreen(),
-        '/profile': (_) => const ProfileScreen(),
-        '/rate-driver': (_) => const RateDriverScreen(),
-        '/saved-addresses': (_) => const SavedAddressesScreen(),
-        '/search': (_) => const SearchScreen(),
-        '/help-support': (_) => const HelpSupportScreen(),
-      },
+    return ChangeNotifierProvider(
+      create: (_) => CartProvider(),
+      child: MaterialApp(
+        title: 'ShipEast',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.theme,
+        initialRoute: '/',
+        routes: {
+          '/': (_) => const SplashScreen(),
+          '/welcome': (_) => const WelcomeScreen(),
+          '/login': (_) => const LoginScreen(),
+          '/register': (_) => const RegisterScreen(),
+          '/home': (_) => const MainShell(),
+          '/merchant': (_) => const MerchantMenuScreen(),
+          '/cart': (_) => const CartScreen(),
+          '/checkout': (_) => const CheckoutScreen(),
+          '/payment': (_) => const PaymentScreen(),
+          '/order-confirmed': (_) => const OrderConfirmedScreen(),
+          '/order-status': (_) => const OrderStatusScreen(),
+          '/order-history': (_) => const OrderHistoryScreen(),
+          '/overseas-order': (_) => const OverseasOrderScreen(),
+          '/profile': (_) => const ProfileScreen(),
+          '/rate-driver': (_) => const RateDriverScreen(),
+          '/saved-addresses': (_) => const SavedAddressesScreen(),
+          '/search': (_) => const SearchScreen(),
+          '/help-support': (_) => const HelpSupportScreen(),
+        },
+      ),
     );
   }
 }
@@ -94,6 +99,47 @@ class _MainShellState extends State<MainShell> {
     {'label': 'Profile', 'icon': Icons.person},
   ];
 
+  Widget? _buildCartFab(BuildContext context) {
+    if (_selectedIndex > 1) return null;
+    return Consumer<CartProvider>(
+      builder: (ctx, cart, _) {
+        if (cart.cartCount == 0) return const SizedBox.shrink();
+        return FloatingActionButton(
+          backgroundColor: AppTheme.primary,
+          elevation: 4,
+          onPressed: () => Navigator.pushNamed(ctx, '/cart'),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              const Icon(Icons.shopping_cart, color: Colors.white, size: 22),
+              Positioned(
+                top: -8,
+                right: -8,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.primary, width: 1.5),
+                  ),
+                  child: Text(
+                    cart.cartCount > 9 ? '9+' : '${cart.cartCount}',
+                    style: const TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -106,6 +152,7 @@ class _MainShellState extends State<MainShell> {
           ProfileScreen(),
         ],
       ),
+      floatingActionButton: _buildCartFab(context),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Colors.white,

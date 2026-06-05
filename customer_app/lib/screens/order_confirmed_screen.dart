@@ -395,7 +395,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                         ),
                       ),
                       Text(
-                        'J\$${_fmt(item['price'] as int)}',
+                        '\$${_fmt(item['price'] as int)}',
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           color: const Color(0xFF444444),
@@ -405,9 +405,9 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                     ],
                   ),
                 )),
-            _receiptRow('Subtotal', 'J\$${_fmt(_subtotal)}', false),
-            _receiptRow('Delivery fee', _deliveryFee == 0 ? 'Free' : 'J\$${_fmt(_deliveryFee)}', false),
-            _receiptRow('Service fee', 'J\$${_fmt(_serviceFee)}', false),
+            _receiptRow('Subtotal', '\$${_fmt(_subtotal)}', false),
+            _receiptRow('Delivery fee', _deliveryFee == 0 ? 'Free' : '\$${_fmt(_deliveryFee)}', false),
+            _receiptRow('Service fee', '\$${_fmt(_serviceFee)}', false),
             Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
@@ -430,7 +430,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                     ),
                   ),
                   Text(
-                    'J\$${_fmt(_total)}',
+                    '\$${_fmt(_total)}',
                     style: GoogleFonts.montserrat(
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
