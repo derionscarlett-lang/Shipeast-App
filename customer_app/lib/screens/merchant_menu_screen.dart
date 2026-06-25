@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
 import '../theme/app_theme.dart';
 import '../services/firestore_service.dart';
-import '../widgets/shimmer_box.dart';
+import '../widgets/widgets.dart';
 
 class MerchantMenuScreen extends StatefulWidget {
   const MerchantMenuScreen({super.key});
@@ -20,7 +20,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   // Merchant info from route args
   String _merchantId = '';
   String _merchantName = 'Merchant';
-  String _merchantEmoji = '🍽️';
   String _merchantImageUrl = '';
   String _merchantRating = '4.5';
   String _merchantDeliveryTime = '25–35 min';
@@ -56,7 +55,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       if (args != null) {
         _merchantId = args['id'] as String? ?? '';
         _merchantName = args['name'] as String? ?? 'Merchant';
-        _merchantEmoji = args['emoji'] as String? ?? '🍽️';
         _merchantImageUrl = args['imageUrl'] as String? ?? '';
         _merchantRating = args['rating'] as String? ?? '4.5';
         _merchantDeliveryTime = args['deliveryTime'] as String? ?? '25–35 min';
@@ -78,19 +76,19 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
             context: context,
             builder: (_) => AlertDialog(
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
               title: Text('Start new order?',
                   style: GoogleFonts.montserrat(fontWeight: FontWeight.w900)),
               content: Text(
                 'Your cart has items from ${cart.merchantName}. Clear cart to order from $_merchantName?',
-                style: GoogleFonts.inter(fontSize: 13),
+                style: GoogleFonts.inter(fontSize: 13, height: 1.5),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text('Keep Cart',
                       style: GoogleFonts.nunito(
-                          color: const Color(0xFF888888),
+                          color: AppTheme.textMuted,
                           fontWeight: FontWeight.w700)),
                 ),
                 TextButton(
@@ -202,11 +200,24 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       _categoryGradients[_merchantCategory] ??
       const [Color(0xFF374151), Color(0xFF1F2937)];
 
+  IconData get _categoryIcon {
+    switch (_merchantCategory) {
+      case 'Grocery':
+        return Icons.shopping_basket_rounded;
+      case 'Pharmacy':
+        return Icons.local_pharmacy_rounded;
+      case 'Packages':
+        return Icons.inventory_2_rounded;
+      default:
+        return Icons.restaurant_rounded;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: AppTheme.background,
       floatingActionButton: cart.cartCount > 0
           ? FloatingActionButton(
               backgroundColor: AppTheme.primary,
@@ -216,30 +227,22 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
-                  const Icon(Icons.shopping_cart, color: Colors.white, size: 22),
+                  const Icon(Icons.shopping_cart_rounded,
+                      color: Colors.white, size: 22),
                   Positioned(
-                    top: -8,
-                    right: -8,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppTheme.primary, width: 1.5),
-                      ),
-                      child: Text(
-                        cart.cartCount > 9 ? '9+' : '${cart.cartCount}',
-                        style: const TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.primary,
-                        ),
-                      ),
+                    top: -10,
+                    right: -10,
+                    child: CountBadge(
+                      count: cart.cartCount,
+                      color: Colors.white,
+                      textColor: AppTheme.primary,
+                      borderColor: AppTheme.primary,
+                      size: 18,
                     ),
                   ),
                 ],
               ),
-            )
+            ).popIn()
           : null,
       body: Column(
         children: [
@@ -251,24 +254,27 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                 : _menuItems.isEmpty
                     ? _buildEmptyState()
                     : SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(10, 11, 10, 4),
+                              padding: const EdgeInsets.fromLTRB(
+                                  AppTheme.spaceMd, 16, AppTheme.spaceMd, 6),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.local_fire_department,
-                                      size: 14, color: Color(0xFFEF4444)),
-                                  const SizedBox(width: 4),
+                                  const Icon(
+                                      Icons.local_fire_department_rounded,
+                                      size: 16,
+                                      color: AppTheme.warning),
+                                  const SizedBox(width: 5),
                                   Text(
                                     _selectedTab == 0
                                         ? 'MOST ORDERED'
                                         : _tabLabels[_selectedTab]
                                             .toUpperCase(),
                                     style: GoogleFonts.montserrat(
-                                      fontSize: 11,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.w900,
                                       color: AppTheme.dark,
                                       letterSpacing: 0.5,
@@ -278,8 +284,12 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                               ),
                             ),
                             ..._visibleItems
-                                .map((item) => _menuItemCard(item, cart)),
-                            const SizedBox(height: 80),
+                                .asMap()
+                                .entries
+                                .map((e) =>
+                                    _menuItemCard(e.value, cart)
+                                        .fadeSlideIn(index: e.key)),
+                            const SizedBox(height: 90),
                           ],
                         ),
                       ),
@@ -290,111 +300,93 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   }
 
   Widget _buildHero() {
-    return Container(
-      height: 155,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: _heroGradient,
-        ),
-      ),
-      child: _merchantImageUrl.isNotEmpty
-          ? Stack(
-              fit: StackFit.expand,
-              children: [
-                CachedNetworkImage(
+    return SizedBox(
+      height: 170,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _merchantImageUrl.isNotEmpty
+              ? CachedNetworkImage(
                   imageUrl: _merchantImageUrl,
                   fit: BoxFit.cover,
-                  placeholder: (ctx, url) => Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: _heroGradient,
-                      ),
-                    ),
-                  ),
-                  errorWidget: (ctx, url, err) => Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: _heroGradient,
-                      ),
-                    ),
-                  ),
-                ),
-                Container(color: Colors.black.withValues(alpha: 0.35)),
-                _heroContent(),
-              ],
-            )
-          : Stack(
-              fit: StackFit.expand,
-              children: [_heroContent()],
+                  placeholder: (ctx, url) => _heroGradientBox(),
+                  errorWidget: (ctx, url, err) => _heroGradientBox(),
+                )
+              : _heroGradientBox(),
+          // Scrim for control legibility.
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.32),
+                  Colors.black.withValues(alpha: 0.10),
+                  Colors.black.withValues(alpha: 0.18),
+                ],
+              ),
             ),
+          ),
+          _heroContent(),
+        ],
+      ),
     );
   }
+
+  Widget _heroGradientBox() => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: _heroGradient,
+          ),
+        ),
+        child: _merchantImageUrl.isEmpty
+            ? Center(
+                child: Icon(_categoryIcon,
+                    size: 64, color: Colors.white.withValues(alpha: 0.9)),
+              )
+            : null,
+      );
 
   Widget _heroContent() {
     return SafeArea(
       bottom: false,
-      child: Stack(
-        children: [
-          Positioned(
-            top: 10,
-            left: 10,
-            child: GestureDetector(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+        child: Row(
+          children: [
+            Pressable(
               onTap: () => Navigator.pop(context),
               child: Container(
-                width: 32,
-                height: 32,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.82),
+                  color: Colors.white.withValues(alpha: 0.92),
                   shape: BoxShape.circle,
+                  boxShadow: AppTheme.shadowSm,
                 ),
-                child: const Center(
-                  child: Icon(Icons.arrow_back_ios,
-                      size: 16, color: Color(0xFF333333)),
-                ),
+                child: const Icon(Icons.arrow_back_ios_new,
+                    size: 15, color: AppTheme.textPrimary),
               ),
             ),
-          ),
-          if (_merchantImageUrl.isEmpty)
-            Center(
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.15),
-                ),
-                child: Center(
-                  child: Text(_merchantEmoji,
-                      style: const TextStyle(fontSize: 42)),
-                ),
-              ),
-            ),
-          Positioned(
-            top: 10,
-            right: 10,
-            child: GestureDetector(
+            const Spacer(),
+            Pressable(
               onTap: () => _showSnackbar('Added to favourites!'),
               child: Container(
-                width: 32,
-                height: 32,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.82),
+                  color: Colors.white.withValues(alpha: 0.92),
                   shape: BoxShape.circle,
+                  boxShadow: AppTheme.shadowSm,
                 ),
-                child: const Center(
-                  child: Icon(Icons.favorite_border,
-                      size: 16, color: Color(0xFF888888)),
-                ),
+                child: const Icon(Icons.favorite_border_rounded,
+                    size: 18, color: AppTheme.primary),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -402,114 +394,81 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   Widget _buildInfoBar() {
     final tabs = _tabLabels;
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
+      transform: Matrix4.translationValues(0, -20, 0),
+      margin: const EdgeInsets.fromLTRB(AppTheme.spaceMd, 0, AppTheme.spaceMd, -20),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.shadowMd,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _merchantName,
-            style: GoogleFonts.montserrat(
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.dark,
-            ),
-          ),
-          const SizedBox(height: 5),
           Row(
             children: [
-              const Icon(Icons.star, size: 11, color: Color(0xFFFACC15)),
-              Text(' $_merchantRating',
-                  style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF777777))),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                child: Text('·',
-                    style: GoogleFonts.inter(
-                        fontSize: 11, color: const Color(0xFFDDDDDD))),
-              ),
-              Text(_merchantDeliveryTime,
-                  style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF777777))),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                child: Text('·',
-                    style: GoogleFonts.inter(
-                        fontSize: 11, color: const Color(0xFFDDDDDD))),
-              ),
-              Text(_merchantDeliveryFee,
-                  style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF777777))),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                child: Text('·',
-                    style: GoogleFonts.inter(
-                        fontSize: 11, color: const Color(0xFFDDDDDD))),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _merchantIsOpen
-                      ? const Color(0xFFEDFCF2)
-                      : const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
+              Expanded(
                 child: Text(
-                  _merchantIsOpen ? 'Open Now' : 'Closed',
-                  style: GoogleFonts.nunito(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: _merchantIsOpen
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFDC2626),
+                  _merchantName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.dark,
                   ),
                 ),
+              ),
+              const SizedBox(width: 8),
+              StatusBadge(
+                label: _merchantIsOpen ? 'Open Now' : 'Closed',
+                color: _merchantIsOpen ? AppTheme.success : AppTheme.error,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _infoChip(Icons.star_rounded, _merchantRating,
+                  iconColor: AppTheme.gold),
+              const SizedBox(width: 8),
+              _infoChip(Icons.access_time_rounded, _merchantDeliveryTime),
+              const SizedBox(width: 8),
+              Flexible(
+                child: _infoChip(
+                    Icons.pedal_bike_rounded, _merchantDeliveryFee),
               ),
             ],
           ),
           if (tabs.length > 1) ...[
-            const SizedBox(height: 9),
+            const SizedBox(height: 14),
             SizedBox(
-              height: 32,
+              height: 34,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 itemCount: tabs.length,
-                separatorBuilder: (_, i) => const SizedBox(width: 7),
+                separatorBuilder: (_, i) => const SizedBox(width: 8),
                 itemBuilder: (_, i) {
                   final active = _selectedTab == i;
-                  return GestureDetector(
+                  return Pressable(
                     onTap: () => setState(() => _selectedTab = i),
-                    child: Container(
+                    child: AnimatedContainer(
+                      duration: AppTheme.fast,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 13, vertical: 5),
+                          horizontal: 15, vertical: 7),
                       decoration: BoxDecoration(
-                        color: active
-                            ? const Color(0xFFFFF0F2)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(20),
-                        border: active
-                            ? Border.all(color: AppTheme.primary, width: 1.5)
-                            : null,
+                        color: active ? AppTheme.primary : AppTheme.inputBg,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
                       ),
                       child: Text(
                         tabs[i],
                         style: GoogleFonts.nunito(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight:
                               active ? FontWeight.w900 : FontWeight.w700,
-                          color: active
-                              ? AppTheme.primary
-                              : const Color(0xFF888888),
+                          color:
+                              active ? Colors.white : AppTheme.textSecondary,
                         ),
                       ),
                     ),
@@ -523,6 +482,35 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
   }
 
+  Widget _infoChip(IconData icon, String label, {Color? iconColor}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.inputBg,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: iconColor ?? AppTheme.textMuted),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.nunito(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _menuItemCard(Map<String, dynamic> item, CartProvider cart) {
     final itemId = item['id'] as String? ?? '';
     final qty = cart.items[itemId]?.quantity ?? 0;
@@ -530,47 +518,33 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     final imageUrl = item['imageUrl'] as String? ?? '';
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-      padding: const EdgeInsets.all(11),
+      margin: const EdgeInsets.fromLTRB(AppTheme.spaceMd, 0, AppTheme.spaceMd, 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.shadowSm,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             child: SizedBox(
-              width: 68,
-              height: 68,
+              width: 74,
+              height: 74,
               child: imageUrl.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
-                      placeholder: (ctx, url) =>
-                          const ShimmerBox(width: 68, height: 68, radius: 11),
-                      errorWidget: (ctx, url, err) => Container(
-                        color: const Color(0xFFF0F0F0),
-                        child: const Icon(Icons.fastfood,
-                            size: 30, color: Color(0xFFBBBBBB)),
-                      ),
+                      placeholder: (ctx, url) => const ShimmerBox(
+                          width: 74, height: 74, radius: AppTheme.radiusMd),
+                      errorWidget: (ctx, url, err) => _itemFallback(),
                     )
-                  : Container(
-                      color: const Color(0xFFF0F0F0),
-                      child: const Icon(Icons.fastfood,
-                          size: 30, color: Color(0xFFBBBBBB)),
-                    ),
+                  : _itemFallback(),
             ),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,50 +552,48 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                 Text(
                   item['name'] as String? ?? '',
                   style: GoogleFonts.montserrat(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
                     color: AppTheme.dark,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   item['description'] as String? ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: const Color(0xFF888888),
+                    fontSize: 11,
+                    color: AppTheme.textMuted,
                     height: 1.45,
                   ),
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(height: 9),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       '\$${_formatPrice(price)}',
                       style: GoogleFonts.montserrat(
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w900,
                         color: AppTheme.primary,
                       ),
                     ),
                     qty == 0
-                        ? GestureDetector(
+                        ? Pressable(
                             onTap: () => _addToCart(item),
                             child: Container(
-                              width: 30,
-                              height: 30,
+                              width: 34,
+                              height: 34,
                               decoration: BoxDecoration(
                                 color: AppTheme.primary,
-                                borderRadius: BorderRadius.circular(9),
+                                borderRadius:
+                                    BorderRadius.circular(AppTheme.radiusMd),
+                                boxShadow: AppTheme.shadowSm,
                               ),
-                              child: const Center(
-                                child: Text('+',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1)),
-                              ),
+                              child: const Icon(Icons.add_rounded,
+                                  color: Colors.white, size: 20),
                             ),
                           )
                         : _qtyControl(itemId, qty),
@@ -635,87 +607,86 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
   }
 
-  Widget _qtyControl(String itemId, int qty) => Row(
-        children: [
-          GestureDetector(
-            onTap: () => _removeFromCart(itemId),
-            child: Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF2F2F2),
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: const Center(
-                child: Text('−',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF444444))),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text('$qty',
-                style: GoogleFonts.montserrat(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.dark)),
-          ),
-          GestureDetector(
-            onTap: () => _addToCart(
-                _menuItems.firstWhere((m) => m['id'] == itemId,
-                    orElse: () => {})),
-            child: Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: AppTheme.primary,
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: const Center(
-                child: Text('+',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white)),
+  Widget _itemFallback() => Container(
+        color: AppTheme.primaryLight,
+        child: Icon(_categoryIcon, size: 32, color: AppTheme.primary),
+      );
+
+  Widget _qtyControl(String itemId, int qty) => Container(
+        decoration: BoxDecoration(
+          color: AppTheme.primaryLight,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        ),
+        child: Row(
+          children: [
+            Pressable(
+              onTap: () => _removeFromCart(itemId),
+              child: Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                child: const Icon(Icons.remove_rounded,
+                    size: 18, color: AppTheme.primary),
               ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text('$qty',
+                  style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.dark)),
+            ),
+            Pressable(
+              onTap: () => _addToCart(_menuItems
+                  .firstWhere((m) => m['id'] == itemId, orElse: () => {})),
+              child: Container(
+                width: 30,
+                height: 30,
+                margin: const EdgeInsets.all(2),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                ),
+                child: const Icon(Icons.add_rounded,
+                    size: 18, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
       );
 
   Widget _buildShimmerList() {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(10, 11, 10, 80),
+      padding: const EdgeInsets.fromLTRB(AppTheme.spaceMd, 16, AppTheme.spaceMd, 90),
       itemCount: 4,
       itemBuilder: (_, index) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        height: 90,
+        margin: const EdgeInsets.only(bottom: 10),
+        height: 98,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(13),
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          boxShadow: AppTheme.shadowSm,
         ),
         child: Row(
           children: [
-            const SizedBox(width: 11),
-            const ShimmerBox(width: 68, height: 68, radius: 11),
-            const SizedBox(width: 11),
+            const ShimmerBox(width: 74, height: 74, radius: AppTheme.radiusMd),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
                   ShimmerBox(width: 140, height: 13, radius: 6),
-                  SizedBox(height: 7),
-                  ShimmerBox(width: 100, height: 10, radius: 5),
-                  SizedBox(height: 10),
-                  ShimmerBox(width: 60, height: 13, radius: 6),
+                  SizedBox(height: 8),
+                  ShimmerBox(width: 200, height: 10, radius: 5),
+                  SizedBox(height: 12),
+                  ShimmerBox(width: 60, height: 14, radius: 6),
                 ],
               ),
             ),
-            const SizedBox(width: 11),
           ],
         ),
       ),
@@ -723,26 +694,38 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   }
 
   Widget _buildEmptyState() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.restaurant_menu,
-                size: 52, color: Color(0xFFCCCCCC)),
-            const SizedBox(height: 12),
-            Text(
-              'No menu items yet',
-              style: GoogleFonts.montserrat(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.dark),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              'Check back soon',
-              style: GoogleFonts.inter(
-                  fontSize: 12, color: const Color(0xFF888888)),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(AppTheme.spaceLg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.restaurant_menu_rounded,
+                    size: 40, color: AppTheme.primary),
+              ).popIn(),
+              const SizedBox(height: 16),
+              Text(
+                'No menu items yet',
+                style: GoogleFonts.montserrat(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.dark),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'This merchant is still setting up — check back soon.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                    fontSize: 12, color: AppTheme.textMuted),
+              ),
+            ],
+          ),
         ),
       );
 
