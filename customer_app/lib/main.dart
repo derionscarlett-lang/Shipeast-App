@@ -4,7 +4,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'services/firestore_service.dart';
 import 'providers/cart_provider.dart';
@@ -29,6 +28,7 @@ import 'screens/help_support_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/privacy_security_screen.dart';
 import 'theme/app_theme.dart';
+import 'widgets/widgets.dart';
 
 Future<void> _initFirebase() async {
   for (int attempt = 1; attempt <= 5; attempt++) {
@@ -145,21 +145,12 @@ class _MainShellState extends State<MainShell> {
               Positioned(
                 top: -8,
                 right: -8,
-                child: Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.primary, width: 1.5),
-                  ),
-                  child: Text(
-                    cart.cartCount > 9 ? '9+' : '${cart.cartCount}',
-                    style: const TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.primary,
-                    ),
-                  ),
+                child: CountBadge(
+                  count: cart.cartCount,
+                  color: Colors.white,
+                  textColor: AppTheme.primary,
+                  borderColor: AppTheme.primary,
+                  size: 16,
                 ),
               ),
             ],
@@ -183,83 +174,17 @@ class _MainShellState extends State<MainShell> {
         ],
       ),
       floatingActionButton: _buildCartFab(context),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFEFEFEF))),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 60,
-            child: Row(
-              children: List.generate(_navItems.length, (i) {
-                final active = _selectedIndex == i;
-                final isAlerts = _navItems[i]['label'] == 'Alerts';
-                final showBadge = isAlerts && _unreadNotifications > 0 && !active;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedIndex = i),
-                    behavior: HitTestBehavior.opaque,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Icon(
-                              _navItems[i]['icon'] as IconData,
-                              size: 22,
-                              color: active
-                                  ? AppTheme.primary
-                                  : const Color(0xFFC0C0C0),
-                            ),
-                            if (showBadge)
-                              Positioned(
-                                top: -4,
-                                right: -6,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    color: AppTheme.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  constraints: const BoxConstraints(
-                                      minWidth: 14, minHeight: 14),
-                                  child: Text(
-                                    _unreadNotifications > 9
-                                        ? '9+'
-                                        : '$_unreadNotifications',
-                                    style: const TextStyle(
-                                      fontSize: 7,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _navItems[i]['label'] as String,
-                          style: GoogleFonts.nunito(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: active
-                                ? AppTheme.primary
-                                : const Color(0xFFC0C0C0),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
+      bottomNavigationBar: AppBottomNav(
+        selectedIndex: _selectedIndex,
+        onTap: (i) => setState(() => _selectedIndex = i),
+        items: [
+          for (final item in _navItems)
+            AppBottomNavItem(
+              label: item['label'] as String,
+              icon: item['icon'] as IconData,
+              badgeCount: item['label'] == 'Alerts' ? _unreadNotifications : 0,
             ),
-          ),
-        ),
+        ],
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class ShimmerBox extends StatefulWidget {
   final double width;
@@ -54,6 +55,78 @@ class _ShimmerBoxState extends State<ShimmerBox>
               Color(0xFFEEEEEE),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-width shimmer line for skeleton text rows.
+class ShimmerLine extends StatelessWidget {
+  final double width;
+  final double height;
+
+  const ShimmerLine({super.key, this.width = double.infinity, this.height = 12});
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerBox(width: width, height: height, radius: 6);
+  }
+}
+
+/// A card-shaped skeleton placeholder matching [AppCard] dimensions — drop in
+/// while list/detail content loads instead of a blocking spinner.
+class ShimmerCard extends StatelessWidget {
+  final double height;
+
+  const ShimmerCard({super.key, this.height = 84});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      padding: const EdgeInsets.all(AppTheme.spaceMd),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.shadowSm,
+      ),
+      child: Row(
+        children: [
+          const ShimmerBox(width: 54, height: 54, radius: 12),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                ShimmerLine(width: 140, height: 13),
+                SizedBox(height: 8),
+                ShimmerLine(width: 90, height: 11),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Vertical stack of [ShimmerCard]s for list loading states.
+class ShimmerList extends StatelessWidget {
+  final int count;
+  final double itemHeight;
+
+  const ShimmerList({super.key, this.count = 5, this.itemHeight = 84});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(
+        count,
+        (_) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: ShimmerCard(height: itemHeight),
         ),
       ),
     );
