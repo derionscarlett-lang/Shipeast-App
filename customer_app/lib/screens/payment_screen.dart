@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/widgets.dart';
 import '../services/firestore_service.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -96,7 +97,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Invalid or expired promo code',
               style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-          backgroundColor: const Color(0xFFDC2626),
+          backgroundColor: AppTheme.error,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -122,7 +123,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Promo applied! You saved \$${_formatPrice(discount)}',
             style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-        backgroundColor: const Color(0xFF16A34A),
+        backgroundColor: AppTheme.success,
         behavior: SnackBarBehavior.floating,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -134,7 +135,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Error validating promo code',
               style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-          backgroundColor: const Color(0xFFDC2626),
+          backgroundColor: AppTheme.error,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10)),
@@ -148,96 +149,93 @@ class _PaymentScreenState extends State<PaymentScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => Container(
         decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 36,
+              width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFDDDDDD),
+                color: AppTheme.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 22),
             Container(
-              width: 62,
-              height: 62,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF0F2),
-                borderRadius: BorderRadius.circular(18),
+                color: AppTheme.primaryLight,
+                borderRadius: BorderRadius.circular(20),
               ),
               child: const Center(
-                child: Icon(Icons.receipt_long,
+                child: Icon(Icons.receipt_long_rounded,
                     size: 30, color: AppTheme.primary),
               ),
-            ),
-            const SizedBox(height: 14),
+            ).popIn(),
+            const SizedBox(height: 16),
             Text(
               'Confirm Your Order',
               style: GoogleFonts.montserrat(
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
-                  color: AppTheme.dark),
+                  color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 7),
             Text(
-              'You are placing an order from $_merchantName\nfor \$${_formatPrice(_finalTotal)}.',
+              'You\'re ordering from $_merchantName for \$${_formatPrice(_finalTotal)}.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                   fontSize: 13,
-                  color: const Color(0xFF666666),
+                  color: AppTheme.textSecondary,
                   height: 1.5),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Delivering to: $_deliveryAddress',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: const Color(0xFF999999),
-                  height: 1.4),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.background,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on_rounded,
+                      size: 16, color: AppTheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _deliveryAddress,
+                      style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                          height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 22),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: AppButton(
+                    label: 'Cancel',
+                    variant: AppButtonVariant.outline,
                     onPressed: () => Navigator.pop(ctx, false),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF444444),
-                      side: const BorderSide(color: Color(0xFFDDDDDD)),
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text('Cancel',
-                        style: GoogleFonts.nunito(
-                            fontSize: 14, fontWeight: FontWeight.w900)),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: ElevatedButton(
+                  child: AppButton(
+                    label: 'Place Order',
                     onPressed: () => Navigator.pop(ctx, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    child: Text('Place Order',
-                        style: GoogleFonts.nunito(
-                            fontSize: 14, fontWeight: FontWeight.w900)),
                   ),
                 ),
               ],
@@ -252,163 +250,182 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: AppTheme.background,
       body: SafeArea(
+        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildHeader(),
+            const AppTopBar(
+              title: 'Payment',
+              subtitle: 'Choose how you\'d like to pay',
+            ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildPaymentCard(),
-                    const SizedBox(height: 10),
-                    _buildSecurityCard(),
-                    const SizedBox(height: 10),
-                    _buildPromoCard(),
-                    const SizedBox(height: 10),
-                    _buildTotalCard(),
-                    const SizedBox(height: 10),
-                    _buildPlaceOrderButton(),
-                    const SizedBox(height: 12),
-                  ],
-                ),
+              child: ListView(
+                padding: const EdgeInsets.all(AppTheme.spaceMd),
+                children: [
+                  _buildStepper().fadeSlideIn(),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  _buildPaymentCard().fadeSlideIn(index: 1),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  _buildSecurityCard().fadeSlideIn(index: 2),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  _buildPromoCard().fadeSlideIn(index: 3),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  _buildTotalCard().fadeSlideIn(index: 4),
+                  const SizedBox(height: AppTheme.spaceMd),
+                ],
               ),
             ),
+            _buildBottomBar(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
+  Widget _buildStepper() => Row(
+        children: [
+          _step('Cart', Icons.shopping_bag_rounded, done: true),
+          _stepLine(),
+          _step('Address', Icons.location_on_rounded, done: true),
+          _stepLine(),
+          _step('Payment', Icons.payments_rounded, active: true),
+        ],
+      );
+
+  Widget _step(String label, IconData icon,
+      {bool active = false, bool done = false}) {
+    final on = active || done;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: on ? AppTheme.primary : AppTheme.surface,
+            shape: BoxShape.circle,
+            border: Border.all(
+                color: on ? AppTheme.primary : AppTheme.border, width: 1.5),
+          ),
+          child: Icon(done ? Icons.check_rounded : icon,
+              size: 17, color: on ? Colors.white : AppTheme.inactive),
         ),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF2F2F2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(Icons.arrow_back_ios,
-                      size: 16, color: Color(0xFF444444)),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'Payment Method',
-              style: GoogleFonts.montserrat(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.dark),
-            ),
-          ],
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.nunito(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: on ? AppTheme.primary : AppTheme.textMuted,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _stepLine() => Expanded(
+        child: Container(
+          height: 2,
+          margin: const EdgeInsets.only(bottom: 18),
+          color: AppTheme.primary,
         ),
       );
 
-  Widget _buildPaymentCard() => _coCard(
+  Widget _buildPaymentCard() => AppCard(
+        padding: EdgeInsets.zero,
         child: Column(
           children: [
-            _coHead('Select Payment'),
-            // PayPal row — disabled, Coming Soon
-            Opacity(
-              opacity: 0.4,
-              child: IgnorePointer(
-                child: _paymentRowContent(
-                  index: 0,
-                  icon: _paypalLogo(),
-                  name: 'PayPal',
-                  sub: 'Pay securely via PayPal',
-                  iconBg: const Color(0xFFF0F4FF),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF888888),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'Coming Soon',
-                      style: GoogleFonts.nunito(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white),
+            _coHead('Select Payment', Icons.account_balance_wallet_rounded),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              child: Column(
+                children: [
+                  // PayPal row — disabled, Coming Soon
+                  Opacity(
+                    opacity: 0.55,
+                    child: IgnorePointer(
+                      child: _paymentRow(
+                        index: 0,
+                        icon: _paypalLogo(),
+                        name: 'PayPal',
+                        sub: 'Pay securely via PayPal',
+                        iconBg: const Color(0xFFF0F4FF),
+                        trailing: const StatusBadge(
+                          label: 'Coming Soon',
+                          color: AppTheme.textMuted,
+                          filled: true,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
-            // COD row — active
-            GestureDetector(
-              onTap: () => setState(() => _selectedPayment = 1),
-              child: _paymentRowContent(
-                index: 1,
-                icon: const Icon(Icons.payments,
-                    size: 24, color: Color(0xFF16A34A)),
-                name: 'Cash on Delivery',
-                sub: 'Pay when your order arrives',
-                iconBg: const Color(0xFFF0FDF4),
-                isLast: true,
+                  const SizedBox(height: 8),
+                  // COD row — active
+                  Pressable(
+                    onTap: () => setState(() => _selectedPayment = 1),
+                    child: _paymentRow(
+                      index: 1,
+                      icon: const Icon(Icons.payments_rounded,
+                          size: 24, color: AppTheme.success),
+                      name: 'Cash on Delivery',
+                      sub: 'Pay when your order arrives',
+                      iconBg: const Color(0xFFF0FDF4),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
       );
 
-  Widget _paymentRowContent({
+  Widget _paymentRow({
     required int index,
     required Widget icon,
     required String name,
     required String sub,
     required Color iconBg,
-    bool isLast = false,
     Widget? trailing,
   }) {
     final selected = _selectedPayment == index;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+    return AnimatedContainer(
+      duration: AppTheme.fast,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : const Border(bottom: BorderSide(color: Color(0xFFF8F8F8))),
+        color: selected ? AppTheme.primaryLight : AppTheme.background,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: selected ? AppTheme.primary : AppTheme.border,
+          width: 1.5,
+        ),
       ),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: iconBg,
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
             child: Center(child: icon),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      name,
-                      style: GoogleFonts.montserrat(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.dark),
+                    Flexible(
+                      child: Text(
+                        name,
+                        style: GoogleFonts.nunito(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: AppTheme.textPrimary),
+                      ),
                     ),
                     if (trailing != null) ...[
                       const SizedBox(width: 8),
@@ -416,46 +433,47 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 1),
+                const SizedBox(height: 2),
                 Text(
                   sub,
                   style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: const Color(0xFF999999),
+                      fontSize: 11,
+                      color: AppTheme.textMuted,
                       fontWeight: FontWeight.w500),
                 ),
               ],
             ),
           ),
-          Container(
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: selected
-                    ? AppTheme.primary
-                    : const Color(0xFFDDDDDD),
-                width: 2,
-              ),
-            ),
-            child: selected
-                ? Center(
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  )
-                : null,
-          ),
+          const SizedBox(width: 8),
+          _radio(selected),
         ],
       ),
     );
   }
+
+  Widget _radio(bool selected) => Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? AppTheme.primary : AppTheme.inputBorder,
+            width: 2,
+          ),
+        ),
+        child: selected
+            ? Center(
+                child: Container(
+                  width: 9,
+                  height: 9,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              )
+            : null,
+      );
 
   Widget _paypalLogo() => RichText(
         text: const TextSpan(
@@ -478,278 +496,258 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
 
-  Widget _buildSecurityCard() => _coCard(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Your payment is protected',
-                style: GoogleFonts.montserrat(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.dark),
-              ),
-              const SizedBox(height: 10),
-              _securityRow(
-                  icon: Icons.shield,
-                  color: const Color(0xFF16A34A),
-                  label: '256-bit SSL Encryption'),
-              const SizedBox(height: 8),
-              _securityRow(
-                  icon: Icons.lock,
-                  color: const Color(0xFF2563EB),
-                  label: '100% Secure Payment'),
-              const SizedBox(height: 8),
-              _securityRow(
-                  icon: Icons.verified_user,
-                  color: const Color(0xFF003087),
-                  label: 'ShipEast Buyer Protection'),
-            ],
-          ),
+  Widget _buildSecurityCard() => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          border: Border.all(color: const Color(0xFFD1FAE0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.verified_user_rounded,
+                    size: 18, color: AppTheme.success),
+                const SizedBox(width: 7),
+                Text(
+                  'Your payment is protected',
+                  style: GoogleFonts.nunito(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textPrimary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _securityRow(Icons.shield_rounded, '256-bit SSL encryption'),
+            const SizedBox(height: 9),
+            _securityRow(Icons.lock_rounded, '100% secure payment'),
+            const SizedBox(height: 9),
+            _securityRow(
+                Icons.handshake_rounded, 'ShipEast buyer protection'),
+          ],
         ),
       );
 
-  Widget _securityRow(
-          {required IconData icon,
-          required Color color,
-          required String label}) =>
-      Row(
+  Widget _securityRow(IconData icon, String label) => Row(
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
+          Icon(icon, size: 15, color: AppTheme.success),
+          const SizedBox(width: 9),
           Text(
             label,
             style: GoogleFonts.inter(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: const Color(0xFF555555)),
+                color: AppTheme.textSecondary),
           ),
         ],
       );
 
-  Widget _buildPromoCard() => _coCard(
-        child: Padding(
-          padding: const EdgeInsets.all(13),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.local_offer,
-                      size: 14, color: AppTheme.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Promo Code',
-                    style: GoogleFonts.montserrat(
+  Widget _buildPromoCard() => AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.local_offer_rounded,
+                    size: 16, color: AppTheme.primary),
+                const SizedBox(width: 7),
+                Text(
+                  'Promo Code',
+                  style: GoogleFonts.nunito(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textPrimary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 11),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _promoController,
+                    enabled: !_promoApplied,
+                    textCapitalization: TextCapitalization.characters,
+                    style: GoogleFonts.inter(
                         fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.dark),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 9),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _promoController,
-                      enabled: !_promoApplied,
-                      style: GoogleFonts.inter(
-                          fontSize: 12, color: const Color(0xFF555555)),
-                      decoration: InputDecoration(
-                        hintText: _promoApplied
-                            ? 'Promo code applied!'
-                            : 'Enter promo code...',
-                        hintStyle: GoogleFonts.inter(
-                            fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: _promoApplied
+                          ? 'Promo code applied'
+                          : 'Enter promo code',
+                      hintStyle: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: _promoApplied
+                              ? AppTheme.success
+                              : AppTheme.hint),
+                      filled: true,
+                      fillColor: _promoApplied
+                          ? const Color(0xFFF0FDF4)
+                          : AppTheme.inputBg,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        borderSide: BorderSide(
                             color: _promoApplied
-                                ? const Color(0xFF16A34A)
-                                : const Color(0xFF888888)),
-                        filled: true,
-                        fillColor: _promoApplied
-                            ? const Color(0xFFF0FDF4)
-                            : const Color(0xFFF5F5F7),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(
-                              color: _promoApplied
-                                  ? const Color(0xFF86EFAC)
-                                  : const Color(0xFFE8E8E8),
-                              width: 1.5),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(
-                              color: _promoApplied
-                                  ? const Color(0xFF86EFAC)
-                                  : const Color(0xFFE8E8E8),
-                              width: 1.5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(
-                              color: AppTheme.primary, width: 1.5),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 13, vertical: 10),
-                        isDense: true,
-                        suffixIcon: _promoApplied
-                            ? const Icon(Icons.check_circle,
-                                size: 18, color: Color(0xFF16A34A))
-                            : null,
+                                ? const Color(0xFF86EFAC)
+                                : AppTheme.border,
+                            width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 13, vertical: 12),
+                      isDense: true,
+                      prefixIcon: Icon(
+                        _promoApplied
+                            ? Icons.check_circle_rounded
+                            : Icons.confirmation_number_outlined,
+                        size: 18,
+                        color:
+                            _promoApplied ? AppTheme.success : AppTheme.hint,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 7),
-                  GestureDetector(
-                    onTap: _promoApplied
-                        ? () {
-                            setState(() {
-                              _promoApplied = false;
-                              _discount = 0;
-                              _promoController.clear();
-                            });
-                          }
-                        : _validatingPromo
-                            ? null
-                            : _applyPromo,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _promoApplied
-                            ? const Color(0xFF16A34A)
-                            : AppTheme.primary,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: _validatingPromo
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2))
-                          : Text(
-                              _promoApplied ? 'Remove' : 'Apply',
-                              style: GoogleFonts.nunito(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white),
-                            ),
+                ),
+                const SizedBox(width: 8),
+                Pressable(
+                  onTap: _promoApplied
+                      ? () {
+                          setState(() {
+                            _promoApplied = false;
+                            _discount = 0;
+                            _promoController.clear();
+                          });
+                        }
+                      : _validatingPromo
+                          ? null
+                          : _applyPromo,
+                  child: Container(
+                    height: 46,
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _promoApplied
+                          ? AppTheme.surface
+                          : AppTheme.primary,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: _promoApplied
+                          ? Border.all(color: AppTheme.border)
+                          : null,
                     ),
+                    child: _validatingPromo
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : Text(
+                            _promoApplied ? 'Remove' : 'Apply',
+                            style: GoogleFonts.nunito(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: _promoApplied
+                                    ? AppTheme.textSecondary
+                                    : Colors.white),
+                          ),
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
       );
 
-  Widget _buildTotalCard() => _coCard(
-        child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
-          child: Column(
-            children: [
-              if (_discount > 0) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Original Total',
-                        style: GoogleFonts.inter(
-                            fontSize: 12, color: const Color(0xFF888888))),
-                    Text(
-                      '\$${_formatPrice(_total)}',
-                      style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: const Color(0xFF888888),
-                          decoration: TextDecoration.lineThrough),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.local_offer,
-                            size: 13, color: Color(0xFF16A34A)),
-                        const SizedBox(width: 4),
-                        Text('Promo Discount',
-                            style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: const Color(0xFF16A34A),
-                                fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    Text(
-                      '- \$${_formatPrice(_discount)}',
-                      style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: const Color(0xFF16A34A),
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Divider(height: 1, color: Color(0xFFF2F2F2)),
-                const SizedBox(height: 8),
-              ],
+  Widget _buildTotalCard() => AppCard(
+        child: Column(
+          children: [
+            if (_discount > 0) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Text('Original total',
+                      style: GoogleFonts.inter(
+                          fontSize: 13, color: AppTheme.textMuted)),
                   Text(
-                    'Total to Pay',
-                    style: GoogleFonts.montserrat(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.dark),
-                  ),
-                  Text(
-                    '\$${_formatPrice(_finalTotal)}',
-                    style: GoogleFonts.montserrat(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.primary),
+                    '\$${_formatPrice(_total)}',
+                    style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppTheme.textMuted,
+                        decoration: TextDecoration.lineThrough),
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.local_offer_rounded,
+                          size: 14, color: AppTheme.success),
+                      const SizedBox(width: 5),
+                      Text('Promo discount',
+                          style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: AppTheme.success,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  Text(
+                    '− \$${_formatPrice(_discount)}',
+                    style: GoogleFonts.nunito(
+                        fontSize: 13,
+                        color: AppTheme.success,
+                        fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Divider(height: 1),
+              ),
             ],
-          ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total to pay',
+                  style: GoogleFonts.montserrat(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.textPrimary),
+                ),
+                Text(
+                  '\$${_formatPrice(_finalTotal)}',
+                  style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.primary),
+                ),
+              ],
+            ),
+          ],
         ),
       );
 
-  Widget _buildPlaceOrderButton() => ElevatedButton(
-        onPressed: _placingOrder ? null : _placeOrder,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primary,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13)),
-          elevation: 0,
+  Widget _buildBottomBar() => Container(
+        padding: const EdgeInsets.fromLTRB(
+            AppTheme.spaceMd, 10, AppTheme.spaceMd, 10),
+        decoration: const BoxDecoration(
+          color: AppTheme.surface,
+          border: Border(top: BorderSide(color: AppTheme.divider)),
+          boxShadow: AppTheme.shadowMd,
         ),
-        child: _placingOrder
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2.5),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.lock, size: 14),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Place Order · \$${_formatPrice(_finalTotal)}',
-                    style: GoogleFonts.nunito(
-                        fontSize: 14, fontWeight: FontWeight.w900),
-                  ),
-                ],
-              ),
+        child: SafeArea(
+          top: false,
+          child: AppButton(
+            label: 'Place Order · \$${_formatPrice(_finalTotal)}',
+            icon: Icons.lock_rounded,
+            loading: _placingOrder,
+            onPressed: _placingOrder ? null : _placeOrder,
+          ),
+        ),
       );
 
   Future<void> _placeOrder() async {
@@ -807,34 +805,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-  Widget _coCard({required Widget child}) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 1),
+  Widget _coHead(String title, IconData icon) => Container(
+        padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppTheme.divider)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppTheme.primary),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.textPrimary),
             ),
           ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: child,
-      );
-
-  Widget _coHead(String title) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
-        ),
-        child: Text(
-          title,
-          style: GoogleFonts.montserrat(
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.dark),
         ),
       );
 }
