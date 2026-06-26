@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../widgets/widgets.dart';
 
 class OrderConfirmedScreen extends StatefulWidget {
   const OrderConfirmedScreen({super.key});
@@ -108,7 +109,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       body: Stack(
         children: [
           // Confetti layer
@@ -122,7 +123,8 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
           // Content
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 26, 20, 20),
+              padding: const EdgeInsets.fromLTRB(
+                  AppTheme.spaceLg, AppTheme.spaceLg, AppTheme.spaceLg, AppTheme.spaceLg),
               child: FadeTransition(
                 opacity: _fadeAnim,
                 child: Column(
@@ -133,207 +135,80 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                       child: ScaleTransition(
                         scale: _scaleAnim,
                         child: Container(
-                          width: 86,
-                          height: 86,
+                          width: 92,
+                          height: 92,
                           decoration: BoxDecoration(
                             color: AppTheme.primary,
-                            borderRadius: BorderRadius.circular(26),
+                            borderRadius: BorderRadius.circular(28),
                             boxShadow: [
                               BoxShadow(
                                 color: AppTheme.primary.withValues(alpha: 0.32),
-                                blurRadius: 28,
-                                offset: const Offset(0, 8),
+                                blurRadius: 30,
+                                offset: const Offset(0, 10),
                               ),
                             ],
                           ),
                           child: const Center(
-                            child: Icon(Icons.check_circle,
-                                size: 44, color: Colors.white),
+                            child: Icon(Icons.check_rounded,
+                                size: 50, color: Colors.white),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 20),
                     Text(
-                      'Order Placed!',
+                      'Order Confirmed!',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.montserrat(
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
-                        color: AppTheme.dark,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 8),
                     Text(
-                      'Your order is confirmed & sent to ${_merchantName.isNotEmpty ? _merchantName : 'the merchant'}. We\'ll notify you at every step.',
+                      'Your order has been sent to ${_merchantName.isNotEmpty ? _merchantName : 'the merchant'}. We\'ll keep you posted at every step.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF888888),
+                        fontSize: 13,
+                        color: AppTheme.textMuted,
                         height: 1.6,
                       ),
                     ),
-                    const SizedBox(height: 22),
-                    // Order ID
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 13),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F7),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'ORDER ID',
-                            style: GoogleFonts.inter(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFFAAAAAA),
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            _orderId.isNotEmpty
-                                ? '#${_orderId.substring(0, _orderId.length.clamp(0, 8)).toUpperCase()}'
-                                : '#SE-ORDER',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.dark,
-                            ),
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: AppTheme.spaceLg),
+                    // Order ID + ETA row
+                    Row(
+                      children: [
+                        Expanded(child: _orderIdCard()),
+                        const SizedBox(width: 10),
+                        Expanded(child: _etaCard()),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    // ETA
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 13),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF0F2),
-                        border: Border.all(
-                            color: const Color(0xFFFECDD3), width: 1.5),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.timer,
-                              size: 28, color: AppTheme.primary),
-                          const SizedBox(width: 11),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'ESTIMATED ARRIVAL',
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFFAAAAAA),
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '30 – 40 mins',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppTheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     // Delivery address
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 11),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F7),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on,
-                                  size: 12, color: AppTheme.dark),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Delivering to',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.dark,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _deliveryAddress.isNotEmpty ? _deliveryAddress : 'No address provided',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: const Color(0xFF555555),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                    _addressCard(),
+                    const SizedBox(height: 10),
                     // Receipt card
                     _buildReceiptCard(),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: AppTheme.spaceLg),
                     // Track button
-                    ElevatedButton(
+                    AppButton(
+                      label: 'Track My Order',
+                      icon: Icons.location_searching_rounded,
+                      trailingArrow: true,
                       onPressed: () => Navigator.pushNamed(
                           context, '/order-status',
                           arguments: {'orderId': _orderId}),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13)),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        'Track My Order →',
-                        style: GoogleFonts.nunito(
-                            fontSize: 14, fontWeight: FontWeight.w900),
-                      ),
                     ),
-                    const SizedBox(height: 9),
+                    const SizedBox(height: 10),
                     // Back to home
-                    ElevatedButton(
+                    AppButton(
+                      label: 'Back to Home',
+                      variant: AppButtonVariant.outline,
                       onPressed: () => Navigator.pushNamedAndRemoveUntil(
                         context,
                         '/home',
                         (route) => false,
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF2F2F2),
-                        foregroundColor: const Color(0xFF333333),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13)),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        'Back to Home',
-                        style: GoogleFonts.nunito(
-                            fontSize: 14, fontWeight: FontWeight.w900),
                       ),
                     ),
                   ],
@@ -346,31 +221,164 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
     );
   }
 
+  Widget _orderIdCard() => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          boxShadow: AppTheme.shadowSm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.tag_rounded,
+                    size: 12, color: AppTheme.textMuted),
+                const SizedBox(width: 3),
+                Text(
+                  'ORDER ID',
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textMuted,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _orderId.isNotEmpty
+                  ? '#${_orderId.substring(0, _orderId.length.clamp(0, 8)).toUpperCase()}'
+                  : '#SE-ORDER',
+              style: GoogleFonts.montserrat(
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _etaCard() => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryLight,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          border: Border.all(color: const Color(0xFFFECDD3), width: 1.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.schedule_rounded,
+                    size: 12, color: AppTheme.primary),
+                const SizedBox(width: 3),
+                Text(
+                  'ARRIVES IN',
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.primary,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '30 – 40 min',
+              style: GoogleFonts.montserrat(
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.primary,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _addressCard() => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          boxShadow: AppTheme.shadowSm,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryLight,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              child: const Icon(Icons.location_on_rounded,
+                  size: 19, color: AppTheme.primary),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Delivering to',
+                    style: GoogleFonts.nunito(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _deliveryAddress.isNotEmpty
+                        ? _deliveryAddress
+                        : 'No address provided',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w500,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
   Widget _buildReceiptCard() => Container(
         decoration: BoxDecoration(
-          color: const Color(0xFFF9F9F9),
-          border: Border.all(color: const Color(0xFFEEEEEE), width: 1.5),
-          borderRadius: BorderRadius.circular(14),
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          boxShadow: AppTheme.shadowSm,
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
             Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                  const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
               decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+                border: Border(bottom: BorderSide(color: AppTheme.divider)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.receipt_long,
-                      size: 16, color: Color(0xFF666666)),
-                  const SizedBox(width: 7),
+                  const Icon(Icons.receipt_long_rounded,
+                      size: 17, color: AppTheme.primary),
+                  const SizedBox(width: 8),
                   Text(
                     'Order Receipt',
                     style: GoogleFonts.montserrat(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.w900,
-                      color: AppTheme.dark,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                 ],
@@ -378,63 +386,76 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
             ),
             ..._items.map((item) => Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                   decoration: const BoxDecoration(
                     border: Border(
-                        bottom: BorderSide(color: Color(0xFFF2F2F2))),
+                        bottom: BorderSide(color: AppTheme.divider)),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        margin: const EdgeInsets.only(right: 9),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '${item['qty']}x',
+                          style: GoogleFonts.nunito(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ),
                       Expanded(
                         child: Text(
-                          '${item['name']} × ${item['qty']}',
+                          '${item['name']}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: const Color(0xFF444444),
+                            fontSize: 13,
+                            color: AppTheme.textPrimary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
                       Text(
                         '\$${_fmt(item['price'] as int)}',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: const Color(0xFF444444),
-                          fontWeight: FontWeight.w600,
+                        style: GoogleFonts.nunito(
+                          fontSize: 13,
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
                 )),
-            _receiptRow('Subtotal', '\$${_fmt(_subtotal)}', false),
-            _receiptRow('Delivery fee', _deliveryFee == 0 ? 'Free' : '\$${_fmt(_deliveryFee)}', false),
-            _receiptRow('Service fee', '\$${_fmt(_serviceFee)}', false),
+            _receiptRow('Subtotal', '\$${_fmt(_subtotal)}'),
+            _receiptRow('Delivery fee',
+                _deliveryFee == 0 ? 'Free' : '\$${_fmt(_deliveryFee)}',
+                highlight: _deliveryFee == 0),
+            _receiptRow('Service fee', '\$${_fmt(_serviceFee)}'),
             Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF0F2),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
-                ),
-              ),
+                  const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+              decoration: const BoxDecoration(color: AppTheme.primaryLight),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Total Paid',
                     style: GoogleFonts.montserrat(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w900,
-                      color: AppTheme.dark,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                   Text(
                     '\$${_fmt(_total)}',
                     style: GoogleFonts.montserrat(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w900,
                       color: AppTheme.primary,
                     ),
@@ -444,17 +465,17 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
             ),
             Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                  const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
               child: Row(
                 children: [
-                  const Icon(Icons.payments,
-                      size: 14, color: Color(0xFF777777)),
+                  const Icon(Icons.account_balance_wallet_rounded,
+                      size: 14, color: AppTheme.textMuted),
                   const SizedBox(width: 7),
                   Text(
                     'Paid via $_paymentMethod',
                     style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF777777),
+                      fontSize: 12,
+                      color: AppTheme.textMuted,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -465,27 +486,26 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
         ),
       );
 
-  Widget _receiptRow(String label, String value, bool isBold) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+  Widget _receiptRow(String label, String value, {bool highlight = false}) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
+          border: Border(bottom: BorderSide(color: AppTheme.divider)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label,
                 style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFF666666),
-                    fontWeight:
-                        isBold ? FontWeight.w700 : FontWeight.w400)),
+                    fontSize: 13,
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w400)),
             Text(value,
-                style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFF666666),
-                    fontWeight:
-                        isBold ? FontWeight.w700 : FontWeight.w400)),
+                style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    color:
+                        highlight ? AppTheme.success : AppTheme.textPrimary,
+                    fontWeight: FontWeight.w800)),
           ],
         ),
       );

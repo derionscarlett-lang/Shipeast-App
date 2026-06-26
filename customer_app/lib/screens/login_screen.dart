@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../widgets/widgets.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
     ));
   }
 
@@ -47,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final pass = _passwordController.text.trim();
     if (email.isEmpty || pass.isEmpty) {
-      _showSnackbar('Please fill in all fields', color: const Color(0xFFDC2626));
+      _showSnackbar('Please fill in all fields', color: AppTheme.error);
       return;
     }
     setState(() => _isLoading = true);
@@ -60,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       _showSnackbar(
         e.message ?? 'Login failed. Please try again.',
-        color: const Color(0xFFDC2626),
+        color: AppTheme.error,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -70,198 +73,315 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
-              ),
-              child: Row(
+      backgroundColor: AppTheme.background,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _AuthHero(
+            title: 'Welcome back',
+            subtitle: 'Sign in to continue ordering with ShipEast',
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF2F2F2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.arrow_back_ios, size: 16,
-                            color: Color(0xFF444444)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Welcome back',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.dark,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Sign in to your ShipEast account',
-                      style: GoogleFonts.inter(
-                          fontSize: 12, color: const Color(0xFF888888)),
-                    ),
-                    const SizedBox(height: 22),
-                    _buildLabel('EMAIL ADDRESS'),
-                    const SizedBox(height: 5),
-                    _buildTextField(
-                      controller: _emailController,
-                      hint: 'your@email.com',
-                      isActive: true,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildLabel('PASSWORD'),
-                    const SizedBox(height: 5),
-                    _buildPasswordField(),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 8, bottom: 18),
-                        child: GestureDetector(
-                          onTap: () =>
-                              _showSnackbar('Password reset coming soon!'),
-                          child: Text(
-                            'Forgot Password?',
-                            style: GoogleFonts.nunito(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.primary,
-                            ),
+                  AppTextField(
+                    controller: _emailController,
+                    label: 'Email address',
+                    hint: 'your@email.com',
+                    prefixIcon: Icons.mail_outline_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    active: true,
+                  ).fadeSlideIn(index: 1),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  _PasswordField(
+                    controller: _passwordController,
+                    visible: _passwordVisible,
+                    onToggle: () =>
+                        setState(() => _passwordVisible = !_passwordVisible),
+                  ).fadeSlideIn(index: 2),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10, bottom: 18),
+                      child: GestureDetector(
+                        onTap: () =>
+                            _showSnackbar('Password reset coming soon!'),
+                        child: Text(
+                          'Forgot password?',
+                          style: GoogleFonts.nunito(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.primary,
                           ),
                         ),
                       ),
                     ),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13)),
-                        elevation: 0,
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
-                            )
-                          : Text(
-                              'Sign In →',
-                              style: GoogleFonts.nunito(
-                                  fontSize: 14, fontWeight: FontWeight.w900),
-                            ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: Row(
-                        children: [
-                          const Expanded(
-                              child: Divider(
-                                  color: Color(0xFFEEEEEE), thickness: 1)),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              'or continue with',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: const Color(0xFFBBBBBB),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const Expanded(
-                              child: Divider(
-                                  color: Color(0xFFEEEEEE), thickness: 1)),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () =>
-                          _showSnackbar('Google Sign-In coming soon!'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F5F7),
-                          border: Border.all(
-                              color: const Color(0xFFE8E8E8), width: 1.5),
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('G',
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF4285F4))),
-                            const SizedBox(width: 9),
-                            Text(
-                              'Continue with Google',
-                              style: GoogleFonts.nunito(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF333333),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
+                  ),
+                  AppButton(
+                    label: 'Sign In',
+                    trailingArrow: true,
+                    loading: _isLoading,
+                    onPressed: _isLoading ? null : _handleLogin,
+                  ).fadeSlideIn(index: 3),
+                  const SizedBox(height: AppTheme.spaceLg),
+                  const _OrDivider(),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  _GoogleButton(
+                    onTap: () => _showSnackbar('Google Sign-In coming soon!'),
+                  ).fadeSlideIn(index: 4),
+                  const SizedBox(height: AppTheme.spaceLg),
+                  Center(
+                    child: GestureDetector(
                       onTap: () => Navigator.pushNamed(context, '/register'),
                       child: Text.rich(
                         TextSpan(
                           children: [
                             TextSpan(
-                              text: "Don't have an account? ",
+                              text: "New to ShipEast?  ",
                               style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: const Color(0xFF888888),
+                                fontSize: 13,
+                                color: AppTheme.textMuted,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                             TextSpan(
-                              text: 'Sign Up',
+                              text: 'Create an account',
                               style: GoogleFonts.nunito(
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: AppTheme.primary,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
                           ],
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
-                  ],
+                  ).fadeSlideIn(index: 5),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shared red brand hero with a curved white sheet edge, used by the auth
+/// screens. Presentation only — the back button defers to `Navigator.pop`.
+class _AuthHero extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _AuthHero({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 232,
+      child: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppTheme.primary, AppTheme.primaryDark],
+              ),
+            ),
+          ),
+          Positioned(
+            top: -40,
+            right: -40,
+            child: Container(
+              width: 170,
+              height: 170,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.10),
+                  width: 28,
                 ),
+              ),
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Pressable(
+                    onTap: () => Navigator.of(context).maybePop(),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.arrow_back_ios_new,
+                          size: 15, color: Colors.white),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    title,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ).fadeSlideIn(),
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      height: 1.5,
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ).fadeSlideIn(delay: AppTheme.fast),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -1,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 26,
+              decoration: const BoxDecoration(
+                color: AppTheme.background,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(26),
+                  topRight: Radius.circular(26),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Password input styled to match [AppTextField] but with externally-owned
+/// visibility state so the parent keeps control of the toggle.
+class _PasswordField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool visible;
+  final VoidCallback onToggle;
+
+  const _PasswordField({
+    required this.controller,
+    required this.visible,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'PASSWORD',
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textSecondary,
+            letterSpacing: 0.4,
+          ),
+        ),
+        const SizedBox(height: 5),
+        TextField(
+          controller: controller,
+          obscureText: !visible,
+          style: GoogleFonts.inter(fontSize: 13, color: AppTheme.dark),
+          decoration: InputDecoration(
+            hintText: '••••••••',
+            prefixIcon: const Icon(Icons.lock_outline_rounded,
+                size: 18, color: AppTheme.hint),
+            suffixIcon: IconButton(
+              onPressed: onToggle,
+              icon: Icon(
+                visible
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                size: 18,
+                color: AppTheme.hint,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: AppTheme.divider, thickness: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'or continue with',
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: AppTheme.textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const Expanded(child: Divider(color: AppTheme.divider, thickness: 1)),
+      ],
+    );
+  }
+}
+
+class _GoogleButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _GoogleButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          border: Border.all(color: AppTheme.border, width: 1.5),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CustomPaint(painter: _GoogleGPainter()),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Continue with Google',
+              style: GoogleFonts.nunito(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
               ),
             ),
           ],
@@ -269,83 +389,45 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+}
 
-  Widget _buildLabel(String text) => Text(
-        text,
-        style: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF666666),
-          letterSpacing: 0.4,
-        ),
-      );
+/// Inline vector Google "G" mark drawn from four brand-coloured arcs plus the
+/// blue crossbar — no raster asset or text glyph.
+class _GoogleGPainter extends CustomPainter {
+  const _GoogleGPainter();
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    bool isActive = false,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    final activeBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(11),
-      borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+  static const _blue = Color(0xFF4285F4);
+  static const _red = Color(0xFFEA4335);
+  static const _yellow = Color(0xFFFBBC05);
+  static const _green = Color(0xFF34A853);
+
+  double _rad(double deg) => deg * math.pi / 180.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = size.width * 0.22;
+    final rect = Rect.fromCircle(
+      center: Offset(size.width / 2, size.height / 2),
+      radius: (size.width - stroke) / 2,
     );
-    final normalBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(11),
-      borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
-    );
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: GoogleFonts.inter(fontSize: 13, color: AppTheme.dark),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle:
-            GoogleFonts.inter(fontSize: 13, color: const Color(0xFF999999)),
-        filled: true,
-        fillColor: isActive ? const Color(0xFFFFF8F9) : AppTheme.inputBg,
-        border: isActive ? activeBorder : normalBorder,
-        enabledBorder: isActive ? activeBorder : normalBorder,
-        focusedBorder: activeBorder,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      ),
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt;
+
+    canvas.drawArc(rect, _rad(24), _rad(66), false, p..color = _green);
+    canvas.drawArc(rect, _rad(90), _rad(78), false, p..color = _yellow);
+    canvas.drawArc(rect, _rad(168), _rad(90), false, p..color = _red);
+    canvas.drawArc(rect, _rad(258), _rad(78), false, p..color = _blue);
+
+    // Blue crossbar from the centre to the right edge.
+    final cy = size.height / 2;
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.5, cy - stroke / 2, size.width * 0.5, stroke),
+      Paint()..color = _blue,
     );
   }
 
-  Widget _buildPasswordField() => TextField(
-        controller: _passwordController,
-        obscureText: !_passwordVisible,
-        style: GoogleFonts.inter(fontSize: 13, color: AppTheme.dark),
-        decoration: InputDecoration(
-          hintText: '••••••••',
-          hintStyle:
-              GoogleFonts.inter(fontSize: 13, color: const Color(0xFF999999)),
-          filled: true,
-          fillColor: AppTheme.inputBg,
-          suffixIcon: IconButton(
-            onPressed: () =>
-                setState(() => _passwordVisible = !_passwordVisible),
-            icon: Icon(
-              _passwordVisible ? Icons.visibility_off : Icons.visibility,
-              size: 18,
-              color: const Color(0xFF999999),
-            ),
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        ),
-      );
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

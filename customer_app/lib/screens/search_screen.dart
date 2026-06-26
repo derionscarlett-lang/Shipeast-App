@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../services/firestore_service.dart';
-import '../widgets/shimmer_box.dart';
+import '../widgets/widgets.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -18,6 +18,9 @@ class _SearchScreenState extends State<SearchScreen> {
   String _query = '';
   List<Map<String, dynamic>> _allMerchants = [];
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
+
+  // Presentational only: quick-tap suggestions shown on the empty state.
+  static const _suggestions = ['Food', 'Grocery', 'Pharmacy', 'Packages'];
 
   @override
   void initState() {
@@ -54,7 +57,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final results = _filtered;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: AppTheme.background,
       body: Column(
         children: [
           _buildHeader(context),
@@ -71,126 +74,258 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildHeader(BuildContext context) => Container(
-        color: AppTheme.primary,
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 16, 14),
-            child: Row(
-              children: [
-                if (Navigator.canPop(context)) ...[
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.arrow_back_ios,
-                            size: 16, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                ],
-                Expanded(
-                  child: Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: TextField(
-                      controller: _ctrl,
-                      autofocus: false,
-                      style: GoogleFonts.inter(
-                          fontSize: 13, color: const Color(0xFF333333)),
-                      decoration: InputDecoration(
-                        hintText: 'Search merchants, food, items...',
-                        hintStyle: GoogleFonts.inter(
-                            fontSize: 12, color: const Color(0xFFBDBDBD)),
-                        prefixIcon: const Icon(Icons.search,
-                            size: 18, color: Color(0xFFBDBDBD)),
-                        suffixIcon: _query.isNotEmpty
-                            ? GestureDetector(
-                                onTap: () {
-                                  _ctrl.clear();
-                                  setState(() => _query = '');
-                                },
-                                child: const Icon(Icons.close,
-                                    size: 16, color: Color(0xFFBDBDBD)),
-                              )
-                            : null,
-                        border: InputBorder.none,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 11),
-                        isDense: true,
-                      ),
-                      onChanged: (v) => setState(() => _query = v),
-                    ),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.primary, AppTheme.primaryDark],
+          ),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(26)),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -46,
+              right: -36,
+              child: Container(
+                width: 150,
+                height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    width: 24,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (Navigator.canPop(context)) ...[
+                          Pressable(
+                            onTap: () => Navigator.pop(context),
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.arrow_back_ios_new,
+                                  size: 15, color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Text(
+                          'Search',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        boxShadow: AppTheme.shadowSm,
+                      ),
+                      child: TextField(
+                        controller: _ctrl,
+                        autofocus: false,
+                        style: GoogleFonts.inter(
+                            fontSize: 13, color: AppTheme.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Search merchants, food, items…',
+                          hintStyle: GoogleFonts.inter(
+                              fontSize: 13, color: AppTheme.hint),
+                          prefixIcon: const Icon(Icons.search_rounded,
+                              size: 20, color: AppTheme.primary),
+                          suffixIcon: _query.isNotEmpty
+                              ? GestureDetector(
+                                  onTap: () {
+                                    _ctrl.clear();
+                                    setState(() => _query = '');
+                                  },
+                                  child: const Icon(Icons.close_rounded,
+                                      size: 18, color: AppTheme.hint),
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                          isDense: true,
+                        ),
+                        onChanged: (v) => setState(() => _query = v),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       );
 
-  Widget _buildEmptyState() => Center(
+  Widget _buildEmptyState() => SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+            AppTheme.spaceMd, AppTheme.spaceLg, AppTheme.spaceMd, AppTheme.spaceLg),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.search, size: 70, color: Color(0xFFDDDDDD)),
-            const SizedBox(height: 18),
             Text(
-              'Search merchants',
+              'Browse by category',
               style: GoogleFonts.montserrat(
                   fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFBBBBBB)),
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.dark),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Food, grocery, pharmacy & more',
-              style: GoogleFonts.inter(
-                  fontSize: 12, color: const Color(0xFFCCCCCC)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _suggestions
+                  .map((s) => Pressable(
+                        onTap: () {
+                          _ctrl.text = s;
+                          setState(() => _query = s);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface,
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusXl),
+                            border: Border.all(color: AppTheme.border),
+                            boxShadow: AppTheme.shadowSm,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(_categoryIcon(s),
+                                  size: 16, color: AppTheme.primary),
+                              const SizedBox(width: 7),
+                              Text(s,
+                                  style: GoogleFonts.nunito(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.textPrimary)),
+                            ],
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 48),
+            Center(
+              child: Column(
+                children: [
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.search_rounded,
+                        size: 46, color: AppTheme.primary),
+                  ).popIn(),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Find what you need',
+                    style: GoogleFonts.montserrat(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.dark),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Search across food, grocery, pharmacy & more.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: AppTheme.textMuted),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       );
 
   Widget _buildNoResults() => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.search_off, size: 70, color: Color(0xFFDDDDDD)),
-            const SizedBox(height: 18),
-            Text(
-              'No results for "$_query"',
-              style: GoogleFonts.montserrat(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFBBBBBB)),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Try a different search term',
-              style: GoogleFonts.inter(
-                  fontSize: 12, color: const Color(0xFFCCCCCC)),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(AppTheme.spaceLg),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.search_off_rounded,
+                    size: 46, color: AppTheme.primary),
+              ).popIn(),
+              const SizedBox(height: 18),
+              Text(
+                'No results for "$_query"',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.montserrat(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.dark),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Try a different name or category.',
+                style: GoogleFonts.inter(
+                    fontSize: 12, color: AppTheme.textMuted),
+              ),
+            ],
+          ),
         ),
       );
 
   Widget _buildResults(List<Map<String, dynamic>> results) =>
       ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: results.length,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+            AppTheme.spaceMd, AppTheme.spaceMd, AppTheme.spaceMd, AppTheme.spaceLg),
+        itemCount: results.length + 1,
         itemBuilder: (context, i) {
-          final m = results[i];
+          if (i == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                '${results.length} ${results.length == 1 ? 'result' : 'results'} found',
+                style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textSecondary),
+              ),
+            );
+          }
+          final m = results[i - 1];
           final imageUrl = m['imageUrl'] as String? ?? '';
           final isOpen = m['isOpen'] as bool? ?? true;
           final rating = m['rating'];
@@ -201,48 +336,38 @@ class _SearchScreenState extends State<SearchScreen> {
           final deliveryTime = m['deliveryTime'] as String? ?? '25–35 min';
           final category = m['category'] as String? ?? '';
 
-          return GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/merchant',
-                arguments: {
-                  'id': m['id'] ?? '',
-                  'name': m['name'] ?? '',
-                  'emoji': m['emoji'] as String? ?? '🍽️',
-                  'imageUrl': imageUrl,
-                  'category': category,
-                  'rating': ratingStr,
-                  'deliveryTime': deliveryTime,
-                  'deliveryFee': deliveryFee,
-                  'deliveryFeeAmount': _parseDeliveryFee(deliveryFee),
-                  'isOpen': isOpen,
-                }),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 9),
-              padding: const EdgeInsets.all(13),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(13),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 7,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: AppCard(
+              padding: const EdgeInsets.all(12),
+              onTap: () => Navigator.pushNamed(context, '/merchant',
+                  arguments: {
+                    'id': m['id'] ?? '',
+                    'name': m['name'] ?? '',
+                    'emoji': m['emoji'] as String? ?? '🍽️',
+                    'imageUrl': imageUrl,
+                    'category': category,
+                    'rating': ratingStr,
+                    'deliveryTime': deliveryTime,
+                    'deliveryFee': deliveryFee,
+                    'deliveryFeeAmount': _parseDeliveryFee(deliveryFee),
+                    'isOpen': isOpen,
+                  }),
               child: Row(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                     child: SizedBox(
-                      width: 56,
-                      height: 56,
+                      width: 62,
+                      height: 62,
                       child: imageUrl.isNotEmpty
                           ? CachedNetworkImage(
                               imageUrl: imageUrl,
                               fit: BoxFit.cover,
                               placeholder: (ctx, url) => const ShimmerBox(
-                                  width: 56, height: 56, radius: 11),
-                              errorWidget: (ctx, url, err) => _iconFallback(category),
+                                  width: 62, height: 62, radius: AppTheme.radiusMd),
+                              errorWidget: (ctx, url, err) =>
+                                  _iconFallback(category),
                             )
                           : _iconFallback(category),
                     ),
@@ -252,96 +377,109 @@ class _SearchScreenState extends State<SearchScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          m['name'] as String? ?? '',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.dark,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                m['name'] as String? ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppTheme.dark,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.star_rounded,
+                                size: 14, color: AppTheme.gold),
+                            const SizedBox(width: 2),
+                            Text(
+                              ratingStr,
+                              style: GoogleFonts.nunito(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.dark,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFF0F2),
-                                borderRadius: BorderRadius.circular(6),
+                                color: AppTheme.primaryLight,
+                                borderRadius: BorderRadius.circular(
+                                    AppTheme.radiusXl),
                               ),
                               child: Text(
                                 category,
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
+                                style: GoogleFonts.nunito(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
                                   color: AppTheme.primary,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Icon(Icons.star,
-                                size: 11, color: Color(0xFFFACC15)),
-                            Text(
-                              ' $ratingStr  ·  $deliveryTime',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                color: const Color(0xFF888888),
+                            Flexible(
+                              child: Text(
+                                deliveryTime,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: AppTheme.textSecondary,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isOpen
-                                    ? const Color(0xFFEDFCF2)
-                                    : const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                isOpen ? 'Open' : 'Closed',
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: isOpen
-                                      ? const Color(0xFF16A34A)
-                                      : const Color(0xFFDC2626),
-                                ),
-                              ),
+                            StatusBadge(
+                              label: isOpen ? 'Open' : 'Closed',
+                              color:
+                                  isOpen ? AppTheme.success : AppTheme.error,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              deliveryFee,
-                              style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  color: const Color(0xFF888888)),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                deliveryFee,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    color: AppTheme.textSecondary),
+                              ),
                             ),
                           ],
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios,
-                      size: 14, color: Color(0xFFCCCCCC)),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.arrow_forward_ios_rounded,
+                      size: 14, color: AppTheme.inactive),
                 ],
               ),
-            ),
+            ).fadeSlideIn(index: i),
           );
         },
       );
 
   Widget _iconFallback(String category) => Container(
-        color: const Color(0xFFF5F5F7),
+        color: AppTheme.primaryLight,
         child: Center(
           child: Icon(
             _categoryIcon(category),
-            size: 26,
-            color: const Color(0xFF888888),
+            size: 28,
+            color: AppTheme.primary,
           ),
         ),
       );
@@ -349,13 +487,15 @@ class _SearchScreenState extends State<SearchScreen> {
   IconData _categoryIcon(String category) {
     switch (category) {
       case 'Food':
-        return Icons.restaurant;
+        return Icons.restaurant_rounded;
       case 'Grocery':
-        return Icons.shopping_basket;
+        return Icons.shopping_basket_rounded;
       case 'Pharmacy':
-        return Icons.local_pharmacy;
+        return Icons.local_pharmacy_rounded;
+      case 'Packages':
+        return Icons.inventory_2_rounded;
       default:
-        return Icons.store;
+        return Icons.storefront_rounded;
     }
   }
 }

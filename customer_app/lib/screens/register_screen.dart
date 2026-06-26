@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../widgets/widgets.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -25,7 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
     ));
   }
 
@@ -55,12 +56,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final pass = _passwordController.text.trim();
 
     if (name.isEmpty || phone.isEmpty || email.isEmpty || pass.isEmpty) {
-      _showSnackbar('Please fill in all fields', color: const Color(0xFFDC2626));
+      _showSnackbar('Please fill in all fields', color: AppTheme.error);
       return;
     }
     if (pass.length < 6) {
       _showSnackbar('Password must be at least 6 characters',
-          color: const Color(0xFFDC2626));
+          color: AppTheme.error);
       return;
     }
 
@@ -82,7 +83,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } on FirebaseAuthException catch (e) {
       _showSnackbar(e.message ?? 'Registration failed. Please try again.',
-          color: const Color(0xFFDC2626));
+          color: AppTheme.error);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -91,250 +92,285 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border:
-                    Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
-              ),
-              child: Row(
+      backgroundColor: AppTheme.background,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _AuthHero(
+            title: 'Create account',
+            subtitle: 'Join ShipEast and get your first order moving',
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF2F2F2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.arrow_back_ios, size: 16,
-                            color: Color(0xFF444444)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Create Account',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.dark,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 17, vertical: 15),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _label('FULL NAME'),
-                    const SizedBox(height: 5),
-                    _textField(
-                      controller: _nameController,
-                      hint: 'Your full name',
-                      isActive: true,
-                    ),
-                    const SizedBox(height: 12),
-                    _label('PHONE NUMBER'),
-                    const SizedBox(height: 5),
-                    _textField(
-                      controller: _phoneController,
-                      hint: '+1 876 000 0000',
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 12),
-                    _label('EMAIL ADDRESS'),
-                    const SizedBox(height: 5),
-                    _textField(
-                      controller: _emailController,
-                      hint: 'your@email.com',
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 12),
-                    _label('PASSWORD'),
-                    const SizedBox(height: 5),
-                    _passwordField(),
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 13, vertical: 9),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF0F2),
-                        border: Border.all(
-                            color: const Color(0xFFFECDD3), width: 1.5),
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.lock, size: 14,
-                              color: Color(0xFF9B1C1C)),
-                          const SizedBox(width: 7),
-                          Expanded(
-                            child: Text(
-                              'Your info is encrypted and never shared',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF9B1C1C),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _handleRegister,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13)),
-                        elevation: 0,
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
-                            )
-                          : Text(
-                              'Create My Account →',
-                              style: GoogleFonts.nunito(
-                                  fontSize: 14, fontWeight: FontWeight.w900),
-                            ),
-                    ),
-                    const SizedBox(height: 13),
-                    GestureDetector(
+                  AppTextField(
+                    controller: _nameController,
+                    label: 'Full name',
+                    hint: 'Your full name',
+                    prefixIcon: Icons.person_outline_rounded,
+                    textInputAction: TextInputAction.next,
+                    active: true,
+                  ).fadeSlideIn(index: 1),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  AppTextField(
+                    controller: _phoneController,
+                    label: 'Phone number',
+                    hint: '+1 876 000 0000',
+                    prefixIcon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.next,
+                  ).fadeSlideIn(index: 2),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  AppTextField(
+                    controller: _emailController,
+                    label: 'Email address',
+                    hint: 'your@email.com',
+                    prefixIcon: Icons.mail_outline_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                  ).fadeSlideIn(index: 3),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  _PasswordField(
+                    controller: _passwordController,
+                    visible: _passwordVisible,
+                    onToggle: () =>
+                        setState(() => _passwordVisible = !_passwordVisible),
+                  ).fadeSlideIn(index: 4),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  const _SecurityNote().fadeSlideIn(index: 5),
+                  const SizedBox(height: AppTheme.spaceLg),
+                  AppButton(
+                    label: 'Create my account',
+                    trailingArrow: true,
+                    loading: _isLoading,
+                    onPressed: _isLoading ? null : _handleRegister,
+                  ).fadeSlideIn(index: 6),
+                  const SizedBox(height: AppTheme.spaceMd),
+                  Center(
+                    child: GestureDetector(
                       onTap: () =>
                           Navigator.pushReplacementNamed(context, '/login'),
                       child: Text.rich(
                         TextSpan(
                           children: [
                             TextSpan(
-                              text: 'Already have an account? ',
+                              text: 'Already have an account?  ',
                               style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: const Color(0xFF888888),
+                                fontSize: 13,
+                                color: AppTheme.textMuted,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                             TextSpan(
                               text: 'Sign In',
                               style: GoogleFonts.nunito(
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: AppTheme.primary,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
                           ],
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
-                  ],
+                  ).fadeSlideIn(index: 7),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Reassurance chip shown above the submit button.
+class _SecurityNote extends StatelessWidget {
+  const _SecurityNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryLight,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_user_outlined,
+              size: 16, color: AppTheme.primary),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'Your details are encrypted and never shared.',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryDark,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shared red brand hero with a curved white sheet edge. Presentation only —
+/// the back button defers to `Navigator.pop`.
+class _AuthHero extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _AuthHero({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 232,
+      child: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppTheme.primary, AppTheme.primaryDark],
+              ),
+            ),
+          ),
+          Positioned(
+            top: -40,
+            right: -40,
+            child: Container(
+              width: 170,
+              height: 170,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.10),
+                  width: 28,
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _label(String text) => Text(
-        text,
-        style: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF666666),
-          letterSpacing: 0.4,
-        ),
-      );
-
-  Widget _textField({
-    required TextEditingController controller,
-    required String hint,
-    bool isActive = false,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    final activeBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(11),
-      borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
-    );
-    final normalBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(11),
-      borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
-    );
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: GoogleFonts.inter(fontSize: 13, color: AppTheme.dark),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle:
-            GoogleFonts.inter(fontSize: 13, color: const Color(0xFF999999)),
-        filled: true,
-        fillColor: isActive ? const Color(0xFFFFF8F9) : AppTheme.inputBg,
-        border: isActive ? activeBorder : normalBorder,
-        enabledBorder: isActive ? activeBorder : normalBorder,
-        focusedBorder: activeBorder,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      ),
-    );
-  }
-
-  Widget _passwordField() => TextField(
-        controller: _passwordController,
-        obscureText: !_passwordVisible,
-        style: GoogleFonts.inter(fontSize: 13, color: AppTheme.dark),
-        decoration: InputDecoration(
-          hintText: 'Create a password',
-          hintStyle:
-              GoogleFonts.inter(fontSize: 13, color: const Color(0xFF999999)),
-          filled: true,
-          fillColor: AppTheme.inputBg,
-          suffixIcon: IconButton(
-            onPressed: () =>
-                setState(() => _passwordVisible = !_passwordVisible),
-            icon: Icon(
-              _passwordVisible ? Icons.visibility_off : Icons.visibility,
-              size: 18,
-              color: const Color(0xFF999999),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Pressable(
+                    onTap: () => Navigator.of(context).maybePop(),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.arrow_back_ios_new,
+                          size: 15, color: Colors.white),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    title,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ).fadeSlideIn(),
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      height: 1.5,
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ).fadeSlideIn(delay: AppTheme.fast),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide:
-                const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+          Positioned(
+            bottom: -1,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 26,
+              decoration: const BoxDecoration(
+                color: AppTheme.background,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(26),
+                  topRight: Radius.circular(26),
+                ),
+              ),
+            ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide:
-                const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
+        ],
+      ),
+    );
+  }
+}
+
+/// Password input styled to match [AppTextField] but with externally-owned
+/// visibility state so the parent keeps control of the toggle.
+class _PasswordField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool visible;
+  final VoidCallback onToggle;
+
+  const _PasswordField({
+    required this.controller,
+    required this.visible,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'PASSWORD',
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textSecondary,
+            letterSpacing: 0.4,
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide:
-                const BorderSide(color: AppTheme.primary, width: 1.5),
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         ),
-      );
+        const SizedBox(height: 5),
+        TextField(
+          controller: controller,
+          obscureText: !visible,
+          style: GoogleFonts.inter(fontSize: 13, color: AppTheme.dark),
+          decoration: InputDecoration(
+            hintText: 'At least 6 characters',
+            prefixIcon: const Icon(Icons.lock_outline_rounded,
+                size: 18, color: AppTheme.hint),
+            suffixIcon: IconButton(
+              onPressed: onToggle,
+              icon: Icon(
+                visible
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                size: 18,
+                color: AppTheme.hint,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
