@@ -63,7 +63,7 @@ class SeGradientHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              if (trailing != null) trailing!,
+              ?trailing,
             ],
           ),
         ),
