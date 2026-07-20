@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_app_bar.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_empty_state.dart';
 
 class OverseasOrderScreen extends StatefulWidget {
   const OverseasOrderScreen({super.key});
@@ -19,6 +23,12 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
 
   static const _primaryUrl = 'https://tally.so/r/shipeast';
   static const _fallbackUrl = 'https://form.jotform.com/shipeast';
+
+  static const LinearGradient _oceanGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF0E9488), Color(0xFF0B6E66)],
+  );
 
   @override
   void initState() {
@@ -58,10 +68,15 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: SeColors.surface0,
       body: Column(
         children: [
-          _buildHeader(context),
+          const SeGradientHeader(
+            title: 'Order for Family in Jamaica',
+            subtitle: 'Diaspora overseas ordering portal',
+            gradient: _oceanGradient,
+            trailing: Icon(SeIcons.plane, size: 24, color: Colors.white),
+          ),
           _buildInfoBanner(),
           Expanded(
             child: Stack(
@@ -74,13 +89,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                   Container(
                     color: Colors.white.withValues(alpha: 0.7),
                     child: const Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(color: AppTheme.primary),
-                          SizedBox(height: 14),
-                        ],
-                      ),
+                      child: CircularProgressIndicator(color: SeColors.ocean500),
                     ),
                   ),
               ],
@@ -91,94 +100,27 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) => Container(
-        padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 12,
-          bottom: 14,
-          left: 16,
-          right: 16,
-        ),
-        decoration: const BoxDecoration(
-          color: AppTheme.primary,
-        ),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(Icons.arrow_back_ios,
-                      size: 16, color: Colors.white),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Order for Family in Jamaica',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    'Diaspora overseas ordering portal',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.75),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.flight, size: 24, color: Colors.white),
-          ],
-        ),
-      );
-
   Widget _buildInfoBanner() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: const BoxDecoration(
-          color: Color(0xFFFFF0F2),
-          border: Border(bottom: BorderSide(color: Color(0xFFFECDD3))),
+          color: SeColors.oceanTint,
+          border: Border(bottom: BorderSide(color: Color(0xFFBFE7E2))),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.public, size: 20, color: AppTheme.primary),
+            const Icon(SeIcons.plane, size: 20, color: SeColors.ocean500),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Sending home from overseas?',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.primary,
-                    ),
-                  ),
+                  Text('Sending home from overseas?',
+                      style: SeType.label.copyWith(color: SeColors.ocean500)),
                   const SizedBox(height: 2),
                   Text(
                     'For persons living overseas who want to send groceries, meals or gifts to family and friends in Jamaica.',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: const Color(0xFF9E0B23),
-                      fontWeight: FontWeight.w500,
-                      height: 1.5,
-                    ),
+                    style: SeType.bodyS.copyWith(color: const Color(0xFF0B6E66)),
                   ),
                 ],
               ),
@@ -188,84 +130,33 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
       );
 
   Widget _buildErrorState() => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(Icons.wifi_off,
-                      size: 38, color: AppTheme.primary),
-                ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SeEmptyState(
+              icon: SeIcons.noConnection,
+              title: 'Connection Error',
+              message:
+                  'Unable to load the overseas order form. Please check your internet connection and try again.',
+              hue: SeColors.ocean500,
+              tint: SeColors.oceanTint,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: SeButton(
+                label: 'Retry',
+                icon: SeIcons.arrowRight,
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                    _hasError = false;
+                    _usedFallback = false;
+                  });
+                  _controller.loadRequest(Uri.parse(_primaryUrl));
+                },
               ),
-              const SizedBox(height: 18),
-              Text(
-                'Connection Error',
-                style: GoogleFonts.montserrat(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.dark,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Unable to load the overseas order form. Please check your internet connection and try again.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: const Color(0xFF888888),
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _isLoading = true;
-                      _hasError = false;
-                      _usedFallback = false;
-                    });
-                    _controller.loadRequest(Uri.parse(_primaryUrl));
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: Text(
-                    'Retry',
-                    style: GoogleFonts.nunito(
-                        fontSize: 14, fontWeight: FontWeight.w900),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Text(
-                  'Go Back',
-                  style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF888888),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
 }

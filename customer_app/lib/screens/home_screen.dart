@@ -3,10 +3,19 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
 import '../services/firestore_service.dart';
-import '../widgets/shimmer_box.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_chip.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_text_field.dart';
+import '../widgets/se_toast.dart';
+import '../widgets/se_skeleton.dart';
+import '../widgets/se_empty_state.dart';
+import '../widgets/se_bottom_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedCategory = 0;
   String _userName = '';
   String? _avatarUrl;
+  final Set<String> _favourites = {};
 
   StreamSubscription<Map<String, dynamic>?>? _nameSub;
 
@@ -29,46 +39,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static const _categoryLabels = ['Food', 'Grocery', 'Packages', 'Pharmacy'];
 
-  final List<Map<String, dynamic>> _categories = const [
-    {'icon': Icons.restaurant, 'label': 'Food'},
-    {'icon': Icons.shopping_cart, 'label': 'Grocery'},
-    {'icon': Icons.inventory_2, 'label': 'Packages'},
-    {'icon': Icons.local_pharmacy, 'label': 'Pharmacy'},
+  // Category tile spec: icon + per-category hue (SEDS §1.5).
+  static const List<Map<String, dynamic>> _categories = [
+    {'icon': SeIcons.food, 'label': 'Food', 'hue': SeColors.catFood, 'tint': SeColors.catFoodTint},
+    {'icon': SeIcons.grocery, 'label': 'Grocery', 'hue': SeColors.catGrocery, 'tint': SeColors.catGroceryTint},
+    {'icon': SeIcons.packages, 'label': 'Packages', 'hue': SeColors.catPackages, 'tint': SeColors.catPackagesTint},
+    {'icon': SeIcons.pharmacy, 'label': 'Pharmacy', 'hue': SeColors.catPharmacy, 'tint': SeColors.catPharmacyTint},
   ];
 
   static const List<Map<String, dynamic>> _packageCategories = [
-    {'emoji': '🍗', 'label': 'Food Items', 'color': Color(0xFFF97316)},
-    {'emoji': '👕', 'label': 'Clothing', 'color': Color(0xFF8B5CF6)},
-    {'emoji': '🥂', 'label': 'Glassware', 'color': Color(0xFF0891B2)},
-    {'emoji': '📱', 'label': 'Electronics', 'color': Color(0xFF3B82F6)},
-    {'emoji': '📄', 'label': 'Documents', 'color': Color(0xFF10B981)},
-    {'emoji': '📦', 'label': 'Custom Package', 'color': Color(0xFF6B7280)},
+    {'icon': SeIcons.food, 'label': 'Food Items', 'color': Color(0xFFF97316)},
+    {'icon': SeIcons.box, 'label': 'Clothing', 'color': Color(0xFF8B5CF6)},
+    {'icon': SeIcons.box, 'label': 'Glassware', 'color': SeColors.ocean500},
+    {'icon': SeIcons.box, 'label': 'Electronics', 'color': Color(0xFF3B82F6)},
+    {'icon': SeIcons.note, 'label': 'Documents', 'color': SeColors.success},
+    {'icon': SeIcons.packages, 'label': 'Custom Package', 'color': SeColors.ink500},
   ];
-
-  // Category gradient palettes
-  static const _catGrads = <int, List<List<Color>>>{
-    0: [
-      [Color(0xFF7F1D1D), Color(0xFF991B1B)],
-      [Color(0xFFB45309), Color(0xFFD97706)],
-      [Color(0xFF92400E), Color(0xFFB45309)],
-      [Color(0xFF14532D), Color(0xFF166534)],
-      [Color(0xFF1E3A5F), Color(0xFF1D4ED8)],
-    ],
-    1: [
-      [Color(0xFF064E3B), Color(0xFF065F46)],
-      [Color(0xFF1F4E79), Color(0xFF2563EB)],
-      [Color(0xFF15803D), Color(0xFF16A34A)],
-      [Color(0xFF7C3AED), Color(0xFF6D28D9)],
-      [Color(0xFF065F46), Color(0xFF047857)],
-    ],
-    3: [
-      [Color(0xFF1E40AF), Color(0xFF2563EB)],
-      [Color(0xFF0E7490), Color(0xFF0891B2)],
-      [Color(0xFF7C3AED), Color(0xFF8B5CF6)],
-      [Color(0xFF6B7280), Color(0xFF4B5563)],
-      [Color(0xFF14532D), Color(0xFF15803D)],
-    ],
-  };
 
   @override
   void initState() {
@@ -133,34 +119,24 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'Good evening';
   }
 
-  void _goToProfile() {
-    Navigator.pushNamed(context, '/profile');
-  }
+  void _goToProfile() => Navigator.pushNamed(context, '/profile');
 
   Widget _avatarInitials() {
     final initials = _userName.isNotEmpty
-        ? _userName.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+        ? _userName
+            .trim()
+            .split(' ')
+            .map((w) => w.isNotEmpty ? w[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase()
         : '';
     return Center(
       child: initials.isNotEmpty
           ? Text(initials,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white))
-          : const Icon(Icons.person, size: 20, color: Colors.white),
+              style: SeType.jakarta(14, FontWeight.w800, color: Colors.white))
+          : const Icon(SeIcons.user, size: 20, color: Colors.white),
     );
-  }
-
-  void _showSnackbar(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content:
-          Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-      backgroundColor: AppTheme.primary,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      duration: const Duration(seconds: 2),
-    ));
   }
 
   // Returns null when still loading, empty list when loaded but no merchants
@@ -169,202 +145,163 @@ class _HomeScreenState extends State<HomeScreen> {
     return _firestoreMerchants[catIndex] ?? [];
   }
 
-  List<Color> _gradientFor(int catIndex, int itemIndex) {
-    final palette = _catGrads[catIndex] ?? _catGrads[0]!;
-    return palette[itemIndex % palette.length];
-  }
-
   static int _parseDeliveryFee(String s) {
     if (s.toLowerCase().contains('free')) return 0;
     final match = RegExp(r'\d+').firstMatch(s);
     return match != null ? int.tryParse(match.group(0)!) ?? 100 : 100;
   }
 
+  void _toggleFavourite(String id) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      if (_favourites.contains(id)) {
+        _favourites.remove(id);
+        SeToast.info(context, 'Removed from favourites');
+      } else {
+        _favourites.add(id);
+        SeToast.success(context, 'Added to favourites');
+      }
+    });
+  }
+
+  // ── Package request sheet ─────────────────────────────────────────────────
   void _showPackageForm(String category) {
     final pickupCtrl = TextEditingController();
     final deliveryCtrl = TextEditingController();
     final weightCtrl = TextEditingController();
     final instructionsCtrl = TextEditingController();
+    bool packingRequired = false;
 
-    showModalBottomSheet(
+    showSeBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) {
-          bool packingRequired = false;
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 20,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: SeSpacing.gutter,
+            right: SeSpacing.gutter,
+            top: 4,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SeSheetHandle(),
+                const SizedBox(height: 12),
+                Text('Package Request', style: SeType.h2),
+                const SizedBox(height: 4),
+                Text(
+                  'Fill in the details below to submit your package request.',
+                  style: SeType.body.copyWith(color: SeColors.ink500),
+                ),
+                const SizedBox(height: 20),
+                Text('Item Category',
+                    style: SeType.label.copyWith(color: SeColors.ink700)),
+                const SizedBox(height: 7),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: SeColors.surface50,
+                    borderRadius: SeRadius.inputRadius,
+                    border: Border.all(color: SeColors.ink200, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(SeIcons.packages,
+                          size: 20, color: SeColors.ink400),
+                      const SizedBox(width: 10),
+                      Text(category,
+                          style:
+                              SeType.body.copyWith(color: SeColors.ink900)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SeTextField(
+                  controller: pickupCtrl,
+                  label: 'Pickup Location',
+                  hint: 'Enter pickup address',
+                  icon: SeIcons.locationLine,
+                  keyboardType: TextInputType.streetAddress,
+                ),
+                const SizedBox(height: 14),
+                SeTextField(
+                  controller: deliveryCtrl,
+                  label: 'Delivery Location',
+                  hint: 'Enter delivery address',
+                  icon: SeIcons.location,
+                  keyboardType: TextInputType.streetAddress,
+                ),
+                const SizedBox(height: 14),
+                SeTextField(
+                  controller: weightCtrl,
+                  label: 'Estimated Weight (kg)',
+                  hint: 'e.g. 2.5',
+                  icon: SeIcons.scales,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                ),
+                const SizedBox(height: 14),
+                Text('Packing Required',
+                    style: SeType.label.copyWith(color: SeColors.ink700)),
+                const SizedBox(height: 7),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: SeColors.surface50,
+                    borderRadius: SeRadius.inputRadius,
+                    border: Border.all(color: SeColors.ink200, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(SeIcons.box, size: 20, color: SeColors.ink400),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(packingRequired ? 'Yes' : 'No',
+                            style:
+                                SeType.body.copyWith(color: SeColors.ink900)),
+                      ),
+                      Switch(
+                        value: packingRequired,
+                        onChanged: (v) =>
+                            setModalState(() => packingRequired = v),
+                        activeThumbColor: SeColors.red500,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SeTextField(
+                  controller: instructionsCtrl,
+                  label: 'Special Instructions',
+                  hint: 'Any special handling instructions...',
+                  icon: SeIcons.note,
+                  minLines: 2,
+                  maxLines: 4,
+                ),
+                const SizedBox(height: 22),
+                SeButton(
+                  label: 'Submit Request',
+                  icon: SeIcons.check,
+                  onPressed: () {
+                    if (pickupCtrl.text.trim().isEmpty ||
+                        deliveryCtrl.text.trim().isEmpty) {
+                      SeToast.error(
+                          ctx, 'Please add pickup and delivery addresses');
+                      return;
+                    }
+                    Navigator.pop(ctx);
+                    SeToast.success(context,
+                        "Package request submitted! We'll contact you shortly.");
+                  },
+                ),
+              ],
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDDDDDD),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Package Request',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.dark,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Fill in the details below to submit your package request.',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF888888),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  _formLabel('Item Category'),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F7),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFEBEBEB), width: 1.5),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.inventory_2, size: 17, color: Color(0xFF888888)),
-                        const SizedBox(width: 8),
-                        Text(category,
-                            style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333))),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _formLabel('Pickup Location'),
-                  const SizedBox(height: 6),
-                  _formField(pickupCtrl, 'Enter pickup address', Icons.my_location, TextInputType.streetAddress),
-                  const SizedBox(height: 14),
-                  _formLabel('Delivery Location'),
-                  const SizedBox(height: 6),
-                  _formField(deliveryCtrl, 'Enter delivery address', Icons.location_on, TextInputType.streetAddress),
-                  const SizedBox(height: 14),
-                  _formLabel('Estimated Weight (kg)'),
-                  const SizedBox(height: 6),
-                  _formField(weightCtrl, 'e.g. 2.5', Icons.scale,
-                      const TextInputType.numberWithOptions(decimal: true)),
-                  const SizedBox(height: 14),
-                  _formLabel('Packing Required'),
-                  const SizedBox(height: 6),
-                  StatefulBuilder(
-                    builder: (ctx2, setToggle) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F7),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFEBEBEB), width: 1.5),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.inventory, size: 17, color: Color(0xFF888888)),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(packingRequired ? 'Yes' : 'No',
-                                style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333))),
-                          ),
-                          Switch(
-                            value: packingRequired,
-                            onChanged: (v) => setToggle(() => packingRequired = v),
-                            activeThumbColor: AppTheme.primary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _formLabel('Special Instructions'),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: instructionsCtrl,
-                    minLines: 2,
-                    maxLines: 4,
-                    style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333)),
-                    decoration: InputDecoration(
-                      hintText: 'Any special handling instructions...',
-                      hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFBBBBBB)),
-                      filled: true,
-                      fillColor: const Color(0xFFF5F5F7),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (pickupCtrl.text.trim().isEmpty || deliveryCtrl.text.trim().isEmpty) return;
-                      Navigator.pop(ctx);
-                      _showSnackbar("Package request submitted! We'll contact you shortly.");
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-                      elevation: 0,
-                    ),
-                    child: Text('Submit Request',
-                        style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w900)),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _formLabel(String text) => Text(
-        text,
-        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF666666)),
-      );
-
-  Widget _formField(TextEditingController ctrl, String hint, IconData icon, TextInputType type) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: type,
-      style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333)),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFBBBBBB)),
-        prefixIcon: Padding(
-          padding: const EdgeInsets.only(left: 12, right: 8),
-          child: Icon(icon, size: 17, color: const Color(0xFF888888)),
+          ),
         ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-        filled: true,
-        fillColor: const Color(0xFFF5F5F7),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEBEBEB), width: 1.5)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
-        isDense: true,
       ),
     );
   }
@@ -372,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: SeColors.surface50,
       body: Column(
         children: [
           _buildHeader(),
@@ -387,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildPackagesGrid()
                   else
                     _buildMerchants(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 90),
                 ],
               ),
             ),
@@ -399,15 +336,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHeader() {
     return Container(
-      color: AppTheme.primary,
+      decoration: const BoxDecoration(gradient: SeColors.emberGradient),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 13, 16, 18),
+          padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, 14, SeSpacing.gutter, 20),
           child: Column(
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
                     child: Column(
@@ -415,28 +352,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.location_on, size: 12, color: Color(0xB3FFFFFF)),
-                            const SizedBox(width: 3),
+                            Icon(SeIcons.locationFill,
+                                size: 13,
+                                color: Colors.white.withValues(alpha: 0.8)),
+                            const SizedBox(width: 4),
                             Text(
                               'St. Thomas, Jamaica',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white.withValues(alpha: 0.7),
-                              ),
+                              style: SeType.label.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.85)),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           _userName.isEmpty
-                              ? '$_greeting 👋'
-                              : '$_greeting, $_firstName 👋',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
+                              ? _greeting
+                              : '$_greeting, $_firstName',
+                          style: SeType.h2.copyWith(color: Colors.white),
                         ),
                       ],
                     ),
@@ -444,40 +376,56 @@ class _HomeScreenState extends State<HomeScreen> {
                   GestureDetector(
                     onTap: _goToProfile,
                     child: Container(
-                      width: 36,
-                      height: 36,
+                      width: 44,
+                      height: 44,
+                      padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            width: 1.5),
                       ),
-                      child: ClipOval(
-                        child: _avatarUrl != null
-                            ? CachedNetworkImage(
-                                imageUrl: _avatarUrl!,
-                                fit: BoxFit.cover,
-                                placeholder: (ctx, url) => _avatarInitials(),
-                                errorWidget: (ctx, url, err) => _avatarInitials(),
-                              )
-                            : _avatarInitials(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: ClipOval(
+                          child: _avatarUrl != null
+                              ? CachedNetworkImage(
+                                  imageUrl: _avatarUrl!,
+                                  fit: BoxFit.cover,
+                                  placeholder: (ctx, url) => _avatarInitials(),
+                                  errorWidget: (ctx, url, err) =>
+                                      _avatarInitials(),
+                                )
+                              : _avatarInitials(),
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 13),
+              const SizedBox(height: 16),
               GestureDetector(
                 onTap: () => Navigator.pushNamed(context, '/search'),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(11)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: SeRadius.all(SeRadius.md),
+                    boxShadow: SeElevation.e2,
+                  ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search, size: 18, color: Color(0xFFBDBDBD)),
-                      const SizedBox(width: 9),
+                      const Icon(SeIcons.search,
+                          size: 20, color: SeColors.ink400),
+                      const SizedBox(width: 10),
                       Text(
                         'Search food, merchants, items...',
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFBDBDBD), fontWeight: FontWeight.w500),
+                        style:
+                            SeType.body.copyWith(color: SeColors.ink400),
                       ),
                     ],
                   ),
@@ -491,39 +439,51 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildOverseasBanner() {
-    return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/overseas-order'),
-      child: Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
-          ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: const Color(0xFF1D4ED8).withValues(alpha: 0.28), blurRadius: 14, offset: const Offset(0, 4))],
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.flight, size: 28, color: Colors.white),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Order for Family in Jamaica',
-                      style: GoogleFonts.montserrat(fontSize: 13, fontWeight: FontWeight.w900, color: Colors.white)),
-                  const SizedBox(height: 2),
-                  Text('Living overseas? Send groceries & gifts home',
-                      style: GoogleFonts.inter(fontSize: 10, color: Colors.white.withValues(alpha: 0.7))),
-                ],
-              ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, 16, SeSpacing.gutter, 0),
+      child: GestureDetector(
+        onTap: () => Navigator.pushNamed(context, '/overseas-order'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0E9488), Color(0xFF0B6E66)],
             ),
-            const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white),
-          ],
+            borderRadius: SeRadius.all(SeRadius.md),
+            boxShadow: SeElevation.glowColor(SeColors.ocean500, opacity: 0.28),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(SeIcons.plane, size: 24, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Order for Family in Jamaica',
+                        style: SeType.title.copyWith(color: Colors.white)),
+                    const SizedBox(height: 2),
+                    Text('Living overseas? Send groceries & gifts home',
+                        style: SeType.bodyS.copyWith(
+                            color: Colors.white.withValues(alpha: 0.85))),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(SeIcons.caretRight,
+                  size: 20, color: Colors.white.withValues(alpha: 0.9)),
+            ],
+          ),
         ),
       ),
     );
@@ -531,44 +491,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCategories() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
+      padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, 22, SeSpacing.gutter, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Categories',
-              style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w900, color: AppTheme.dark)),
-          const SizedBox(height: 11),
-          SizedBox(
-            height: 40,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _categories.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 8),
-              itemBuilder: (context, i) {
-                final active = _selectedCategory == i;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = i),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: active ? const Color(0xFFFFF0F2) : Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: active ? AppTheme.primary : Colors.transparent, width: 2),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 1))],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(_categories[i]['icon'] as IconData, size: 14, color: active ? AppTheme.primary : const Color(0xFF555555)),
-                        const SizedBox(width: 5),
-                        Text(_categories[i]['label'] as String,
-                            style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w900, color: active ? AppTheme.primary : const Color(0xFF333333))),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+          Text('Categories', style: SeType.h3),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(_categories.length, (i) {
+              final c = _categories[i];
+              return SeCategoryTile(
+                label: c['label'] as String,
+                icon: c['icon'] as IconData,
+                hue: c['hue'] as Color,
+                tint: c['tint'] as Color,
+                selected: _selectedCategory == i,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _selectedCategory = i);
+                },
+              );
+            }),
           ),
         ],
       ),
@@ -577,48 +521,48 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildPackagesGrid() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
+      padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, 24, SeSpacing.gutter, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Select Package Type',
-              style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w900, color: AppTheme.dark)),
+          Text('Select Package Type', style: SeType.h3),
           const SizedBox(height: 4),
           Text('Choose what you need shipped and fill in the details.',
-              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF888888))),
-          const SizedBox(height: 12),
+              style: SeType.body.copyWith(color: SeColors.ink500)),
+          const SizedBox(height: 14),
           GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.4,
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.5,
             ),
             itemCount: _packageCategories.length,
             itemBuilder: (context, i) {
               final pkg = _packageCategories[i];
               final color = pkg['color'] as Color;
-              return GestureDetector(
+              return SeCard(
                 onTap: () => _showPackageForm(pkg['label'] as String),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8, offset: const Offset(0, 2))],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 48, height: 48,
-                        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
-                        child: Center(child: Text(pkg['emoji'] as String, style: const TextStyle(fontSize: 22))),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(pkg['label'] as String,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w900, color: AppTheme.dark)),
-                    ],
-                  ),
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          shape: BoxShape.circle),
+                      child: Icon(pkg['icon'] as IconData,
+                          size: 24, color: color),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(pkg['label'] as String,
+                        textAlign: TextAlign.center,
+                        style: SeType.title.copyWith(fontSize: 14)),
+                  ],
                 ),
               );
             },
@@ -631,55 +575,73 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMerchants() {
     final merchants = _merchantsFor(_selectedCategory);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
+      padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, 24, SeSpacing.gutter, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Popular Near You',
-                  style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w900, color: AppTheme.dark)),
+              Text('Popular Near You', style: SeType.h3),
               GestureDetector(
-                onTap: () => _showSnackbar('All merchants coming soon!'),
-                child: Text('See all',
-                    style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.primary)),
+                onTap: () => SeToast.info(context, 'All merchants coming soon!'),
+                child: Row(
+                  children: [
+                    Text('See all',
+                        style:
+                            SeType.label.copyWith(color: SeColors.red500)),
+                    const Icon(SeIcons.caretRight,
+                        size: 14, color: SeColors.red500),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 11),
+          const SizedBox(height: 14),
           if (merchants == null)
-            // Loading shimmer
-            ...List.generate(3, (_) => _shimmerMerchantCard())
+            SeShimmer(
+              child: Column(
+                children: List.generate(3, (_) => _shimmerMerchantCard()),
+              ),
+            )
           else if (merchants.isEmpty)
-            _buildMerchantsEmpty()
+            SeEmptyState(
+              icon: SeIcons.storefront,
+              title: 'No merchants yet',
+              message: 'We\'re onboarding partners near you — check back soon.',
+              hue: _categories[_selectedCategory]['hue'] as Color,
+              tint: _categories[_selectedCategory]['tint'] as Color,
+            )
           else
-            ...merchants.asMap().entries.map((e) => _merchantCard(e.key, e.value)),
+            ...merchants
+                .asMap()
+                .entries
+                .map((e) => _merchantCard(e.key, e.value)),
         ],
       ),
     );
   }
 
   Widget _shimmerMerchantCard() => Container(
-        margin: const EdgeInsets.only(bottom: 10),
+        margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 2))],
+          borderRadius: SeRadius.all(SeRadius.md),
+          boxShadow: SeElevation.e1,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const ShimmerBox(width: double.infinity, height: 115, radius: 0),
+          children: const [
+            SeSkeleton(width: double.infinity, height: 150, radius: 0),
             Padding(
-              padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+              padding: EdgeInsets.fromLTRB(14, 12, 14, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  ShimmerBox(width: 160, height: 14, radius: 5),
-                  SizedBox(height: 8),
-                  ShimmerBox(width: 220, height: 10, radius: 4),
+                children: [
+                  SeSkeleton(width: 170, height: 16, radius: 6),
+                  SizedBox(height: 10),
+                  SeSkeleton(width: 230, height: 12, radius: 5),
                 ],
               ),
             ),
@@ -687,28 +649,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
-  Widget _buildMerchantsEmpty() => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 36),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.storefront, size: 48, color: Color(0xFFDDDDDD)),
-            const SizedBox(height: 12),
-            Text(
-              'No merchants available',
-              style: GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.dark),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Check back soon',
-              style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF888888)),
-            ),
-          ],
-        ),
-      );
+  Color _catHue(int i) => (_categories[i]['hue'] as Color);
 
   Widget _merchantCard(int index, Map<String, dynamic> m) {
-    final grads = _gradientFor(_selectedCategory, index);
     final rating = m['rating'];
     final ratingStr = rating is double
         ? rating.toStringAsFixed(1)
@@ -716,8 +659,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final isOpen = m['isOpen'] as bool? ?? true;
     final promo = m['promo'] as String?;
     final imageUrl = m['imageUrl'] as String? ?? '';
+    final id = (m['id'] ?? '').toString();
+    final fav = _favourites.contains(id);
+    final hue = _catHue(_selectedCategory);
 
-    return GestureDetector(
+    return SeCard(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: EdgeInsets.zero,
+      clip: true,
       onTap: () {
         Navigator.pushNamed(context, '/merchant', arguments: {
           'id': m['id'] ?? '',
@@ -728,135 +677,152 @@ class _HomeScreenState extends State<HomeScreen> {
           'rating': ratingStr,
           'deliveryTime': m['deliveryTime'] ?? '25–35 min',
           'deliveryFee': m['deliveryFee'] ?? 'Free delivery',
-          'deliveryFeeAmount': _parseDeliveryFee(m['deliveryFee'] as String? ?? ''),
+          'deliveryFeeAmount':
+              _parseDeliveryFee(m['deliveryFee'] as String? ?? ''),
           'isOpen': isOpen,
         });
       },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 2))],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            SizedBox(
-              height: 115,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Background: image or gradient fallback
-                  imageUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (ctx, url) => ShimmerBox(
-                            width: double.infinity,
-                            height: 115,
-                            radius: 0,
-                          ),
-                          errorWidget: (ctx, url, err) => Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: grads,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: grads,
-                            ),
-                          ),
-                        ),
-                  // Scrim so text remains readable
-                  if (imageUrl.isNotEmpty)
-                    Container(color: Colors.black.withValues(alpha: 0.22)),
-                  if (promo != null)
-                    Positioned(
-                      top: 9, left: 9,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(color: AppTheme.primary, borderRadius: BorderRadius.circular(5)),
-                        child: Text(promo, style: GoogleFonts.nunito(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)),
-                      ),
-                    ),
-                  if (imageUrl.isEmpty)
-                    Center(child: Text(m['emoji'] as String? ?? '🍽️', style: const TextStyle(fontSize: 50))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 16:9 hero
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (imageUrl.isNotEmpty)
+                  CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (ctx, url) =>
+                        const SeShimmer(child: SeSkeleton(height: 150)),
+                    errorWidget: (ctx, url, err) => _fallbackHero(hue),
+                  )
+                else
+                  _fallbackHero(hue),
+                if (imageUrl.isNotEmpty)
+                  const DecoratedBox(
+                      decoration: BoxDecoration(gradient: SeColors.inkScrim)),
+                if (promo != null)
                   Positioned(
-                    top: 9, right: 9,
-                    child: GestureDetector(
-                      onTap: () => _showSnackbar('Added to favourites!'),
-                      child: Container(
-                        width: 30, height: 30,
-                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.88), shape: BoxShape.circle),
-                        child: const Center(child: Icon(Icons.favorite_border, size: 16, color: Color(0xFF888888))),
+                    top: 10,
+                    left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: SeColors.red500,
+                        borderRadius: SeRadius.all(SeRadius.xs),
+                        boxShadow: SeElevation.e1,
+                      ),
+                      child: Text(promo,
+                          style: SeType.inter(10, FontWeight.w700,
+                              color: Colors.white)),
+                    ),
+                  ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: GestureDetector(
+                    onTap: () => _toggleFavourite(id),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        shape: BoxShape.circle,
+                        boxShadow: SeElevation.e1,
+                      ),
+                      child: Icon(
+                        fav ? SeIcons.heartFill : SeIcons.heart,
+                        size: 18,
+                        color: fav ? SeColors.red500 : SeColors.ink500,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(m['name'] as String? ?? '',
-                      style: GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.dark)),
-                  const SizedBox(height: 5),
-                  Wrap(
-                    spacing: 5,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      _ratingChip(ratingStr),
-                      _dot(),
-                      _chip(m['deliveryTime'] as String? ?? ''),
-                      _dot(),
-                      _chip(m['deliveryFee'] as String? ?? ''),
-                      _statusBadge(isOpen),
-                    ],
-                  ),
-                ],
-              ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(m['name'] as String? ?? '',
+                          style: SeType.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    _ratingPill(ratingStr),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _infoBit(SeIcons.clock, m['deliveryTime'] as String? ?? ''),
+                    _infoBit(SeIcons.bike, m['deliveryFee'] as String? ?? ''),
+                    SeChip.status(
+                      label: isOpen ? 'Open' : 'Closed',
+                      color: isOpen ? SeColors.success : SeColors.danger,
+                      tint: isOpen ? SeColors.successTint : SeColors.dangerTint,
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _ratingChip(String rating) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.star, size: 11, color: Color(0xFFFACC15)),
-          Text(' $rating', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF777777))),
-        ],
+  Widget _fallbackHero(Color hue) => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [hue.withValues(alpha: 0.9), hue],
+          ),
+        ),
+        child: Center(
+          child: Icon(SeIcons.storefront,
+              size: 44, color: Colors.white.withValues(alpha: 0.85)),
+        ),
       );
 
-  Widget _chip(String text) =>
-      Text(text, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF777777)));
-
-  Widget _dot() =>
-      Text('·', style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFFDDDDDD)));
-
-  Widget _statusBadge(bool open) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+  Widget _ratingPill(String rating) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: open ? const Color(0xFFEDFCF2) : const Color(0xFFFEF2F2),
-          borderRadius: BorderRadius.circular(16),
+          color: SeColors.goldTint,
+          borderRadius: SeRadius.pill,
         ),
-        child: Text(
-          open ? 'Open' : 'Closed',
-          style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w800, color: open ? const Color(0xFF16A34A) : const Color(0xFFDC2626)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(SeIcons.star, size: 13, color: SeColors.gold500),
+            const SizedBox(width: 3),
+            Text(rating,
+                style: SeType.tabular(SeType.inter(12, FontWeight.w700,
+                    color: SeColors.ink700))),
+          ],
         ),
+      );
+
+  Widget _infoBit(IconData icon, String text) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: SeColors.ink400),
+          const SizedBox(width: 4),
+          Text(text, style: SeType.bodyS.copyWith(color: SeColors.ink500)),
+        ],
       );
 }

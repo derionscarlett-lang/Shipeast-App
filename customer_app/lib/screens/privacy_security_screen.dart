@@ -2,8 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_toast.dart';
+import '../widgets/se_bottom_sheet.dart';
 
 class PrivacySecurityScreen extends StatefulWidget {
   const PrivacySecurityScreen({super.key});
@@ -32,27 +38,11 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: user.email!);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-            'Password reset email sent to ${user.email}',
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
-          ),
-          backgroundColor: const Color(0xFF16A34A),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+        SeToast.success(context, 'Password reset email sent to ${user.email}');
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-            'Failed to send reset email. Try again.',
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w700),
-          ),
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+        SeToast.error(context, 'Failed to send reset email. Try again.');
       }
     } finally {
       if (mounted) setState(() => _sendingReset = false);
@@ -60,39 +50,15 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
   }
 
   Future<void> _deleteAccount() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Text(
-          'Delete Account',
-          style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w900),
-        ),
-        content: Text(
+    final confirm = await SeConfirmSheet.show(
+      context,
+      title: 'Delete Account',
+      message:
           'This will permanently delete your account and all your data. This action cannot be undone.',
-          style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF555555)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.nunito(
-                  fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFF666666)),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              'Delete',
-              style: GoogleFonts.nunito(
-                  fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFFDC2626)),
-            ),
-          ),
-        ],
-      ),
+      confirmLabel: 'Delete',
+      destructive: true,
     );
-    if (confirm != true) return;
+    if (!confirm) return;
     setState(() => _deleting = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -111,12 +77,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
         final msg = e.code == 'requires-recent-login'
             ? 'Please sign out and sign back in, then try again.'
             : 'Failed to delete account. Please try again.';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+        SeToast.error(context, msg);
       }
     } catch (_) {
       if (mounted) setState(() => _deleting = false);
@@ -126,7 +87,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: SeColors.surface50,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -134,16 +95,15 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(SeSpacing.gutter),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildDataCard(),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     _buildSecurityCard(),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     _buildDeleteCard(),
-                    const SizedBox(height: 12),
                   ],
                 ),
               ),
@@ -155,68 +115,60 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
   }
 
   Widget _buildHeader() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.fromLTRB(12, 12, SeSpacing.gutter, 12),
         decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
+          color: SeColors.surface0,
+          border: Border(bottom: BorderSide(color: SeColors.ink100)),
         ),
         child: Row(
           children: [
             GestureDetector(
               onTap: () => Navigator.pop(context),
               child: Container(
-                width: 34,
-                height: 34,
+                width: 40,
+                height: 40,
                 decoration: const BoxDecoration(
-                    color: Color(0xFFF2F2F2), shape: BoxShape.circle),
-                child: const Center(
-                  child: Icon(Icons.arrow_back_ios, size: 16, color: Color(0xFF444444)),
-                ),
+                    color: SeColors.surface50, shape: BoxShape.circle),
+                child: const Icon(SeIcons.arrowLeft,
+                    size: 20, color: SeColors.ink900),
               ),
             ),
-            const SizedBox(width: 10),
-            Text(
-              'Privacy & Security',
-              style: GoogleFonts.montserrat(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.dark,
-              ),
-            ),
+            const SizedBox(width: 12),
+            Text('Privacy & Security', style: SeType.h3),
           ],
         ),
       );
 
-  Widget _buildDataCard() => _card(
+  Widget _buildDataCard() => SeCard(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _sectionTitle('Data We Collect'),
-            _dataItem(Icons.person_outline, 'Profile Information',
+            _dataItem(SeIcons.user, 'Profile Information',
                 'Name, phone number, email address'),
-            _dataItem(Icons.location_on_outlined, 'Delivery Addresses',
+            _dataItem(SeIcons.location, 'Delivery Addresses',
                 'Your saved delivery locations'),
-            _dataItem(Icons.receipt_long_outlined, 'Order History',
+            _dataItem(SeIcons.orders, 'Order History',
                 'Your past and current orders'),
-            _dataItem(Icons.star_outline, 'Ratings & Reviews',
+            _dataItem(SeIcons.starOutline, 'Ratings & Reviews',
                 'Ratings you give to drivers and merchants'),
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F7),
-                borderRadius: BorderRadius.circular(10),
+                color: SeColors.oceanTint,
+                borderRadius: SeRadius.all(SeRadius.sm),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline, size: 14, color: Color(0xFF888888)),
+                  const Icon(SeIcons.info, size: 16, color: SeColors.ocean500),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'We never sell your data. Information is used solely to provide and improve ShipEast services.',
-                      style: GoogleFonts.inter(
-                          fontSize: 11, color: const Color(0xFF666666)),
+                      style: SeType.bodyS.copyWith(color: SeColors.ocean500),
                     ),
                   ),
                 ],
@@ -227,31 +179,25 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
       );
 
   Widget _dataItem(IconData icon, String title, String sub) => Padding(
-        padding: const EdgeInsets.only(bottom: 11),
+        padding: const EdgeInsets.only(bottom: 14),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F7),
-                  borderRadius: BorderRadius.circular(10)),
-              child:
-                  Center(child: Icon(icon, size: 17, color: const Color(0xFF666666))),
+                  color: SeColors.surface50,
+                  borderRadius: SeRadius.all(SeRadius.sm)),
+              child: Icon(icon, size: 19, color: SeColors.ink700),
             ),
-            const SizedBox(width: 11),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: GoogleFonts.montserrat(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.dark)),
+                  Text(title, style: SeType.title),
                   Text(sub,
-                      style: GoogleFonts.inter(
-                          fontSize: 11, color: const Color(0xFF888888))),
+                      style: SeType.bodyS.copyWith(color: SeColors.ink400)),
                 ],
               ),
             ),
@@ -259,109 +205,51 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
         ),
       );
 
-  Widget _buildSecurityCard() => _card(
+  Widget _buildSecurityCard() => SeCard(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _sectionTitle('Security'),
             Text(
               'Change your account password. A reset link will be sent to your registered email address.',
-              style: GoogleFonts.inter(
-                  fontSize: 12, color: const Color(0xFF666666)),
+              style: SeType.body.copyWith(color: SeColors.ink500),
             ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _sendingReset ? null : _sendPasswordReset,
-                icon: _sendingReset
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.lock_reset, size: 18),
-                label: Text('Send Password Reset Email',
-                    style: GoogleFonts.nunito(
-                        fontSize: 14, fontWeight: FontWeight.w900)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-              ),
+            const SizedBox(height: 16),
+            SeButton(
+              label: 'Send Password Reset Email',
+              icon: SeIcons.lock,
+              loading: _sendingReset,
+              onPressed: _sendingReset ? null : _sendPasswordReset,
             ),
           ],
         ),
       );
 
-  Widget _buildDeleteCard() => _card(
+  Widget _buildDeleteCard() => SeCard(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _sectionTitle('Delete Account'),
             Text(
               'Permanently delete your ShipEast account and all associated data. This action cannot be undone.',
-              style: GoogleFonts.inter(
-                  fontSize: 12, color: const Color(0xFF666666)),
+              style: SeType.body.copyWith(color: SeColors.ink500),
             ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _deleting ? null : _deleteAccount,
-                icon: _deleting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.delete_forever, size: 18),
-                label: Text('Delete My Account',
-                    style: GoogleFonts.nunito(
-                        fontSize: 14, fontWeight: FontWeight.w900)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-              ),
+            const SizedBox(height: 16),
+            SeButton(
+              label: 'Delete My Account',
+              icon: SeIcons.trash,
+              variant: SeButtonVariant.destructive,
+              loading: _deleting,
+              onPressed: _deleting ? null : _deleteAccount,
             ),
           ],
         ),
-      );
-
-  Widget _card({required Widget child}) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: child,
       );
 
   Widget _sectionTitle(String t) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
-        child: Text(
-          t,
-          style: GoogleFonts.montserrat(
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-            color: AppTheme.dark,
-          ),
-        ),
+        child: Text(t, style: SeType.h3),
       );
 }

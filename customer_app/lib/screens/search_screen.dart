@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
 import '../services/firestore_service.dart';
-import '../widgets/shimmer_box.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_chip.dart';
+import '../widgets/se_skeleton.dart';
+import '../widgets/se_empty_state.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -15,6 +20,7 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _ctrl = TextEditingController();
+  final _focus = FocusNode();
   String _query = '';
   List<Map<String, dynamic>> _allMerchants = [];
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
@@ -30,6 +36,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     _ctrl.dispose();
+    _focus.dispose();
     _sub?.cancel();
     super.dispose();
   }
@@ -54,7 +61,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final results = _filtered;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: SeColors.surface50,
       body: Column(
         children: [
           _buildHeader(context),
@@ -71,65 +78,74 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildHeader(BuildContext context) => Container(
-        color: AppTheme.primary,
+        decoration: const BoxDecoration(gradient: SeColors.emberGradient),
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 16, 14),
+            padding: const EdgeInsets.fromLTRB(12, 10, SeSpacing.gutter, 16),
             child: Row(
               children: [
                 if (Navigator.canPop(context)) ...[
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
-                      width: 36,
-                      height: 36,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.18),
                         shape: BoxShape.circle,
                       ),
-                      child: const Center(
-                        child: Icon(Icons.arrow_back_ios,
-                            size: 16, color: Colors.white),
-                      ),
+                      child: const Icon(SeIcons.arrowLeft,
+                          size: 20, color: Colors.white),
                     ),
                   ),
                   const SizedBox(width: 10),
                 ],
                 Expanded(
                   child: Container(
-                    height: 40,
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: SeRadius.all(SeRadius.md),
+                      boxShadow: SeElevation.e2,
                     ),
-                    child: TextField(
-                      controller: _ctrl,
-                      autofocus: false,
-                      style: GoogleFonts.inter(
-                          fontSize: 13, color: const Color(0xFF333333)),
-                      decoration: InputDecoration(
-                        hintText: 'Search merchants, food, items...',
-                        hintStyle: GoogleFonts.inter(
-                            fontSize: 12, color: const Color(0xFFBDBDBD)),
-                        prefixIcon: const Icon(Icons.search,
-                            size: 18, color: Color(0xFFBDBDBD)),
-                        suffixIcon: _query.isNotEmpty
-                            ? GestureDetector(
-                                onTap: () {
-                                  _ctrl.clear();
-                                  setState(() => _query = '');
-                                },
-                                child: const Icon(Icons.close,
-                                    size: 16, color: Color(0xFFBDBDBD)),
-                              )
-                            : null,
-                        border: InputBorder.none,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 11),
-                        isDense: true,
-                      ),
-                      onChanged: (v) => setState(() => _query = v),
+                    child: Row(
+                      children: [
+                        const Icon(SeIcons.search,
+                            size: 20, color: SeColors.ink400),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: _ctrl,
+                            focusNode: _focus,
+                            style: SeType.body.copyWith(color: SeColors.ink900),
+                            cursorColor: SeColors.red500,
+                            decoration: InputDecoration(
+                              hintText: 'Search merchants, food, items...',
+                              hintStyle:
+                                  SeType.body.copyWith(color: SeColors.ink400),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              filled: false,
+                              isDense: true,
+                              contentPadding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            onChanged: (v) => setState(() => _query = v),
+                          ),
+                        ),
+                        if (_query.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              _ctrl.clear();
+                              setState(() => _query = '');
+                            },
+                            child: const Icon(SeIcons.close,
+                                size: 18, color: SeColors.ink400),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -140,55 +156,28 @@ class _SearchScreenState extends State<SearchScreen> {
       );
 
   Widget _buildEmptyState() => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.search, size: 70, color: Color(0xFFDDDDDD)),
-            const SizedBox(height: 18),
-            Text(
-              'Search merchants',
-              style: GoogleFonts.montserrat(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFBBBBBB)),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Food, grocery, pharmacy & more',
-              style: GoogleFonts.inter(
-                  fontSize: 12, color: const Color(0xFFCCCCCC)),
-            ),
-          ],
+        child: SeEmptyState(
+          icon: SeIcons.search,
+          title: 'Search merchants',
+          message: 'Food, grocery, pharmacy & more',
         ),
       );
 
   Widget _buildNoResults() => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.search_off, size: 70, color: Color(0xFFDDDDDD)),
-            const SizedBox(height: 18),
-            Text(
-              'No results for "$_query"',
-              style: GoogleFonts.montserrat(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFBBBBBB)),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Try a different search term',
-              style: GoogleFonts.inter(
-                  fontSize: 12, color: const Color(0xFFCCCCCC)),
-            ),
-          ],
+        child: SeEmptyState(
+          icon: SeIcons.noConnection,
+          title: 'No results for "$_query"',
+          message: 'Try a different search term',
+          hue: SeColors.ink500,
+          tint: SeColors.surface50,
         ),
       );
 
   Widget _buildResults(List<Map<String, dynamic>> results) =>
-      ListView.builder(
-        padding: const EdgeInsets.all(12),
+      ListView.separated(
+        padding: const EdgeInsets.all(SeSpacing.gutter),
         itemCount: results.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, i) {
           final m = results[i];
           final imageUrl = m['imageUrl'] as String? ?? '';
@@ -201,161 +190,100 @@ class _SearchScreenState extends State<SearchScreen> {
           final deliveryTime = m['deliveryTime'] as String? ?? '25–35 min';
           final category = m['category'] as String? ?? '';
 
-          return GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/merchant',
-                arguments: {
-                  'id': m['id'] ?? '',
-                  'name': m['name'] ?? '',
-                  'emoji': m['emoji'] as String? ?? '🍽️',
-                  'imageUrl': imageUrl,
-                  'category': category,
-                  'rating': ratingStr,
-                  'deliveryTime': deliveryTime,
-                  'deliveryFee': deliveryFee,
-                  'deliveryFeeAmount': _parseDeliveryFee(deliveryFee),
-                  'isOpen': isOpen,
-                }),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 9),
-              padding: const EdgeInsets.all(13),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(13),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 7,
-                    offset: const Offset(0, 2),
+          return SeCard(
+            onTap: () => Navigator.pushNamed(context, '/merchant', arguments: {
+              'id': m['id'] ?? '',
+              'name': m['name'] ?? '',
+              'emoji': m['emoji'] as String? ?? '🍽️',
+              'imageUrl': imageUrl,
+              'category': category,
+              'rating': ratingStr,
+              'deliveryTime': deliveryTime,
+              'deliveryFee': deliveryFee,
+              'deliveryFeeAmount': _parseDeliveryFee(deliveryFee),
+              'isOpen': isOpen,
+            }),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: SeRadius.all(SeRadius.sm),
+                  child: SizedBox(
+                    width: 60,
+                    height: 60,
+                    child: imageUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (ctx, url) => const SeShimmer(
+                                child: SeSkeleton(
+                                    width: 60, height: 60, radius: 12)),
+                            errorWidget: (ctx, url, err) =>
+                                _iconFallback(category),
+                          )
+                        : _iconFallback(category),
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
-                    child: SizedBox(
-                      width: 56,
-                      height: 56,
-                      child: imageUrl.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: imageUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (ctx, url) => const ShimmerBox(
-                                  width: 56, height: 56, radius: 11),
-                              errorWidget: (ctx, url, err) => _iconFallback(category),
-                            )
-                          : _iconFallback(category),
-                    ),
-                  ),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          m['name'] as String? ?? '',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.dark,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(m['name'] as String? ?? '',
+                          style: SeType.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (category.isNotEmpty)
+                            SeChip.status(
+                              label: category,
+                              color: SeColors.red700,
+                              tint: SeColors.red50,
+                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(SeIcons.star,
+                                  size: 13, color: SeColors.gold500),
+                              const SizedBox(width: 3),
+                              Text('$ratingStr · $deliveryTime',
+                                  style: SeType.bodyS
+                                      .copyWith(color: SeColors.ink500)),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF0F2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                category,
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.primary,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.star,
-                                size: 11, color: Color(0xFFFACC15)),
-                            Text(
-                              ' $ratingStr  ·  $deliveryTime',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                color: const Color(0xFF888888),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isOpen
-                                    ? const Color(0xFFEDFCF2)
-                                    : const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                isOpen ? 'Open' : 'Closed',
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: isOpen
-                                      ? const Color(0xFF16A34A)
-                                      : const Color(0xFFDC2626),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              deliveryFee,
-                              style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  color: const Color(0xFF888888)),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const Icon(Icons.arrow_forward_ios,
-                      size: 14, color: Color(0xFFCCCCCC)),
-                ],
-              ),
+                ),
+                const Icon(SeIcons.caretRight,
+                    size: 18, color: SeColors.ink300),
+              ],
             ),
           );
         },
       );
 
   Widget _iconFallback(String category) => Container(
-        color: const Color(0xFFF5F5F7),
-        child: Center(
-          child: Icon(
-            _categoryIcon(category),
-            size: 26,
-            color: const Color(0xFF888888),
-          ),
-        ),
+        color: SeColors.surface50,
+        child: Icon(_categoryIcon(category),
+            size: 26, color: SeColors.ink400),
       );
 
   IconData _categoryIcon(String category) {
     switch (category) {
       case 'Food':
-        return Icons.restaurant;
+        return SeIcons.food;
       case 'Grocery':
-        return Icons.shopping_basket;
+        return SeIcons.grocery;
       case 'Pharmacy':
-        return Icons.local_pharmacy;
+        return SeIcons.pharmacy;
       default:
-        return Icons.store;
+        return SeIcons.storefront;
     }
   }
 }

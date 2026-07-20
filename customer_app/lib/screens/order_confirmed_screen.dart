@@ -1,8 +1,11 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_button.dart';
 
 class OrderConfirmedScreen extends StatefulWidget {
   const OrderConfirmedScreen({super.key});
@@ -31,31 +34,33 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
   int _serviceFee = 0;
   int _total = 0;
   bool _argsLoaded = false;
+  late final String _etaWindow;
 
   @override
   void initState() {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
     ));
+    final now = DateTime.now();
+    _etaWindow =
+        '${_clock(now.add(const Duration(minutes: 30)))} – ${_clock(now.add(const Duration(minutes: 40)))}';
+
     _animCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
+        vsync: this, duration: const Duration(milliseconds: 700));
     _scaleAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.elasticOut);
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeIn);
 
     _confettiCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2500),
-    );
-    _confettiAnim = CurvedAnimation(
-        parent: _confettiCtrl, curve: Curves.easeOut);
+        vsync: this, duration: const Duration(milliseconds: 2500));
+    _confettiAnim =
+        CurvedAnimation(parent: _confettiCtrl, curve: Curves.easeOut);
 
-    _particles = List.generate(40, (_) => _Particle());
+    _particles = List.generate(44, (_) => _Particle());
 
     _animCtrl.forward();
+    HapticFeedback.mediumImpact();
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) _confettiCtrl.forward();
     });
@@ -66,12 +71,14 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
     super.didChangeDependencies();
     if (!_argsLoaded) {
       _argsLoaded = true;
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       if (args != null) {
         _orderId = args['orderId'] as String? ?? '';
         _merchantName = args['merchantName'] as String? ?? '';
         _deliveryAddress = args['deliveryAddress'] as String? ?? '';
-        _paymentMethod = args['paymentMethod'] as String? ?? 'Cash on Delivery';
+        _paymentMethod =
+            args['paymentMethod'] as String? ?? 'Cash on Delivery';
         _subtotal = args['subtotal'] as int? ?? 0;
         _deliveryFee = args['deliveryFee'] as int? ?? 0;
         _serviceFee = args['serviceFee'] as int? ?? 0;
@@ -98,6 +105,13 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
     super.dispose();
   }
 
+  String _clock(DateTime t) {
+    final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
+    final m = t.minute.toString().padLeft(2, '0');
+    final ap = t.hour < 12 ? 'AM' : 'PM';
+    return '$h:$m $ap';
+  }
+
   String _fmt(int price) {
     if (price >= 1000) {
       return '${price ~/ 1000},${(price % 1000).toString().padLeft(3, '0')}';
@@ -108,233 +122,77 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: SeColors.surface50,
       body: Stack(
         children: [
-          // Confetti layer
           AnimatedBuilder(
             animation: _confettiAnim,
-            builder: (_, _) => CustomPaint(
+            builder: (_, __) => CustomPaint(
               painter: _ConfettiPainter(_confettiAnim.value, _particles),
               size: Size.infinite,
             ),
           ),
-          // Content
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 26, 20, 20),
+              padding: const EdgeInsets.fromLTRB(
+                  SeSpacing.gutter, 30, SeSpacing.gutter, 24),
               child: FadeTransition(
                 opacity: _fadeAnim,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Success icon
                     Center(
                       child: ScaleTransition(
                         scale: _scaleAnim,
                         child: Container(
-                          width: 86,
-                          height: 86,
+                          width: 96,
+                          height: 96,
                           decoration: BoxDecoration(
-                            color: AppTheme.primary,
-                            borderRadius: BorderRadius.circular(26),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.primary.withValues(alpha: 0.32),
-                                blurRadius: 28,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
+                            gradient: SeColors.sunsetGradient,
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: SeElevation.glow,
                           ),
-                          child: const Center(
-                            child: Icon(Icons.check_circle,
-                                size: 44, color: Colors.white),
-                          ),
+                          child: const Icon(SeIcons.check,
+                              size: 50, color: Colors.white),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'Order Placed!',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.montserrat(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.dark,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 20),
+                    Text('Order Placed!',
+                        textAlign: TextAlign.center, style: SeType.display),
+                    const SizedBox(height: 8),
                     Text(
                       'Your order is confirmed & sent to ${_merchantName.isNotEmpty ? _merchantName : 'the merchant'}. We\'ll notify you at every step.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF888888),
-                        height: 1.6,
-                      ),
+                      style: SeType.body.copyWith(color: SeColors.ink500),
                     ),
-                    const SizedBox(height: 22),
-                    // Order ID
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 13),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F7),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'ORDER ID',
-                            style: GoogleFonts.inter(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFFAAAAAA),
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            _orderId.isNotEmpty
-                                ? '#${_orderId.substring(0, _orderId.length.clamp(0, 8)).toUpperCase()}'
-                                : '#SE-ORDER',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.dark,
-                            ),
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: 24),
+                    _infoTile(
+                      label: 'ORDER ID',
+                      value: _orderId.isNotEmpty
+                          ? '#${_orderId.substring(0, _orderId.length.clamp(0, 8)).toUpperCase()}'
+                          : '#SE-ORDER',
                     ),
                     const SizedBox(height: 12),
-                    // ETA
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 13),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF0F2),
-                        border: Border.all(
-                            color: const Color(0xFFFECDD3), width: 1.5),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.timer,
-                              size: 28, color: AppTheme.primary),
-                          const SizedBox(width: 11),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'ESTIMATED ARRIVAL',
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFFAAAAAA),
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '30 – 40 mins',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppTheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                    _etaTile(),
                     const SizedBox(height: 12),
-                    // Delivery address
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 11),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F7),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on,
-                                  size: 12, color: AppTheme.dark),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Delivering to',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.dark,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _deliveryAddress.isNotEmpty ? _deliveryAddress : 'No address provided',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: const Color(0xFF555555),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _addressTile(),
                     const SizedBox(height: 12),
-                    // Receipt card
                     _buildReceiptCard(),
-                    const SizedBox(height: 18),
-                    // Track button
-                    ElevatedButton(
+                    const SizedBox(height: 20),
+                    SeButton(
+                      label: 'Track My Order',
+                      icon: SeIcons.arrowRight,
                       onPressed: () => Navigator.pushNamed(
                           context, '/order-status',
                           arguments: {'orderId': _orderId}),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13)),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        'Track My Order →',
-                        style: GoogleFonts.nunito(
-                            fontSize: 14, fontWeight: FontWeight.w900),
-                      ),
                     ),
-                    const SizedBox(height: 9),
-                    // Back to home
-                    ElevatedButton(
+                    const SizedBox(height: 10),
+                    SeButton(
+                      label: 'Back to Home',
+                      variant: SeButtonVariant.ghost,
                       onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/home',
-                        (route) => false,
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF2F2F2),
-                        foregroundColor: const Color(0xFF333333),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13)),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        'Back to Home',
-                        style: GoogleFonts.nunito(
-                            fontSize: 14, fontWeight: FontWeight.w900),
-                      ),
+                          context, '/home', (route) => false),
                     ),
                   ],
                 ),
@@ -346,118 +204,161 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
     );
   }
 
+  Widget _infoTile({required String label, required String value}) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: SeColors.surface0,
+          borderRadius: SeRadius.all(SeRadius.md),
+          boxShadow: SeElevation.e1,
+        ),
+        child: Column(
+          children: [
+            Text(label, style: SeType.eyebrow),
+            const SizedBox(height: 4),
+            Text(value,
+                style: SeType.tabular(SeType.h2).copyWith(color: SeColors.ink900)),
+          ],
+        ),
+      );
+
+  Widget _etaTile() => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: SeColors.red50,
+          border: Border.all(color: SeColors.red100, width: 1.5),
+          borderRadius: SeRadius.all(SeRadius.md),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                  color: SeColors.surface0, shape: BoxShape.circle),
+              child: const Icon(SeIcons.clock, size: 24, color: SeColors.red500),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('ESTIMATED ARRIVAL', style: SeType.eyebrow),
+                const SizedBox(height: 2),
+                Text(_etaWindow,
+                    style: SeType.tabular(SeType.h3)
+                        .copyWith(color: SeColors.red600)),
+              ],
+            ),
+          ],
+        ),
+      );
+
+  Widget _addressTile() => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: SeColors.surface0,
+          borderRadius: SeRadius.all(SeRadius.md),
+          boxShadow: SeElevation.e1,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(SeIcons.location, size: 16, color: SeColors.ink700),
+                const SizedBox(width: 6),
+                Text('DELIVERING TO', style: SeType.eyebrow),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _deliveryAddress.isNotEmpty
+                  ? _deliveryAddress
+                  : 'No address provided',
+              style: SeType.body.copyWith(color: SeColors.ink700),
+            ),
+          ],
+        ),
+      );
+
   Widget _buildReceiptCard() => Container(
         decoration: BoxDecoration(
-          color: const Color(0xFFF9F9F9),
-          border: Border.all(color: const Color(0xFFEEEEEE), width: 1.5),
-          borderRadius: BorderRadius.circular(14),
+          color: SeColors.surface0,
+          borderRadius: SeRadius.all(SeRadius.md),
+          boxShadow: SeElevation.e1,
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
             Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+                border: Border(bottom: BorderSide(color: SeColors.ink100)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.receipt_long,
-                      size: 16, color: Color(0xFF666666)),
-                  const SizedBox(width: 7),
-                  Text(
-                    'Order Receipt',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.dark,
-                    ),
-                  ),
+                  const Icon(SeIcons.orders, size: 18, color: SeColors.ink700),
+                  const SizedBox(width: 8),
+                  Text('Order Receipt', style: SeType.title),
                 ],
               ),
             ),
-            ..._items.map((item) => Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                        bottom: BorderSide(color: Color(0xFFF2F2F2))),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${item['name']} × ${item['qty']}',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: const Color(0xFF444444),
-                            fontWeight: FontWeight.w500,
-                          ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Column(
+                children: [
+                  ..._items.map((item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text('${item['name']} × ${item['qty']}',
+                                  style: SeType.body
+                                      .copyWith(color: SeColors.ink700)),
+                            ),
+                            Text('\$${_fmt(item['price'] as int)}',
+                                style: SeType.tabular(SeType.body)
+                                    .copyWith(color: SeColors.ink700)),
+                          ],
                         ),
-                      ),
-                      Text(
-                        '\$${_fmt(item['price'] as int)}',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: const Color(0xFF444444),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
-            _receiptRow('Subtotal', '\$${_fmt(_subtotal)}', false),
-            _receiptRow('Delivery fee', _deliveryFee == 0 ? 'Free' : '\$${_fmt(_deliveryFee)}', false),
-            _receiptRow('Service fee', '\$${_fmt(_serviceFee)}', false),
+                      )),
+                  if (_items.isNotEmpty)
+                    const Divider(height: 1, color: SeColors.ink100),
+                  const SizedBox(height: 12),
+                  _receiptRow('Subtotal', '\$${_fmt(_subtotal)}'),
+                  _receiptRow('Delivery fee',
+                      _deliveryFee == 0 ? 'Free' : '\$${_fmt(_deliveryFee)}'),
+                  _receiptRow('Service fee', '\$${_fmt(_serviceFee)}'),
+                ],
+              ),
+            ),
             Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF0F2),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
-                ),
-              ),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: const BoxDecoration(color: SeColors.red50),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Total Paid',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.dark,
-                    ),
-                  ),
-                  Text(
-                    '\$${_fmt(_total)}',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.primary,
-                    ),
-                  ),
+                  Text('Total Paid', style: SeType.h3),
+                  Text('\$${_fmt(_total)}',
+                      style: SeType.tabular(SeType.h3)
+                          .copyWith(color: SeColors.red600)),
                 ],
               ),
             ),
-            Container(
+            Padding(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.payments,
-                      size: 14, color: Color(0xFF777777)),
-                  const SizedBox(width: 7),
-                  Text(
-                    'Paid via $_paymentMethod',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF777777),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  const Icon(SeIcons.cash, size: 16, color: SeColors.ink400),
+                  const SizedBox(width: 8),
+                  Text('Paid via $_paymentMethod',
+                      style: SeType.bodyS.copyWith(color: SeColors.ink500)),
                 ],
               ),
             ),
@@ -465,27 +366,15 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
         ),
       );
 
-  Widget _receiptRow(String label, String value, bool isBold) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
-        ),
+  Widget _receiptRow(String label, String value) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label,
-                style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFF666666),
-                    fontWeight:
-                        isBold ? FontWeight.w700 : FontWeight.w400)),
+            Text(label, style: SeType.body.copyWith(color: SeColors.ink500)),
             Text(value,
-                style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFF666666),
-                    fontWeight:
-                        isBold ? FontWeight.w700 : FontWeight.w400)),
+                style:
+                    SeType.tabular(SeType.body).copyWith(color: SeColors.ink700)),
           ],
         ),
       );
@@ -505,13 +394,12 @@ class _Particle {
         speedX = (math.Random().nextDouble() - 0.5) * 0.3,
         size = 4 + math.Random().nextDouble() * 8,
         color = [
-          const Color(0xFFC8102E),
-          const Color(0xFFFACC15),
-          const Color(0xFF2563EB),
-          const Color(0xFF16A34A),
-          const Color(0xFFFF6B6B),
-          const Color(0xFFFFD93D),
-        ][math.Random().nextInt(6)],
+          SeColors.red500,
+          SeColors.red400,
+          SeColors.gold500,
+          const Color(0xFFFF6A3D),
+          SeColors.ocean500,
+        ][math.Random().nextInt(5)],
         startY = -0.1 - math.Random().nextDouble() * 0.3;
 }
 

@@ -4,10 +4,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/firestore_service.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../theme/se_brand.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_text_field.dart';
+import '../widgets/se_toast.dart';
+import '../widgets/se_stat_tile.dart';
+import '../widgets/se_bottom_sheet.dart';
 import 'help_support_screen.dart';
 import 'notifications_screen.dart';
 import 'privacy_security_screen.dart';
@@ -109,22 +118,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (picked == null) return;
 
     try {
-      final url = await FirestoreService.uploadAvatar(user.uid, File(picked.path));
+      final url =
+          await FirestoreService.uploadAvatar(user.uid, File(picked.path));
       if (mounted) setState(() => _avatarUrl = url);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to upload photo',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
-      }
+      if (mounted) SeToast.error(context, 'Failed to upload photo');
     }
   }
 
   Future<void> _handleSignOut() async {
+    final confirmed = await SeConfirmSheet.show(
+      context,
+      title: 'Sign out?',
+      message: 'You\'ll need to sign in again to place orders.',
+      confirmLabel: 'Sign Out',
+      destructive: true,
+    );
+    if (!confirmed) return;
     await FirebaseAuth.instance.signOut();
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
@@ -136,76 +146,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final phoneCtrl = TextEditingController(text: _phone);
     final emailCtrl = TextEditingController(text: _email);
 
-    showModalBottomSheet(
+    showSeBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
+          left: SeSpacing.gutter,
+          right: SeSpacing.gutter,
+          top: 4,
           bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDDDDDD),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Edit Profile',
-              style: GoogleFonts.montserrat(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.dark),
-            ),
+            const SeSheetHandle(),
+            const SizedBox(height: 12),
+            Text('Edit Profile', style: SeType.h2),
             const SizedBox(height: 18),
-            _editField(nameCtrl, 'Full Name', Icons.person, TextInputType.name),
-            const SizedBox(height: 12),
-            _editField(phoneCtrl, 'Phone Number', Icons.phone, TextInputType.phone),
-            const SizedBox(height: 12),
-            _editField(emailCtrl, 'Email Address', Icons.email, TextInputType.emailAddress),
-            const SizedBox(height: 20),
-            ElevatedButton(
+            SeTextField(
+                controller: nameCtrl,
+                label: 'Full Name',
+                icon: SeIcons.user,
+                keyboardType: TextInputType.name),
+            const SizedBox(height: 14),
+            SeTextField(
+                controller: phoneCtrl,
+                label: 'Phone Number',
+                icon: SeIcons.phone,
+                keyboardType: TextInputType.phone),
+            const SizedBox(height: 14),
+            SeTextField(
+                controller: emailCtrl,
+                label: 'Email Address',
+                icon: SeIcons.envelope,
+                keyboardType: TextInputType.emailAddress),
+            const SizedBox(height: 22),
+            SeButton(
+              label: 'Save Changes',
+              icon: SeIcons.check,
               onPressed: () {
                 final name = nameCtrl.text.trim();
                 final phone = phoneCtrl.text.trim();
                 final email = emailCtrl.text.trim();
-                if (name.isEmpty) return;
+                if (name.isEmpty) {
+                  SeToast.error(ctx, 'Name can\'t be empty');
+                  return;
+                }
                 _saveProfile(name, phone, email);
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Profile saved!',
-                      style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-                  backgroundColor: const Color(0xFF16A34A),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ));
+                SeToast.success(context, 'Profile saved!');
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(13)),
-                elevation: 0,
-              ),
-              child: Text('Save Changes',
-                  style: GoogleFonts.nunito(
-                      fontSize: 14, fontWeight: FontWeight.w900)),
             ),
           ],
         ),
@@ -213,73 +203,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _editField(TextEditingController ctrl, String label,
-      IconData icon, TextInputType type) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF666666))),
-        const SizedBox(height: 6),
-        TextField(
-          controller: ctrl,
-          keyboardType: type,
-          style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF333333)),
-          decoration: InputDecoration(
-            prefixIcon: Padding(
-              padding: const EdgeInsets.only(left: 12, right: 8),
-              child: Icon(icon, size: 17, color: const Color(0xFF888888)),
-            ),
-            prefixIconConstraints:
-                const BoxConstraints(minWidth: 0, minHeight: 0),
-            filled: true,
-            fillColor: const Color(0xFFF5F5F7),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: Color(0xFFEBEBEB), width: 1.5),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: AppTheme.primary, width: 1.5),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
-            isDense: true,
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: SeColors.surface50,
       body: Column(
         children: [
-          _buildRedHeader(context),
+          _buildHeader(context),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(SeSpacing.gutter),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildStatsCard(),
-                  const SizedBox(height: 10),
+                  _buildStats(),
+                  const SizedBox(height: 16),
                   _buildMenuCard(context),
-                  const SizedBox(height: 10),
-                  _buildSignOutButton(context),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+                  SeButton(
+                    label: 'Sign Out',
+                    icon: SeIcons.signOut,
+                    variant: SeButtonVariant.destructive,
+                    onPressed: _handleSignOut,
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text('ShipEast · v${SeBrand.version}',
+                        style:
+                            SeType.bodyS.copyWith(color: SeColors.ink400)),
+                  ),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
@@ -289,20 +242,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildRedHeader(BuildContext context) => Container(
+  Widget _buildHeader(BuildContext context) => Container(
         padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 16,
-          bottom: 22,
-          left: 16,
-          right: 16,
+          top: MediaQuery.of(context).padding.top + 18,
+          bottom: 24,
+          left: SeSpacing.gutter,
+          right: SeSpacing.gutter,
         ),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFC8102E), Color(0xFF8B0A1E)],
-          ),
-        ),
+        decoration: const BoxDecoration(gradient: SeColors.emberGradient),
         child: Row(
           children: [
             GestureDetector(
@@ -310,92 +257,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Stack(
                 children: [
                   Container(
-                    width: 58,
-                    height: 58,
+                    width: 64,
+                    height: 64,
+                    padding: const EdgeInsets.all(2.5),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.4), width: 2),
+                          color: Colors.white.withValues(alpha: 0.5),
+                          width: 2),
                     ),
-                    child: ClipOval(
-                      child: _avatarUrl != null
-                          ? CachedNetworkImage(
-                              imageUrl: _avatarUrl!,
-                              fit: BoxFit.cover,
-                              placeholder: (ctx, url) => _initialsWidget(26),
-                              errorWidget: (ctx, url, err) => _initialsWidget(26),
-                            )
-                          : _initialsWidget(26),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: ClipOval(
+                        child: _avatarUrl != null
+                            ? CachedNetworkImage(
+                                imageUrl: _avatarUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (ctx, url) => _initialsWidget(26),
+                                errorWidget: (ctx, url, err) =>
+                                    _initialsWidget(26),
+                              )
+                            : _initialsWidget(26),
+                      ),
                     ),
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
                     child: Container(
-                      width: 20,
-                      height: 20,
-                      decoration: const BoxDecoration(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
+                        boxShadow: SeElevation.e1,
                       ),
-                      child: const Center(
-                        child: Icon(Icons.camera_alt, size: 12, color: AppTheme.primary),
-                      ),
+                      child: const Icon(SeIcons.camera,
+                          size: 12, color: SeColors.red500),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     _name.isNotEmpty ? _name : 'ShipEast User',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
+                    style: SeType.h3.copyWith(color: Colors.white),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 3),
                   if (_phone.isNotEmpty)
-                    Text(
-                      _phone,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  if (_email.isNotEmpty) ...[
-                    const SizedBox(height: 1),
-                    Text(
-                      _email,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.65),
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
+                    Text(_phone,
+                        style: SeType.bodyS.copyWith(
+                            color: Colors.white.withValues(alpha: 0.85))),
+                  if (_email.isNotEmpty)
+                    Text(_email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SeType.bodyS.copyWith(
+                            color: Colors.white.withValues(alpha: 0.7))),
                 ],
               ),
             ),
             GestureDetector(
               onTap: _showEditDialog,
               child: Container(
-                width: 34,
-                height: 34,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: SeRadius.all(SeRadius.sm),
                 ),
-                child: const Center(
-                  child: Icon(Icons.edit, size: 17, color: Colors.white),
-                ),
+                child: const Icon(SeIcons.edit, size: 19, color: Colors.white),
               ),
             ),
           ],
@@ -404,273 +345,187 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _initialsWidget(double size) {
     final initials = _name.isNotEmpty
-        ? _name.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+        ? _name
+            .trim()
+            .split(' ')
+            .map((w) => w.isNotEmpty ? w[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase()
         : '';
     return Center(
       child: initials.isNotEmpty
           ? Text(initials,
-              style: TextStyle(
-                  fontSize: size * 0.62,
-                  fontWeight: FontWeight.w900,
+              style: SeType.jakarta(size * 0.62, FontWeight.w800,
                   color: Colors.white))
-          : Icon(Icons.person, size: size, color: Colors.white),
+          : Icon(SeIcons.user, size: size, color: Colors.white),
     );
   }
 
-  Widget _buildStatsCard() => Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+  Widget _buildStats() {
+    if (!_statsLoaded) {
+      return SeCard(
+        child: SizedBox(
+          height: 60,
+          child: Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                  color: SeColors.red500, strokeWidth: 2.4),
             ),
-          ],
+          ),
         ),
-        child: !_statsLoaded
-            ? const SizedBox(
-                height: 50,
-                child: Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        color: AppTheme.primary, strokeWidth: 2),
-                  ),
-                ),
-              )
-            : Row(
-                children: [
-                  _statItem('$_orderCount', 'Orders'),
-                  _statDivider(),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _avgRating > 0
-                                  ? _avgRating.toStringAsFixed(1)
-                                  : '—',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                color: AppTheme.dark,
-                              ),
-                            ),
-                            if (_avgRating > 0) ...[
-                              const SizedBox(width: 3),
-                              const Icon(Icons.star,
-                                  size: 14, color: Color(0xFFFACC15)),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Rating',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: const Color(0xFF888888),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _statDivider(),
-                  _statItem('$_savedCount', 'Saved'),
-                ],
-              ),
       );
+    }
+    return Row(
+      children: [
+        Expanded(
+          child: SeStatTile(
+            icon: SeIcons.orders,
+            label: 'Orders',
+            value: _orderCount,
+            hue: SeColors.red500,
+            tint: SeColors.red50,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: _ratingTile()),
+        const SizedBox(width: 12),
+        Expanded(
+          child: SeStatTile(
+            icon: SeIcons.heartFill,
+            label: 'Saved',
+            value: _savedCount,
+            hue: SeColors.ocean500,
+            tint: SeColors.oceanTint,
+          ),
+        ),
+      ],
+    );
+  }
 
-  Widget _statItem(String value, String label) => Expanded(
+  Widget _ratingTile() => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: SeColors.surface0,
+          borderRadius: SeRadius.all(SeRadius.md),
+          boxShadow: SeElevation.e1,
+        ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                  color: SeColors.goldTint, shape: BoxShape.circle),
+              child: const Icon(SeIcons.star, size: 20, color: SeColors.gold500),
+            ),
+            const SizedBox(height: 12),
             Text(
-              value,
-              style: GoogleFonts.montserrat(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.dark,
-              ),
+              _avgRating > 0 ? _avgRating.toStringAsFixed(1) : '—',
+              style: SeType.tabular(SeType.h2).copyWith(color: SeColors.ink900),
             ),
             const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: const Color(0xFF888888),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            Text('Rating', style: SeType.bodyS.copyWith(color: SeColors.ink500)),
           ],
         ),
       );
-
-  Widget _statDivider() => Container(width: 1, height: 32, color: const Color(0xFFF2F2F2));
 
   Widget _buildMenuCard(BuildContext context) {
     final menuItems = [
       {
-        'icon': Icons.location_on,
+        'icon': SeIcons.addresses,
         'label': 'Saved Addresses',
         'sub': 'Manage your delivery locations',
-        'action': () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SavedAddressesScreen()),
-            ),
+        'action': () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const SavedAddressesScreen())),
       },
       {
-        'icon': Icons.notifications,
+        'icon': SeIcons.bell,
         'label': 'Notifications',
         'sub': 'Push alerts & order updates',
-        'action': () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-            ),
+        'action': () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const NotificationsScreen())),
       },
       {
-        'icon': Icons.credit_card,
+        'icon': SeIcons.creditCard,
         'label': 'Payment Methods',
         'sub': 'Cards, PayPal & Cash',
         'action': () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) =>
-                      const ComingSoonScreen(title: 'Payment Methods')),
-            ),
+            context,
+            MaterialPageRoute(
+                builder: (_) =>
+                    const ComingSoonScreen(title: 'Payment Methods'))),
       },
       {
-        'icon': Icons.lock,
+        'icon': SeIcons.shield,
         'label': 'Privacy & Security',
         'sub': 'Password, data & permissions',
-        'action': () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PrivacySecurityScreen()),
-            ),
+        'action': () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const PrivacySecurityScreen())),
       },
       {
-        'icon': Icons.help_outline,
+        'icon': SeIcons.help,
         'label': 'Help & Support',
         'sub': 'FAQs, WhatsApp & Email',
-        'action': () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
-            ),
+        'action': () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const HelpSupportScreen())),
       },
     ];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return SeCard(
+      padding: EdgeInsets.zero,
       child: Column(
         children: menuItems.asMap().entries.map((entry) {
           final i = entry.key;
           final item = entry.value;
           final isLast = i == menuItems.length - 1;
-          return GestureDetector(
-            onTap: item['action'] as VoidCallback,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
-              decoration: BoxDecoration(
-                border: isLast
-                    ? null
-                    : const Border(
-                        bottom: BorderSide(color: Color(0xFFF8F8F8))),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F7),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        item['icon'] as IconData,
-                        size: 19,
-                        color: const Color(0xFF666666),
+          return Column(
+            children: [
+              InkWell(
+                onTap: item['action'] as VoidCallback,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: SeColors.surface50,
+                          borderRadius: SeRadius.all(SeRadius.sm),
+                        ),
+                        child: Icon(item['icon'] as IconData,
+                            size: 20, color: SeColors.ink700),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item['label'] as String,
-                          style: GoogleFonts.montserrat(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.dark,
-                          ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item['label'] as String, style: SeType.title),
+                            const SizedBox(height: 1),
+                            Text(item['sub'] as String,
+                                style: SeType.bodyS
+                                    .copyWith(color: SeColors.ink400)),
+                          ],
                         ),
-                        const SizedBox(height: 1),
-                        Text(
-                          item['sub'] as String,
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: const Color(0xFFAAAAAA),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                      const Icon(SeIcons.caretRight,
+                          size: 18, color: SeColors.ink300),
+                    ],
                   ),
-                  const Icon(Icons.arrow_forward_ios,
-                      size: 14, color: Color(0xFFCCCCCC)),
-                ],
+                ),
               ),
-            ),
+              if (!isLast)
+                const Divider(height: 1, indent: 70, color: SeColors.ink100),
+            ],
           );
         }).toList(),
       ),
     );
   }
-
-  Widget _buildSignOutButton(BuildContext context) => GestureDetector(
-        onTap: _handleSignOut,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF0F2),
-            border: Border.all(color: const Color(0xFFFECDD3), width: 1.5),
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.logout, size: 16, color: AppTheme.primary),
-                const SizedBox(width: 7),
-                Text(
-                  'Sign Out',
-                  style: GoogleFonts.nunito(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
 }

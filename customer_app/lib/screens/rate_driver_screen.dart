@@ -1,9 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../services/firestore_service.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_toast.dart';
 
 class RateDriverScreen extends StatefulWidget {
   const RateDriverScreen({super.key});
@@ -19,23 +24,21 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
   final _commentCtrl = TextEditingController();
   bool _submitting = false;
 
-  // Route args
   String _orderId = '';
   String _driverId = '';
   String _merchantName = '';
   bool _argsLoaded = false;
 
-  // Driver data
   Map<String, dynamic>? _driver;
   StreamSubscription<Map<String, dynamic>?>? _driverSub;
 
   static const _tags = [
-    '🚀 Fast delivery',
-    '😊 Friendly',
-    '🔥 Food was hot',
-    '💼 Professional',
-    '📦 Careful handling',
-    '✅ On time',
+    'Fast delivery',
+    'Friendly',
+    'Food was hot',
+    'Professional',
+    'Careful handling',
+    'On time',
   ];
 
   @override
@@ -76,15 +79,7 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
 
   Future<void> _submitRating() async {
     if (_driverRating == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Please rate the driver',
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-        backgroundColor: const Color(0xFFDC2626),
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ));
+      SeToast.error(context, 'Please rate the driver');
       return;
     }
     setState(() => _submitting = true);
@@ -100,31 +95,15 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
         );
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Thank you for your rating!',
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-        backgroundColor: const Color(0xFF16A34A),
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ));
-      await Future.delayed(const Duration(milliseconds: 1500));
+      SeToast.success(context, 'Thank you for your rating!');
+      await Future.delayed(const Duration(milliseconds: 1400));
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-            context, '/home', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
     } catch (_) {
       if (mounted) {
         setState(() => _submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to submit rating. Please try again.',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
-        ));
+        SeToast.error(context, 'Failed to submit rating. Please try again.');
       }
     }
   }
@@ -132,27 +111,31 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: SeColors.surface50,
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(SeSpacing.gutter),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildDriverRatingCard(),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     _buildTagsCard(),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     _buildMerchantRatingCard(),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     _buildCommentCard(),
-                    const SizedBox(height: 10),
-                    _buildSubmitButton(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 20),
+                    SeButton(
+                      label: 'Submit Rating',
+                      icon: SeIcons.check,
+                      loading: _submitting,
+                      onPressed: _submitting ? null : _submitRating,
+                    ),
                   ],
                 ),
               ),
@@ -164,37 +147,40 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
   }
 
   Widget _buildHeader(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.fromLTRB(12, 12, SeSpacing.gutter, 12),
         decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
+          color: SeColors.surface0,
+          border: Border(bottom: BorderSide(color: SeColors.ink100)),
         ),
         child: Row(
           children: [
             GestureDetector(
               onTap: () => Navigator.pop(context),
               child: Container(
-                width: 34,
-                height: 34,
+                width: 40,
+                height: 40,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFF2F2F2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(Icons.arrow_back_ios,
-                      size: 16, color: Color(0xFF444444)),
-                ),
+                    color: SeColors.surface50, shape: BoxShape.circle),
+                child: const Icon(SeIcons.arrowLeft,
+                    size: 20, color: SeColors.ink900),
               ),
             ),
-            const SizedBox(width: 10),
-            Text(
-              'Rate Your Experience',
-              style: GoogleFonts.montserrat(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.dark),
-            ),
+            const SizedBox(width: 12),
+            Text('Rate Your Experience', style: SeType.h3),
           ],
+        ),
+      );
+
+  Widget _star(int index, int rating, double size, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Icon(
+            index < rating ? SeIcons.star : SeIcons.starOutline,
+            size: size,
+            color: index < rating ? SeColors.gold500 : SeColors.ink300,
+          ),
         ),
       );
 
@@ -202,124 +188,55 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
     final driverName = _driver?['name'] as String? ??
         (_driverId.isNotEmpty ? 'Your Driver' : 'Driver');
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return SeCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           Container(
-            width: 72,
-            height: 72,
+            width: 76,
+            height: 76,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFC8102E), Color(0xFF8B0A1E)],
-              ),
-              borderRadius: BorderRadius.circular(22),
+              gradient: SeColors.emberGradient,
+              borderRadius: SeRadius.all(SeRadius.lg),
+              boxShadow: SeElevation.glow,
             ),
-            child: const Center(
-              child: Icon(Icons.person, size: 34, color: Colors.white),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            driverName,
-            style: GoogleFonts.montserrat(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.dark),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Your delivery driver',
-            style: GoogleFonts.inter(
-                fontSize: 11,
-                color: const Color(0xFF888888),
-                fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'How was your delivery?',
-            style: GoogleFonts.nunito(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.dark),
+            child: const Icon(SeIcons.user, size: 36, color: Colors.white),
           ),
           const SizedBox(height: 12),
+          Text(driverName, style: SeType.h3),
+          const SizedBox(height: 2),
+          Text('Your delivery driver',
+              style: SeType.bodyS.copyWith(color: SeColors.ink500)),
+          const SizedBox(height: 18),
+          Text('How was your delivery?', style: SeType.title),
+          const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (i) {
-              final filled = i < _driverRating;
-              return GestureDetector(
-                onTap: () => setState(() => _driverRating = i + 1),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  child: Text(
-                    '★',
-                    style: TextStyle(
-                      fontSize: 36,
-                      color: filled
-                          ? const Color(0xFFFACC15)
-                          : const Color(0xFFE5E7EB),
-                    ),
-                  ),
-                ),
-              );
-            }),
+            children: List.generate(
+                5,
+                (i) => _star(i, _driverRating, 38,
+                    () => setState(() => _driverRating = i + 1))),
           ),
           if (_driverRating > 0) ...[
-            const SizedBox(height: 8),
-            Text(
-              _ratingLabel(_driverRating),
-              style: GoogleFonts.nunito(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.primary),
-            ),
+            const SizedBox(height: 10),
+            Text(_ratingLabel(_driverRating),
+                style: SeType.title.copyWith(color: SeColors.red500)),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildTagsCard() => Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+  Widget _buildTagsCard() => SeCard(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'What did you love?',
-              style: GoogleFonts.montserrat(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.dark),
-            ),
-            const SizedBox(height: 10),
+            Text('What did you love?', style: SeType.title),
+            const SizedBox(height: 12),
             Wrap(
-              spacing: 7,
-              runSpacing: 7,
+              spacing: 8,
+              runSpacing: 8,
               children: _tags.asMap().entries.map((e) {
                 final selected = _selectedTags.contains(e.key);
                 return GestureDetector(
@@ -330,30 +247,24 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
                       _selectedTags.add(e.key);
                     }
                   }),
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 7),
+                        horizontal: 14, vertical: 9),
                     decoration: BoxDecoration(
-                      color: selected
-                          ? AppTheme.primary
-                          : const Color(0xFFF5F5F7),
-                      borderRadius: BorderRadius.circular(20),
+                      color: selected ? SeColors.red50 : SeColors.surface50,
+                      borderRadius: SeRadius.pill,
                       border: Border.all(
-                        color: selected
-                            ? AppTheme.primary
-                            : const Color(0xFFE5E5E5),
+                        color: selected ? SeColors.red500 : SeColors.ink200,
                         width: 1.5,
                       ),
                     ),
-                    child: Text(
-                      e.value,
-                      style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: selected
-                              ? Colors.white
-                              : const Color(0xFF555555)),
-                    ),
+                    child: Text(e.value,
+                        style: SeType.label.copyWith(
+                            color: selected
+                                ? SeColors.red700
+                                : SeColors.ink500,
+                            fontWeight: FontWeight.w600)),
                   ),
                 );
               }).toList(),
@@ -362,171 +273,83 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
         ),
       );
 
-  Widget _buildMerchantRatingCard() => Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+  Widget _buildMerchantRatingCard() => SeCard(
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 46,
+              height: 46,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF0F2),
-                borderRadius: BorderRadius.circular(12),
+                color: SeColors.red50,
+                borderRadius: SeRadius.all(SeRadius.sm),
               ),
-              child: const Center(
-                child: Icon(Icons.restaurant,
-                    size: 22, color: AppTheme.primary),
-              ),
+              child: const Icon(SeIcons.storefront,
+                  size: 22, color: SeColors.red500),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _merchantName.isNotEmpty ? _merchantName : 'Restaurant',
-                    style: GoogleFonts.montserrat(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.dark),
-                  ),
+                  Text(_merchantName.isNotEmpty ? _merchantName : 'Restaurant',
+                      style: SeType.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
-                  Text(
-                    'Rate the restaurant',
-                    style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: const Color(0xFFAAAAAA),
-                        fontWeight: FontWeight.w500),
-                  ),
+                  Text('Rate the merchant',
+                      style: SeType.bodyS.copyWith(color: SeColors.ink400)),
                 ],
               ),
             ),
             Row(
-              children: List.generate(5, (i) {
-                final filled = i < _merchantRating;
-                return GestureDetector(
-                  onTap: () => setState(() => _merchantRating = i + 1),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 3),
-                    child: Text(
-                      '★',
-                      style: TextStyle(
-                        fontSize: 22,
-                        color: filled
-                            ? const Color(0xFFFACC15)
-                            : const Color(0xFFE5E7EB),
-                      ),
-                    ),
-                  ),
-                );
-              }),
+              children: List.generate(
+                  5,
+                  (i) => _star(i, _merchantRating, 22,
+                      () => setState(() => _merchantRating = i + 1))),
             ),
           ],
         ),
       );
 
-  Widget _buildCommentCard() => Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+  Widget _buildCommentCard() => SeCard(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.chat_bubble_outline,
-                    size: 14, color: AppTheme.dark),
-                const SizedBox(width: 6),
-                Text(
-                  'Leave a comment (optional)',
-                  style: GoogleFonts.montserrat(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.dark),
-                ),
+                const Icon(SeIcons.chat, size: 16, color: SeColors.ink700),
+                const SizedBox(width: 8),
+                Text('Leave a comment (optional)', style: SeType.title),
               ],
             ),
-            const SizedBox(height: 9),
-            TextField(
-              controller: _commentCtrl,
-              maxLines: 3,
-              style: GoogleFonts.inter(
-                  fontSize: 12, color: const Color(0xFF555555)),
-              decoration: InputDecoration(
-                hintText: 'Tell us more about your experience...',
-                hintStyle: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFFBBBBBB)),
-                filled: true,
-                fillColor: const Color(0xFFF5F5F7),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(
-                      color: Color(0xFFEBEBEB), width: 1.5),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              decoration: BoxDecoration(
+                color: SeColors.surface50,
+                borderRadius: SeRadius.inputRadius,
+                border: Border.all(color: SeColors.ink200, width: 1.5),
+              ),
+              child: TextField(
+                controller: _commentCtrl,
+                maxLines: 3,
+                style: SeType.body.copyWith(color: SeColors.ink900),
+                cursorColor: SeColors.red500,
+                decoration: InputDecoration(
+                  hintText: 'Tell us more about your experience...',
+                  hintStyle: SeType.body.copyWith(color: SeColors.ink400),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(
-                      color: Color(0xFFEBEBEB), width: 1.5),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(
-                      color: AppTheme.primary, width: 1.5),
-                ),
-                contentPadding: const EdgeInsets.all(12),
-                isDense: true,
               ),
             ),
           ],
-        ),
-      );
-
-  Widget _buildSubmitButton() => SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: _submitting ? null : _submitRating,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primary,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 52),
-            padding:
-                const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(13)),
-            elevation: 0,
-          ),
-          child: _submitting
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2.5),
-                )
-              : Text(
-                  'Submit Rating',
-                  style: GoogleFonts.nunito(
-                      fontSize: 14, fontWeight: FontWeight.w900),
-                ),
         ),
       );
 
@@ -541,7 +364,7 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
       case 4:
         return 'Great';
       case 5:
-        return 'Excellent! 🎉';
+        return 'Excellent!';
       default:
         return '';
     }

@@ -2,12 +2,18 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
 import '../services/firestore_service.dart';
-import '../widgets/shimmer_box.dart';
+import '../widgets/se_chip.dart';
+import '../widgets/se_skeleton.dart';
+import '../widgets/se_empty_state.dart';
+import '../widgets/se_toast.dart';
+import '../widgets/se_bottom_sheet.dart';
 
 class MerchantMenuScreen extends StatefulWidget {
   const MerchantMenuScreen({super.key});
@@ -28,6 +34,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   int _merchantDeliveryFeeAmount = 0;
   bool _merchantIsOpen = true;
   String _merchantCategory = 'Food';
+  bool _favourite = false;
 
   // Menu items from Firestore
   List<Map<String, dynamic>> _menuItems = [];
@@ -60,7 +67,8 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         _merchantImageUrl = args['imageUrl'] as String? ?? '';
         _merchantRating = args['rating'] as String? ?? '4.5';
         _merchantDeliveryTime = args['deliveryTime'] as String? ?? '25–35 min';
-        _merchantDeliveryFee = args['deliveryFee'] as String? ?? 'Free delivery';
+        _merchantDeliveryFee =
+            args['deliveryFee'] as String? ?? 'Free delivery';
         _merchantDeliveryFeeAmount = args['deliveryFeeAmount'] as int? ?? 0;
         _merchantIsOpen = args['isOpen'] as bool? ?? true;
         _merchantCategory = args['category'] as String? ?? 'Food';
@@ -72,46 +80,28 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
           cart.merchantId.isNotEmpty &&
           cart.merchantId != _merchantId &&
           _merchantId.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              title: Text('Start new order?',
-                  style: GoogleFonts.montserrat(fontWeight: FontWeight.w900)),
-              content: Text(
-                'Your cart has items from ${cart.merchantName}. Clear cart to order from $_merchantName?',
-                style: GoogleFonts.inter(fontSize: 13),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Keep Cart',
-                      style: GoogleFonts.nunito(
-                          color: const Color(0xFF888888),
-                          fontWeight: FontWeight.w700)),
-                ),
-                TextButton(
-                  onPressed: () {
-                    cart.clearCart();
-                    cart.setMerchant(
-                        _merchantId, _merchantName, _merchantDeliveryFeeAmount);
-                    Navigator.pop(context);
-                  },
-                  child: Text('Clear & Start New',
-                      style: GoogleFonts.nunito(
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.w900)),
-                ),
-              ],
-            ),
-          );
-        });
+        WidgetsBinding.instance.addPostFrameCallback((_) => _promptNewOrder());
       } else {
         cart.setMerchant(_merchantId, _merchantName, _merchantDeliveryFeeAmount);
       }
+    }
+  }
+
+  Future<void> _promptNewOrder() async {
+    if (!mounted) return;
+    final cart = Provider.of<CartProvider>(context, listen: false);
+    final confirmed = await SeConfirmSheet.show(
+      context,
+      title: 'Start new order?',
+      message:
+          'Your cart has items from ${cart.merchantName}. Clear it to order from $_merchantName?',
+      confirmLabel: 'Clear & Start New',
+      cancelLabel: 'Keep Cart',
+      destructive: true,
+    );
+    if (confirmed) {
+      cart.clearCart();
+      cart.setMerchant(_merchantId, _merchantName, _merchantDeliveryFeeAmount);
     }
   }
 
@@ -128,9 +118,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         });
       }
     }, onError: (_) {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     });
   }
 
@@ -150,9 +138,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     return cats;
   }
 
-  List<String> get _tabLabels {
-    return ['Popular', ..._categoryTabs.map(_capitalize)];
-  }
+  List<String> get _tabLabels => ['Popular', ..._categoryTabs.map(_capitalize)];
 
   String _capitalize(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
@@ -164,6 +150,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   }
 
   void _addToCart(Map<String, dynamic> item) {
+    HapticFeedback.selectionClick();
     final cart = context.read<CartProvider>();
     final itemId = item['id'] as String? ?? '';
     if (itemId.isEmpty) return;
@@ -178,69 +165,23 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   }
 
   void _removeFromCart(String itemId) {
+    HapticFeedback.selectionClick();
     context.read<CartProvider>().removeItem(itemId);
   }
 
-  void _showSnackbar(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content:
-          Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-      backgroundColor: AppTheme.primary,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      duration: const Duration(seconds: 2),
-    ));
-  }
-
-  static const _categoryGradients = <String, List<Color>>{
-    'Food': [Color(0xFF7F1D1D), Color(0xFF991B1B)],
-    'Grocery': [Color(0xFF064E3B), Color(0xFF065F46)],
-    'Pharmacy': [Color(0xFF1E40AF), Color(0xFF2563EB)],
-  };
-
-  List<Color> get _heroGradient =>
-      _categoryGradients[_merchantCategory] ??
-      const [Color(0xFF374151), Color(0xFF1F2937)];
+  Color get _heroHue => switch (_merchantCategory) {
+        'Grocery' => SeColors.success,
+        'Pharmacy' => SeColors.ocean500,
+        'Packages' => SeColors.gold500,
+        _ => SeColors.red500,
+      };
 
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
-      floatingActionButton: cart.cartCount > 0
-          ? FloatingActionButton(
-              backgroundColor: AppTheme.primary,
-              elevation: 4,
-              onPressed: () => Navigator.pushNamed(context, '/cart'),
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  const Icon(Icons.shopping_cart, color: Colors.white, size: 22),
-                  Positioned(
-                    top: -8,
-                    right: -8,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppTheme.primary, width: 1.5),
-                      ),
-                      child: Text(
-                        cart.cartCount > 9 ? '9+' : '${cart.cartCount}',
-                        style: const TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : null,
+      backgroundColor: SeColors.surface50,
+      bottomNavigationBar: _cartBar(cart),
       body: Column(
         children: [
           _buildHero(),
@@ -249,37 +190,32 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
             child: _loading
                 ? _buildShimmerList()
                 : _menuItems.isEmpty
-                    ? _buildEmptyState()
+                    ? Center(
+                        child: SeEmptyState(
+                          icon: SeIcons.food,
+                          title: 'No menu items yet',
+                          message: 'This merchant is still setting up — check back soon.',
+                          hue: _heroHue,
+                          tint: _heroHue.withValues(alpha: 0.12),
+                        ),
+                      )
                     : SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(10, 11, 10, 4),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.local_fire_department,
-                                      size: 14, color: Color(0xFFEF4444)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _selectedTab == 0
-                                        ? 'MOST ORDERED'
-                                        : _tabLabels[_selectedTab]
-                                            .toUpperCase(),
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w900,
-                                      color: AppTheme.dark,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
+                              padding: const EdgeInsets.fromLTRB(
+                                  SeSpacing.gutter, 16, SeSpacing.gutter, 8),
+                              child: Text(
+                                _selectedTab == 0
+                                    ? 'MOST ORDERED'
+                                    : _tabLabels[_selectedTab].toUpperCase(),
+                                style: SeType.eyebrow,
                               ),
                             ),
                             ..._visibleItems
                                 .map((item) => _menuItemCard(item, cart)),
-                            const SizedBox(height: 80),
                           ],
                         ),
                       ),
@@ -290,107 +226,44 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   }
 
   Widget _buildHero() {
-    return Container(
-      height: 155,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: _heroGradient,
-        ),
-      ),
-      child: _merchantImageUrl.isNotEmpty
-          ? Stack(
-              fit: StackFit.expand,
-              children: [
-                CachedNetworkImage(
-                  imageUrl: _merchantImageUrl,
-                  fit: BoxFit.cover,
-                  placeholder: (ctx, url) => Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: _heroGradient,
-                      ),
-                    ),
-                  ),
-                  errorWidget: (ctx, url, err) => Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: _heroGradient,
-                      ),
-                    ),
-                  ),
-                ),
-                Container(color: Colors.black.withValues(alpha: 0.35)),
-                _heroContent(),
-              ],
-            )
-          : Stack(
-              fit: StackFit.expand,
-              children: [_heroContent()],
-            ),
-    );
-  }
-
-  Widget _heroContent() {
-    return SafeArea(
-      bottom: false,
+    return SizedBox(
+      height: 180,
       child: Stack(
+        fit: StackFit.expand,
         children: [
-          Positioned(
-            top: 10,
-            left: 10,
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.82),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(Icons.arrow_back_ios,
-                      size: 16, color: Color(0xFF333333)),
-                ),
-              ),
-            ),
-          ),
-          if (_merchantImageUrl.isEmpty)
-            Center(
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.15),
-                ),
-                child: Center(
-                  child: Text(_merchantEmoji,
-                      style: const TextStyle(fontSize: 42)),
-                ),
-              ),
-            ),
-          Positioned(
-            top: 10,
-            right: 10,
-            child: GestureDetector(
-              onTap: () => _showSnackbar('Added to favourites!'),
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.82),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(Icons.favorite_border,
-                      size: 16, color: Color(0xFF888888)),
-                ),
+          if (_merchantImageUrl.isNotEmpty)
+            CachedNetworkImage(
+              imageUrl: _merchantImageUrl,
+              fit: BoxFit.cover,
+              placeholder: (ctx, url) => _heroFallback(),
+              errorWidget: (ctx, url, err) => _heroFallback(),
+            )
+          else
+            _heroFallback(),
+          const DecoratedBox(
+              decoration: BoxDecoration(gradient: SeColors.inkScrim)),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _circleBtn(SeIcons.arrowLeft, () => Navigator.pop(context)),
+                  _circleBtn(
+                    _favourite ? SeIcons.heartFill : SeIcons.heart,
+                    () {
+                      HapticFeedback.lightImpact();
+                      setState(() => _favourite = !_favourite);
+                      SeToast.success(
+                          context,
+                          _favourite
+                              ? 'Added to favourites'
+                              : 'Removed from favourites');
+                    },
+                    fg: _favourite ? SeColors.red500 : SeColors.ink700,
+                  ),
+                ],
               ),
             ),
           ),
@@ -399,117 +272,102 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
   }
 
+  Widget _heroFallback() => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [_heroHue.withValues(alpha: 0.9), _heroHue],
+          ),
+        ),
+        child: Center(
+          child: Text(_merchantEmoji, style: const TextStyle(fontSize: 54)),
+        ),
+      );
+
+  Widget _circleBtn(IconData icon, VoidCallback onTap,
+          {Color fg = SeColors.ink700}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.92),
+            shape: BoxShape.circle,
+            boxShadow: SeElevation.e1,
+          ),
+          child: Icon(icon, size: 20, color: fg),
+        ),
+      );
+
   Widget _buildInfoBar() {
     final tabs = _tabLabels;
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, 16, SeSpacing.gutter, 14),
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
+        color: SeColors.surface0,
+        border: Border(bottom: BorderSide(color: SeColors.ink100)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _merchantName,
-            style: GoogleFonts.montserrat(
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.dark,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Row(
+          Text(_merchantName, style: SeType.h2),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Icon(Icons.star, size: 11, color: Color(0xFFFACC15)),
-              Text(' $_merchantRating',
-                  style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF777777))),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                child: Text('·',
-                    style: GoogleFonts.inter(
-                        fontSize: 11, color: const Color(0xFFDDDDDD))),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(SeIcons.star, size: 14, color: SeColors.gold500),
+                  const SizedBox(width: 3),
+                  Text(_merchantRating,
+                      style: SeType.tabular(SeType.bodyS)
+                          .copyWith(color: SeColors.ink700)),
+                ],
               ),
-              Text(_merchantDeliveryTime,
-                  style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF777777))),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                child: Text('·',
-                    style: GoogleFonts.inter(
-                        fontSize: 11, color: const Color(0xFFDDDDDD))),
-              ),
-              Text(_merchantDeliveryFee,
-                  style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF777777))),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                child: Text('·',
-                    style: GoogleFonts.inter(
-                        fontSize: 11, color: const Color(0xFFDDDDDD))),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _merchantIsOpen
-                      ? const Color(0xFFEDFCF2)
-                      : const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  _merchantIsOpen ? 'Open Now' : 'Closed',
-                  style: GoogleFonts.nunito(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: _merchantIsOpen
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFDC2626),
-                  ),
-                ),
+              _infoBit(SeIcons.clock, _merchantDeliveryTime),
+              _infoBit(SeIcons.bike, _merchantDeliveryFee),
+              SeChip.status(
+                label: _merchantIsOpen ? 'Open Now' : 'Closed',
+                color: _merchantIsOpen ? SeColors.success : SeColors.danger,
+                tint: _merchantIsOpen
+                    ? SeColors.successTint
+                    : SeColors.dangerTint,
               ),
             ],
           ),
           if (tabs.length > 1) ...[
-            const SizedBox(height: 9),
+            const SizedBox(height: 12),
             SizedBox(
-              height: 32,
+              height: 34,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: tabs.length,
-                separatorBuilder: (_, i) => const SizedBox(width: 7),
+                separatorBuilder: (_, i) => const SizedBox(width: 8),
                 itemBuilder: (_, i) {
                   final active = _selectedTab == i;
                   return GestureDetector(
                     onTap: () => setState(() => _selectedTab = i),
-                    child: Container(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 13, vertical: 5),
+                          horizontal: 16, vertical: 7),
                       decoration: BoxDecoration(
-                        color: active
-                            ? const Color(0xFFFFF0F2)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(20),
+                        color: active ? SeColors.red50 : SeColors.surface50,
+                        borderRadius: SeRadius.pill,
                         border: active
-                            ? Border.all(color: AppTheme.primary, width: 1.5)
+                            ? Border.all(color: SeColors.red500, width: 1.5)
                             : null,
                       ),
                       child: Text(
                         tabs[i],
-                        style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          fontWeight:
-                              active ? FontWeight.w900 : FontWeight.w700,
-                          color: active
-                              ? AppTheme.primary
-                              : const Color(0xFF888888),
+                        style: SeType.label.copyWith(
+                          color: active ? SeColors.red700 : SeColors.ink500,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -523,6 +381,15 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
   }
 
+  Widget _infoBit(IconData icon, String text) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: SeColors.ink400),
+          const SizedBox(width: 4),
+          Text(text, style: SeType.bodyS.copyWith(color: SeColors.ink500)),
+        ],
+      );
+
   Widget _menuItemCard(Map<String, dynamic> item, CartProvider cart) {
     final itemId = item['id'] as String? ?? '';
     final qty = cart.items[itemId]?.quantity ?? 0;
@@ -530,101 +397,53 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     final imageUrl = item['imageUrl'] as String? ?? '';
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-      padding: const EdgeInsets.all(11),
+      margin: const EdgeInsets.fromLTRB(SeSpacing.gutter, 0, SeSpacing.gutter, 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        color: SeColors.surface0,
+        borderRadius: SeRadius.all(SeRadius.md),
+        boxShadow: SeElevation.e1,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: SeRadius.all(SeRadius.sm),
             child: SizedBox(
-              width: 68,
-              height: 68,
+              width: 72,
+              height: 72,
               child: imageUrl.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
-                      placeholder: (ctx, url) =>
-                          const ShimmerBox(width: 68, height: 68, radius: 11),
-                      errorWidget: (ctx, url, err) => Container(
-                        color: const Color(0xFFF0F0F0),
-                        child: const Icon(Icons.fastfood,
-                            size: 30, color: Color(0xFFBBBBBB)),
-                      ),
+                      placeholder: (ctx, url) => const SeShimmer(
+                          child: SeSkeleton(width: 72, height: 72, radius: 12)),
+                      errorWidget: (ctx, url, err) => _itemFallback(),
                     )
-                  : Container(
-                      color: const Color(0xFFF0F0F0),
-                      child: const Icon(Icons.fastfood,
-                          size: 30, color: Color(0xFFBBBBBB)),
-                    ),
+                  : _itemFallback(),
             ),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item['name'] as String? ?? '',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.dark,
-                  ),
-                ),
+                Text(item['name'] as String? ?? '',
+                    style: SeType.title, maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
-                Text(
-                  item['description'] as String? ?? '',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: const Color(0xFF888888),
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 7),
+                Text(item['description'] as String? ?? '',
+                    style: SeType.bodyS.copyWith(color: SeColors.ink500),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '\$${_formatPrice(price)}',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.primary,
-                      ),
-                    ),
-                    qty == 0
-                        ? GestureDetector(
-                            onTap: () => _addToCart(item),
-                            child: Container(
-                              width: 30,
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: AppTheme.primary,
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              child: const Center(
-                                child: Text('+',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1)),
-                              ),
-                            ),
-                          )
-                        : _qtyControl(itemId, qty),
+                    Text('\$${_formatPrice(price)}',
+                        style: SeType.tabular(SeType.title)
+                            .copyWith(color: SeColors.red600)),
+                    _qtyControl(item, itemId, qty),
                   ],
                 ),
               ],
@@ -635,116 +454,143 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
   }
 
-  Widget _qtyControl(String itemId, int qty) => Row(
-        children: [
-          GestureDetector(
-            onTap: () => _removeFromCart(itemId),
-            child: Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF2F2F2),
-                borderRadius: BorderRadius.circular(7),
+  Widget _itemFallback() => Container(
+        color: SeColors.surface50,
+        child: const Icon(SeIcons.food, size: 30, color: SeColors.ink300),
+      );
+
+  Widget _qtyControl(Map<String, dynamic> item, String itemId, int qty) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      transitionBuilder: (child, anim) =>
+          FadeTransition(opacity: anim, child: child),
+      child: qty == 0
+          ? GestureDetector(
+              key: const ValueKey('add'),
+              onTap: () => _addToCart(item),
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  gradient: SeColors.emberGradient,
+                  borderRadius: SeRadius.all(SeRadius.sm),
+                  boxShadow: SeElevation.glow,
+                ),
+                child: const Icon(SeIcons.plus, size: 18, color: Colors.white),
               ),
-              child: const Center(
-                child: Text('−',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF444444))),
-              ),
+            )
+          : Row(
+              key: const ValueKey('stepper'),
+              children: [
+                _stepBtn(SeIcons.minus, SeColors.surface50, SeColors.ink700,
+                    () => _removeFromCart(itemId)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text('$qty',
+                      style: SeType.tabular(SeType.title)),
+                ),
+                _stepBtn(SeIcons.plus, SeColors.red500, Colors.white,
+                    () => _addToCart(item)),
+              ],
             ),
+    );
+  }
+
+  Widget _stepBtn(IconData icon, Color bg, Color fg, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: SeRadius.all(SeRadius.xs),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text('$qty',
-                style: GoogleFonts.montserrat(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.dark)),
-          ),
-          GestureDetector(
-            onTap: () => _addToCart(
-                _menuItems.firstWhere((m) => m['id'] == itemId,
-                    orElse: () => {})),
-            child: Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: AppTheme.primary,
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: const Center(
-                child: Text('+',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white)),
-              ),
-            ),
-          ),
-        ],
+          child: Icon(icon, size: 16, color: fg),
+        ),
       );
 
   Widget _buildShimmerList() {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(10, 11, 10, 80),
-      itemCount: 4,
-      itemBuilder: (_, index) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        height: 90,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(13),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 11),
-            const ShimmerBox(width: 68, height: 68, radius: 11),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  ShimmerBox(width: 140, height: 13, radius: 6),
-                  SizedBox(height: 7),
-                  ShimmerBox(width: 100, height: 10, radius: 5),
-                  SizedBox(height: 10),
-                  ShimmerBox(width: 60, height: 13, radius: 6),
-                ],
+    return SeShimmer(
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(
+            SeSpacing.gutter, 16, SeSpacing.gutter, 24),
+        itemCount: 5,
+        itemBuilder: (_, index) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: SeColors.surface0,
+            borderRadius: SeRadius.all(SeRadius.md),
+          ),
+          child: Row(
+            children: const [
+              SeSkeleton(width: 72, height: 72, radius: 12),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SeSkeleton(width: 150, height: 14, radius: 6),
+                    SizedBox(height: 8),
+                    SeSkeleton(width: 110, height: 11, radius: 5),
+                    SizedBox(height: 12),
+                    SeSkeleton(width: 60, height: 14, radius: 6),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 11),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildEmptyState() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.restaurant_menu,
-                size: 52, color: Color(0xFFCCCCCC)),
-            const SizedBox(height: 12),
-            Text(
-              'No menu items yet',
-              style: GoogleFonts.montserrat(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.dark),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              'Check back soon',
-              style: GoogleFonts.inter(
-                  fontSize: 12, color: const Color(0xFF888888)),
-            ),
-          ],
+  Widget? _cartBar(CartProvider cart) {
+    if (cart.cartCount == 0) return null;
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(
+          SeSpacing.gutter, 0, SeSpacing.gutter, 12),
+      child: GestureDetector(
+        onTap: () => Navigator.pushNamed(context, '/cart'),
+        child: Container(
+          height: 58,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            gradient: SeColors.emberGradient,
+            borderRadius: SeRadius.all(SeRadius.md),
+            boxShadow: SeElevation.glow,
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: SeRadius.pill,
+                ),
+                child: Text('${cart.cartCount}',
+                    style: SeType.tabular(SeType.title)
+                        .copyWith(color: Colors.white)),
+              ),
+              const SizedBox(width: 12),
+              Text('View Cart',
+                  style: SeType.jakarta(16, FontWeight.w700,
+                      color: Colors.white)),
+              const Spacer(),
+              Text('\$${_formatPrice(cart.cartTotal)}',
+                  style: SeType.tabular(SeType.jakarta(16, FontWeight.w800,
+                      color: Colors.white))),
+              const SizedBox(width: 8),
+              const Icon(SeIcons.caretRight, size: 20, color: Colors.white),
+            ],
+          ),
         ),
-      );
+      ),
+    );
+  }
 
   String _formatPrice(int price) {
     if (price >= 1000) {

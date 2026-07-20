@@ -4,7 +4,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'services/firestore_service.dart';
 import 'providers/cart_provider.dart';
@@ -29,6 +28,10 @@ import 'screens/help_support_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/privacy_security_screen.dart';
 import 'theme/app_theme.dart';
+import 'theme/se_colors.dart';
+import 'theme/se_icons.dart';
+import 'theme/se_spacing.dart';
+import 'theme/se_typography.dart';
 
 Future<void> _initFirebase() async {
   for (int attempt = 1; attempt <= 5; attempt++) {
@@ -61,6 +64,8 @@ class ShipEastApp extends StatelessWidget {
         title: 'ShipEast',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.light,
         initialRoute: '/',
         routes: {
           '/': (_) => const SplashScreen(),
@@ -102,11 +107,11 @@ class _MainShellState extends State<MainShell> {
   StreamSubscription<int>? _unreadSub;
 
   static const List<Map<String, dynamic>> _navItems = [
-    {'label': 'Home', 'icon': Icons.home},
-    {'label': 'Search', 'icon': Icons.search},
-    {'label': 'Orders', 'icon': Icons.receipt_long},
-    {'label': 'Alerts', 'icon': Icons.notifications},
-    {'label': 'Profile', 'icon': Icons.person},
+    {'label': 'Home', 'icon': SeIcons.home, 'active': SeIcons.homeFill},
+    {'label': 'Search', 'icon': SeIcons.search, 'active': SeIcons.searchFill},
+    {'label': 'Orders', 'icon': SeIcons.orders, 'active': SeIcons.ordersFill},
+    {'label': 'Alerts', 'icon': SeIcons.bell, 'active': SeIcons.bellFill},
+    {'label': 'Profile', 'icon': SeIcons.user, 'active': SeIcons.userFill},
   ];
 
   @override
@@ -133,36 +138,43 @@ class _MainShellState extends State<MainShell> {
     return Consumer<CartProvider>(
       builder: (ctx, cart, _) {
         if (cart.cartCount == 0) return const SizedBox.shrink();
-        return FloatingActionButton(
-          backgroundColor: AppTheme.primary,
-          elevation: 4,
-          onPressed: () => Navigator.pushNamed(ctx, '/cart'),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              const Icon(Icons.shopping_cart, color: Colors.white, size: 22),
-              Positioned(
-                top: -8,
-                right: -8,
-                child: Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.primary, width: 1.5),
-                  ),
-                  child: Text(
-                    cart.cartCount > 9 ? '9+' : '${cart.cartCount}',
-                    style: const TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.primary,
+        return GestureDetector(
+          onTap: () => Navigator.pushNamed(ctx, '/cart'),
+          child: Container(
+            width: 58,
+            height: 58,
+            decoration: const BoxDecoration(
+              gradient: SeColors.emberGradient,
+              shape: BoxShape.circle,
+              boxShadow: SeElevation.glow,
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                const Icon(SeIcons.cartFill, color: Colors.white, size: 24),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    constraints:
+                        const BoxConstraints(minWidth: 18, minHeight: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: SeColors.red500, width: 1.5),
+                    ),
+                    child: Text(
+                      cart.cartCount > 9 ? '9+' : '${cart.cartCount}',
+                      textAlign: TextAlign.center,
+                      style: SeType.tabular(SeType.inter(9, FontWeight.w800,
+                          color: SeColors.red500)),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -185,18 +197,22 @@ class _MainShellState extends State<MainShell> {
       floatingActionButton: _buildCartFab(context),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFEFEFEF))),
+          color: SeColors.surface0,
+          border: Border(top: BorderSide(color: SeColors.ink200)),
+          boxShadow: SeElevation.e2,
         ),
         child: SafeArea(
           top: false,
           child: SizedBox(
-            height: 60,
+            height: 62,
             child: Row(
               children: List.generate(_navItems.length, (i) {
                 final active = _selectedIndex == i;
                 final isAlerts = _navItems[i]['label'] == 'Alerts';
-                final showBadge = isAlerts && _unreadNotifications > 0 && !active;
+                final showBadge =
+                    isAlerts && _unreadNotifications > 0 && !active;
+                final color =
+                    active ? SeColors.red500 : SeColors.ink400;
                 return Expanded(
                   child: GestureDetector(
                     onTap: () => setState(() => _selectedIndex = i),
@@ -207,50 +223,57 @@ class _MainShellState extends State<MainShell> {
                         Stack(
                           clipBehavior: Clip.none,
                           children: [
-                            Icon(
-                              _navItems[i]['icon'] as IconData,
-                              size: 22,
-                              color: active
-                                  ? AppTheme.primary
-                                  : const Color(0xFFC0C0C0),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              curve: Curves.easeOut,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? SeColors.red50
+                                    : Colors.transparent,
+                                borderRadius: SeRadius.pill,
+                              ),
+                              child: Icon(
+                                (active
+                                    ? _navItems[i]['active']
+                                    : _navItems[i]['icon']) as IconData,
+                                size: 23,
+                                color: color,
+                              ),
                             ),
                             if (showBadge)
                               Positioned(
-                                top: -4,
-                                right: -6,
+                                top: -2,
+                                right: 8,
                                 child: Container(
                                   padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    color: AppTheme.primary,
+                                  decoration: BoxDecoration(
+                                    color: SeColors.red500,
                                     shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: SeColors.surface0, width: 1.5),
                                   ),
                                   constraints: const BoxConstraints(
-                                      minWidth: 14, minHeight: 14),
+                                      minWidth: 16, minHeight: 16),
                                   child: Text(
                                     _unreadNotifications > 9
                                         ? '9+'
                                         : '$_unreadNotifications',
-                                    style: const TextStyle(
-                                      fontSize: 7,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                    ),
+                                    style: SeType.tabular(SeType.inter(
+                                        8, FontWeight.w800,
+                                        color: Colors.white)),
                                     textAlign: TextAlign.center,
                                   ),
                                 ),
                               ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           _navItems[i]['label'] as String,
-                          style: GoogleFonts.nunito(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: active
-                                ? AppTheme.primary
-                                : const Color(0xFFC0C0C0),
-                          ),
+                          style: SeType.inter(10, FontWeight.w600,
+                              color: color),
                         ),
                       ],
                     ),

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../theme/se_brand.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_app_bar.dart';
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
@@ -44,20 +49,23 @@ class HelpSupportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: SeColors.surface50,
       body: Column(
         children: [
-          _buildHeader(context),
+          const SeGradientHeader(
+            title: 'Help & Support',
+            subtitle: "We're here to help",
+          ),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(SeSpacing.gutter),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildContactCard(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   _buildFaqSection(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   _buildVersionCard(),
                   const SizedBox(height: 16),
                 ],
@@ -69,156 +77,33 @@ class HelpSupportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) => Container(
-        padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 12,
-          bottom: 14,
-          left: 16,
-          right: 16,
-        ),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFC8102E), Color(0xFF8B0A1E)],
-          ),
-        ),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child:
-                      Icon(Icons.arrow_back_ios, size: 16, color: Colors.white),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Help & Support',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    "We're here to help",
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.75),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.help_outline, size: 24, color: Colors.white),
-          ],
-        ),
-      );
-
-  Widget _buildContactCard() => Container(
+  Widget _buildContactCard() => SeCard(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Contact Us',
-              style: GoogleFonts.montserrat(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.dark,
-              ),
-            ),
+            Text('Contact Us', style: SeType.title),
             const SizedBox(height: 4),
-            Text(
-              'Reach us on WhatsApp or Email — we respond within 1 hour.',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: const Color(0xFF888888),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 14),
+            Text('Reach us on WhatsApp or Email — we respond within 1 hour.',
+                style: SeType.bodyS.copyWith(color: SeColors.ink500)),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
-                  child: GestureDetector(
+                  child: _contactBtn(
+                    label: 'WhatsApp',
+                    icon: SeIcons.chat,
+                    color: const Color(0xFF25D366),
                     onTap: () => _launch('https://wa.me/18765559988'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF25D366),
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.chat_bubble,
-                              size: 17, color: Colors.white),
-                          const SizedBox(width: 7),
-                          Text(
-                            'WhatsApp',
-                            style: GoogleFonts.nunito(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: GestureDetector(
+                  child: _contactBtn(
+                    label: 'Email Us',
+                    icon: SeIcons.envelope,
+                    color: SeColors.red500,
                     onTap: () => _launch('mailto:info@shipeastja.com'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary,
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.email, size: 17, color: Colors.white),
-                          const SizedBox(width: 7),
-                          Text(
-                            'Email Us',
-                            style: GoogleFonts.nunito(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
               ],
@@ -227,31 +112,40 @@ class HelpSupportScreen extends StatelessWidget {
         ),
       );
 
-  Widget _buildFaqSection() => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+  Widget _contactBtn({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 50,
+          alignment: Alignment.center,
+          decoration:
+              BoxDecoration(color: color, borderRadius: SeRadius.all(SeRadius.md)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(label,
+                  style: SeType.jakarta(14, FontWeight.w700,
+                      color: Colors.white)),
+            ],
+          ),
         ),
+      );
+
+  Widget _buildFaqSection() => SeCard(
+        padding: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text(
-                'Frequently Asked Questions',
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.dark,
-                ),
-              ),
+              child: Text('Frequently Asked Questions', style: SeType.title),
             ),
             ..._faqs.map(
               (faq) => _FaqItem(question: faq['q']!, answer: faq['a']!),
@@ -261,53 +155,25 @@ class HelpSupportScreen extends StatelessWidget {
         ),
       );
 
-  Widget _buildVersionCard() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+  Widget _buildVersionCard() => SeCard(
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F7),
-                borderRadius: BorderRadius.circular(10),
+                color: SeColors.surface50,
+                borderRadius: SeRadius.all(SeRadius.sm),
               ),
-              child: const Center(
-                child: Icon(Icons.info_outline,
-                    size: 20, color: Color(0xFF666666)),
-              ),
+              child: const Icon(SeIcons.info, size: 20, color: SeColors.ink500),
             ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'ShipEast Customer App',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.dark,
-                  ),
-                ),
-                Text(
-                  'Version 1.0.0',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: const Color(0xFFAAAAAA),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text('ShipEast Customer App', style: SeType.title),
+                Text('Version ${SeBrand.version}',
+                    style: SeType.bodyS.copyWith(color: SeColors.ink400)),
               ],
             ),
           ],
@@ -332,47 +198,43 @@ class _FaqItemState extends State<_FaqItem> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Divider(height: 1, color: Color(0xFFF2F2F2)),
+        const Divider(height: 1, color: SeColors.ink100),
         GestureDetector(
           onTap: () => setState(() => _expanded = !_expanded),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            color: Colors.white,
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    widget.question,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.dark,
-                    ),
-                  ),
+                  child: Text(widget.question,
+                      style: SeType.body.copyWith(
+                          color: SeColors.ink900,
+                          fontWeight: FontWeight.w600)),
                 ),
-                Icon(
-                  _expanded ? Icons.expand_less : Icons.expand_more,
-                  size: 20,
-                  color: const Color(0xFF999999),
+                AnimatedRotation(
+                  turns: _expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: const Icon(SeIcons.caretDown,
+                      size: 18, color: SeColors.ink400),
                 ),
               ],
             ),
           ),
         ),
-        if (_expanded)
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            color: const Color(0xFFFAFAFA),
-            child: Text(
-              widget.answer,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: const Color(0xFF666666),
-                height: 1.65,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+        AnimatedCrossFade(
+          firstChild: const SizedBox(width: double.infinity),
+          secondChild: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Text(widget.answer,
+                style: SeType.body.copyWith(color: SeColors.ink500)),
           ),
+          crossFadeState: _expanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 200),
+        ),
       ],
     );
   }

@@ -1,7 +1,12 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../theme/se_brand.dart';
+import '../widgets/se_button.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -14,10 +19,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _floatCtrl;
   late Animation<double> _floatAnim;
+  late final TapGestureRecognizer _termsTap;
+  late final TapGestureRecognizer _privacyTap;
 
   @override
   void initState() {
     super.initState();
+    _termsTap = TapGestureRecognizer()
+      ..onTap = () => Navigator.pushNamed(context, '/privacy-security');
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () => Navigator.pushNamed(context, '/privacy-security');
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
@@ -34,68 +45,83 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   void dispose() {
     _floatCtrl.dispose();
+    _termsTap.dispose();
+    _privacyTap.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: SeColors.surface0,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Red hero section
+          // Ember hero
           SizedBox(
-            height: 268,
+            height: 320,
             child: Stack(
               children: [
                 Container(
-                  width: double.infinity,
-                  height: 268,
-                  color: AppTheme.primary,
+                  decoration: const BoxDecoration(gradient: SeColors.emberGradient),
                 ),
-                // Decorative ring top-right
                 Positioned(
                   top: -35,
                   right: -35,
                   child: Container(
-                    width: 170,
-                    height: 170,
+                    width: 180,
+                    height: 180,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.10),
-                        width: 28,
-                      ),
+                          color: Colors.white.withValues(alpha: 0.10),
+                          width: 30),
                     ),
                   ),
                 ),
-                // Delivery illustration — centered
+                Positioned(
+                  bottom: 40,
+                  left: -40,
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Center(child: SeWordmark(size: 30, onDark: true)),
+                  ),
+                ),
                 Positioned.fill(
                   child: Align(
-                    alignment: const Alignment(0, -0.15),
+                    alignment: const Alignment(0, 0.25),
                     child: AnimatedBuilder(
                       animation: _floatAnim,
                       builder: (_, child) => Transform.translate(
                         offset: Offset(0, _floatAnim.value),
                         child: child,
                       ),
-                      child: _DeliveryIllustration(),
+                      child: const _ParcelMark(),
                     ),
                   ),
                 ),
-                // White curved strip at bottom
                 Positioned(
                   bottom: -1,
                   left: 0,
                   right: 0,
                   child: Container(
-                    height: 38,
+                    height: 40,
                     decoration: const BoxDecoration(
-                      color: Colors.white,
+                      color: SeColors.surface0,
                       borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(38),
-                        topRight: Radius.circular(38),
+                        topLeft: Radius.circular(SeRadius.xl),
+                        topRight: Radius.circular(SeRadius.xl),
                       ),
                     ),
                   ),
@@ -103,128 +129,69 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               ],
             ),
           ),
-          // White content section
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+              padding: const EdgeInsets.fromLTRB(
+                  SeSpacing.gutter, 20, SeSpacing.gutter, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   RichText(
                     text: TextSpan(
-                      children: [
+                      style: SeType.display.copyWith(height: 1.15),
+                      children: const [
                         TextSpan(
-                          text: 'Delivery,\n',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 25,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.dark,
-                            height: 1.2,
-                          ),
-                        ),
+                            text: 'Delivery,\n',
+                            style: TextStyle(color: SeColors.ink900)),
                         TextSpan(
-                          text: 'Done Right.',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 25,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.primary,
-                            height: 1.2,
-                          ),
-                        ),
+                            text: 'Done Right.',
+                            style: TextStyle(color: SeColors.red500)),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     'Order from local restaurants, groceries & merchants in St. Thomas & Kingston — delivered straight to your door.',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: const Color(0xFF777777),
-                      height: 1.65,
-                    ),
+                    style: SeType.body.copyWith(color: SeColors.ink500),
                   ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
+                  const Spacer(),
+                  SeButton(
+                    label: 'Get Started',
+                    icon: SeIcons.arrowRight,
                     onPressed: () => Navigator.pushNamed(context, '/register'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      'Get Started →',
-                      style: GoogleFonts.nunito(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
                   ),
-                  const SizedBox(height: 9),
-                  ElevatedButton(
+                  const SizedBox(height: 10),
+                  SeButton(
+                    label: 'I Already Have an Account',
+                    variant: SeButtonVariant.ghost,
                     onPressed: () => Navigator.pushNamed(context, '/login'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.lightGray,
-                      foregroundColor: const Color(0xFF333333),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      'I Already Have an Account',
-                      style: GoogleFonts.nunito(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   Text.rich(
                     TextSpan(
+                      style: SeType.bodyS.copyWith(color: SeColors.ink400),
                       children: [
-                        TextSpan(
-                          text: 'By continuing you agree to our ',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: const Color(0xFFC0C0C0),
-                            height: 1.5,
-                          ),
-                        ),
+                        const TextSpan(text: 'By continuing you agree to our '),
                         TextSpan(
                           text: 'Terms',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: AppTheme.primary,
-                            fontWeight: FontWeight.w700,
-                            height: 1.5,
-                          ),
+                          style: const TextStyle(
+                              color: SeColors.red500,
+                              fontWeight: FontWeight.w600),
+                          recognizer: _termsTap,
                         ),
-                        TextSpan(
-                          text: ' & ',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: const Color(0xFFC0C0C0),
-                            height: 1.5,
-                          ),
-                        ),
+                        const TextSpan(text: ' & '),
                         TextSpan(
                           text: 'Privacy Policy',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: AppTheme.primary,
-                            fontWeight: FontWeight.w700,
-                            height: 1.5,
-                          ),
+                          style: const TextStyle(
+                              color: SeColors.red500,
+                              fontWeight: FontWeight.w600),
+                          recognizer: _privacyTap,
                         ),
                       ],
                     ),
                     textAlign: TextAlign.center,
                   ),
+                  const SizedBox(height: 4),
                 ],
               ),
             ),
@@ -233,213 +200,81 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       ),
     );
   }
+
 }
 
-class _DeliveryIllustration extends StatelessWidget {
+/// Branded parcel + motion streak mark (replaces the CustomPaint motorcycle).
+class _ParcelMark extends StatelessWidget {
+  const _ParcelMark();
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 180,
-      height: 140,
+      width: 200,
+      height: 150,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          // Speed lines
-          CustomPaint(
-            size: const Size(200, 140),
-            painter: _SpeedLinesPainter(),
-          ),
-          // Shadow ellipse at bottom
+          // Motion streaks
           Positioned(
-            bottom: 8,
-            left: 30,
-            right: 30,
-            child: Container(
-              height: 14,
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-          // Motorcycle body
-          Positioned(
-            bottom: 18,
-            left: 0,
-            right: 0,
-            child: CustomPaint(
-              size: const Size(180, 80),
-              painter: _MotorcyclePainter(),
-            ),
-          ),
-          // Delivery box on back
-          Positioned(
-            bottom: 56,
-            left: 22,
-            child: Container(
-              width: 38,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Icon(Icons.inventory_2, size: 18, color: AppTheme.primary),
-              ),
-            ),
-          ),
-          // Rider helmet
-          Positioned(
-            bottom: 72,
-            right: 32,
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 6,
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Icon(Icons.person, size: 18, color: AppTheme.primary),
-              ),
-            ),
-          ),
-          // Location pin above
-          Positioned(
-            top: 0,
-            right: 20,
+            left: 4,
+            top: 60,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.location_on,
-                      size: 14, color: AppTheme.primary),
-                ),
-                Container(
-                  width: 2,
-                  height: 8,
-                  color: Colors.white.withValues(alpha: 0.6),
+                _streak(44, 0.28),
+                const SizedBox(height: 10),
+                _streak(30, 0.20),
+                const SizedBox(height: 10),
+                _streak(52, 0.28),
+              ],
+            ),
+          ),
+          // Parcel card
+          Container(
+            width: 108,
+            height: 108,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(SeRadius.lg),
+              boxShadow: [
+                BoxShadow(
+                  color: SeColors.red900.withValues(alpha: 0.28),
+                  blurRadius: 28,
+                  offset: const Offset(0, 12),
                 ),
               ],
+            ),
+            child: const Icon(SeIcons.box, size: 54, color: SeColors.red500),
+          ),
+          // Location pin badge
+          Positioned(
+            top: 6,
+            right: 26,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: SeColors.gold500,
+                shape: BoxShape.circle,
+                boxShadow: SeElevation.e2,
+              ),
+              child: const Icon(SeIcons.locationFill,
+                  size: 20, color: Colors.white),
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _SpeedLinesPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.15)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-
-    final shortPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.10)
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
-
-    // Long speed lines
-    for (int i = 0; i < 3; i++) {
-      final y = size.height * 0.55 + i * 14.0;
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width * 0.35, y),
-        paint,
+  Widget _streak(double w, double opacity) => Container(
+        width: w,
+        height: 4,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: opacity),
+          borderRadius: BorderRadius.circular(2),
+        ),
       );
-    }
-    // Short speed lines
-    for (int i = 0; i < 2; i++) {
-      final y = size.height * 0.50 + i * 18.0;
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width * 0.22, y),
-        shortPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
-class _MotorcyclePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bodyPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.92)
-      ..style = PaintingStyle.fill;
-
-    final accentPaint = Paint()
-      ..color = AppTheme.primary.withValues(alpha: 0.85)
-      ..style = PaintingStyle.fill;
-
-    final wheelPaint = Paint()
-      ..color = const Color(0xFFFFFFFF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 5;
-
-    // Body
-    final bodyPath = Path()
-      ..moveTo(size.width * 0.25, size.height * 0.35)
-      ..lineTo(size.width * 0.75, size.height * 0.35)
-      ..lineTo(size.width * 0.82, size.height * 0.65)
-      ..lineTo(size.width * 0.18, size.height * 0.65)
-      ..close();
-    canvas.drawPath(bodyPath, bodyPaint);
-
-    // Accent stripe
-    final accentPath = Path()
-      ..moveTo(size.width * 0.35, size.height * 0.35)
-      ..lineTo(size.width * 0.65, size.height * 0.35)
-      ..lineTo(size.width * 0.70, size.height * 0.55)
-      ..lineTo(size.width * 0.30, size.height * 0.55)
-      ..close();
-    canvas.drawPath(accentPath, accentPaint);
-
-    // Front wheel
-    canvas.drawCircle(
-      Offset(size.width * 0.75, size.height * 0.75),
-      size.height * 0.22,
-      wheelPaint,
-    );
-    // Rear wheel
-    canvas.drawCircle(
-      Offset(size.width * 0.25, size.height * 0.75),
-      size.height * 0.22,
-      wheelPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-

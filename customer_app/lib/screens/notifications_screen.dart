@@ -3,9 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../services/firestore_service.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_skeleton.dart';
+import '../widgets/se_empty_state.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -34,8 +38,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   void _subscribe() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    _notifSub = FirestoreService.notificationsStream(uid: uid).listen((notifs) {
-      if (mounted) setState(() { _notifications = notifs; _loading = false; });
+    _notifSub =
+        FirestoreService.notificationsStream(uid: uid).listen((notifs) {
+      if (mounted) {
+        setState(() {
+          _notifications = notifs;
+          _loading = false;
+        });
+      }
     });
     if (uid != null) {
       _profileSub = FirestoreService.watchUserProfile(uid).listen((data) {
@@ -71,7 +81,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: SeColors.surface50,
       body: Column(
         children: [
           _buildHeader(),
@@ -83,58 +93,57 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildHeader() => Container(
         padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 14,
-          bottom: 14,
-          left: 16,
-          right: 16,
+          top: MediaQuery.of(context).padding.top + 16,
+          bottom: 16,
+          left: SeSpacing.gutter,
+          right: SeSpacing.gutter,
         ),
-        color: Colors.white,
-        child: Row(
-          children: [
-            Text(
-              'Notifications',
-              style: GoogleFonts.montserrat(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.dark,
-              ),
-            ),
-          ],
+        decoration: const BoxDecoration(
+          color: SeColors.surface0,
+          border: Border(bottom: BorderSide(color: SeColors.ink200)),
         ),
+        child: Text('Notifications', style: SeType.h1),
       );
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.primary));
+      return SeShimmer(
+        child: ListView.separated(
+          padding: const EdgeInsets.all(SeSpacing.gutter),
+          itemCount: 6,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (_, __) => Row(
+            children: const [
+              SeSkeleton.circle(size: 44),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SeSkeleton(width: 140, height: 13, radius: 5),
+                    SizedBox(height: 8),
+                    SeSkeleton(width: double.infinity, height: 11, radius: 5),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
     if (_notifications.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.notifications_none, size: 52, color: Color(0xFFCCCCCC)),
-            const SizedBox(height: 14),
-            Text(
-              'No notifications yet',
-              style: GoogleFonts.montserrat(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.dark,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "You're all caught up!",
-              style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF888888)),
-            ),
-          ],
+        child: SeEmptyState(
+          icon: SeIcons.bell,
+          title: 'No notifications yet',
+          message: "You're all caught up!",
         ),
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(SeSpacing.gutter),
       itemCount: _notifications.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (ctx, i) => _buildCard(_notifications[i]),
     );
   }
@@ -146,42 +155,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final ts = notif['createdAt'] as Timestamp?;
     final unread = _isUnread(notif);
 
-    final iconData = type == 'order'
-        ? Icons.receipt_long
-        : type == 'promo'
-            ? Icons.local_offer
-            : Icons.notifications;
-    final iconColor = type == 'order'
-        ? AppTheme.primary
-        : type == 'promo'
-            ? const Color(0xFFD97706)
-            : const Color(0xFF4B5563);
+    final (IconData iconData, Color hue, Color tint) = switch (type) {
+      'order' => (SeIcons.orders, SeColors.red500, SeColors.red50),
+      'promo' => (SeIcons.tag, SeColors.gold500, SeColors.goldTint),
+      _ => (SeIcons.bell, SeColors.ocean500, SeColors.oceanTint),
+    };
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: unread ? const Color(0xFFFFF8F8) : Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        border: unread ? Border.all(color: const Color(0xFFFFD0D7), width: 1.5) : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        color: unread ? SeColors.red50 : SeColors.surface0,
+        borderRadius: SeRadius.all(SeRadius.md),
+        border:
+            unread ? Border.all(color: SeColors.red100, width: 1.5) : null,
+        boxShadow: unread ? SeElevation.e0 : SeElevation.e1,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F7),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Center(child: Icon(iconData, size: 20, color: iconColor)),
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+            child: Icon(iconData, size: 21, color: hue),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -190,46 +186,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.dark,
-                        ),
-                      ),
-                    ),
+                    Expanded(child: Text(title, style: SeType.title)),
                     if (unread)
                       Container(
                         width: 8,
                         height: 8,
                         decoration: const BoxDecoration(
-                          color: AppTheme.primary,
-                          shape: BoxShape.circle,
-                        ),
+                            color: SeColors.red500, shape: BoxShape.circle),
                       ),
                   ],
                 ),
                 if (message.isNotEmpty) ...[
                   const SizedBox(height: 3),
-                  Text(
-                    message,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: const Color(0xFF666666),
-                    ),
-                  ),
+                  Text(message,
+                      style: SeType.bodyS.copyWith(color: SeColors.ink500)),
                 ],
                 if (ts != null) ...[
-                  const SizedBox(height: 5),
-                  Text(
-                    _timeAgo(ts.toDate()),
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: const Color(0xFFAAAAAA),
-                    ),
-                  ),
+                  const SizedBox(height: 6),
+                  Text(_timeAgo(ts.toDate()),
+                      style: SeType.label.copyWith(color: SeColors.ink400)),
                 ],
               ],
             ),

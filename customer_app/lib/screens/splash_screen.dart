@@ -1,8 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_typography.dart';
+import '../theme/se_brand.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,9 +13,12 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _progressCtrl;
   late Animation<double> _progressAnim;
+  late AnimationController _markCtrl;
+  late Animation<double> _markScale;
+  late Animation<double> _markFade;
 
   @override
   void initState() {
@@ -23,6 +27,13 @@ class _SplashScreenState extends State<SplashScreen>
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ));
+    _markCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 620));
+    _markScale = Tween<double>(begin: 0.86, end: 1.0).animate(
+        CurvedAnimation(parent: _markCtrl, curve: Curves.easeOutBack));
+    _markFade = CurvedAnimation(parent: _markCtrl, curve: Curves.easeOut);
+    _markCtrl.forward();
+
     _progressCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2800),
@@ -45,104 +56,107 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _progressCtrl.dispose();
+    _markCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primary,
-      body: Stack(
-        children: [
-          Positioned(
-            top: -50,
-            right: -50,
-            child: _circle(200, Colors.white.withValues(alpha: 0.07)),
-          ),
-          Positioned(
-            bottom: -80,
-            left: -60,
-            child: _circle(240, Colors.white.withValues(alpha: 0.05)),
-          ),
-          Positioned(
-            top: 60,
-            left: -30,
-            child: _circle(130, Colors.white.withValues(alpha: 0.04)),
-          ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 236,
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.22),
-                        blurRadius: 28,
-                        offset: const Offset(0, 6),
+      body: Container(
+        decoration: const BoxDecoration(gradient: SeColors.emberGradient),
+        child: Stack(
+          children: [
+            Positioned(
+                top: -50,
+                right: -50,
+                child: _circle(200, Colors.white.withValues(alpha: 0.08))),
+            Positioned(
+                bottom: -80,
+                left: -60,
+                child: _circle(240, Colors.white.withValues(alpha: 0.06))),
+            Positioned(
+                top: 60,
+                left: -30,
+                child: _circle(130, Colors.white.withValues(alpha: 0.05))),
+            Center(
+              child: FadeTransition(
+                opacity: _markFade,
+                child: ScaleTransition(
+                  scale: _markScale,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 92,
+                        height: 92,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: SeColors.red900.withValues(alpha: 0.35),
+                              blurRadius: 32,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Image.asset('assets/logo.png',
+                            fit: BoxFit.contain),
+                      ),
+                      const SizedBox(height: 20),
+                      const SeWordmark(size: 34, onDark: true),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Fast · Reliable · Yours',
+                        style: SeType.label.copyWith(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          letterSpacing: 1.2,
+                        ),
                       ),
                     ],
                   ),
-                  child: Image.asset(
-                    'assets/logo.png',
-                    height: 48,
-                    fit: BoxFit.contain,
-                  ),
                 ),
-                const SizedBox(height: 18),
-                Text(
-                  'Fast · Reliable · Yours',
-                  style: GoogleFonts.dancingScript(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white.withValues(alpha: 0.92),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-          Positioned(
-            bottom: 34,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Center(
-                  child: SizedBox(
-                    width: 140,
-                    height: 4,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: AnimatedBuilder(
-                        animation: _progressAnim,
-                        builder: (_, _) => LinearProgressIndicator(
-                          value: _progressAnim.value,
-                          backgroundColor: Colors.white.withValues(alpha: 0.18),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white.withValues(alpha: 0.85),
+            Positioned(
+              bottom: 34,
+              left: 0,
+              right: 0,
+              child: Column(
+                children: [
+                  Center(
+                    child: SizedBox(
+                      width: 140,
+                      height: 4,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: AnimatedBuilder(
+                          animation: _progressAnim,
+                          builder: (_, __) => LinearProgressIndicator(
+                            value: _progressAnim.value,
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.18),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white.withValues(alpha: 0.9),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 9),
-                Text(
-                  'v1.0.2',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: Colors.white.withValues(alpha: 0.45),
+                  const SizedBox(height: 10),
+                  Text(
+                    'v${SeBrand.version}',
+                    style: SeType.bodyS.copyWith(
+                        color: Colors.white.withValues(alpha: 0.5)),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

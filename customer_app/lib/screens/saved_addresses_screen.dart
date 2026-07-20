@@ -2,9 +2,18 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../services/firestore_service.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_text_field.dart';
+import '../widgets/se_toast.dart';
+import '../widgets/se_skeleton.dart';
+import '../widgets/se_empty_state.dart';
+import '../widgets/se_bottom_sheet.dart';
 
 class SavedAddressesScreen extends StatefulWidget {
   const SavedAddressesScreen({super.key});
@@ -29,10 +38,15 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
     ));
     if (_uid.isNotEmpty) {
       _sub = FirestoreService.addressStream(_uid).listen((addrs) {
-        if (mounted) setState(() { _addresses = addrs; _loading = false; });
+        if (mounted) {
+          setState(() {
+            _addresses = addrs;
+            _loading = false;
+          });
+        }
       });
     } else {
-      setState(() => _loading = false);
+      _loading = false;
     }
   }
 
@@ -50,225 +64,113 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
     final addressCtrl = TextEditingController(
         text: isEdit ? existing['text'] as String? ?? '' : '');
     const quickLabels = ['Home', 'Work', 'Mom', 'Dad', 'School', 'Other'];
-    String selectedQuick = isEdit &&
-            quickLabels.contains(existing['label'])
-        ? existing['label'] as String
-        : '';
+    String selectedQuick =
+        isEdit && quickLabels.contains(existing['label'])
+            ? existing['label'] as String
+            : '';
 
-    showModalBottomSheet(
+    showSeBottomSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFDDDDDD),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  isEdit ? 'Edit Address' : 'Add New Address',
-                  style: GoogleFonts.montserrat(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.dark),
-                ),
-                const SizedBox(height: 14),
-                Text('Label',
-                    style: GoogleFonts.nunito(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF888888))),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: quickLabels.map((ql) {
-                    final sel = selectedQuick == ql;
-                    return GestureDetector(
-                      onTap: () {
-                        setModalState(() => selectedQuick = ql);
-                        labelCtrl.text = ql;
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: sel
-                              ? AppTheme.primary
-                              : const Color(0xFFF5F5F7),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: sel
-                                ? AppTheme.primary
-                                : const Color(0xFFE5E5E5),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Text(ql,
-                            style: GoogleFonts.nunito(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: sel
-                                  ? Colors.white
-                                  : const Color(0xFF555555),
-                            )),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: labelCtrl,
-                  style: GoogleFonts.inter(
-                      fontSize: 13, color: const Color(0xFF333333)),
-                  decoration: _inputDeco('Or type a custom label...'),
-                ),
-                const SizedBox(height: 10),
-                Text('Address',
-                    style: GoogleFonts.nunito(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF888888))),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: addressCtrl,
-                  maxLines: 2,
-                  style: GoogleFonts.inter(
-                      fontSize: 13, color: const Color(0xFF333333)),
-                  decoration:
-                      _inputDeco('e.g. 14 Yallahs Main Road, St. Thomas'),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final label = labelCtrl.text.trim();
-                      final text = addressCtrl.text.trim();
-                      if (label.isEmpty || text.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Please fill in both fields',
-                              style: GoogleFonts.nunito(
-                                  fontWeight: FontWeight.w700)),
-                          backgroundColor: const Color(0xFFDC2626),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ));
-                        return;
-                      }
-                      Navigator.pop(ctx);
-                      if (isEdit) {
-                        await FirestoreService.updateAddress(
-                            _uid,
-                            existing['id'] as String,
-                            label,
-                            text);
-                      } else {
-                        await FirestoreService.addAddress(_uid, label, text);
-                      }
+          padding: EdgeInsets.only(
+            left: SeSpacing.gutter,
+            right: SeSpacing.gutter,
+            top: 4,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SeSheetHandle(),
+              const SizedBox(height: 12),
+              Text(isEdit ? 'Edit Address' : 'Add New Address',
+                  style: SeType.h2),
+              const SizedBox(height: 16),
+              Text('LABEL', style: SeType.eyebrow),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: quickLabels.map((ql) {
+                  final sel = selectedQuick == ql;
+                  return GestureDetector(
+                    onTap: () {
+                      setModalState(() => selectedQuick = ql);
+                      labelCtrl.text = ql;
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: sel ? SeColors.red50 : SeColors.surface50,
+                        borderRadius: SeRadius.pill,
+                        border: Border.all(
+                          color: sel ? SeColors.red500 : SeColors.ink200,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(ql,
+                          style: SeType.label.copyWith(
+                              color:
+                                  sel ? SeColors.red700 : SeColors.ink500,
+                              fontWeight: FontWeight.w600)),
                     ),
-                    child: Text(
-                      isEdit ? 'Save Changes' : 'Add Address',
-                      style: GoogleFonts.nunito(
-                          fontSize: 14, fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+              SeTextField(
+                  controller: labelCtrl,
+                  hint: 'Or type a custom label...',
+                  icon: SeIcons.tag),
+              const SizedBox(height: 14),
+              SeTextField(
+                controller: addressCtrl,
+                label: 'ADDRESS',
+                hint: 'e.g. 14 Yallahs Main Road, St. Thomas',
+                icon: SeIcons.location,
+                minLines: 2,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 20),
+              SeButton(
+                label: isEdit ? 'Save Changes' : 'Add Address',
+                icon: SeIcons.check,
+                onPressed: () async {
+                  final label = labelCtrl.text.trim();
+                  final text = addressCtrl.text.trim();
+                  if (label.isEmpty || text.isEmpty) {
+                    SeToast.error(ctx, 'Please fill in both fields');
+                    return;
+                  }
+                  Navigator.pop(ctx);
+                  if (isEdit) {
+                    await FirestoreService.updateAddress(
+                        _uid, existing['id'] as String, label, text);
+                  } else {
+                    await FirestoreService.addAddress(_uid, label, text);
+                  }
+                },
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  InputDecoration _inputDeco(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle:
-            GoogleFonts.inter(fontSize: 12, color: const Color(0xFFBBBBBB)),
-        filled: true,
-        fillColor: const Color(0xFFF5F5F7),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:
-              const BorderSide(color: Color(0xFFE8E8E8), width: 1.5),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:
-              const BorderSide(color: Color(0xFFE8E8E8), width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-        isDense: true,
-      );
-
   Future<void> _deleteAddress(Map<String, dynamic> addr) async {
     if (_uid.isEmpty) return;
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14)),
-        title: Text('Delete Address',
-            style: GoogleFonts.montserrat(
-                fontSize: 15, fontWeight: FontWeight.w900)),
-        content: Text('Remove "${addr['label']}"?',
-            style: GoogleFonts.inter(fontSize: 13)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel',
-                style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF666666))),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete',
-                style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFFDC2626))),
-          ),
-        ],
-      ),
+    final confirm = await SeConfirmSheet.show(
+      context,
+      title: 'Delete Address',
+      message: 'Remove "${addr['label']}" from your saved addresses?',
+      confirmLabel: 'Delete',
+      destructive: true,
     );
-    if (confirm == true) {
+    if (confirm) {
       await FirestoreService.deleteAddress(_uid, addr['id'] as String);
     }
   }
@@ -276,7 +178,7 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: SeColors.surface50,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -290,51 +192,42 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
   }
 
   Widget _buildHeader() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.fromLTRB(12, 12, SeSpacing.gutter, 12),
         decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
+          color: SeColors.surface0,
+          border: Border(bottom: BorderSide(color: SeColors.ink100)),
         ),
         child: Row(
           children: [
             GestureDetector(
               onTap: () => Navigator.pop(context),
               child: Container(
-                width: 34,
-                height: 34,
+                width: 40,
+                height: 40,
                 decoration: const BoxDecoration(
-                    color: Color(0xFFF2F2F2), shape: BoxShape.circle),
-                child: const Center(
-                  child: Icon(Icons.arrow_back_ios,
-                      size: 16, color: Color(0xFF444444)),
-                ),
+                    color: SeColors.surface50, shape: BoxShape.circle),
+                child: const Icon(SeIcons.arrowLeft,
+                    size: 20, color: SeColors.ink900),
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Saved Addresses',
-                style: GoogleFonts.montserrat(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.dark),
-              ),
-            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Saved Addresses', style: SeType.h3)),
             GestureDetector(
               onTap: () => _showAddEditDialog(),
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '+ Add',
-                  style: GoogleFonts.nunito(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white),
+                    gradient: SeColors.emberGradient,
+                    borderRadius: SeRadius.pill,
+                    boxShadow: SeElevation.glow),
+                child: Row(
+                  children: [
+                    const Icon(SeIcons.plus, size: 15, color: Colors.white),
+                    const SizedBox(width: 4),
+                    Text('Add',
+                        style: SeType.label.copyWith(color: Colors.white)),
+                  ],
                 ),
               ),
             ),
@@ -344,51 +237,45 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-          child: CircularProgressIndicator(color: AppTheme.primary));
+      return SeShimmer(
+        child: ListView.separated(
+          padding: const EdgeInsets.all(SeSpacing.gutter),
+          itemCount: 4,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (_, __) => Row(
+            children: const [
+              SeSkeleton(width: 42, height: 42, radius: 11),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SeSkeleton(width: 80, height: 12, radius: 5),
+                    SizedBox(height: 8),
+                    SeSkeleton(width: 200, height: 10, radius: 5),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
     if (_addresses.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.location_off,
-                size: 52, color: Color(0xFFCCCCCC)),
-            const SizedBox(height: 14),
-            Text('No saved addresses',
-                style: GoogleFonts.montserrat(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.dark)),
-            const SizedBox(height: 6),
-            Text('Tap + Add to save a delivery address',
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: const Color(0xFF888888))),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () => _showAddEditDialog(),
-              icon: const Icon(Icons.add_location_alt, size: 16),
-              label: Text('Add New Address',
-                  style: GoogleFonts.nunito(
-                      fontSize: 13, fontWeight: FontWeight.w900)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-            ),
-          ],
+        child: SeEmptyState(
+          icon: SeIcons.addresses,
+          title: 'No saved addresses',
+          message: 'Save a delivery address to check out faster.',
+          ctaLabel: 'Add New Address',
+          onCta: () => _showAddEditDialog(),
         ),
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(SeSpacing.gutter),
       itemCount: _addresses.length,
-      separatorBuilder: (ctx, idx) => const SizedBox(height: 8),
+      separatorBuilder: (ctx, idx) => const SizedBox(height: 10),
       itemBuilder: (ctx, i) => _buildAddressCard(_addresses[i]),
     );
   }
@@ -397,88 +284,54 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
     final label = addr['label'] as String? ?? '';
     final text = addr['text'] as String? ?? '';
     final iconData = label == 'Home'
-        ? Icons.home
+        ? SeIcons.home
         : label == 'Work'
-            ? Icons.work
-            : Icons.location_on;
+            ? SeIcons.box
+            : SeIcons.location;
 
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
+    return SeCard(
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF0F2),
-              borderRadius: BorderRadius.circular(11),
+              color: SeColors.red50,
+              borderRadius: SeRadius.all(SeRadius.sm),
             ),
-            child: Center(
-              child:
-                  Icon(iconData, size: 20, color: AppTheme.primary),
-            ),
+            child: Icon(iconData, size: 20, color: SeColors.red500),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: GoogleFonts.montserrat(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.dark)),
+                Text(label, style: SeType.title),
                 const SizedBox(height: 3),
                 Text(text,
-                    style: GoogleFonts.inter(
-                        fontSize: 11, color: const Color(0xFF666666))),
+                    style: SeType.bodyS.copyWith(color: SeColors.ink500)),
               ],
             ),
           ),
-          GestureDetector(
-            onTap: () => _showAddEditDialog(existing: addr),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F7),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: const Center(
-                child:
-                    Icon(Icons.edit, size: 15, color: Color(0xFF666666)),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          GestureDetector(
-            onTap: () => _deleteAddress(addr),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF0F2),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: const Center(
-                child: Icon(Icons.delete_outline,
-                    size: 15, color: Color(0xFFDC2626)),
-              ),
-            ),
-          ),
+          _iconBtn(SeIcons.edit, SeColors.surface50, SeColors.ink700,
+              () => _showAddEditDialog(existing: addr)),
+          const SizedBox(width: 8),
+          _iconBtn(SeIcons.trash, SeColors.dangerTint, SeColors.danger,
+              () => _deleteAddress(addr)),
         ],
       ),
     );
   }
+
+  Widget _iconBtn(IconData icon, Color bg, Color fg, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration:
+              BoxDecoration(color: bg, borderRadius: SeRadius.all(SeRadius.sm)),
+          child: Icon(icon, size: 17, color: fg),
+        ),
+      );
 }

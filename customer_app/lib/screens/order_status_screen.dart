@@ -1,9 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/firestore_service.dart';
-import '../theme/app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_toast.dart';
 
 class OrderStatusScreen extends StatefulWidget {
   const OrderStatusScreen({super.key});
@@ -15,8 +21,6 @@ class OrderStatusScreen extends StatefulWidget {
 class _OrderStatusScreenState extends State<OrderStatusScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseCtrl;
-  late Animation<double> _pulseScale;
-  late Animation<double> _pulseOpacity;
 
   String _orderId = '';
   bool _argsLoaded = false;
@@ -66,7 +70,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       case 2:
         return '~15 min';
       case 3:
-        return 'Done!';
+        return 'Done';
       default:
         return '';
     }
@@ -80,15 +84,14 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
   ];
 
   static const _stepIcons = [
-    Icons.check_circle,
-    Icons.check_circle,
-    Icons.delivery_dining,
-    Icons.home,
+    SeIcons.checkCircle,
+    SeIcons.box,
+    SeIcons.bike,
+    SeIcons.home,
   ];
 
   String _stepSub(int index) {
-    final merchantName =
-        _order?['merchantName'] as String? ?? 'Merchant';
+    final merchantName = _order?['merchantName'] as String? ?? 'Merchant';
     switch (index) {
       case 0:
         return '$merchantName accepted your order';
@@ -120,12 +123,6 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     )..repeat();
-    _pulseScale = Tween<double>(begin: 0.7, end: 2.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeOut),
-    );
-    _pulseOpacity = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeOut),
-    );
   }
 
   @override
@@ -168,26 +165,38 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
 
   @override
   Widget build(BuildContext context) {
+    final delivered = _currentStep == 3;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: SeColors.surface50,
       body: Column(
         children: [
-          _buildMapArea(),
-          _buildStatusBar(),
+          _buildHero(delivered),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(SeSpacing.gutter),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  ...List.generate(4, _buildStepRow),
-                  const SizedBox(height: 8),
+                  _buildStepper(),
+                  const SizedBox(height: 16),
                   _buildDriverCard(),
                   const SizedBox(height: 12),
-                  if (_currentStep == 3 &&
-                      _order?['rated'] != true)
-                    _buildRateButton(),
-                  if (_currentStep < 3) _buildTrackingNote(),
-                  const SizedBox(height: 8),
+                  if (delivered && _order?['rated'] != true)
+                    SeButton(
+                      label: 'Rate Your Experience',
+                      icon: SeIcons.star,
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        '/rate-driver',
+                        arguments: {
+                          'orderId': _orderId,
+                          'driverId': _order?['driverId'] ?? '',
+                          'merchantId': _order?['merchantId'] ?? '',
+                          'merchantName': _order?['merchantName'] ?? '',
+                        },
+                      ),
+                    ),
+                  if (!delivered) _buildTrackingNote(),
                 ],
               ),
             ),
@@ -197,115 +206,159 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     );
   }
 
-  Widget _buildMapArea() {
-    return SizedBox(
-      height: 155,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF1B4332), Color(0xFF14532D)],
-              ),
-            ),
-          ),
-          CustomPaint(painter: _MapGridPainter()),
-          const Center(
-            child: Icon(Icons.location_on, size: 28, color: Colors.red),
-          ),
-          if (_currentStep < 3)
-            Positioned(
-              bottom: 40,
-              left: 64,
-              child: SizedBox(
-                width: 26,
-                height: 26,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    AnimatedBuilder(
-                      animation: _pulseCtrl,
-                      builder: (context, child) => Transform.scale(
-                        scale: _pulseScale.value,
-                        child: Opacity(
-                          opacity: _pulseOpacity.value,
-                          child: Container(
-                            width: 26,
-                            height: 26,
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary
-                                  .withValues(alpha: 0.25),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: 16,
-                      height: 16,
+  // Honest live-tracking status hero (SEDS) — deliberately NOT a fake street
+  // map. Shows the real order status, a route progress bar, and a pulsing
+  // "current" node. A real map lands with the maps integration (see audit).
+  Widget _buildHero(bool delivered) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient:
+            delivered ? _successGradient : SeColors.emberGradient,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, SeSpacing.gutter, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: AppTheme.primary,
+                        color: Colors.white.withValues(alpha: 0.18),
                         shape: BoxShape.circle,
-                        border:
-                            Border.all(color: Colors.white, width: 2.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.4),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
+                      child: const Icon(SeIcons.arrowLeft,
+                          size: 20, color: Colors.white),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          if (_currentStep == 3)
-            Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Delivered!',
-                  style: GoogleFonts.montserrat(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white),
-                ),
-              ),
-            ),
-          // Back button
-          Positioned(
-            top: 0,
-            left: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 34,
-                    height: 34,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _orderId.isNotEmpty
+                          ? 'Order #${_orderId.substring(0, _orderId.length.clamp(0, 8)).toUpperCase()}'
+                          : 'Your Order',
+                      style: SeType.label.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85)),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: SeRadius.pill,
                     ),
-                    child: const Center(
-                      child: Icon(Icons.arrow_back_ios,
-                          size: 14, color: Colors.white),
+                    child: Text(_etaLabel,
+                        style: SeType.tabular(SeType.label)
+                            .copyWith(color: Colors.white)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(_statusLabel, style: SeType.h1.copyWith(color: Colors.white)),
+              const SizedBox(height: 4),
+              Text(
+                delivered
+                    ? 'Thanks for ordering with ShipEast.'
+                    : 'Live status · updates automatically',
+                style: SeType.bodyS.copyWith(
+                    color: Colors.white.withValues(alpha: 0.85)),
+              ),
+              const SizedBox(height: 16),
+              _routeBar(delivered),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static const LinearGradient _successGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF16A34A), Color(0xFF0B7A38)],
+  );
+
+  Widget _routeBar(bool delivered) {
+    final progress = (_currentStep / 3).clamp(0.0, 1.0);
+    return LayoutBuilder(
+      builder: (context, c) {
+        final width = c.maxWidth;
+        return SizedBox(
+          height: 24,
+          child: Stack(
+            alignment: Alignment.centerLeft,
+            children: [
+              Container(
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              FractionallySizedBox(
+                widthFactor: progress == 0 ? 0.02 : progress,
+                child: Container(
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              // Moving node
+              Positioned(
+                left: (width - 20) * progress,
+                child: _pulseNode(),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _pulseNode() {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (_currentStep < 3)
+            AnimatedBuilder(
+              animation: _pulseCtrl,
+              builder: (context, child) => Transform.scale(
+                scale: 0.7 + _pulseCtrl.value * 1.3,
+                child: Opacity(
+                  opacity: (1 - _pulseCtrl.value).clamp(0.0, 1.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
                     ),
                   ),
                 ),
               ),
+            ),
+          Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: SeElevation.e1,
+            ),
+            child: Icon(
+              _currentStep >= 3 ? SeIcons.check : SeIcons.bike,
+              size: 8,
+              color: SeColors.red500,
             ),
           ),
         ],
@@ -313,161 +366,97 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     );
   }
 
-  Widget _buildStatusBar() => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(bottom: BorderSide(color: Color(0xFFF2F2F2))),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _orderId.isNotEmpty
-                      ? 'Order #${_orderId.substring(0, _orderId.length.clamp(0, 8)).toUpperCase()}'
-                      : 'Your Order',
-                  style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFFAAAAAA)),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _statusLabel,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    color: _currentStep == 3
-                        ? const Color(0xFF16A34A)
-                        : AppTheme.dark,
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-              decoration: BoxDecoration(
-                color: _currentStep == 3
-                    ? const Color(0xFFEDFCF2)
-                    : const Color(0xFFFFF0F2),
-                border: Border.all(
-                    color: _currentStep == 3
-                        ? const Color(0xFF86EFAC)
-                        : const Color(0xFFFECDD3),
-                    width: 1.5),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Text(
-                _etaLabel,
-                style: GoogleFonts.montserrat(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  color: _currentStep == 3
-                      ? const Color(0xFF16A34A)
-                      : AppTheme.primary,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+  Widget _buildStepper() {
+    return SeCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        children: List.generate(4, (i) => _stepRow(i, isLast: i == 3)),
+      ),
+    );
+  }
 
-  Widget _buildStepRow(int stepIndex) {
+  Widget _stepRow(int stepIndex, {required bool isLast}) {
     final state = _stepState(stepIndex);
     final isDone = state == 'done';
     final isNow = state == 'now';
     final isWait = state == 'wait';
 
-    Color dotBg;
-    if (isDone) {
-      dotBg = const Color(0xFFEDFCF2);
-    } else if (isNow) {
-      dotBg = AppTheme.primary;
-    } else {
-      dotBg = const Color(0xFFF2F2F2);
-    }
+    final Color dotBg = isDone
+        ? SeColors.successTint
+        : isNow
+            ? SeColors.red500
+            : SeColors.surface50;
+    final Color iconColor = isDone
+        ? SeColors.success
+        : isNow
+            ? Colors.white
+            : SeColors.ink300;
 
-    final iconData = _stepIcons[stepIndex];
-    final stepIcon = Icon(
-      iconData,
-      size: 16,
-      color: isDone
-          ? const Color(0xFF16A34A)
-          : isNow
-              ? Colors.white
-              : const Color(0xFFAAAAAA),
-    );
-
-    return AnimatedOpacity(
-      opacity: isWait ? 0.4 : 1.0,
-      duration: const Duration(milliseconds: 300),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(13),
-          border: isNow
-              ? Border.all(
-                  color: AppTheme.primary.withValues(alpha: 0.3),
-                  width: 1.5)
-              : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration:
-                  BoxDecoration(color: dotBg, shape: BoxShape.circle),
-              child: Center(child: stepIcon),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: dotBg,
+                  shape: BoxShape.circle,
+                  boxShadow:
+                      isNow ? SeElevation.glow : SeElevation.e0,
+                ),
+                child: Icon(_stepIcons[stepIndex], size: 18, color: iconColor),
+              ),
+              if (!isLast)
+                Expanded(
+                  child: Container(
+                    width: 2.5,
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    color: isDone ? SeColors.success : SeColors.ink200,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(top: 8, bottom: isLast ? 8 : 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     _stepNames[stepIndex],
-                    style: GoogleFonts.montserrat(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: isWait
-                          ? const Color(0xFFCCCCCC)
-                          : AppTheme.dark,
-                    ),
+                    style: SeType.title.copyWith(
+                        color: isWait ? SeColors.ink400 : SeColors.ink900),
                   ),
-                  const SizedBox(height: 1),
+                  const SizedBox(height: 2),
                   Text(
-                    isDone || isNow
-                        ? _stepSub(stepIndex)
-                        : 'Waiting...',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: const Color(0xFFAAAAAA),
-                      fontWeight: FontWeight.w500,
-                    ),
+                    isDone || isNow ? _stepSub(stepIndex) : 'Waiting...',
+                    style: SeType.bodyS.copyWith(color: SeColors.ink400),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _callDriver(String name) async {
+    final phone = (_driver?['phone'] as String?)?.trim() ?? '';
+    if (phone.isEmpty) {
+      if (mounted) SeToast.info(context, 'Driver contact not available yet');
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (mounted) {
+      SeToast.error(context, 'Could not start the call');
+    }
   }
 
   Widget _buildDriverCard() {
@@ -475,54 +464,29 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     final hasDriver = driverId != null && driverId.isNotEmpty;
 
     if (!hasDriver) {
-      return Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(13),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
+      return SeCard(
         child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 46,
+              height: 46,
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F7),
-                borderRadius: BorderRadius.circular(13),
+                color: SeColors.surface50,
+                borderRadius: SeRadius.all(SeRadius.sm),
               ),
-              child: const Center(
-                child: Icon(Icons.person_search,
-                    size: 22, color: Color(0xFFBBBBBB)),
-              ),
+              child: const Icon(SeIcons.user, size: 22, color: SeColors.ink300),
             ),
-            const SizedBox(width: 11),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Finding your driver...',
-                  style: GoogleFonts.montserrat(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.dark),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'A driver will be assigned shortly',
-                  style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: const Color(0xFFAAAAAA),
-                      fontWeight: FontWeight.w500),
-                ),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Finding your driver...', style: SeType.title),
+                  const SizedBox(height: 2),
+                  Text('A driver will be assigned shortly',
+                      style: SeType.bodyS.copyWith(color: SeColors.ink400)),
+                ],
+              ),
             ),
           ],
         ),
@@ -541,61 +505,36 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       if (licensePlate.isNotEmpty) licensePlate,
     ].join('  ·  ');
 
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
+    return SeCard(
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFC8102E), Color(0xFF8B0A1E)],
-              ),
-              borderRadius: BorderRadius.circular(13),
+              gradient: SeColors.emberGradient,
+              borderRadius: SeRadius.all(SeRadius.sm),
             ),
-            child: const Center(
-              child:
-                  Icon(Icons.person, size: 22, color: Colors.white),
-            ),
+            child: const Icon(SeIcons.user, size: 22, color: Colors.white),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  driverName,
-                  style: GoogleFonts.montserrat(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.dark),
-                ),
+                Text(driverName, style: SeType.title),
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    const Icon(Icons.star,
-                        size: 10, color: Color(0xFFFACC15)),
-                    Text(
-                      ' $avgRating${vehicleInfo.isNotEmpty ? '  ·  $vehicleInfo' : ''}',
-                      style: GoogleFonts.inter(
-                          fontSize: 10,
-                          color: const Color(0xFFAAAAAA),
-                          fontWeight: FontWeight.w500),
+                    const Icon(SeIcons.star, size: 12, color: SeColors.gold500),
+                    const SizedBox(width: 3),
+                    Flexible(
+                      child: Text(
+                        '$avgRating${vehicleInfo.isNotEmpty ? '  ·  $vehicleInfo' : ''}',
+                        style: SeType.bodyS.copyWith(color: SeColors.ink500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -603,29 +542,15 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
             ),
           ),
           GestureDetector(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text('Calling $driverName...',
-                    style: GoogleFonts.nunito(
-                        fontWeight: FontWeight.w700)),
-                backgroundColor: const Color(0xFF16A34A),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                duration: const Duration(seconds: 2),
-              ));
-            },
+            onTap: () => _callDriver(driverName),
             child: Container(
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFFEDFCF2),
-                borderRadius: BorderRadius.circular(11),
+                color: SeColors.successTint,
+                borderRadius: SeRadius.all(SeRadius.sm),
               ),
-              child: const Center(
-                child: Icon(Icons.phone,
-                    size: 18, color: Color(0xFF16A34A)),
-              ),
+              child: const Icon(SeIcons.phone, size: 18, color: SeColors.success),
             ),
           ),
         ],
@@ -633,92 +558,24 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     );
   }
 
-  Widget _buildRateButton() => SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: () => Navigator.pushNamed(
-            context,
-            '/rate-driver',
-            arguments: {
-              'orderId': _orderId,
-              'driverId': _order?['driverId'] ?? '',
-              'merchantId': _order?['merchantId'] ?? '',
-              'merchantName': _order?['merchantName'] ?? '',
-            },
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primary,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 52),
-            padding:
-                const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(13)),
-            elevation: 0,
-          ),
-          child: Text(
-            'Rate Your Experience →',
-            style: GoogleFonts.nunito(
-                fontSize: 14, fontWeight: FontWeight.w900),
-          ),
-        ),
-      );
-
   Widget _buildTrackingNote() => Container(
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          color: SeColors.oceanTint,
+          borderRadius: SeRadius.all(SeRadius.md),
         ),
         child: Row(
           children: [
-            const Icon(Icons.info_outline,
-                size: 16, color: Color(0xFFAAAAAA)),
-            const SizedBox(width: 8),
+            const Icon(SeIcons.info, size: 18, color: SeColors.ocean500),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 "We'll notify you when your order is delivered.",
-                style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: const Color(0xFFAAAAAA),
-                    fontWeight: FontWeight.w500),
+                style: SeType.bodyS.copyWith(color: SeColors.ocean500),
               ),
             ),
           ],
         ),
       );
-}
-
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final fine = Paint()
-      ..color = Colors.white.withValues(alpha: 0.07)
-      ..strokeWidth = 1;
-    for (double x = 0; x < size.width; x += 26) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), fine);
-    }
-    for (double y = 0; y < size.height; y += 26) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), fine);
-    }
-    final road = Paint()
-      ..color = Colors.white.withValues(alpha: 0.12)
-      ..strokeWidth = 2;
-    for (double x = 0; x < size.width; x += 84) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), road);
-    }
-    for (double y = 0; y < size.height; y += 84) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), road);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
