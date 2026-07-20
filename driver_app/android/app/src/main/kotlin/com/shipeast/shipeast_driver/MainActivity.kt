@@ -38,9 +38,6 @@ class MainActivity : FlutterActivity() {
         registerPlugin(flutterEngine, "jni_flutter") {
             flutterEngine.plugins.add(com.github.dart_lang.jni_flutter.JniFlutterPlugin())
         }
-        registerPlugin(flutterEngine, "shared_preferences_android") {
-            flutterEngine.plugins.add(io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin())
-        }
     }
 
     private fun registerPlugin(flutterEngine: FlutterEngine, name: String, block: () -> Unit) {
