@@ -398,7 +398,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       ValueListenableBuilder<String>(
                         valueListenable: widget.driverNameNotifier,
-                        builder: (_, name, __) => Text(
+                        builder: (_, name, _) => Text(
                           name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

@@ -428,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? Image.network(
                       _avatarUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
+                      errorBuilder: (_, _, _) => const Icon(
                           SeIcons.userFill,
                           size: 44,
                           color: Colors.white),

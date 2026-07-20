@@ -115,7 +115,7 @@ class _CountUpState extends State<_CountUp>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _anim,
-      builder: (_, __) =>
+      builder: (_, _) =>
           widget.builder(_anim.value.toStringAsFixed(widget.decimals)),
     );
   }

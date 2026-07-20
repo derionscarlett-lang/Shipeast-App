@@ -237,8 +237,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: ListView.separated(
           padding: const EdgeInsets.all(SeSpacing.gutter),
           itemCount: 5,
-          separatorBuilder: (_, __) => const SizedBox(height: SeSpacing.x3),
-          itemBuilder: (_, __) =>
+          separatorBuilder: (_, _) => const SizedBox(height: SeSpacing.x3),
+          itemBuilder: (_, _) =>
               const SeSkeleton(height: 118, radius: SeRadius.md),
         ),
       );
@@ -265,7 +265,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       padding: const EdgeInsets.fromLTRB(
           SeSpacing.gutter, SeSpacing.x4, SeSpacing.gutter, 100),
       itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: SeSpacing.x3),
+      separatorBuilder: (_, _) => const SizedBox(height: SeSpacing.x3),
       itemBuilder: (_, i) => _card(items[i]),
     );
   }

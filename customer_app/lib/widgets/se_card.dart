@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../theme/se_colors.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_motion.dart';
 
