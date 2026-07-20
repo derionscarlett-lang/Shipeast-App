@@ -4,8 +4,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'app_theme.dart';
+import 'theme/app_theme.dart';
+import 'theme/se_colors.dart';
+import 'theme/se_icons.dart';
+import 'theme/se_motion.dart';
+import 'theme/se_spacing.dart';
+import 'theme/se_typography.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -94,7 +98,8 @@ class ShipEastDriverApp extends StatelessWidget {
     return MaterialApp(
       title: 'ShipEast Driver',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.buildTheme(),
+      theme: AppTheme.theme,
+      darkTheme: AppTheme.darkTheme,
       home: home,
       routes: {
         '/login': (_) => const LoginScreen(),
@@ -144,10 +149,14 @@ class _DriverShellState extends State<DriverShell> {
   }
 
   static const List<Map<String, dynamic>> _navItems = [
-    {'label': 'Home', 'icon': Icons.home},
-    {'label': 'History', 'icon': Icons.history},
-    {'label': 'Earnings', 'icon': Icons.account_balance_wallet},
-    {'label': 'Profile', 'icon': Icons.person},
+    {'label': 'Home', 'icon': SeIcons.home, 'active': SeIcons.homeFill},
+    {'label': 'History', 'icon': SeIcons.history, 'active': SeIcons.history},
+    {
+      'label': 'Earnings',
+      'icon': SeIcons.wallet,
+      'active': SeIcons.walletFill
+    },
+    {'label': 'Profile', 'icon': SeIcons.user, 'active': SeIcons.userFill},
   ];
 
   @override
@@ -166,47 +175,48 @@ class _DriverShellState extends State<DriverShell> {
         ],
       ),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: AppTheme.divider, width: 1)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
+        decoration: const BoxDecoration(
+          color: SeColors.surface0,
+          border: Border(top: BorderSide(color: SeColors.ink200, width: 1)),
+          boxShadow: SeElevation.e2,
         ),
         child: SafeArea(
           top: false,
           child: SizedBox(
-            height: 60,
+            height: 64,
             child: Row(
               children: List.generate(_navItems.length, (i) {
                 final active = _selectedIndex == i;
                 return Expanded(
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() => _selectedIndex = i),
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedIndex = i);
+                    },
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          _navItems[i]['icon'] as IconData,
-                          size: 22,
-                          color: active
-                              ? AppTheme.primary
-                              : const Color(0xFFC0C0C0),
+                        // The icon lifts a couple of pixels and swaps to its
+                        // filled variant on selection.
+                        AnimatedSlide(
+                          offset: Offset(0, active ? -0.06 : 0),
+                          duration: SeMotion.fast,
+                          curve: SeMotion.emphasized,
+                          child: Icon(
+                            (active
+                                ? _navItems[i]['active']
+                                : _navItems[i]['icon']) as IconData,
+                            size: 24,
+                            color: active ? SeColors.red500 : SeColors.ink400,
+                          ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: SeSpacing.x1),
                         Text(
                           _navItems[i]['label'] as String,
-                          style: GoogleFonts.nunito(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: active
-                                ? AppTheme.primary
-                                : const Color(0xFFC0C0C0),
+                          style: SeType.eyebrow.copyWith(
+                            color: active ? SeColors.red500 : SeColors.ink400,
+                            letterSpacing: 0.3,
                           ),
                         ),
                       ],

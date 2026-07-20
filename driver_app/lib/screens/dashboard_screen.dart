@@ -2,9 +2,19 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../app_theme.dart';
+import '../driver_constants.dart';
 import '../services/driver_firestore_service.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_motion.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_bottom_sheet.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_empty_state.dart';
+import '../widgets/se_online_toggle.dart';
+import '../widgets/se_stat_tile.dart';
+import '../widgets/se_toast.dart';
 import 'new_order_screen.dart';
 import 'pickup_confirmation_screen.dart';
 import 'delivery_confirmation_screen.dart';
@@ -22,6 +32,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   bool isOnline = false;
+  bool _togglingPresence = false;
   int _todayEarnings = 0;
   int _todayDeliveries = 0;
   Map<String, dynamic>? _activeOrder;
@@ -61,72 +72,98 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.dispose();
   }
 
+  DriverPresence get _presence => _activeOrder != null
+      ? DriverPresence.delivering
+      : isOnline
+          ? DriverPresence.online
+          : DriverPresence.offline;
+
   void _subscribeToDriverData() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    _driverSub = DriverFirestoreService.driverStream(uid).listen((snap) {
-      if (!mounted) return;
-      final data = snap.data();
-      if (data == null) return;
-      final newOnline = data['isOnline'] as bool? ?? false;
-      final wasOnline = isOnline;
-      setState(() {
-        isOnline = newOnline;
-        _todayEarnings = (data['todayEarnings'] as num?)?.toInt() ?? 0;
-      });
-      if (newOnline && !wasOnline) {
-        // Only start listening for new orders if no active order
-        if (_activeOrder == null) {
-          _startListening();
+    _driverSub = DriverFirestoreService.driverStream(uid).listen(
+      (snap) {
+        if (!mounted) return;
+        final data = snap.data();
+        if (data == null) return;
+        final newOnline = data['isOnline'] as bool? ?? false;
+        final wasOnline = isOnline;
+        setState(() => isOnline = newOnline);
+        if (newOnline && !wasOnline) {
+          if (_activeOrder == null) _startListening();
+        } else if (!newOnline && wasOnline) {
+          _ordersSub?.cancel();
+          _ordersSub = null;
+          _seenOrderIds.clear();
         }
-      } else if (!newOnline && wasOnline) {
-        _ordersSub?.cancel();
-        _ordersSub = null;
-        _seenOrderIds.clear();
-      }
-    });
+      },
+      // Audit §7.4: streams had no error handler, so a rules failure looked
+      // identical to "no data".
+      onError: (_) {
+        if (mounted) SeToast.error(context, 'Lost connection to your profile.');
+      },
+    );
   }
 
   void _subscribeToActiveOrder() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    _activeOrderSub =
-        DriverFirestoreService.activeOrderStream(uid).listen((orders) {
-      if (!mounted) return;
-      final hadActive = _activeOrder != null;
-      final newActive = orders.isNotEmpty ? orders.first : null;
-      setState(() => _activeOrder = newActive);
+    _activeOrderSub = DriverFirestoreService.activeOrderStream(uid).listen(
+      (orders) {
+        if (!mounted) return;
+        final hadActive = _activeOrder != null;
+        final newActive = orders.isNotEmpty ? orders.first : null;
+        setState(() => _activeOrder = newActive);
 
-      if (newActive != null) {
-        // Has active order — cancel new-order listener
-        _ordersSub?.cancel();
-        _ordersSub = null;
-      } else if (hadActive && isOnline) {
-        // Active order just completed — start listening for new orders
-        _seenOrderIds.clear();
-        _startListening();
-      }
-    });
+        if (newActive != null) {
+          _ordersSub?.cancel();
+          _ordersSub = null;
+        } else if (hadActive && isOnline) {
+          _seenOrderIds.clear();
+          _startListening();
+        }
+      },
+      onError: (_) {
+        if (mounted) SeToast.error(context, 'Could not load your active order.');
+      },
+    );
   }
 
   void _subscribeToOrderHistory() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    _historySub =
-        DriverFirestoreService.driverOrderHistoryStream(uid).listen((orders) {
-      if (!mounted) return;
-      final today = DateTime.now();
-      final todayStart = DateTime(today.year, today.month, today.day);
-      final count = orders.where((o) {
-        if (o['status'] != 'delivered') return false;
-        final ts = (o['deliveredAt'] as Timestamp?)?.toDate();
-        return ts != null && ts.isAfter(todayStart);
-      }).length;
-      setState(() => _todayDeliveries = count);
-    });
+    _historySub = DriverFirestoreService.driverOrderHistoryStream(uid).listen(
+      (orders) {
+        if (!mounted) return;
+        final today = DateTime.now();
+        final todayStart = DateTime(today.year, today.month, today.day);
+        final deliveredToday = orders.where((o) {
+          if (o['status'] != 'delivered') return false;
+          final ts = (o['deliveredAt'] as Timestamp?)?.toDate();
+          return ts != null && ts.isAfter(todayStart);
+        }).toList();
+
+        // Audit §7.2: `drivers/{uid}.todayEarnings` is incremented on delivery
+        // but never reset at midnight, so it drifts away from the Earnings tab
+        // forever. Deriving the figure from today's delivered orders keeps the
+        // two screens in agreement and needs no scheduled reset.
+        final earned = deliveredToday.fold<double>(
+          0,
+          (acc, o) => acc + DriverPay.commissionOn((o['total'] as num?) ?? 0),
+        );
+
+        setState(() {
+          _todayDeliveries = deliveredToday.length;
+          _todayEarnings = earned.round();
+        });
+      },
+      onError: (_) {
+        if (mounted) SeToast.error(context, 'Could not load today\'s trips.');
+      },
+    );
   }
 
   String get _greeting {
@@ -136,53 +173,61 @@ class _DashboardScreenState extends State<DashboardScreen>
     return 'Good evening';
   }
 
-  String _formatEarnings(int amount) {
-    if (amount >= 1000) {
-      return '\$${amount ~/ 1000},${(amount % 1000).toString().padLeft(3, '0')}';
-    }
-    return '\$$amount';
-  }
-
-  Future<void> _toggleOnline() async {
-    final newState = !isOnline;
-    setState(() => isOnline = newState);
+  Future<void> _setOnline(bool next) async {
+    setState(() {
+      isOnline = next;
+      _togglingPresence = true;
+    });
 
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      await DriverFirestoreService.setDriverOnline(uid, newState);
-    }
-
-    if (newState) {
-      if (_activeOrder == null) {
-        _startListening();
+    try {
+      if (uid != null) {
+        await DriverFirestoreService.setDriverOnline(uid, next);
       }
-    } else {
-      _ordersSub?.cancel();
-      _ordersSub = null;
-      _seenOrderIds.clear();
+      if (next) {
+        if (_activeOrder == null) _startListening();
+      } else {
+        _ordersSub?.cancel();
+        _ordersSub = null;
+        _seenOrderIds.clear();
+      }
+    } catch (_) {
+      // Roll the control back so it never claims a state the backend rejected.
+      if (mounted) {
+        setState(() => isOnline = !next);
+        SeToast.error(context, 'Could not update your status. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _togglingPresence = false);
     }
   }
 
   void _startListening() {
     _ordersSub?.cancel();
-    _ordersSub =
-        DriverFirestoreService.pendingOrdersStream().listen((orders) async {
-      if (!mounted || !isOnline || _navigating || _activeOrder != null) return;
-      for (final order in orders) {
-        final id = order['id'] as String? ?? '';
-        if (id.isEmpty || _seenOrderIds.contains(id)) continue;
-        _seenOrderIds.add(id);
-        _navigating = true;
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => NewOrderScreen(order: order),
-          ),
-        );
-        _navigating = false;
-        break;
-      }
-    });
+    _ordersSub = DriverFirestoreService.pendingOrdersStream().listen(
+      (orders) async {
+        if (!mounted || !isOnline || _navigating || _activeOrder != null) {
+          return;
+        }
+        for (final order in orders) {
+          final id = order['id'] as String? ?? '';
+          if (id.isEmpty || _seenOrderIds.contains(id)) continue;
+          _seenOrderIds.add(id);
+          _navigating = true;
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => NewOrderScreen(order: order)),
+          );
+          _navigating = false;
+          break;
+        }
+      },
+      onError: (_) {
+        if (mounted) {
+          SeToast.error(context, 'Order feed interrupted. Retrying…');
+        }
+      },
+    );
   }
 
   void _continueActiveOrder() {
@@ -194,448 +239,38 @@ class _DashboardScreenState extends State<DashboardScreen>
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => PickupConfirmationScreen(
-            orderId: orderId,
-            order: order,
-          ),
+          builder: (_) =>
+              PickupConfirmationScreen(orderId: orderId, order: order),
         ),
       );
     } else if (status == 'picked_up') {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => DeliveryConfirmationScreen(
-            orderId: orderId,
-            order: order,
-          ),
+          builder: (_) =>
+              DeliveryConfirmationScreen(orderId: orderId, order: order),
         ),
       );
     }
   }
 
-  void _showHelpDialog() {
-    showDialog(
+  /// Replaces the old `showDialog` coming-soon alert with a SEDS sheet.
+  void _showHelpSheet() {
+    showSeBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Help & Support',
-          style: GoogleFonts.montserrat(
-              fontWeight: FontWeight.w900, fontSize: 16),
-        ),
-        content: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.construction,
-                color: AppTheme.primary, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Help & Support is coming soon. Stay tuned!',
-                style: AppTheme.body(color: AppTheme.textMid),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('OK',
-                style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.primary)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOnlineToggle() {
-    return GestureDetector(
-      onTap: _toggleOnline,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: 68,
-        height: 32,
-        decoration: BoxDecoration(
-          color: isOnline
-              ? AppTheme.success.withValues(alpha: 0.9)
-              : Colors.white.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(16),
-          border:
-              Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
-        ),
-        child: Stack(
-          children: [
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              left: isOnline ? 36 : 2,
-              top: 2,
-              child: Container(
-                width: 24,
-                height: 24,
-                decoration: const BoxDecoration(
-                    color: Colors.white, shape: BoxShape.circle),
-              ),
-            ),
-            Center(
-              child: Padding(
-                padding: EdgeInsets.only(left: isOnline ? 0 : 20),
-                child: Text(
-                  isOnline ? 'ON' : 'OFF',
-                  style: GoogleFonts.nunito(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String value, String label) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(value,
-              style: GoogleFonts.montserrat(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white)),
-          const SizedBox(height: 2),
-          Text(label,
-              style: GoogleFonts.nunito(
-                  fontSize: 10,
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionCard(
-      String title, IconData icon, Color iconBgColor, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconBgColor.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: iconBgColor, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(title,
-                  style: GoogleFonts.montserrat(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.textDark)),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 12, color: AppTheme.textLight),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOfflineBanner() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFFCC02), width: 1),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.warning_amber_rounded,
-              color: Color(0xFFE65100), size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('You are currently offline.',
-                    style: GoogleFonts.montserrat(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFF5D4037))),
-                const SizedBox(height: 2),
-                Text('Toggle the switch above to start receiving orders.',
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: const Color(0xFF795548))),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _toggleOnline,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                  color: const Color(0xFFE65100),
-                  borderRadius: BorderRadius.circular(8)),
-              child: Text('Go Online',
-                  style: GoogleFonts.nunito(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReadyCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppTheme.success.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.circle,
-                    color: AppTheme.success, size: 14),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Ready for Orders',
-                        style: GoogleFonts.montserrat(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.textDark)),
-                    const SizedBox(height: 2),
-                    Text("You're online — ready to receive delivery requests",
-                        style: GoogleFonts.inter(
-                            fontSize: 12, color: AppTheme.textMid)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedBuilder(
-                animation: _pulseAnimation,
-                builder: (context, child) => Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: AppTheme.success
-                        .withValues(alpha: _pulseAnimation.value),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text('Waiting for new orders...',
-                  style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: AppTheme.success,
-                      fontWeight: FontWeight.w500)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActiveOrderCard(Map<String, dynamic> order) {
-    final status = order['status'] as String? ?? '';
-    final merchantName = order['merchantName'] as String? ?? 'Merchant';
-    final customerName = order['customerName'] as String? ?? 'Customer';
-    final deliveryAddress = order['deliveryAddress'] as String? ?? '—';
-    final isPickup = status == 'confirmed';
-    final statusLabel = isPickup ? 'Head to Merchant' : 'On the Way';
-    final statusColor = isPickup ? AppTheme.primary : AppTheme.success;
-    final orderId = order['id'] as String? ?? '';
-    final shortId = orderId.length > 8
-        ? orderId.substring(0, 8).toUpperCase()
-        : orderId.toUpperCase();
-
-    return GestureDetector(
-      onTap: _continueActiveOrder,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [statusColor, statusColor.withValues(alpha: 0.85)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-                color: statusColor.withValues(alpha: 0.35),
-                blurRadius: 14,
-                offset: const Offset(0, 6)),
-          ],
-        ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).padding.bottom),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isPickup ? Icons.store : Icons.local_shipping,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Active Delivery',
-                          style: GoogleFonts.nunito(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white.withValues(alpha: 0.8))),
-                      Text(statusLabel,
-                          style: GoogleFonts.montserrat(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white)),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text('#$shortId',
-                      style: GoogleFonts.nunito(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.store,
-                          size: 14, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(merchantName,
-                            style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on,
-                          size: 14, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text('$customerName · $deliveryAddress',
-                            style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.85)),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isPickup ? Icons.directions : Icons.check_circle,
-                      color: statusColor,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isPickup ? 'Go to Pickup' : 'Confirm Delivery',
-                      style: GoogleFonts.nunito(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: statusColor),
-                    ),
-                  ],
-                ),
-              ),
+            const SeSheetHandle(),
+            SeEmptyState(
+              icon: SeIcons.chat,
+              title: 'Support is on the way',
+              message:
+                  'In-app support chat is still being built. For anything urgent right now, reach the ShipEast dispatch desk on the number in your driver pack.',
+              ctaLabel: 'Got it',
+              onCta: () => Navigator.pop(ctx),
             ),
           ],
         ),
@@ -646,164 +281,434 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceGrey,
+      backgroundColor: SeColors.surface50,
       body: Column(
         children: [
-          Container(
-            color: AppTheme.primary,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.person,
-                              color: Colors.white, size: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ValueListenableBuilder<String>(
-                                valueListenable: widget.driverNameNotifier,
-                                builder: (_, name, _) => Text(
-                                  name,
-                                  style: GoogleFonts.montserrat(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white),
-                                ),
-                              ),
-                              Text('$_greeting!',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 13,
-                                      color: Colors.white
-                                          .withValues(alpha: 0.7))),
-                            ],
-                          ),
-                        ),
-                        _buildOnlineToggle(),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 14, horizontal: 8),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFB00D28),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildStatItem(
-                              _todayEarnings > 0
-                                  ? _formatEarnings(_todayEarnings)
-                                  : '\$0',
-                              "Today's Earnings"),
-                          Container(
-                              width: 1,
-                              height: 30,
-                              color: Colors.white.withValues(alpha: 0.3)),
-                          _buildStatItem(
-                              '$_todayDeliveries', 'Deliveries'),
-                          Container(
-                              width: 1,
-                              height: 30,
-                              color: Colors.white.withValues(alpha: 0.3)),
-                          _buildStatItem(
-                              isOnline ? 'Online' : 'Offline', 'Status'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          _header(),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(
+                  SeSpacing.gutter, SeSpacing.x5, SeSpacing.gutter, 100),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Hero presence control ─────────────────────────────
+                  SeOnlineToggle(
+                    presence: _presence,
+                    busy: _togglingPresence,
+                    onChanged: _setOnline,
+                  ),
+                  const SizedBox(height: SeSpacing.x5),
+
+                  // ── Today's stats ─────────────────────────────────────
+                  Text('TODAY', style: SeType.eyebrow),
+                  const SizedBox(height: SeSpacing.x3),
                   Row(
                     children: [
-                      Text('Status',
-                          style: GoogleFonts.montserrat(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.textDark)),
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _activeOrder != null
-                              ? AppTheme.primary.withValues(alpha: 0.12)
-                              : isOnline
-                                  ? AppTheme.success.withValues(alpha: 0.12)
-                                  : const Color(0xFFF2F2F2),
-                          borderRadius: BorderRadius.circular(20),
+                      Expanded(
+                        child: SeStatTile(
+                          icon: SeIcons.wallet,
+                          label: 'Earned today',
+                          value: _todayEarnings,
+                          prefix: Money.symbol,
                         ),
-                        child: Text(
-                          _activeOrder != null
-                              ? 'DELIVERING'
-                              : isOnline
-                                  ? 'ONLINE'
-                                  : 'OFFLINE',
-                          style: GoogleFonts.nunito(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            color: _activeOrder != null
-                                ? AppTheme.primary
-                                : isOnline
-                                    ? AppTheme.success
-                                    : AppTheme.textLight,
-                          ),
+                      ),
+                      const SizedBox(width: SeSpacing.x3),
+                      Expanded(
+                        child: SeStatTile(
+                          icon: SeIcons.bike,
+                          label: 'Deliveries',
+                          value: _todayDeliveries,
+                          hue: SeColors.ocean500,
+                          tint: SeColors.oceanTint,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  if (_activeOrder != null)
-                    _buildActiveOrderCard(_activeOrder!)
-                  else if (!isOnline)
-                    _buildOfflineBanner()
-                  else
-                    _buildReadyCard(),
-                  const SizedBox(height: 16),
-                  Text('Quick Actions',
-                      style: GoogleFonts.montserrat(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.textDark)),
-                  const SizedBox(height: 12),
-                  _buildQuickActionCard('View Earnings',
-                      Icons.account_balance_wallet, AppTheme.primary,
-                      () => widget.onTabSwitch(2)),
-                  const SizedBox(height: 8),
-                  _buildQuickActionCard('Delivery History', Icons.history,
-                      AppTheme.success, () => widget.onTabSwitch(1)),
-                  const SizedBox(height: 8),
-                  _buildQuickActionCard('My Profile', Icons.person,
-                      const Color(0xFF1D4ED8), () => widget.onTabSwitch(3)),
-                  const SizedBox(height: 8),
-                  _buildQuickActionCard('Help & Support', Icons.headset_mic,
-                      const Color(0xFF7C3AED), _showHelpDialog),
-                  const SizedBox(height: 80),
+                  const SizedBox(height: SeSpacing.x6),
+
+                  Text('CURRENT JOB', style: SeType.eyebrow),
+                  const SizedBox(height: SeSpacing.x3),
+                  AnimatedSwitcher(
+                    duration: SeMotion.reduced(context)
+                        ? Duration.zero
+                        : SeMotion.base,
+                    child: _activeOrder != null
+                        ? _activeOrderCard(_activeOrder!)
+                        : isOnline
+                            ? _readyCard()
+                            : _offlineCard(),
+                  ),
+                  const SizedBox(height: SeSpacing.x6),
+
+                  Text('QUICK ACTIONS', style: SeType.eyebrow),
+                  const SizedBox(height: SeSpacing.x3),
+                  _quickAction(SeIcons.wallet, 'View Earnings',
+                      'Trips, commission and payouts', SeColors.red500,
+                      SeColors.red50, () => widget.onTabSwitch(2)),
+                  const SizedBox(height: SeSpacing.x3),
+                  _quickAction(SeIcons.history, 'Delivery History',
+                      'Every job you have run', SeColors.success,
+                      SeColors.successTint, () => widget.onTabSwitch(1)),
+                  const SizedBox(height: SeSpacing.x3),
+                  _quickAction(SeIcons.user, 'My Profile',
+                      'Vehicle, licence and rating', SeColors.ocean500,
+                      SeColors.oceanTint, () => widget.onTabSwitch(3)),
+                  const SizedBox(height: SeSpacing.x3),
+                  _quickAction(SeIcons.chat, 'Help & Support',
+                      'Reach the dispatch desk', SeColors.gold500,
+                      SeColors.goldTint, _showHelpSheet),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _header() => Container(
+        decoration: const BoxDecoration(gradient: SeColors.emberGradient),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, SeSpacing.x3,
+                SeSpacing.gutter, SeSpacing.x5),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.20),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(SeIcons.userFill,
+                      color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: SeSpacing.x3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _greeting,
+                        style: SeType.bodyS.copyWith(
+                            color: Colors.white.withValues(alpha: 0.80)),
+                      ),
+                      ValueListenableBuilder<String>(
+                        valueListenable: widget.driverNameNotifier,
+                        builder: (_, name, __) => Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: SeType.h2.copyWith(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _offlineCard() => SeCard(
+        key: const ValueKey('offline'),
+        padding: const EdgeInsets.all(SeSpacing.x5),
+        color: SeColors.warningTint,
+        shadow: SeElevation.e0,
+        border: Border.all(
+            color: SeColors.warning.withValues(alpha: 0.35), width: 1.5),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: SeColors.warning.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(SeIcons.warning,
+                  color: SeColors.warning, size: 22),
+            ),
+            const SizedBox(width: SeSpacing.x4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('You are offline', style: SeType.title),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Flip the switch above to start receiving orders.',
+                    style: SeType.bodyS.copyWith(color: SeColors.ink500),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _readyCard() => SeCard(
+        key: const ValueKey('ready'),
+        padding: const EdgeInsets.all(SeSpacing.x5),
+        shadow: SeElevation.e1,
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: SeColors.successTint,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(SeIcons.checkCircle,
+                      color: SeColors.success, size: 22),
+                ),
+                const SizedBox(width: SeSpacing.x4),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Ready for orders', style: SeType.title),
+                      const SizedBox(height: 2),
+                      Text(
+                        'You are visible to dispatch right now.',
+                        style: SeType.bodyS.copyWith(color: SeColors.ink500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedBuilder(
+                  animation: _pulseAnimation,
+                  builder: (context, _) => Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: SeColors.success.withValues(
+                        alpha: SeMotion.reduced(context)
+                            ? 1.0
+                            : _pulseAnimation.value,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: SeSpacing.x2),
+                Text(
+                  'Waiting for new orders…',
+                  style: SeType.bodyS.copyWith(color: SeColors.success),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+
+  Widget _activeOrderCard(Map<String, dynamic> order) {
+    final status = order['status'] as String? ?? '';
+    final merchantName = order['merchantName'] as String? ?? 'Merchant';
+    final customerName = order['customerName'] as String? ?? 'Customer';
+    final deliveryAddress = order['deliveryAddress'] as String? ?? '—';
+    final isPickup = status == 'confirmed';
+    final orderId = order['id'] as String? ?? '';
+    final shortId = orderId.length > 8
+        ? orderId.substring(0, 8).toUpperCase()
+        : orderId.toUpperCase();
+
+    return SeCard(
+      key: const ValueKey('active'),
+      onTap: _continueActiveOrder,
+      padding: const EdgeInsets.all(SeSpacing.x5),
+      shadow: SeElevation.e2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: SeColors.red50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(isPickup ? SeIcons.storefront : SeIcons.bike,
+                    color: SeColors.red700, size: 20),
+              ),
+              const SizedBox(width: SeSpacing.x3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ACTIVE DELIVERY', style: SeType.eyebrow),
+                    Text(
+                      isPickup ? 'Head to merchant' : 'On the way',
+                      style: SeType.h3,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: SeSpacing.x2, vertical: SeSpacing.x1),
+                decoration: BoxDecoration(
+                  color: SeColors.surface50,
+                  borderRadius: SeRadius.all(SeRadius.xs),
+                ),
+                child: Text('#$shortId',
+                    style: SeType.tabular(SeType.label)
+                        .copyWith(color: SeColors.ink500)),
+              ),
+            ],
+          ),
+          const SizedBox(height: SeSpacing.x4),
+
+          // ── Route line: pickup → dropoff ──────────────────────────────
+          _RouteLine(
+            pickupLabel: merchantName,
+            dropoffLabel: '$customerName · $deliveryAddress',
+            atPickup: isPickup,
+          ),
+          const SizedBox(height: SeSpacing.x4),
+
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: SeSpacing.x3),
+            decoration: BoxDecoration(
+              gradient: SeColors.emberGradient,
+              borderRadius: SeRadius.all(SeRadius.sm),
+              boxShadow: SeElevation.glow,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(isPickup ? SeIcons.navigation : SeIcons.checkCircle,
+                    color: Colors.white, size: 18),
+                const SizedBox(width: SeSpacing.x2),
+                Text(
+                  isPickup ? 'Go to pickup' : 'Confirm delivery',
+                  style: SeType.jakarta(15, FontWeight.w700,
+                      color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickAction(IconData icon, String title, String subtitle, Color hue,
+          Color tint, VoidCallback onTap) =>
+      SeCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(SeSpacing.x4),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+              child: Icon(icon, color: hue, size: 21),
+            ),
+            const SizedBox(width: SeSpacing.x4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: SeType.title),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: SeType.bodyS.copyWith(color: SeColors.ink500)),
+                ],
+              ),
+            ),
+            const Icon(SeIcons.caretRight, size: 20, color: SeColors.ink300),
+          ],
+        ),
+      );
+}
+
+/// Pickup → dropoff route with a connecting rail, so the job reads as a
+/// journey rather than two unrelated address lines.
+class _RouteLine extends StatelessWidget {
+  final String pickupLabel;
+  final String dropoffLabel;
+  final bool atPickup;
+
+  const _RouteLine({
+    required this.pickupLabel,
+    required this.dropoffLabel,
+    required this.atPickup,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(SeSpacing.x4),
+      decoration: BoxDecoration(
+        color: SeColors.surface50,
+        borderRadius: SeRadius.all(SeRadius.sm),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Container(
+                width: 11,
+                height: 11,
+                decoration: BoxDecoration(
+                  color: atPickup ? SeColors.red500 : SeColors.success,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Container(
+                width: 2,
+                height: 26,
+                margin: const EdgeInsets.symmetric(vertical: 3),
+                color: SeColors.ink200,
+              ),
+              Container(
+                width: 11,
+                height: 11,
+                decoration: BoxDecoration(
+                  color: atPickup ? SeColors.ink300 : SeColors.red500,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: SeSpacing.x3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('PICKUP', style: SeType.eyebrow),
+                Text(pickupLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: SeType.body.copyWith(
+                        color: SeColors.ink900, fontWeight: FontWeight.w500)),
+                const SizedBox(height: SeSpacing.x2),
+                Text('DROP-OFF', style: SeType.eyebrow),
+                Text(dropoffLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: SeType.body.copyWith(
+                        color: SeColors.ink900, fontWeight: FontWeight.w500)),
+              ],
             ),
           ),
         ],

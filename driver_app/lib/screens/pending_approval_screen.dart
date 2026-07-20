@@ -1,6 +1,16 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../app_theme.dart';
+import '../services/driver_firestore_service.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_motion.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_step_tracker.dart';
+import '../widgets/se_toast.dart';
 import 'login_screen.dart';
 
 class PendingApprovalScreen extends StatefulWidget {
@@ -12,8 +22,11 @@ class PendingApprovalScreen extends StatefulWidget {
 
 class _PendingApprovalScreenState extends State<PendingApprovalScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _pulseCtrl;
-  late Animation<double> _pulseAnim;
+  late final AnimationController _pulseCtrl;
+  late final Animation<double> _pulseAnim;
+
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _statusSub;
+  String _status = 'pending';
 
   @override
   void initState() {
@@ -22,257 +35,214 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
+    _pulseAnim = Tween<double>(begin: 0.88, end: 1.0)
+        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    _watchStatus();
+  }
+
+  /// Audit §7.5: this screen used to be a dead end — a driver approved while
+  /// looking at it had to force-quit the app. It now watches its own status
+  /// doc, so approval advances the tracker and unlocks the app in place.
+  void _watchStatus() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+    _statusSub = DriverFirestoreService.driverStream(uid).listen(
+      (doc) {
+        if (!mounted) return;
+        final next = doc.data()?['status'] as String? ?? 'pending';
+        if (next == _status) return;
+        setState(() => _status = next);
+
+        if (next == 'approved') {
+          // Let the tracker's completion animation land before routing.
+          Future.delayed(SeMotion.deliberate, () {
+            if (!mounted) return;
+            Navigator.pushNamedAndRemoveUntil(
+                context, '/dashboard', (route) => false);
+          });
+        }
+      },
+      onError: (_) {
+        // A rules/network error must not leave the screen looking "live".
+        if (mounted) SeToast.error(context, 'Could not check approval status.');
+      },
     );
   }
 
   @override
   void dispose() {
+    _statusSub?.cancel();
     _pulseCtrl.dispose();
     super.dispose();
   }
 
+  bool get _approved => _status == 'approved';
+  bool get _rejected => _status == 'rejected';
+
+  ({Color hue, Color tint, IconData icon, String label}) get _badge {
+    if (_approved) {
+      return (
+        hue: SeColors.success,
+        tint: SeColors.successTint,
+        icon: SeIcons.checkCircle,
+        label: 'Approved — opening your dashboard'
+      );
+    }
+    if (_rejected) {
+      return (
+        hue: SeColors.danger,
+        tint: SeColors.dangerTint,
+        icon: SeIcons.warningCircle,
+        label: 'Application not approved'
+      );
+    }
+    return (
+      hue: SeColors.warning,
+      tint: SeColors.warningTint,
+      icon: SeIcons.hourglass,
+      label: 'Application under review'
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final badge = _badge;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: SeColors.surface50,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: SeSpacing.x6),
           child: Column(
             children: [
-              const Spacer(flex: 2),
-              // Pulsing logo
+              const SizedBox(height: SeSpacing.x10),
+
+              // ── Pulsing brand medallion ─────────────────────────────────
               AnimatedBuilder(
                 animation: _pulseAnim,
                 builder: (_, child) => Transform.scale(
-                  scale: _pulseAnim.value,
+                  scale: SeMotion.reduced(context) ? 1.0 : _pulseAnim.value,
                   child: child,
                 ),
                 child: Container(
-                  width: 100,
-                  height: 100,
+                  width: 108,
+                  height: 108,
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.08),
+                    color: badge.tint,
                     shape: BoxShape.circle,
                   ),
                   child: Center(
                     child: Container(
-                      width: 72,
-                      height: 72,
+                      width: 78,
+                      height: 78,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: SeColors.surface0,
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primary.withValues(alpha: 0.2),
-                            blurRadius: 20,
-                            spreadRadius: 4,
-                          ),
-                        ],
+                        boxShadow: SeElevation.e2,
                       ),
                       child: ClipOval(
                         child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Image.asset(
-                            'assets/logo.png',
-                            fit: BoxFit.contain,
-                          ),
+                          padding: const EdgeInsets.all(SeSpacing.x3),
+                          child: Image.asset('assets/logo.png',
+                              fit: BoxFit.contain),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: SeSpacing.x8),
 
-              // Pending icon badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              // ── Live status pill ────────────────────────────────────────
+              AnimatedContainer(
+                duration: SeMotion.base,
+                curve: SeMotion.emphasized,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: SeSpacing.x4, vertical: SeSpacing.x2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF8E1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFFFCC02), width: 1),
+                  color: badge.tint,
+                  borderRadius: SeRadius.pill,
+                  border: Border.all(
+                      color: badge.hue.withValues(alpha: 0.35), width: 1.5),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.hourglass_top,
-                        color: Color(0xFFE65100), size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Application Under Review',
-                      style: GoogleFonts.nunito(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFFE65100),
-                      ),
-                    ),
+                    Icon(badge.icon, color: badge.hue, size: 16),
+                    const SizedBox(width: SeSpacing.x2),
+                    Text(badge.label,
+                        style: SeType.label.copyWith(color: badge.hue)),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: SeSpacing.x5),
 
               Text(
-                'Application\nSubmitted!',
+                _approved
+                    ? 'You\'re approved!'
+                    : _rejected
+                        ? 'Application declined'
+                        : 'Application submitted',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.montserrat(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textDark,
-                  height: 1.2,
-                ),
+                style: SeType.display,
               ),
-              const SizedBox(height: 16),
-
+              const SizedBox(height: SeSpacing.x3),
               Text(
-                'Your driver application has been submitted for review. You will receive a notification once approved by a ShipEast admin.',
+                _approved
+                    ? 'Everything checks out. Taking you to your dashboard…'
+                    : _rejected
+                        ? 'Our team could not approve this application. Contact ShipEast support for the details.'
+                        : 'Your driver application is with our team. This screen updates the moment a decision is made — no need to reopen the app.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: AppTheme.textMid,
-                  height: 1.6,
-                ),
+                style: SeType.body.copyWith(color: SeColors.ink500),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: SeSpacing.x8),
 
-              // Steps
-              _buildStep(
-                icon: Icons.assignment_turned_in,
-                color: AppTheme.success,
-                title: 'Application Received',
-                subtitle: 'We\'ve received your registration details',
-                done: true,
-              ),
-              const SizedBox(height: 12),
-              _buildStep(
-                icon: Icons.manage_search,
-                color: const Color(0xFFE65100),
-                title: 'Background Check',
-                subtitle: 'Our team is reviewing your documents',
-                done: false,
-                active: true,
-              ),
-              const SizedBox(height: 12),
-              _buildStep(
-                icon: Icons.verified,
-                color: const Color(0xFF9CA3AF),
-                title: 'Account Activated',
-                subtitle: 'Start accepting deliveries',
-                done: false,
-              ),
-
-              const Spacer(flex: 3),
-
-              // Back to Login button
-              SizedBox(
+              // ── Live tracker ────────────────────────────────────────────
+              Container(
                 width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                  ),
-                  child: Text('Back to Login', style: AppTheme.buttonLG()),
+                padding: const EdgeInsets.all(SeSpacing.x5),
+                decoration: BoxDecoration(
+                  color: SeColors.surface0,
+                  borderRadius: SeRadius.all(SeRadius.lg),
+                  boxShadow: SeElevation.e1,
+                ),
+                child: SeStepTracker(
+                  current: _approved ? 2 : 1,
+                  allComplete: _approved,
+                  steps: const [
+                    SeStep('Application received',
+                        caption: 'We have your registration details'),
+                    SeStep('Background check',
+                        caption: 'Our team is reviewing your documents'),
+                    SeStep('Account activated',
+                        caption: 'Start accepting deliveries'),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: SeSpacing.x8),
+
+              SeButton(
+                label: 'Back to Login',
+                variant: SeButtonVariant.ghost,
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                },
+              ),
+              const SizedBox(height: SeSpacing.x3),
               Text(
-                'Average approval time: 24–48 hours',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: AppTheme.textLight,
-                ),
+                'Most applications are reviewed within 24–48 hours.',
                 textAlign: TextAlign.center,
+                style: SeType.bodyS.copyWith(color: SeColors.ink400),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: SeSpacing.x8),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildStep({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String subtitle,
-    required bool done,
-    bool active = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: active
-            ? const Color(0xFFFFF8E1)
-            : done
-                ? const Color(0xFFEDFCF2)
-                : const Color(0xFFF5F5F7),
-        borderRadius: BorderRadius.circular(12),
-        border: active
-            ? Border.all(color: const Color(0xFFFFCC02), width: 1)
-            : done
-                ? Border.all(color: const Color(0xFF86EFAC), width: 1)
-                : null,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: done || active ? 0.15 : 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: done || active ? AppTheme.textDark : AppTheme.textMid,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: AppTheme.textMid,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (done)
-            const Icon(Icons.check_circle, color: AppTheme.success, size: 18)
-          else if (active)
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Color(0xFFE65100),
-              ),
-            ),
-        ],
       ),
     );
   }

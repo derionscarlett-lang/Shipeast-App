@@ -1,10 +1,23 @@
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import '../app_theme.dart';
+import '../driver_constants.dart';
 import '../services/driver_firestore_service.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_motion.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_app_bar.dart';
+import '../widgets/se_bottom_sheet.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_photo_tile.dart';
+import '../widgets/se_step_tracker.dart';
+import '../widgets/se_text_field.dart';
+import '../widgets/se_toast.dart';
 
 class DeliveryConfirmationScreen extends StatefulWidget {
   final String orderId;
@@ -35,13 +48,6 @@ class _DeliveryConfirmationScreenState
   String get _paymentMethod =>
       widget.order['paymentMethod'] as String? ?? 'COD';
 
-  String _formatPrice(int price) {
-    if (price >= 1000) {
-      return '\$${price ~/ 1000},${(price % 1000).toString().padLeft(3, '0')}';
-    }
-    return '\$$price';
-  }
-
   bool get _isCod =>
       _paymentMethod.toLowerCase().contains('cod') ||
       _paymentMethod.toLowerCase().contains('cash');
@@ -54,60 +60,61 @@ class _DeliveryConfirmationScreenState
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: source, imageQuality: 85, maxWidth: 1080);
-    if (picked != null) {
+    final picked = await picker.pickImage(
+        source: source, imageQuality: 85, maxWidth: 1080);
+    if (picked != null && mounted) {
       setState(() => _photo = File(picked.path));
     }
   }
 
   void _showPhotoOptions() {
-    showModalBottomSheet(
+    showSeBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.only(
+          left: SeSpacing.gutter,
+          right: SeSpacing.gutter,
+          bottom: MediaQuery.of(ctx).padding.bottom + SeSpacing.x5,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Select Photo',
-                style: GoogleFonts.montserrat(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.textDark)),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: AppTheme.primary),
-              title:
-                  Text('Take Photo', style: GoogleFonts.inter(fontSize: 14)),
-              onTap: () {
+            const SeSheetHandle(),
+            const SizedBox(height: SeSpacing.x3),
+            Text('Proof of delivery',
+                style: SeType.h3, textAlign: TextAlign.center),
+            const SizedBox(height: SeSpacing.x5),
+            SeButton(
+              label: 'Take Photo',
+              icon: SeIcons.camera,
+              onPressed: () {
                 Navigator.pop(ctx);
                 _pickImage(ImageSource.camera);
               },
             ),
-            ListTile(
-              leading:
-                  const Icon(Icons.photo_library, color: AppTheme.primary),
-              title: Text('Choose from Gallery',
-                  style: GoogleFonts.inter(fontSize: 14)),
-              onTap: () {
+            const SizedBox(height: SeSpacing.x3),
+            SeButton(
+              label: 'Choose from Gallery',
+              icon: SeIcons.image,
+              variant: SeButtonVariant.ghost,
+              onPressed: () {
                 Navigator.pop(ctx);
                 _pickImage(ImageSource.gallery);
               },
             ),
-            if (_photo != null)
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: Text('Remove Photo',
-                    style:
-                        GoogleFonts.inter(fontSize: 14, color: Colors.red)),
-                onTap: () {
+            if (_photo != null) ...[
+              const SizedBox(height: SeSpacing.x3),
+              SeButton(
+                label: 'Remove Photo',
+                icon: SeIcons.trash,
+                variant: SeButtonVariant.destructive,
+                onPressed: () {
                   Navigator.pop(ctx);
                   setState(() => _photo = null);
                 },
               ),
+            ],
           ],
         ),
       ),
@@ -124,7 +131,12 @@ class _DeliveryConfirmationScreenState
           photoUrl = await DriverFirestoreService.uploadDeliveryPhoto(
               widget.orderId, _photo!);
         } catch (_) {
-          // Photo upload failed — still mark as delivered
+          // Photo upload failed — still mark delivered, but say so rather than
+          // letting the driver believe the proof was stored.
+          if (mounted) {
+            SeToast.info(
+                context, 'Photo could not be uploaded — delivery still saved.');
+          }
         }
       }
       await DriverFirestoreService.confirmDelivery(
@@ -132,136 +144,41 @@ class _DeliveryConfirmationScreenState
         uid,
         _total,
         photoUrl,
-        _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
       );
       if (mounted) {
-        _showSuccessDialog();
+        HapticFeedback.mediumImpact();
+        _showSuccessSheet();
       }
     } catch (_) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to confirm delivery. Try again.',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+        SeToast.error(context, 'Failed to confirm delivery. Try again.');
       }
     }
   }
 
-  void _showSuccessDialog() {
-    showDialog(
+  /// The payoff moment — Sunset gradient with the driver's earnings counting up.
+  void _showSuccessSheet() {
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                  color: AppTheme.success.withValues(alpha: 0.12),
-                  shape: BoxShape.circle),
-              child: const Icon(Icons.check_circle,
-                  color: AppTheme.success, size: 40),
-            ),
-            const SizedBox(height: 18),
-            Text('Delivery Complete!',
-                style: GoogleFonts.montserrat(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.textDark)),
-            const SizedBox(height: 8),
-            Text(
-              'Order delivered to $_customerName.\nGreat job!',
-              style:
-                  GoogleFonts.inter(fontSize: 13, color: AppTheme.textMid),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border:
-                    Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.trending_up,
-                      color: AppTheme.primary, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Earned ${_formatPrice(_total ~/ 10)} this trip',
-                    style: GoogleFonts.nunito(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.primary),
-                  ),
-                ],
-              ),
-            ),
-            if (_isCod) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.success.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: AppTheme.success.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.payments,
-                        color: AppTheme.success, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Collect ${_formatPrice(_total)} from customer',
-                        style: GoogleFonts.nunito(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.success),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.of(context).popUntil(
-                      (route) =>
-                          route.settings.name == '/dashboard' ||
-                          route.isFirst);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.success,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  elevation: 0,
-                ),
-                child: Text('Back to Dashboard',
-                    style: GoogleFonts.nunito(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white)),
-              ),
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _DeliverySuccessSheet(
+        customerName: _customerName,
+        commission: DriverPay.commissionOn(_total),
+        orderTotal: _total,
+        collectCash: _isCod,
+        onDone: () {
+          Navigator.of(ctx).pop();
+          Navigator.of(context).popUntil(
+            (route) => route.settings.name == '/dashboard' || route.isFirst,
+          );
+        },
       ),
     );
   }
@@ -269,272 +186,255 @@ class _DeliveryConfirmationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceGrey,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textDark),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text('Delivery Confirmation',
-            style: GoogleFonts.montserrat(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.textDark)),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(2),
-          child: Container(height: 2, color: AppTheme.primary),
-        ),
-      ),
+      backgroundColor: SeColors.surface50,
+      appBar: const SeTopBar(title: 'Delivery'),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(
+            SeSpacing.gutter, SeSpacing.x2, SeSpacing.gutter, SeSpacing.x8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFC8102E), Color(0xFFB00D28)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.local_shipping,
-                        color: Colors.white, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Almost There!',
-                            style: GoogleFonts.montserrat(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white)),
-                        const SizedBox(height: 2),
-                        Text('Confirm delivery to complete the order',
-                            style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.8))),
-                      ],
-                    ),
-                  ),
+            SeCard(
+              padding: const EdgeInsets.all(SeSpacing.x5),
+              child: const SeStepTracker(
+                current: 2,
+                steps: [
+                  SeStep('Order accepted'),
+                  SeStep('Collected from merchant'),
+                  SeStep('Deliver to customer',
+                      caption: 'Capture proof, then mark delivered'),
                 ],
               ),
             ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(13),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2)),
-                ],
-              ),
+            const SizedBox(height: SeSpacing.x4),
+
+            // ── Who and where ───────────────────────────────────────────
+            SeCard(
+              padding: const EdgeInsets.all(SeSpacing.x5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Delivery Details',
-                      style: GoogleFonts.montserrat(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.textDark)),
-                  const SizedBox(height: 12),
-                  _detailRow(Icons.person, 'Customer', _customerName),
-                  const SizedBox(height: 8),
-                  _detailRow(Icons.location_on, 'Address', _deliveryAddress),
-                  const SizedBox(height: 8),
-                  _detailRow(Icons.payments, 'Payment',
-                      '$_paymentMethod – ${_formatPrice(_total)}'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(13),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2)),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Delivery Photo (Optional)',
-                      style: GoogleFonts.montserrat(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.textDark)),
-                  const SizedBox(height: 4),
-                  Text('Take a photo as proof of delivery',
-                      style: GoogleFonts.inter(
-                          fontSize: 11, color: AppTheme.textMid)),
-                  const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: _showPhotoOptions,
-                    child: Container(
-                      height: 160,
+                  Text('DELIVERING TO', style: SeType.eyebrow),
+                  const SizedBox(height: SeSpacing.x2),
+                  Text(_customerName, style: SeType.h3),
+                  const SizedBox(height: 2),
+                  Text(_deliveryAddress,
+                      style: SeType.body.copyWith(color: SeColors.ink500)),
+                  const Divider(color: SeColors.ink200, height: SeSpacing.x6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Payment · $_paymentMethod',
+                          style:
+                              SeType.bodyS.copyWith(color: SeColors.ink500)),
+                      Text(Money.format(_total),
+                          style: SeType.tabular(SeType.title)),
+                    ],
+                  ),
+                  if (_isCod) ...[
+                    const SizedBox(height: SeSpacing.x3),
+                    Container(
+                      padding: const EdgeInsets.all(SeSpacing.x3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F7),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: const Color(0xFFE5E5E5), width: 1.5),
+                        color: SeColors.warningTint,
+                        borderRadius: SeRadius.all(SeRadius.sm),
                       ),
-                      child: _photo != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.file(_photo!,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity),
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.camera_alt,
-                                    size: 36, color: Color(0xFFCCCCCC)),
-                                const SizedBox(height: 8),
-                                Text('Tap to add photo',
-                                    style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        color: AppTheme.textMid)),
-                              ],
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(13),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2)),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Delivery Note (Optional)',
-                      style: GoogleFonts.montserrat(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.textDark)),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _noteController,
-                    maxLines: 3,
-                    style: GoogleFonts.inter(
-                        fontSize: 13, color: AppTheme.textDark),
-                    decoration: InputDecoration(
-                      hintText: 'Any notes about the delivery...',
-                      hintStyle: GoogleFonts.inter(
-                          fontSize: 12, color: AppTheme.textLight),
-                      filled: true,
-                      fillColor: const Color(0xFFF5F5F7),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFE5E5E5))),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFE5E5E5))),
-                      focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: AppTheme.primary)),
-                      contentPadding: const EdgeInsets.all(12),
-                      isDense: true,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _markAsDelivered,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  elevation: 0,
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2.5, color: Colors.white))
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Row(
                         children: [
-                          const Icon(Icons.check_circle,
-                              color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
-                          Text('Mark as Delivered',
-                              style: GoogleFonts.nunito(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white)),
+                          const Icon(SeIcons.cash,
+                              color: SeColors.warning, size: 18),
+                          const SizedBox(width: SeSpacing.x2),
+                          Expanded(
+                            child: Text(
+                              'Collect ${Money.format(_total)} in cash on arrival.',
+                              style: SeType.bodyS
+                                  .copyWith(color: SeColors.ink700),
+                            ),
+                          ),
                         ],
                       ),
+                    ),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: SeSpacing.x3),
+
+            // ── Proof photo ─────────────────────────────────────────────
+            SeCard(
+              padding: const EdgeInsets.all(SeSpacing.x5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Delivery photo', style: SeType.title),
+                  const SizedBox(height: 2),
+                  Text('Optional, but it protects you in a dispute.',
+                      style: SeType.bodyS.copyWith(color: SeColors.ink500)),
+                  const SizedBox(height: SeSpacing.x4),
+                  SePhotoTile(
+                    photo: _photo,
+                    onCapture: _showPhotoOptions,
+                    emptyLabel: 'Add a photo',
+                    emptyHint: 'Camera or gallery',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: SeSpacing.x3),
+
+            // ── Note ────────────────────────────────────────────────────
+            SeCard(
+              padding: const EdgeInsets.all(SeSpacing.x5),
+              child: SeTextField(
+                controller: _noteController,
+                label: 'Delivery note (optional)',
+                hint: 'e.g. Left with the security guard',
+                icon: SeIcons.note,
+                minLines: 3,
+                maxLines: 4,
+              ),
+            ),
+            const SizedBox(height: SeSpacing.x6),
+
+            SeButton(
+              label: 'Mark as Delivered',
+              icon: SeIcons.checkCircle,
+              loading: _isLoading,
+              onPressed: _isLoading ? null : _markAsDelivered,
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _detailRow(IconData icon, String label, String value) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: AppTheme.textMid),
-          const SizedBox(width: 8),
-          SizedBox(
-              width: 72,
-              child: Text(label,
-                  style: GoogleFonts.inter(
-                      fontSize: 12, color: AppTheme.textMid))),
-          Expanded(
-            child: Text(value,
-                style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDark)),
+/// Success sheet shown once the delivery write lands.
+class _DeliverySuccessSheet extends StatelessWidget {
+  final String customerName;
+  final double commission;
+  final int orderTotal;
+  final bool collectCash;
+  final VoidCallback onDone;
+
+  const _DeliverySuccessSheet({
+    required this.customerName,
+    required this.commission,
+    required this.orderTotal,
+    required this.collectCash,
+    required this.onDone,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = SeMotion.reduced(context);
+
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: SeColors.sunsetGradient,
+        borderRadius: SeRadius.sheetTop,
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, SeSpacing.x5,
+              SeSpacing.gutter, SeSpacing.x6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.20),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(SeIcons.checkCircle,
+                    color: Colors.white, size: 42),
+              ),
+              const SizedBox(height: SeSpacing.x5),
+              Text('Delivery complete',
+                  style: SeType.h1.copyWith(color: Colors.white)),
+              const SizedBox(height: SeSpacing.x2),
+              Text(
+                'Handed off to $customerName. Nice work.',
+                textAlign: TextAlign.center,
+                style: SeType.body
+                    .copyWith(color: Colors.white.withValues(alpha: 0.88)),
+              ),
+              const SizedBox(height: SeSpacing.x6),
+
+              // Count-up earnings — the reward beat.
+              Text('YOU EARNED',
+                  style: SeType.eyebrow
+                      .copyWith(color: Colors.white.withValues(alpha: 0.80))),
+              const SizedBox(height: SeSpacing.x1),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: commission),
+                duration: reduced
+                    ? Duration.zero
+                    : const Duration(milliseconds: 900),
+                curve: SeMotion.decelerate,
+                builder: (context, value, _) => Text(
+                  Money.format(value),
+                  style: SeType.tabular(SeType.display)
+                      .copyWith(color: Colors.white, fontSize: 40),
+                ),
+              ),
+              Text(
+                '${DriverPay.commissionLabel} of ${Money.format(orderTotal)}',
+                style: SeType.bodyS
+                    .copyWith(color: Colors.white.withValues(alpha: 0.78)),
+              ),
+
+              if (collectCash) ...[
+                const SizedBox(height: SeSpacing.x5),
+                Container(
+                  padding: const EdgeInsets.all(SeSpacing.x4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: SeRadius.all(SeRadius.sm),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(SeIcons.cash, color: Colors.white, size: 20),
+                      const SizedBox(width: SeSpacing.x3),
+                      Expanded(
+                        child: Text(
+                          'Remember to remit the ${Money.format(orderTotal)} cash you collected.',
+                          style:
+                              SeType.bodyS.copyWith(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: SeSpacing.x6),
+              GestureDetector(
+                onTap: onDone,
+                child: Container(
+                  width: double.infinity,
+                  height: 54,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: SeRadius.all(SeRadius.md),
+                    boxShadow: SeElevation.e2,
+                  ),
+                  child: Text(
+                    'Back to Dashboard',
+                    style: SeType.jakarta(16, FontWeight.w700,
+                        color: SeColors.red600),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      );
+        ),
+      ),
+    );
+  }
 }

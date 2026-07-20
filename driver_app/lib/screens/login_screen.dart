@@ -1,8 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../app_theme.dart';
+import '../theme/se_brand.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_motion.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_text_field.dart';
+import '../widgets/se_toast.dart';
 import 'register_screen.dart';
 import 'pending_approval_screen.dart';
 
@@ -13,15 +20,26 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
   bool _isLoading = false;
+  String? _emailError;
+  String? _passwordError;
+
+  late final AnimationController _intro;
+
+  @override
+  void initState() {
+    super.initState();
+    _intro = AnimationController(vsync: this, duration: SeMotion.deliberate)
+      ..forward();
+  }
 
   @override
   void dispose() {
+    _intro.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -39,31 +57,30 @@ class _LoginScreenState extends State<LoginScreen> {
         return 'This account has been disabled.';
       case 'invalid-credential':
         return 'Invalid email or password.';
+      case 'too-many-requests':
+        return 'Too many attempts. Try again shortly.';
       default:
         return 'Sign in failed. Please try again.';
     }
   }
 
   Future<void> _signIn() async {
-    if (_emailController.text.trim().isEmpty ||
-        _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email and password')),
-      );
-      return;
-    }
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    setState(() {
+      _emailError = email.isEmpty ? 'Enter your email' : null;
+      _passwordError = password.isEmpty ? 'Enter your password' : null;
+    });
+    if (_emailError != null || _passwordError != null) return;
+
     setState(() => _isLoading = true);
     try {
-      final credential =
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+      final credential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
       final uid = credential.user!.uid;
-      final doc = await FirebaseFirestore.instance
-          .collection('drivers')
-          .doc(uid)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance.collection('drivers').doc(uid).get();
       if (!mounted) return;
       final status = doc.data()?['status'] as String? ?? 'pending';
       if (status == 'approved') {
@@ -77,219 +94,204 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_authErrorMessage(e.code)),
-        backgroundColor: AppTheme.primary,
-      ));
-    } catch (e) {
+      SeToast.error(context, _authErrorMessage(e.code));
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Sign in failed. Please try again.'),
-      ));
+      SeToast.error(context, 'Sign in failed. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  /// Audit §7.6: this affordance was previously an empty `onTap`. It now sends
+  /// a real reset email to whatever is in the email field.
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() => _emailError = 'Enter your email first, then tap reset');
+      return;
+    }
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
+      SeToast.success(context, 'Password reset link sent to $email');
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      SeToast.error(context, _authErrorMessage(e.code));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final reduced = SeMotion.reduced(context);
+
     return Scaffold(
-      backgroundColor: AppTheme.primary,
+      backgroundColor: SeColors.red500,
       body: Column(
         children: [
-          // Red splash header section (flex 2)
+          // ── Ember hero ───────────────────────────────────────────────────
           Expanded(
             flex: 2,
-            child: SafeArea(
-              bottom: false,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Logo card
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(gradient: SeColors.emberGradient),
+              child: SafeArea(
+                bottom: false,
+                child: Center(
+                  child: FadeTransition(
+                    opacity: _intro,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(SeSpacing.x4),
+                          decoration: BoxDecoration(
+                            color: SeColors.surface0,
+                            borderRadius: SeRadius.all(SeRadius.lg),
+                            boxShadow: SeElevation.e4,
                           ),
-                        ],
-                      ),
-                      child: Image.asset(
-                        'assets/logo.png',
-                        height: 70,
-                        fit: BoxFit.contain,
-                      ),
+                          child: Image.asset(
+                            'assets/logo.png',
+                            height: 70,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        const SizedBox(height: SeSpacing.x4),
+                        Text('Driver Portal',
+                            style: SeType.h2.copyWith(color: Colors.white)),
+                        const SizedBox(height: SeSpacing.x1),
+                        Text(
+                          SeBrand.tagline,
+                          style: SeType.bodyS.copyWith(
+                              color: Colors.white.withValues(alpha: 0.82)),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Driver Portal',
-                      style: GoogleFonts.dancingScript(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'ShipEast Jamaica',
-                      style: GoogleFonts.nunito(
-                        fontSize: 13,
-                        color: Colors.white.withOpacity(0.7),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-          // White form section (flex 3)
+
+          // ── Form sheet ───────────────────────────────────────────────────
           Expanded(
             flex: 3,
             child: Container(
+              width: double.infinity,
               decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(28),
-                  topRight: Radius.circular(28),
-                ),
+                color: SeColors.surface0,
+                borderRadius: SeRadius.sheetTop,
               ),
               child: SafeArea(
                 top: false,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 8),
-                        Text(
-                          'Welcome Back',
-                          style: AppTheme.headingLG(),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Sign in to your driver account',
-                          style: AppTheme.body(
-                            color: AppTheme.textMid,
-                            fontSize: 13,
+                  padding: const EdgeInsets.all(SeSpacing.x6),
+                  child: SlideTransition(
+                    position: Tween(
+                      begin: reduced ? Offset.zero : const Offset(0, 0.06),
+                      end: Offset.zero,
+                    ).animate(CurvedAnimation(
+                        parent: _intro, curve: SeMotion.decelerate)),
+                    child: FadeTransition(
+                      opacity: _intro,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: SeSpacing.x2),
+                          Text('Welcome back', style: SeType.h1),
+                          const SizedBox(height: SeSpacing.x1),
+                          Text(
+                            'Sign in to your driver account',
+                            style:
+                                SeType.body.copyWith(color: SeColors.ink500),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          style: AppTheme.body(),
-                          decoration: AppTheme.inputDecoration(
-                            'Email',
-                            Icons.email_outlined,
+                          const SizedBox(height: SeSpacing.x6),
+                          SeTextField(
+                            controller: _emailController,
+                            label: 'Email',
+                            hint: 'you@example.com',
+                            icon: SeIcons.envelope,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            errorText: _emailError,
+                            onChanged: (_) {
+                              if (_emailError != null) {
+                                setState(() => _emailError = null);
+                              }
+                            },
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          style: AppTheme.body(),
-                          decoration: AppTheme.inputDecoration(
-                            'Password',
-                            Icons.lock_outline,
-                          ).copyWith(
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: AppTheme.textLight,
-                                size: 20,
+                          const SizedBox(height: SeSpacing.x4),
+                          SeTextField(
+                            controller: _passwordController,
+                            label: 'Password',
+                            hint: 'Your password',
+                            icon: SeIcons.lock,
+                            obscure: true,
+                            textInputAction: TextInputAction.done,
+                            errorText: _passwordError,
+                            onChanged: (_) {
+                              if (_passwordError != null) {
+                                setState(() => _passwordError = null);
+                              }
+                            },
+                            onSubmitted: (_) => _signIn(),
+                          ),
+                          const SizedBox(height: SeSpacing.x3),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: GestureDetector(
+                              onTap: _forgotPassword,
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: SeSpacing.x1),
+                                child: Text(
+                                  'Forgot password?',
+                                  style: SeType.label
+                                      .copyWith(color: SeColors.red700),
+                                ),
                               ),
-                              onPressed: () => setState(
-                                  () => _obscurePassword = !_obscurePassword),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: GestureDetector(
-                            onTap: () {},
-                            child: Text(
-                              'Forgot Password?',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: AppTheme.primary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
+                          const SizedBox(height: SeSpacing.x5),
+                          SeButton(
+                            label: 'Sign In',
+                            loading: _isLoading,
                             onPressed: _isLoading ? null : _signIn,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(13),
-                              ),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 22,
-                                    width: 22,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2.5,
-                                    ),
-                                  )
-                                : Text(
-                                    'Sign In',
-                                    style: AppTheme.buttonLG(),
-                                  ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Center(
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
+                          const SizedBox(height: SeSpacing.x4),
+                          Center(
+                            child: GestureDetector(
+                              onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                     builder: (_) => const RegisterScreen()),
-                              );
-                            },
-                            child: RichText(
-                              text: TextSpan(
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: AppTheme.textMid,
-                                ),
-                                children: [
-                                  const TextSpan(
-                                      text: "Don't have an account? "),
-                                  TextSpan(
-                                    text: 'Register',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 13,
-                                      color: AppTheme.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                              ),
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding: const EdgeInsets.all(SeSpacing.x2),
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: SeType.bodyS
+                                        .copyWith(color: SeColors.ink500),
+                                    children: [
+                                      const TextSpan(
+                                          text: "Don't have an account? "),
+                                      TextSpan(
+                                        text: 'Register',
+                                        style: SeType.bodyS.copyWith(
+                                          color: SeColors.red700,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

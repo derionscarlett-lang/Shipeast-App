@@ -1,11 +1,22 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import '../app_theme.dart';
 import '../services/driver_firestore_service.dart';
+import '../theme/se_brand.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_motion.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_bottom_sheet.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_empty_state.dart';
+import '../widgets/se_text_field.dart';
+import '../widgets/se_toast.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -78,7 +89,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _totalTrips = (data['totalTrips'] as num?)?.toInt() ?? 0;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) SeToast.error(context, 'Could not load your profile.');
+    }
   }
 
   void _startEditing() {
@@ -91,7 +104,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (_nameCtrl.text.trim().isEmpty) return;
+    if (_nameCtrl.text.trim().isEmpty) {
+      SeToast.error(context, 'Your name cannot be empty.');
+      return;
+    }
     setState(() => _isSaving = true);
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -106,7 +122,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'vehicleType': _editVehicle,
           'licencePlate': _licenceCtrl.text.trim(),
         });
-      } catch (_) {}
+      } catch (_) {
+        // Don't claim a local save when the write failed.
+        if (mounted) {
+          setState(() => _isSaving = false);
+          SeToast.error(context, 'Could not save your profile. Try again.');
+        }
+        return;
+      }
     }
     setState(() {
       _name = _nameCtrl.text.trim();
@@ -118,16 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isSaving = false;
     });
     widget.driverNameNotifier.value = _name;
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Profile saved!',
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-        backgroundColor: AppTheme.success,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
-    }
+    if (mounted) SeToast.success(context, 'Profile saved');
   }
 
   Future<void> _pickPhoto(ImageSource source) async {
@@ -148,54 +162,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .update({'avatarUrl': url});
       if (mounted) setState(() => _avatarUrl = url);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Photo upload failed. Try again.',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
-        ));
-      }
+      if (mounted) SeToast.error(context, 'Photo upload failed. Try again.');
     } finally {
       if (mounted) setState(() => _isUploadingPhoto = false);
     }
   }
 
   void _showPhotoOptions() {
-    showModalBottomSheet(
+    showSeBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: SeSpacing.gutter,
+          right: SeSpacing.gutter,
+          bottom: MediaQuery.of(ctx).padding.bottom + SeSpacing.x5,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: const Color(0xFFDDDDDD),
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: AppTheme.primary),
-              title: Text('Take Photo', style: AppTheme.body()),
-              onTap: () {
-                Navigator.pop(context);
+            const SeSheetHandle(),
+            const SizedBox(height: SeSpacing.x3),
+            Text('Profile photo',
+                style: SeType.h3, textAlign: TextAlign.center),
+            const SizedBox(height: SeSpacing.x5),
+            SeButton(
+              label: 'Take Photo',
+              icon: SeIcons.camera,
+              onPressed: () {
+                Navigator.pop(ctx);
                 _pickPhoto(ImageSource.camera);
               },
             ),
-            ListTile(
-              leading:
-                  const Icon(Icons.photo_library, color: AppTheme.primary),
-              title: Text('Choose from Gallery', style: AppTheme.body()),
-              onTap: () {
-                Navigator.pop(context);
+            const SizedBox(height: SeSpacing.x3),
+            SeButton(
+              label: 'Choose from Gallery',
+              icon: SeIcons.image,
+              variant: SeButtonVariant.ghost,
+              onPressed: () {
+                Navigator.pop(ctx);
                 _pickPhoto(ImageSource.gallery);
               },
             ),
@@ -216,122 +221,78 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showComingSoon(String feature) {
-    showDialog(
+  Future<void> _confirmSignOut() async {
+    final ok = await SeConfirmSheet.show(
+      context,
+      title: 'Sign out?',
+      message: 'You will stop receiving order requests until you sign back in.',
+      confirmLabel: 'Sign Out',
+      destructive: true,
+    );
+    if (ok) _signOut();
+  }
+
+  /// Honest placeholder for features that genuinely do not exist yet.
+  void _showNotBuiltYet(String feature, String detail) {
+    showSeBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(feature,
-            style: GoogleFonts.montserrat(
-                fontWeight: FontWeight.w900, fontSize: 16)),
-        content: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).padding.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.construction, color: AppTheme.primary, size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text('This feature is coming soon. Stay tuned for updates!',
-                  style: AppTheme.body(color: AppTheme.textMid)),
+            const SeSheetHandle(),
+            SeEmptyState(
+              icon: SeIcons.rocket,
+              title: feature,
+              message: detail,
+              ctaLabel: 'Got it',
+              onCta: () => Navigator.pop(ctx),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('OK',
-                style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w900, color: AppTheme.primary)),
-          ),
-        ],
       ),
     );
   }
 
   void _showAbout() {
-    showDialog(
+    showSeBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.local_shipping,
-                  color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Text('About ShipEast',
-                style: GoogleFonts.montserrat(
-                    fontWeight: FontWeight.w900, fontSize: 16)),
-          ],
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: SeSpacing.gutter,
+          right: SeSpacing.gutter,
+          bottom: MediaQuery.of(ctx).padding.bottom + SeSpacing.x6,
         ),
-        content: Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('ShipEast Driver App',
-                style: GoogleFonts.montserrat(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14,
-                    color: AppTheme.textDark)),
-            const SizedBox(height: 4),
-            Text('Version 1.0.0',
-                style: AppTheme.body(color: AppTheme.textMid)),
-            const SizedBox(height: 12),
+            const SeSheetHandle(),
+            const SizedBox(height: SeSpacing.x4),
+            const SeWordmark(size: 30),
+            const SizedBox(height: SeSpacing.x2),
+            Text('Driver App · v${SeBrand.version}',
+                style: SeType.bodyS.copyWith(color: SeColors.ink500)),
+            const SizedBox(height: SeSpacing.x5),
             Text(
-              'Connecting drivers with customers across Jamaica. Fast, reliable, and seamless deliveries.',
-              style: AppTheme.body(color: AppTheme.textMid),
+              SeBrand.tagline,
+              textAlign: TextAlign.center,
+              style: SeType.body.copyWith(color: SeColors.ink500),
             ),
-            const SizedBox(height: 12),
-            Text('© 2025 ShipEast. All rights reserved.',
-                style: GoogleFonts.inter(
-                    fontSize: 11, color: AppTheme.textLight)),
+            const SizedBox(height: SeSpacing.x3),
+            Text(
+              'Connecting drivers with customers across Jamaica.',
+              textAlign: TextAlign.center,
+              style: SeType.body.copyWith(color: SeColors.ink500),
+            ),
+            const SizedBox(height: SeSpacing.x6),
+            SeButton(
+              label: 'Close',
+              variant: SeButtonVariant.ghost,
+              onPressed: () => Navigator.pop(ctx),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Close',
-                style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w900, color: AppTheme.primary)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSignOutDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Sign Out',
-            style: GoogleFonts.montserrat(
-                fontWeight: FontWeight.w900, fontSize: 16)),
-        content: Text('Are you sure you want to sign out?',
-            style: AppTheme.body(color: AppTheme.textMid)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w900, color: AppTheme.textMid)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _signOut();
-            },
-            child: Text('Sign Out',
-                style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w900, color: AppTheme.primary)),
-          ),
-        ],
       ),
     );
   }
@@ -339,23 +300,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceGrey,
+      backgroundColor: SeColors.surface50,
       body: Column(
         children: [
-          _buildRedHeader(),
+          _header(),
           Expanded(
             child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                  SeSpacing.gutter, SeSpacing.x5, SeSpacing.gutter, 100),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 12),
-                  if (_isEditing) _buildEditForm() else _buildViewMode(),
-                  const SizedBox(height: 12),
-                  _buildRatingCard(),
-                  const SizedBox(height: 12),
-                  _buildSettingsCard(),
-                  const SizedBox(height: 12),
-                  _buildSignOutTile(),
-                  const SizedBox(height: 24),
+                  if (_isEditing) _editForm() else _viewMode(),
+                  const SizedBox(height: SeSpacing.x4),
+                  _settingsCard(),
+                  const SizedBox(height: SeSpacing.x4),
+                  SeButton(
+                    label: 'Sign Out',
+                    icon: SeIcons.signOut,
+                    variant: SeButtonVariant.destructive,
+                    onPressed: _confirmSignOut,
+                  ),
                 ],
               ),
             ),
@@ -365,487 +330,411 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildAvatarWidget() {
-    if (_isUploadingPhoto) {
-      return Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.18),
-          shape: BoxShape.circle,
-          border: Border.all(
-              color: Colors.white.withValues(alpha: 0.5), width: 2.5),
-        ),
-        child: const Center(
-            child: SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2.5))),
-      );
-    }
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        shape: BoxShape.circle,
-        border: Border.all(
-            color: Colors.white.withValues(alpha: 0.5), width: 2.5),
-      ),
-      child: ClipOval(
-        child: _avatarUrl != null
-            ? Image.network(
-                _avatarUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) =>
-                    const Icon(Icons.person, size: 38, color: Colors.white),
-              )
-            : const Icon(Icons.person, size: 38, color: Colors.white),
-      ),
-    );
-  }
-
-  Widget _buildRedHeader() => Container(
-        color: AppTheme.primary,
+  Widget _header() => Container(
+        decoration: const BoxDecoration(gradient: SeColors.emberGradient),
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, SeSpacing.x3,
+                SeSpacing.gutter, SeSpacing.x6),
             child: Column(
               children: [
                 Row(
                   children: [
                     const Spacer(),
                     Text('Driver Profile',
-                        style: GoogleFonts.montserrat(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white)),
+                        style: SeType.h3.copyWith(color: Colors.white)),
                     const Spacer(),
-                    if (!_isEditing)
-                      GestureDetector(
-                        onTap: _startEditing,
-                        child: Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.edit,
-                              size: 17, color: Colors.white),
+                    GestureDetector(
+                      onTap: _isEditing
+                          ? () => setState(() => _isEditing = false)
+                          : _startEditing,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.20),
+                          shape: BoxShape.circle,
                         ),
-                      )
-                    else
-                      GestureDetector(
-                        onTap: () => setState(() => _isEditing = false),
-                        child: Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.close,
-                              size: 17, color: Colors.white),
+                        child: Icon(
+                          _isEditing ? SeIcons.close : SeIcons.edit,
+                          size: 18,
+                          color: Colors.white,
                         ),
                       ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: SeSpacing.x5),
                 GestureDetector(
                   onTap: _showPhotoOptions,
                   child: Stack(
                     children: [
-                      _buildAvatarWidget(),
+                      _avatar(),
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: Container(
-                          width: 24,
-                          height: 24,
+                          width: 28,
+                          height: 28,
                           decoration: const BoxDecoration(
-                              color: Colors.white, shape: BoxShape.circle),
-                          child: const Center(
-                            child: Icon(Icons.camera_alt,
-                                size: 13, color: AppTheme.primary),
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: SeElevation.e1,
                           ),
+                          child: const Icon(SeIcons.camera,
+                              size: 15, color: SeColors.red500),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(_name,
-                    style: GoogleFonts.montserrat(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white)),
+                const SizedBox(height: SeSpacing.x3),
+                Text(_name, style: SeType.h2.copyWith(color: Colors.white)),
                 const SizedBox(height: 2),
-                Text('ShipEast Driver · Kingston, JA',
-                    style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.7))),
+                Text(
+                  '$_vehicle · ShipEast Driver',
+                  style: SeType.bodyS
+                      .copyWith(color: Colors.white.withValues(alpha: 0.82)),
+                ),
               ],
             ),
           ),
         ),
       );
 
-  Widget _buildViewMode() {
-    final completionPct = _totalTrips > 0 ? '${((_totalTrips / (_totalTrips + 1)) * 100).toStringAsFixed(0)}%' : '—';
-    return Column(
-      children: [
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2)),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _statItem('$_totalTrips', 'Trips'),
-              Container(width: 1, height: 36, color: AppTheme.divider),
-              _statItem(completionPct, 'Completion'),
-              Container(width: 1, height: 36, color: AppTheme.divider),
-              _statItemWithStar(
-                  _rating.toStringAsFixed(1), 'Rating'),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2)),
-            ],
-          ),
-          child: Column(
-            children: [
-              _infoRow(Icons.phone, 'Phone', _phone),
-              const Divider(
-                  height: 1,
-                  color: AppTheme.divider,
-                  indent: 16,
-                  endIndent: 16),
-              _infoRow(Icons.email_outlined, 'Email', _email),
-              const Divider(
-                  height: 1,
-                  color: AppTheme.divider,
-                  indent: 16,
-                  endIndent: 16),
-              _infoRow(Icons.two_wheeler, 'Vehicle', _vehicle),
-              const Divider(
-                  height: 1,
-                  color: AppTheme.divider,
-                  indent: 16,
-                  endIndent: 16),
-              _infoRow(
-                  Icons.credit_card_outlined, 'Licence Plate', _licence),
-            ],
-          ),
-        ),
-      ],
+  Widget _avatar() {
+    const size = 92.0;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        shape: BoxShape.circle,
+        border: Border.all(
+            color: Colors.white.withValues(alpha: 0.55), width: 2.5),
+      ),
+      child: _isUploadingPhoto
+          ? const Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2.5),
+              ),
+            )
+          : ClipOval(
+              child: _avatarUrl != null
+                  ? Image.network(
+                      _avatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                          SeIcons.userFill,
+                          size: 44,
+                          color: Colors.white),
+                    )
+                  : const Icon(SeIcons.userFill,
+                      size: 44, color: Colors.white),
+            ),
     );
   }
 
+  Widget _viewMode() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Rating ring + trips ─────────────────────────────────────────
+          //
+          // Audit §7.3: the old third stat was a "Completion" percentage
+          // computed as totalTrips/(totalTrips+1)*100 — a number that only ever
+          // climbed toward 100% and measured nothing. It is gone; what remains
+          // are two figures the backend actually stores.
+          SeCard(
+            padding: const EdgeInsets.all(SeSpacing.x5),
+            child: Row(
+              children: [
+                _RatingRing(rating: _rating),
+                const SizedBox(width: SeSpacing.x5),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('YOUR RATING', style: SeType.eyebrow),
+                      const SizedBox(height: SeSpacing.x1),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(_rating.toStringAsFixed(1),
+                              style: SeType.tabular(SeType.display)),
+                          const SizedBox(width: SeSpacing.x1),
+                          Text('/ 5.0',
+                              style: SeType.body
+                                  .copyWith(color: SeColors.ink400)),
+                        ],
+                      ),
+                      const SizedBox(height: SeSpacing.x2),
+                      Text(
+                        _totalTrips == 0
+                            ? 'No completed trips yet'
+                            : 'Across $_totalTrips completed trip${_totalTrips == 1 ? '' : 's'}',
+                        style: SeType.bodyS.copyWith(color: SeColors.ink500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: SeSpacing.x4),
+
+          SeCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _infoRow(SeIcons.phone, 'Phone', _phone),
+                _rowDivider(),
+                _infoRow(SeIcons.envelope, 'Email', _email),
+                _rowDivider(),
+                _infoRow(SeIcons.bike, 'Vehicle', _vehicle),
+                _rowDivider(),
+                _infoRow(SeIcons.creditCard, 'Licence plate', _licence),
+              ],
+            ),
+          ),
+        ],
+      );
+
+  Widget _rowDivider() => const Divider(
+      height: 1,
+      color: SeColors.ink100,
+      indent: SeSpacing.x5,
+      endIndent: SeSpacing.x5);
+
   Widget _infoRow(IconData icon, String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(
+            horizontal: SeSpacing.x5, vertical: SeSpacing.x4),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: AppTheme.textMid),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: GoogleFonts.inter(
-                        fontSize: 11, color: AppTheme.textLight)),
-                const SizedBox(height: 2),
-                Text(value.isEmpty ? '—' : value,
-                    style: GoogleFonts.inter(
-                        fontSize: 13, color: AppTheme.textDark)),
-              ],
-            ),
-          ],
-        ),
-      );
-
-  Widget _statItem(String value, String label) => Expanded(
-        child: Column(
-          children: [
-            Text(value,
-                style: GoogleFonts.montserrat(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.textDark)),
-            Text(label,
-                style: GoogleFonts.inter(
-                    fontSize: 11, color: AppTheme.textMid)),
-          ],
-        ),
-      );
-
-  Widget _statItemWithStar(String value, String label) => Expanded(
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.star, color: Color(0xFFFBBC05), size: 14),
-                const SizedBox(width: 2),
-                Text(value,
-                    style: GoogleFonts.montserrat(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.textDark)),
-              ],
-            ),
-            Text(label,
-                style: GoogleFonts.inter(
-                    fontSize: 11, color: AppTheme.textMid)),
-          ],
-        ),
-      );
-
-  Widget _buildEditForm() => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Edit Profile',
-                style: GoogleFonts.montserrat(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.textDark)),
-            const SizedBox(height: 16),
-            _editField(_nameCtrl, 'Full Name', Icons.person_outline,
-                TextInputType.name),
-            const SizedBox(height: 12),
-            _editField(_phoneCtrl, 'Phone Number', Icons.phone_outlined,
-                TextInputType.phone),
-            const SizedBox(height: 12),
-            _editField(_emailCtrl, 'Email', Icons.email_outlined,
-                TextInputType.emailAddress),
-            const SizedBox(height: 12),
-            Text('Vehicle Type',
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: AppTheme.textMid)),
-            const SizedBox(height: 8),
-            Row(
-              children: _vehicleTypes.map((v) {
-                final selected = _editVehicle == v;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _editVehicle = v),
-                    child: Container(
-                      margin: EdgeInsets.only(
-                          right: v != _vehicleTypes.last ? 6 : 0),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? AppTheme.primary
-                            : AppTheme.surfaceGrey,
-                        borderRadius: BorderRadius.circular(8),
-                        border: selected
-                            ? null
-                            : Border.all(
-                                color: const Color(0xFFE0E0E0), width: 1),
-                      ),
-                      child: Center(
-                        child: Text(v,
-                            style: GoogleFonts.nunito(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                color: selected
-                                    ? Colors.white
-                                    : AppTheme.textMid)),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 12),
-            _editField(_licenceCtrl, 'Licence Plate',
-                Icons.credit_card_outlined, TextInputType.text),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                    : Text('Save Changes', style: AppTheme.buttonLG()),
+            Icon(icon, size: 20, color: SeColors.ink400),
+            const SizedBox(width: SeSpacing.x4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label.toUpperCase(), style: SeType.eyebrow),
+                  const SizedBox(height: 2),
+                  Text(value.isEmpty ? '—' : value, style: SeType.body),
+                ],
               ),
             ),
           ],
         ),
       );
 
-  Widget _editField(TextEditingController ctrl, String label, IconData icon,
-      TextInputType type) {
-    return TextFormField(
-      controller: ctrl,
-      keyboardType: type,
-      style: AppTheme.body(),
-      decoration: AppTheme.inputDecoration(label, icon),
-    );
-  }
-
-  Widget _buildRatingCard() => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2)),
-          ],
-        ),
+  Widget _editForm() => SeCard(
+        padding: const EdgeInsets.all(SeSpacing.x5),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Rating',
-                style: GoogleFonts.montserrat(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.textDark)),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.star, color: Color(0xFFFBBC05), size: 28),
-                const SizedBox(width: 8),
-                Text(_rating.toStringAsFixed(1),
-                    style: GoogleFonts.montserrat(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.textDark)),
-                const SizedBox(width: 8),
-                Text('/ 5.0',
-                    style: GoogleFonts.inter(
-                        fontSize: 14, color: AppTheme.textMid)),
-              ],
+            Text('Edit profile', style: SeType.h3),
+            const SizedBox(height: SeSpacing.x5),
+            SeTextField(
+              controller: _nameCtrl,
+              label: 'Full Name',
+              icon: SeIcons.userCircle,
+              textInputAction: TextInputAction.next,
             ),
-            const SizedBox(height: 8),
-            Text('Based on $_totalTrips completed deliveries',
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: AppTheme.textMid)),
+            const SizedBox(height: SeSpacing.x4),
+            SeTextField(
+              controller: _phoneCtrl,
+              label: 'Phone Number',
+              icon: SeIcons.phone,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            SeTextField(
+              controller: _emailCtrl,
+              label: 'Email',
+              icon: SeIcons.envelope,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: SeSpacing.x5),
+            Text('VEHICLE TYPE', style: SeType.eyebrow),
+            const SizedBox(height: SeSpacing.x3),
+            Row(
+              children: List.generate(_vehicleTypes.length, (i) {
+                final v = _vehicleTypes[i];
+                final selected = _editVehicle == v;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _editVehicle = v),
+                    behavior: HitTestBehavior.opaque,
+                    child: AnimatedContainer(
+                      duration: SeMotion.fast,
+                      curve: SeMotion.emphasized,
+                      margin: EdgeInsets.only(
+                          right:
+                              i < _vehicleTypes.length - 1 ? SeSpacing.x2 : 0),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: SeSpacing.x3),
+                      decoration: BoxDecoration(
+                        color:
+                            selected ? SeColors.red50 : SeColors.surface50,
+                        borderRadius: SeRadius.all(SeRadius.sm),
+                        border: Border.all(
+                          color:
+                              selected ? SeColors.red500 : SeColors.ink200,
+                          width: selected ? 2 : 1.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          v,
+                          style: SeType.eyebrow.copyWith(
+                            color: selected
+                                ? SeColors.red700
+                                : SeColors.ink500,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: SeSpacing.x5),
+            SeTextField(
+              controller: _licenceCtrl,
+              label: 'Licence Plate',
+              icon: SeIcons.creditCard,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: SeSpacing.x6),
+            SeButton(
+              label: 'Save Changes',
+              loading: _isSaving,
+              onPressed: _isSaving ? null : _saveProfile,
+            ),
           ],
         ),
       );
 
-  Widget _buildSettingsCard() => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2)),
-          ],
-        ),
+  Widget _settingsCard() => SeCard(
+        padding: EdgeInsets.zero,
         child: Column(
           children: [
-            _settingsTile(Icons.notifications_outlined, 'Notifications',
-                () => _showComingSoon('Notifications')),
-            const Divider(
-                height: 1,
-                color: AppTheme.divider,
-                indent: 16,
-                endIndent: 16),
-            _settingsTile(Icons.lock_outline, 'Privacy & Security',
-                () => _showComingSoon('Privacy & Security')),
-            const Divider(
-                height: 1,
-                color: AppTheme.divider,
-                indent: 16,
-                endIndent: 16),
-            _settingsTile(Icons.help_outline, 'Help & Support',
-                () => _showComingSoon('Help & Support')),
-            const Divider(
-                height: 1,
-                color: AppTheme.divider,
-                indent: 16,
-                endIndent: 16),
             _settingsTile(
-                Icons.info_outline, 'About ShipEast', _showAbout),
+              SeIcons.bell,
+              'Notifications',
+              () => _showNotBuiltYet(
+                'Notification settings',
+                'Per-alert controls are not built yet. For now the app follows your Android notification settings for ShipEast Driver.',
+              ),
+            ),
+            _rowDivider(),
+            _settingsTile(
+              SeIcons.shield,
+              'Privacy & Security',
+              () => _showNotBuiltYet(
+                'Privacy & Security',
+                'In-app privacy controls are still being built. To change your password, use "Forgot password?" on the sign-in screen.',
+              ),
+            ),
+            _rowDivider(),
+            _settingsTile(
+              SeIcons.help,
+              'Help & Support',
+              () => _showNotBuiltYet(
+                'Help & Support',
+                'In-app support chat is on the way. For anything urgent, call the ShipEast dispatch desk on the number in your driver pack.',
+              ),
+            ),
+            _rowDivider(),
+            _settingsTile(SeIcons.info, 'About ShipEast', _showAbout),
           ],
         ),
       );
 
   Widget _settingsTile(IconData icon, String title, VoidCallback onTap) =>
-      ListTile(
-        leading: Icon(icon, color: AppTheme.textMid, size: 22),
-        title: Text(title,
-            style: GoogleFonts.inter(
-                fontSize: 14, color: AppTheme.textDark)),
-        trailing: const Icon(Icons.arrow_forward_ios,
-            size: 14, color: AppTheme.textLight),
+      InkWell(
         onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: SeSpacing.x5, vertical: SeSpacing.x4),
+          child: Row(
+            children: [
+              Icon(icon, size: 21, color: SeColors.ink500),
+              const SizedBox(width: SeSpacing.x4),
+              Expanded(child: Text(title, style: SeType.body)),
+              const Icon(SeIcons.caretRight,
+                  size: 20, color: SeColors.ink300),
+            ],
+          ),
+        ),
       );
+}
 
-  Widget _buildSignOutTile() => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2)),
-          ],
+/// Gold rating arc — a real 0–5 reading, not a decorative ring.
+class _RatingRing extends StatelessWidget {
+  final double rating;
+  const _RatingRing({required this.rating});
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = SeMotion.reduced(context);
+    return SizedBox(
+      width: 78,
+      height: 78,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: (rating / 5).clamp(0.0, 1.0)),
+        duration: reduced ? Duration.zero : SeMotion.deliberate,
+        curve: SeMotion.decelerate,
+        builder: (context, value, _) => CustomPaint(
+          painter: _RingPainter(value),
+          child: const Center(
+            child: Icon(SeIcons.star, color: SeColors.gold500, size: 30),
+          ),
         ),
-        child: ListTile(
-          leading: const Icon(Icons.logout, color: AppTheme.primary),
-          title: Text('Sign Out',
-              style: GoogleFonts.nunito(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.primary)),
-          onTap: _showSignOutDialog,
-        ),
-      );
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final double progress;
+  _RingPainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 7.0;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (math.min(size.width, size.height) - stroke) / 2;
+
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = SeColors.goldTint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke,
+    );
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * progress,
+      false,
+      Paint()
+        ..color = SeColors.gold500
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter old) => old.progress != progress;
 }

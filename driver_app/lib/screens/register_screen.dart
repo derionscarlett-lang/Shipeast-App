@@ -1,8 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../app_theme.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_motion.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_app_bar.dart';
+import '../widgets/se_button.dart';
+import '../widgets/se_text_field.dart';
+import '../widgets/se_toast.dart';
 import 'pending_approval_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -13,7 +20,6 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
@@ -22,16 +28,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _licencePlateController = TextEditingController();
   final _licenceNumberController = TextEditingController();
 
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   String _selectedVehicle = 'Motorcycle';
 
-  final List<Map<String, dynamic>> _vehicleTypes = [
-    {'label': 'Motorcycle', 'icon': Icons.motorcycle},
-    {'label': 'Car', 'icon': Icons.directions_car},
-    {'label': 'Van', 'icon': Icons.airport_shuttle},
-    {'label': 'Truck', 'icon': Icons.local_shipping},
+  // Per-field inline errors — replaces the old stack of blocking snackbars.
+  final Map<String, String?> _errors = {};
+
+  static const List<Map<String, dynamic>> _vehicleTypes = [
+    {'label': 'Motorcycle', 'icon': SeIcons.bike},
+    {'label': 'Car', 'icon': SeIcons.car},
+    {'label': 'Van', 'icon': Icons.airport_shuttle_rounded},
+    {'label': 'Truck', 'icon': Icons.local_shipping_rounded},
   ];
 
   @override
@@ -59,32 +66,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  bool _validate() {
+    setState(() {
+      _errors['name'] =
+          _nameController.text.trim().isEmpty ? 'Enter your full name' : null;
+      _errors['email'] =
+          _emailController.text.trim().isEmpty ? 'Enter your email' : null;
+      _errors['password'] = _passwordController.text.length < 6
+          ? 'At least 6 characters'
+          : null;
+      _errors['confirm'] =
+          _passwordController.text != _confirmPasswordController.text
+              ? 'Passwords do not match'
+              : null;
+    });
+    return _errors.values.every((e) => e == null);
+  }
+
   Future<void> _createAccount() async {
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your full name')),
-      );
-      return;
-    }
-    if (_emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email')),
-      );
-      return;
-    }
-    if (_passwordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Password must be at least 6 characters')),
-      );
-      return;
-    }
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
-      return;
-    }
+    if (!_validate()) return;
+
     setState(() => _isLoading = true);
     try {
       final credential =
@@ -115,283 +116,220 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_authErrorMessage(e.code)),
-        backgroundColor: AppTheme.primary,
-      ));
-    } catch (e) {
+      SeToast.error(context, _authErrorMessage(e.code));
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Registration failed: $e'),
-      ));
+      SeToast.error(context, 'Registration failed. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _clearError(String key) {
+    if (_errors[key] != null) setState(() => _errors[key] = null);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textDark),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Create Account',
-          style: GoogleFonts.montserrat(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: AppTheme.textDark,
-          ),
-        ),
-      ),
+      backgroundColor: SeColors.surface50,
+      appBar: const SeTopBar(title: 'Create Account'),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Red header card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'New Driver Registration',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
+        padding: const EdgeInsets.fromLTRB(
+            SeSpacing.gutter, SeSpacing.x2, SeSpacing.gutter, SeSpacing.x8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Ember intro banner ──────────────────────────────────────────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(SeSpacing.x5),
+              margin: const EdgeInsets.only(bottom: SeSpacing.x6),
+              decoration: BoxDecoration(
+                gradient: SeColors.emberGradient,
+                borderRadius: SeRadius.all(SeRadius.lg),
+                boxShadow: SeElevation.glow,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.20),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Join the ShipEast delivery network',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Full Name
-              TextFormField(
-                controller: _nameController,
-                style: AppTheme.body(),
-                decoration:
-                    AppTheme.inputDecoration('Full Name', Icons.person_outline),
-              ),
-              const SizedBox(height: 12),
-
-              // Phone
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                style: AppTheme.body(),
-                decoration: AppTheme.inputDecoration(
-                    'Phone Number', Icons.phone_outlined),
-              ),
-              const SizedBox(height: 12),
-
-              // Email
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                style: AppTheme.body(),
-                decoration:
-                    AppTheme.inputDecoration('Email', Icons.email_outlined),
-              ),
-              const SizedBox(height: 12),
-
-              // Password
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                style: AppTheme.body(),
-                decoration:
-                    AppTheme.inputDecoration('Password', Icons.lock_outline)
-                        .copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      color: AppTheme.textLight,
-                      size: 20,
-                    ),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
+                    child: const Icon(SeIcons.bike,
+                        color: Colors.white, size: 24),
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Confirm Password
-              TextFormField(
-                controller: _confirmPasswordController,
-                obscureText: _obscureConfirmPassword,
-                style: AppTheme.body(),
-                decoration: AppTheme.inputDecoration(
-                        'Confirm Password', Icons.lock_outline)
-                    .copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      color: AppTheme.textLight,
-                      size: 20,
-                    ),
-                    onPressed: () => setState(
-                        () => _obscureConfirmPassword = !_obscureConfirmPassword),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Vehicle Information section
-              Text(
-                'Vehicle Information',
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.textDark,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Vehicle type chips
-              Row(
-                children: _vehicleTypes.map((vehicle) {
-                  final isSelected = _selectedVehicle == vehicle['label'];
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () =>
-                          setState(() => _selectedVehicle = vehicle['label']),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 10, horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppTheme.primary
-                              : const Color(0xFFF2F2F2),
-                          borderRadius: BorderRadius.circular(10),
-                          border: isSelected
-                              ? null
-                              : Border.all(
-                                  color: const Color(0xFFE0E0E0), width: 1),
+                  const SizedBox(width: SeSpacing.x4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('New Driver Registration',
+                            style: SeType.h3.copyWith(color: Colors.white)),
+                        const SizedBox(height: SeSpacing.x1),
+                        Text(
+                          'Join the ShipEast delivery network',
+                          style: SeType.bodyS.copyWith(
+                              color: Colors.white.withValues(alpha: 0.82)),
                         ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              vehicle['icon'] as IconData,
-                              color:
-                                  isSelected ? Colors.white : AppTheme.textMid,
-                              size: 20,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              vehicle['label'] as String,
-                              style: GoogleFonts.nunito(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppTheme.textMid,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            _sectionLabel('Your details'),
+            SeTextField(
+              controller: _nameController,
+              label: 'Full Name',
+              hint: 'e.g. Andre Campbell',
+              icon: SeIcons.userCircle,
+              textInputAction: TextInputAction.next,
+              errorText: _errors['name'],
+              onChanged: (_) => _clearError('name'),
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            SeTextField(
+              controller: _phoneController,
+              label: 'Phone Number',
+              hint: '876 000 0000',
+              icon: SeIcons.phone,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            SeTextField(
+              controller: _emailController,
+              label: 'Email',
+              hint: 'you@example.com',
+              icon: SeIcons.envelope,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              errorText: _errors['email'],
+              onChanged: (_) => _clearError('email'),
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            SeTextField(
+              controller: _passwordController,
+              label: 'Password',
+              hint: 'At least 6 characters',
+              icon: SeIcons.lock,
+              obscure: true,
+              textInputAction: TextInputAction.next,
+              errorText: _errors['password'],
+              onChanged: (_) => _clearError('password'),
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            SeTextField(
+              controller: _confirmPasswordController,
+              label: 'Confirm Password',
+              hint: 'Re-enter your password',
+              icon: SeIcons.lock,
+              obscure: true,
+              textInputAction: TextInputAction.next,
+              errorText: _errors['confirm'],
+              onChanged: (_) => _clearError('confirm'),
+            ),
+
+            const SizedBox(height: SeSpacing.x6),
+            _sectionLabel('Vehicle information'),
+
+            // ── Vehicle type selector ───────────────────────────────────────
+            Row(
+              children: List.generate(_vehicleTypes.length, (i) {
+                final vehicle = _vehicleTypes[i];
+                final selected = _selectedVehicle == vehicle['label'];
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(
+                        () => _selectedVehicle = vehicle['label'] as String),
+                    behavior: HitTestBehavior.opaque,
+                    child: AnimatedContainer(
+                      duration: SeMotion.fast,
+                      curve: SeMotion.emphasized,
+                      margin: EdgeInsets.only(
+                          right: i < _vehicleTypes.length - 1 ? SeSpacing.x2 : 0),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: SeSpacing.x3, horizontal: SeSpacing.x1),
+                      decoration: BoxDecoration(
+                        color: selected ? SeColors.red50 : SeColors.surface0,
+                        borderRadius: SeRadius.all(SeRadius.sm),
+                        border: Border.all(
+                          color:
+                              selected ? SeColors.red500 : SeColors.ink200,
+                          width: selected ? 2 : 1.5,
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-
-              // Licence Plate
-              TextFormField(
-                controller: _licencePlateController,
-                style: AppTheme.body(),
-                decoration: AppTheme.inputDecoration(
-                        'Licence Plate', Icons.credit_card_outlined)
-                    .copyWith(hintText: 'ABC 1234'),
-              ),
-              const SizedBox(height: 12),
-
-              // Licence Number
-              TextFormField(
-                controller: _licenceNumberController,
-                style: AppTheme.body(),
-                decoration: AppTheme.inputDecoration(
-                        'Licence Number', Icons.badge_outlined)
-                    .copyWith(hintText: 'DL-XXXXXXXX'),
-              ),
-              const SizedBox(height: 24),
-
-              // Create Account button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _createAccount,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
+                      child: Column(
+                        children: [
+                          Icon(
+                            vehicle['icon'] as IconData,
+                            color:
+                                selected ? SeColors.red700 : SeColors.ink400,
+                            size: 22,
                           ),
-                        )
-                      : Text(
-                          'Create Account',
-                          style: AppTheme.buttonLG(),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
+                          const SizedBox(height: SeSpacing.x1),
+                          Text(
+                            vehicle['label'] as String,
+                            textAlign: TextAlign.center,
+                            style: SeType.eyebrow.copyWith(
+                              color: selected
+                                  ? SeColors.red700
+                                  : SeColors.ink500,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            SeTextField(
+              controller: _licencePlateController,
+              label: 'Licence Plate',
+              hint: 'ABC 1234',
+              icon: SeIcons.creditCard,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            SeTextField(
+              controller: _licenceNumberController,
+              label: 'Licence Number',
+              hint: 'DL-XXXXXXXX',
+              icon: SeIcons.badge,
+              textInputAction: TextInputAction.done,
+            ),
 
-              // Sign In link
-              Center(
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
+            const SizedBox(height: SeSpacing.x6),
+            SeButton(
+              label: 'Create Account',
+              loading: _isLoading,
+              onPressed: _isLoading ? null : _createAccount,
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            Center(
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.all(SeSpacing.x2),
                   child: RichText(
                     text: TextSpan(
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: AppTheme.textMid,
-                      ),
+                      style: SeType.bodyS.copyWith(color: SeColors.ink500),
                       children: [
                         const TextSpan(text: 'Already have an account? '),
                         TextSpan(
                           text: 'Sign In',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: AppTheme.primary,
-                            fontWeight: FontWeight.w600,
+                          style: SeType.bodyS.copyWith(
+                            color: SeColors.red700,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -399,11 +337,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: SeSpacing.x3),
+        child: Text(text.toUpperCase(), style: SeType.eyebrow),
+      );
 }

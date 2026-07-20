@@ -1,9 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../app_theme.dart';
+import '../driver_constants.dart';
 import '../services/driver_firestore_service.dart';
+import '../theme/se_colors.dart';
+import '../theme/se_icons.dart';
+import '../theme/se_motion.dart';
+import '../theme/se_spacing.dart';
+import '../theme/se_typography.dart';
+import '../widgets/se_card.dart';
+import '../widgets/se_chip.dart';
+import '../widgets/se_empty_state.dart';
+import '../widgets/se_skeleton.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -15,13 +23,6 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   int _activeTab = 0;
   static const _tabs = ['All', 'Completed', 'Cancelled'];
-
-  String _formatPrice(int price) {
-    if (price >= 1000) {
-      return '\$${price ~/ 1000},${(price % 1000).toString().padLeft(3, '0')}';
-    }
-    return '\$$price';
-  }
 
   String _formatDate(dynamic ts) {
     if (ts == null) return '—';
@@ -37,20 +38,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (day == today) return 'Today, $timeStr';
     if (day == yesterday) return 'Yesterday, $timeStr';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[dt.month - 1]} ${dt.day}, $timeStr';
   }
 
-  String _statusLabel(String status) {
+  ({String label, Color hue, Color tint, IconData icon}) _statusSpec(
+      String status) {
     switch (status) {
       case 'delivered':
-        return 'Completed';
+        return (
+          label: 'Completed',
+          hue: SeColors.success,
+          tint: SeColors.successTint,
+          icon: SeIcons.checkCircle
+        );
       case 'cancelled':
-        return 'Cancelled';
+        return (
+          label: 'Cancelled',
+          hue: SeColors.danger,
+          tint: SeColors.dangerTint,
+          icon: SeIcons.close
+        );
       default:
-        return 'In Progress';
+        return (
+          label: 'In progress',
+          hue: SeColors.ocean500,
+          tint: SeColors.oceanTint,
+          icon: SeIcons.bike
+        );
     }
   }
 
@@ -67,30 +84,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Scaffold(
-      backgroundColor: AppTheme.surfaceGrey,
+      backgroundColor: SeColors.surface50,
       body: Column(
         children: [
-          _buildHeader(),
-          _buildTabs(),
+          _header(),
+          _tabsBar(),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: DriverFirestoreService.driverOrderHistoryStream(uid),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                      child: CircularProgressIndicator(
-                          color: AppTheme.primary, strokeWidth: 2));
+                if (snapshot.hasError) {
+                  return const SeEmptyState(
+                    icon: SeIcons.noConnection,
+                    title: 'Could not load history',
+                    message: 'Check your connection and try again.',
+                    hue: SeColors.danger,
+                    tint: SeColors.dangerTint,
+                  );
                 }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return _skeleton();
+                }
+
                 final all = snapshot.data ?? [];
                 final displayOrders = _filtered(all);
                 final completed =
                     all.where((o) => o['status'] == 'delivered').length;
-                final total = all.length;
 
                 return Column(
                   children: [
-                    _buildSummaryStrip(total, completed),
-                    Expanded(child: _buildList(displayOrders)),
+                    _summaryStrip(all.length, completed),
+                    Expanded(child: _list(displayOrders)),
                   ],
                 );
               },
@@ -101,37 +125,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildHeader() => Container(
-        color: AppTheme.primary,
+  Widget _header() => Container(
+        decoration: const BoxDecoration(gradient: SeColors.emberGradient),
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, SeSpacing.x4,
+                SeSpacing.gutter, SeSpacing.x5),
             child: Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: Colors.white.withValues(alpha: 0.20),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.history,
+                  child: const Icon(SeIcons.history,
                       color: Colors.white, size: 22),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: SeSpacing.x3),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Delivery History',
-                        style: GoogleFonts.montserrat(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white)),
-                    Text('All your past deliveries',
-                        style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.7))),
+                        style: SeType.h2.copyWith(color: Colors.white)),
+                    Text('Every job you have run',
+                        style: SeType.bodyS.copyWith(
+                            color: Colors.white.withValues(alpha: 0.82))),
                   ],
                 ),
               ],
@@ -140,33 +161,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       );
 
-  Widget _buildTabs() => Container(
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+  Widget _tabsBar() => Container(
+        color: SeColors.surface0,
+        padding: const EdgeInsets.symmetric(
+            horizontal: SeSpacing.gutter, vertical: SeSpacing.x3),
         child: Row(
           children: List.generate(_tabs.length, (i) {
             final selected = _activeTab == i;
             return Expanded(
               child: GestureDetector(
                 onTap: () => setState(() => _activeTab = i),
-                child: Container(
-                  margin:
-                      EdgeInsets.only(right: i < _tabs.length - 1 ? 8 : 0),
-                  padding: const EdgeInsets.symmetric(vertical: 9),
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedContainer(
+                  duration: SeMotion.fast,
+                  curve: SeMotion.emphasized,
+                  margin: EdgeInsets.only(
+                      right: i < _tabs.length - 1 ? SeSpacing.x2 : 0),
+                  padding: const EdgeInsets.symmetric(vertical: SeSpacing.x3),
                   decoration: BoxDecoration(
-                    color: selected
-                        ? AppTheme.primary
-                        : AppTheme.surfaceGrey,
-                    borderRadius: BorderRadius.circular(9),
+                    gradient: selected ? SeColors.emberGradient : null,
+                    color: selected ? null : SeColors.surface50,
+                    borderRadius: SeRadius.all(SeRadius.sm),
+                    boxShadow: selected ? SeElevation.glow : null,
                   ),
                   child: Center(
                     child: Text(
                       _tabs[i],
-                      style: GoogleFonts.nunito(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          color:
-                              selected ? Colors.white : AppTheme.textDark),
+                      style: SeType.label.copyWith(
+                        color: selected ? Colors.white : SeColors.ink500,
+                      ),
                     ),
                   ),
                 ),
@@ -176,31 +199,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       );
 
-  Widget _buildSummaryStrip(int total, int completed) {
-    final rate = total > 0
-        ? (completed / total * 100).toStringAsFixed(0)
-        : '0';
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+  Widget _summaryStrip(int total, int completed) {
+    final rate = total > 0 ? (completed / total * 100).toStringAsFixed(0) : '0';
+    return SeCard(
+      margin: const EdgeInsets.fromLTRB(
+          SeSpacing.gutter, SeSpacing.x4, SeSpacing.gutter, 0),
+      padding: const EdgeInsets.symmetric(
+          horizontal: SeSpacing.x4, vertical: SeSpacing.x4),
       child: Row(
         children: [
-          _summaryItem('$total', 'Total Trips', AppTheme.primary),
+          _summaryItem('$total', 'Total trips', SeColors.ink900),
           _vDivider(),
-          _summaryItem('$completed', 'Completed', AppTheme.success),
+          _summaryItem('$completed', 'Completed', SeColors.success),
           _vDivider(),
-          _summaryItem('$rate%', 'Rate', const Color(0xFF1D4ED8)),
+          _summaryItem('$rate%', 'Completion', SeColors.ocean500),
         ],
       ),
     );
@@ -210,78 +222,73 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: Column(
           children: [
             Text(value,
-                style: GoogleFonts.montserrat(
-                    fontSize: 18, fontWeight: FontWeight.w900, color: color)),
+                style: SeType.tabular(SeType.h3).copyWith(color: color)),
             const SizedBox(height: 2),
             Text(label,
-                style: GoogleFonts.inter(
-                    fontSize: 11, color: AppTheme.textMid)),
+                style: SeType.bodyS.copyWith(color: SeColors.ink500)),
           ],
         ),
       );
 
   Widget _vDivider() =>
-      Container(width: 1, height: 32, color: AppTheme.divider);
+      Container(width: 1, height: 34, color: SeColors.ink200);
 
-  Widget _buildList(List<Map<String, dynamic>> items) {
+  Widget _skeleton() => SeShimmer(
+        child: ListView.separated(
+          padding: const EdgeInsets.all(SeSpacing.gutter),
+          itemCount: 5,
+          separatorBuilder: (_, __) => const SizedBox(height: SeSpacing.x3),
+          itemBuilder: (_, __) =>
+              const SeSkeleton(height: 118, radius: SeRadius.md),
+        ),
+      );
+
+  Widget _list(List<Map<String, dynamic>> items) {
     if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.history, size: 52, color: Color(0xFFCCCCCC)),
-            const SizedBox(height: 12),
-            Text('No deliveries here yet',
-                style: GoogleFonts.montserrat(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.textDark)),
-          ],
+      // The Cancelled tab is legitimately empty for most drivers — say something
+      // reassuring there rather than reusing the generic "nothing here".
+      final cancelledTab = _activeTab == 2;
+      return SingleChildScrollView(
+        child: SeEmptyState(
+          icon: cancelledTab ? SeIcons.checkCircle : SeIcons.history,
+          title: cancelledTab ? 'No cancellations' : 'No deliveries yet',
+          message: cancelledTab
+              ? 'You have not had a delivery cancelled. Keep it up.'
+              : 'Jobs you accept will show up here once they are done.',
+          hue: cancelledTab ? SeColors.success : SeColors.red500,
+          tint: cancelledTab ? SeColors.successTint : SeColors.red50,
         ),
       );
     }
+
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(
+          SeSpacing.gutter, SeSpacing.x4, SeSpacing.gutter, 100),
       itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _buildCard(items[i]),
+      separatorBuilder: (_, __) => const SizedBox(height: SeSpacing.x3),
+      itemBuilder: (_, i) => _card(items[i]),
     );
   }
 
-  Widget _buildCard(Map<String, dynamic> order) {
+  Widget _card(Map<String, dynamic> order) {
     final status = order['status'] as String? ?? '';
+    final spec = _statusSpec(status);
     final isCompleted = status == 'delivered';
-    final isCancelled = status == 'cancelled';
-    final label = _statusLabel(status);
     final merchant = order['merchantName'] as String? ?? 'Merchant';
-    final shortId = () {
-      final id = order['id'] as String? ?? '';
-      return id.length > 8 ? '#${id.substring(0, 8).toUpperCase()}' : '#$id';
-    }();
+    final id = order['id'] as String? ?? '';
+    final shortId =
+        id.length > 8 ? '#${id.substring(0, 8).toUpperCase()}' : '#$id';
     final pickupAddr = order['merchantAddress'] as String? ??
         order['address'] as String? ??
         '—';
     final deliverAddr = order['deliveryAddress'] as String? ?? '—';
-    final route = '$pickupAddr → $deliverAddr';
     final total = (order['total'] as num?)?.toInt() ?? 0;
-    final commission = total ~/ 10;
-    final dateTs = order['deliveredAt'] ??
-        order['createdAt'] ??
-        order['acceptedAt'];
-    final dateStr = _formatDate(dateTs);
+    final commission = DriverPay.commissionOn(total);
+    final dateStr = _formatDate(
+        order['deliveredAt'] ?? order['createdAt'] ?? order['acceptedAt']);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2)),
-        ],
-      ),
+    return SeCard(
+      padding: const EdgeInsets.all(SeSpacing.x4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -290,103 +297,64 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  color: isCompleted
-                      ? AppTheme.primary.withValues(alpha: 0.1)
-                      : const Color(0xFFF2F2F2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isCompleted
-                      ? Icons.check_circle
-                      : isCancelled
-                          ? Icons.cancel_outlined
-                          : Icons.local_shipping,
-                  color: isCompleted ? AppTheme.primary : AppTheme.textLight,
-                  size: 20,
-                ),
+                decoration:
+                    BoxDecoration(color: spec.tint, shape: BoxShape.circle),
+                child: Icon(spec.icon, color: spec.hue, size: 20),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: SeSpacing.x3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(merchant,
-                        style: GoogleFonts.montserrat(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            color: AppTheme.textDark)),
+                    Text(merchant, style: SeType.title),
                     Text(shortId,
-                        style: GoogleFonts.inter(
-                            fontSize: 11, color: AppTheme.textLight)),
+                        style: SeType.tabular(SeType.bodyS)
+                            .copyWith(color: SeColors.ink400)),
                   ],
                 ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  // Completed trips show what the driver kept; anything else
+                  // shows the order value, since no commission was earned.
                   Text(
-                    isCompleted
-                        ? _formatPrice(commission)
-                        : _formatPrice(total),
-                    style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: isCompleted
-                            ? AppTheme.success
-                            : AppTheme.textLight),
+                    Money.format(isCompleted ? commission : total),
+                    style: SeType.tabular(SeType.h3).copyWith(
+                        color:
+                            isCompleted ? SeColors.success : SeColors.ink400),
                   ),
                   if (isCompleted)
-                    Text('of ${_formatPrice(total)}',
-                        style: GoogleFonts.inter(
-                            fontSize: 10, color: AppTheme.textLight)),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: isCompleted
-                          ? AppTheme.success.withValues(alpha: 0.1)
-                          : const Color(0xFFFFF0F2),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(label,
-                        style: GoogleFonts.nunito(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: isCompleted
-                                ? AppTheme.success
-                                : isCancelled
-                                    ? AppTheme.primary
-                                    : const Color(0xFF1D4ED8))),
-                  ),
+                    Text('of ${Money.format(total)}',
+                        style: SeType.tabular(SeType.eyebrow)
+                            .copyWith(color: SeColors.ink400)),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: SeSpacing.x3),
           Row(
             children: [
-              const Icon(Icons.location_on,
-                  size: 12, color: AppTheme.textLight),
-              const SizedBox(width: 4),
+              const Icon(SeIcons.locationLine, size: 14, color: SeColors.ink300),
+              const SizedBox(width: SeSpacing.x1),
               Expanded(
-                child: Text(route,
-                    style: GoogleFonts.inter(
-                        fontSize: 11, color: AppTheme.textMid),
+                child: Text('$pickupAddr → $deliverAddr',
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                    overflow: TextOverflow.ellipsis,
+                    style: SeType.bodyS.copyWith(color: SeColors.ink500)),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: SeSpacing.x3),
           Row(
             children: [
-              const Icon(Icons.access_time,
-                  size: 12, color: AppTheme.textLight),
-              const SizedBox(width: 4),
+              const Icon(SeIcons.clock, size: 14, color: SeColors.ink300),
+              const SizedBox(width: SeSpacing.x1),
               Text(dateStr,
-                  style: GoogleFonts.inter(
-                      fontSize: 11, color: AppTheme.textLight)),
+                  style: SeType.bodyS.copyWith(color: SeColors.ink400)),
+              const Spacer(),
+              SeChip.status(
+                  label: spec.label, color: spec.hue, tint: spec.tint),
             ],
           ),
         ],

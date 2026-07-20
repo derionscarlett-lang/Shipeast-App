@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../driver_constants.dart';
 
 class DriverFirestoreService {
   static final _db = FirebaseFirestore.instance;
@@ -43,6 +44,17 @@ class DriverFirestoreService {
               .map((d) => <String, dynamic>{'id': d.id, ...d.data()})
               .toList());
 
+  /// Thrown when another driver won the race for an order.
+  static const String orderTakenCode = 'order-already-taken';
+
+  /// Claims an order for [driverUid].
+  ///
+  /// Runs in a transaction that aborts if the order already has a driver or has
+  /// moved off `pending` — two drivers tapping Accept at the same instant would
+  /// otherwise both succeed with a blind `update()`, and the second write would
+  /// silently steal the first driver's order.
+  ///
+  /// Throws [StateError] with [orderTakenCode] when the claim is lost.
   static Future<void> acceptOrder(String orderId, String driverUid) async {
     String driverName = '';
     String driverPhone = '';
@@ -53,12 +65,29 @@ class DriverFirestoreService {
         driverPhone = doc.data()?['phone'] as String? ?? '';
       }
     } catch (_) {}
-    await _db.collection('orders').doc(orderId).update({
-      'driverId': driverUid,
-      'driverName': driverName,
-      'driverPhone': driverPhone,
-      'status': 'confirmed',
-      'acceptedAt': FieldValue.serverTimestamp(),
+
+    await _db.runTransaction((tx) async {
+      final ref = _db.collection('orders').doc(orderId);
+      final snap = await tx.get(ref);
+      if (!snap.exists) throw StateError(orderTakenCode);
+
+      final data = snap.data() ?? const <String, dynamic>{};
+      final existingDriver = data['driverId'];
+      final status = data['status'] as String? ?? 'pending';
+      final claimed = existingDriver != null &&
+          (existingDriver as String).isNotEmpty &&
+          existingDriver != driverUid;
+      if (claimed || status != 'pending') {
+        throw StateError(orderTakenCode);
+      }
+
+      tx.update(ref, {
+        'driverId': driverUid,
+        'driverName': driverName,
+        'driverPhone': driverPhone,
+        'status': 'confirmed',
+        'acceptedAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 
@@ -76,7 +105,7 @@ class DriverFirestoreService {
   }
 
   /// Confirms delivery and atomically updates driver stats.
-  /// Increments todayEarnings by the driver commission (10% of order total).
+  /// Increments todayEarnings by the driver commission (see [DriverPay]).
   static Future<void> confirmDelivery(
     String orderId,
     String driverUid,
@@ -84,7 +113,7 @@ class DriverFirestoreService {
     String? photoUrl,
     String? note,
   ) async {
-    final commission = (orderTotal / 10).round();
+    final commission = DriverPay.commissionOn(orderTotal).round();
     final batch = _db.batch();
     batch.update(_db.collection('orders').doc(orderId), {
       'status': 'delivered',
