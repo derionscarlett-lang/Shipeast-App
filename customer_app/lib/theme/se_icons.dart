@@ -1,107 +1,112 @@
-import 'package:flutter/widgets.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:flutter/material.dart';
 
 /// ShipEast Design System — Icon façade (SEDS §1.5).
 ///
-/// Phosphor Icons are the single icon family across the whole app. Every screen
-/// references icons through this class (`SeIcons.home`, `SeIcons.heartFill`, …)
-/// so the app has ONE icon vocabulary and ONE point of dependency on the
-/// underlying package. Regular weight is the default; Fill is used for active
-/// nav / selected states.
+/// Every screen references icons through this single class so the app has ONE
+/// icon vocabulary and ONE swap point for the underlying family.
+///
+/// Backed by Material's **rounded/outlined** icon set: it ships inside Flutter
+/// (no external dependency, no version-skew risk) and reads as one cohesive,
+/// friendly family. `*Fill` names map to the filled/rounded variant used for
+/// active nav and selected states; the plain names map to the outlined variant.
+///
+/// (Phosphor was the original intent but its current release extends the now
+/// `final` `IconData` class and cannot compile against modern Flutter; if a
+/// fixed Phosphor release lands, only this file changes.)
 class SeIcons {
   SeIcons._();
 
   // Bottom navigation
-  static const IconData home = PhosphorIconsRegular.house;
-  static const IconData homeFill = PhosphorIconsFill.house;
-  static const IconData search = PhosphorIconsRegular.magnifyingGlass;
-  static const IconData searchFill = PhosphorIconsFill.magnifyingGlass;
-  static const IconData orders = PhosphorIconsRegular.receipt;
-  static const IconData ordersFill = PhosphorIconsFill.receipt;
-  static const IconData bell = PhosphorIconsRegular.bell;
-  static const IconData bellFill = PhosphorIconsFill.bell;
-  static const IconData user = PhosphorIconsRegular.user;
-  static const IconData userFill = PhosphorIconsFill.user;
+  static const IconData home = Icons.home_outlined;
+  static const IconData homeFill = Icons.home_rounded;
+  static const IconData search = Icons.search_rounded;
+  static const IconData searchFill = Icons.search_rounded;
+  static const IconData orders = Icons.receipt_long_outlined;
+  static const IconData ordersFill = Icons.receipt_long_rounded;
+  static const IconData bell = Icons.notifications_outlined;
+  static const IconData bellFill = Icons.notifications_rounded;
+  static const IconData user = Icons.person_outline_rounded;
+  static const IconData userFill = Icons.person_rounded;
 
   // Categories
-  static const IconData food = PhosphorIconsRegular.forkKnife;
-  static const IconData grocery = PhosphorIconsRegular.basket;
-  static const IconData packages = PhosphorIconsRegular.package;
-  static const IconData pharmacy = PhosphorIconsRegular.pill;
-  static const IconData foodFill = PhosphorIconsFill.forkKnife;
-  static const IconData groceryFill = PhosphorIconsFill.basket;
-  static const IconData packagesFill = PhosphorIconsFill.package;
-  static const IconData pharmacyFill = PhosphorIconsFill.pill;
+  static const IconData food = Icons.restaurant_rounded;
+  static const IconData grocery = Icons.shopping_basket_outlined;
+  static const IconData packages = Icons.inventory_2_outlined;
+  static const IconData pharmacy = Icons.local_pharmacy_outlined;
+  static const IconData foodFill = Icons.restaurant_rounded;
+  static const IconData groceryFill = Icons.shopping_basket_rounded;
+  static const IconData packagesFill = Icons.inventory_2_rounded;
+  static const IconData pharmacyFill = Icons.local_pharmacy_rounded;
 
   // Home / merchant
-  static const IconData location = PhosphorIconsRegular.mapPin;
-  static const IconData locationFill = PhosphorIconsFill.mapPin;
-  static const IconData locationLine = PhosphorIconsRegular.mapPinLine;
-  static const IconData plane = PhosphorIconsRegular.airplaneTilt;
-  static const IconData storefront = PhosphorIconsRegular.storefront;
-  static const IconData heart = PhosphorIconsRegular.heart;
-  static const IconData heartFill = PhosphorIconsFill.heart;
-  static const IconData star = PhosphorIconsFill.star;
-  static const IconData starOutline = PhosphorIconsRegular.star;
-  static const IconData clock = PhosphorIconsRegular.clock;
-  static const IconData bike = PhosphorIconsRegular.motorcycle;
-  static const IconData scales = PhosphorIconsRegular.scales;
-  static const IconData box = PhosphorIconsRegular.package;
+  static const IconData location = Icons.location_on_outlined;
+  static const IconData locationFill = Icons.location_on_rounded;
+  static const IconData locationLine = Icons.location_on_outlined;
+  static const IconData plane = Icons.flight_takeoff_rounded;
+  static const IconData storefront = Icons.storefront_outlined;
+  static const IconData heart = Icons.favorite_border_rounded;
+  static const IconData heartFill = Icons.favorite_rounded;
+  static const IconData star = Icons.star_rounded;
+  static const IconData starOutline = Icons.star_border_rounded;
+  static const IconData clock = Icons.access_time_rounded;
+  static const IconData bike = Icons.delivery_dining_rounded;
+  static const IconData scales = Icons.monitor_weight_outlined;
+  static const IconData box = Icons.inventory_2_rounded;
 
   // Cart / checkout / payment
-  static const IconData cart = PhosphorIconsRegular.shoppingCart;
-  static const IconData cartFill = PhosphorIconsFill.shoppingCart;
-  static const IconData creditCard = PhosphorIconsRegular.creditCard;
-  static const IconData cash = PhosphorIconsRegular.money;
-  static const IconData tag = PhosphorIconsRegular.tag;
-  static const IconData note = PhosphorIconsRegular.note;
+  static const IconData cart = Icons.shopping_cart_outlined;
+  static const IconData cartFill = Icons.shopping_cart_rounded;
+  static const IconData creditCard = Icons.credit_card_rounded;
+  static const IconData cash = Icons.payments_outlined;
+  static const IconData tag = Icons.local_offer_rounded;
+  static const IconData note = Icons.notes_rounded;
 
   // Actions
-  static const IconData plus = PhosphorIconsRegular.plus;
-  static const IconData minus = PhosphorIconsRegular.minus;
-  static const IconData close = PhosphorIconsRegular.x;
-  static const IconData check = PhosphorIconsRegular.check;
-  static const IconData checkCircle = PhosphorIconsFill.checkCircle;
-  static const IconData trash = PhosphorIconsRegular.trash;
-  static const IconData edit = PhosphorIconsRegular.pencilSimple;
-  static const IconData camera = PhosphorIconsRegular.camera;
-  static const IconData phone = PhosphorIconsFill.phone;
-  static const IconData copy = PhosphorIconsRegular.copy;
-  static const IconData share = PhosphorIconsRegular.shareNetwork;
+  static const IconData plus = Icons.add_rounded;
+  static const IconData minus = Icons.remove_rounded;
+  static const IconData close = Icons.close_rounded;
+  static const IconData check = Icons.check_rounded;
+  static const IconData checkCircle = Icons.check_circle_rounded;
+  static const IconData trash = Icons.delete_outline_rounded;
+  static const IconData edit = Icons.edit_rounded;
+  static const IconData camera = Icons.photo_camera_rounded;
+  static const IconData phone = Icons.phone_rounded;
+  static const IconData copy = Icons.content_copy_rounded;
+  static const IconData share = Icons.share_rounded;
 
   // Chevrons / arrows
-  static const IconData caretRight = PhosphorIconsRegular.caretRight;
-  static const IconData caretLeft = PhosphorIconsRegular.caretLeft;
-  static const IconData caretDown = PhosphorIconsRegular.caretDown;
-  static const IconData arrowLeft = PhosphorIconsRegular.arrowLeft;
-  static const IconData arrowRight = PhosphorIconsRegular.arrowRight;
+  static const IconData caretRight = Icons.chevron_right_rounded;
+  static const IconData caretLeft = Icons.chevron_left_rounded;
+  static const IconData caretDown = Icons.expand_more_rounded;
+  static const IconData arrowLeft = Icons.arrow_back_rounded;
+  static const IconData arrowRight = Icons.arrow_forward_rounded;
 
   // Profile / menu
-  static const IconData settings = PhosphorIconsRegular.gearSix;
-  static const IconData signOut = PhosphorIconsRegular.signOut;
-  static const IconData shield = PhosphorIconsRegular.shieldCheck;
-  static const IconData help = PhosphorIconsRegular.question;
-  static const IconData chat = PhosphorIconsRegular.chatCircle;
-  static const IconData addresses = PhosphorIconsRegular.mapPinLine;
-  static const IconData sun = PhosphorIconsRegular.sun;
-  static const IconData moon = PhosphorIconsRegular.moon;
+  static const IconData settings = Icons.settings_rounded;
+  static const IconData signOut = Icons.logout_rounded;
+  static const IconData shield = Icons.shield_outlined;
+  static const IconData help = Icons.help_outline_rounded;
+  static const IconData chat = Icons.chat_bubble_outline_rounded;
+  static const IconData addresses = Icons.location_on_outlined;
+  static const IconData sun = Icons.light_mode_rounded;
+  static const IconData moon = Icons.dark_mode_rounded;
 
   // Auth
-  static const IconData envelope = PhosphorIconsRegular.envelopeSimple;
-  static const IconData lock = PhosphorIconsRegular.lockSimple;
-  static const IconData eye = PhosphorIconsRegular.eye;
-  static const IconData eyeSlash = PhosphorIconsRegular.eyeSlash;
-  static const IconData google = PhosphorIconsRegular.googleLogo;
-  static const IconData userCircle = PhosphorIconsRegular.userCircle;
+  static const IconData envelope = Icons.mail_outline_rounded;
+  static const IconData lock = Icons.lock_outline_rounded;
+  static const IconData eye = Icons.visibility_outlined;
+  static const IconData eyeSlash = Icons.visibility_off_outlined;
+  static const IconData google = Icons.g_mobiledata_rounded;
+  static const IconData userCircle = Icons.account_circle_outlined;
 
   // States / feedback
-  static const IconData warning = PhosphorIconsFill.warning;
-  static const IconData warningCircle = PhosphorIconsFill.warningCircle;
-  static const IconData info = PhosphorIconsFill.info;
-  static const IconData noConnection = PhosphorIconsRegular.wifiSlash;
-  static const IconData filter = PhosphorIconsRegular.funnel;
-  static const IconData list = PhosphorIconsRegular.listBullets;
-  static const IconData rocket = PhosphorIconsRegular.rocketLaunch;
-  static const IconData sparkle = PhosphorIconsFill.sparkle;
-  static const IconData confetti = PhosphorIconsRegular.confetti;
+  static const IconData warning = Icons.warning_rounded;
+  static const IconData warningCircle = Icons.error_rounded;
+  static const IconData info = Icons.info_rounded;
+  static const IconData noConnection = Icons.wifi_off_rounded;
+  static const IconData filter = Icons.filter_list_rounded;
+  static const IconData list = Icons.list_rounded;
+  static const IconData rocket = Icons.rocket_launch_outlined;
+  static const IconData sparkle = Icons.auto_awesome_rounded;
+  static const IconData confetti = Icons.celebration_rounded;
 }
