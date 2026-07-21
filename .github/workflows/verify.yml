@@ -47,6 +47,11 @@ jobs:
       - name: Check status constants are in sync across all three apps
         run: node tools/check-status-parity.mjs
 
+      # The Dart copies have flutter_test; this is the JS equivalent, covering
+      # the transition and assignment logic the admin panel delegates to.
+      - name: Test the admin lifecycle module
+        run: node tools/test-order-status.mjs
+
   flutter:
     name: Flutter (${{ matrix.app }})
     runs-on: ubuntu-latest
