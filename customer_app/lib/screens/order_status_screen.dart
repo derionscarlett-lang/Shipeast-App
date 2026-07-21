@@ -616,13 +616,18 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     final driverName = _driver?['name'] as String? ?? 'Your Driver';
     final avgRating =
         (_driver?['averageRating'] as num?)?.toStringAsFixed(1) ?? '5.0';
-    final vehicleMake = _driver?['vehicleMake'] as String? ?? '';
+    // British spelling, per SCHEMA.md §c — both writers (driver registration
+    // and the admin panel) already use it; only this reader was wrong.
+    //
+    // The `vehicleMake` read was deleted: no such field is written by anything,
+    // and combined with the American `licensePlate` it meant vehicleInfo
+    // resolved to an empty string for every driver. The customer saw a name and
+    // a rating with no way to identify the car pulling up outside.
     final vehicleModel = _driver?['vehicleModel'] as String? ?? '';
-    final licensePlate = _driver?['licensePlate'] as String? ?? '';
+    final licencePlate = _driver?['licencePlate'] as String? ?? '';
     final vehicleInfo = [
-      if (vehicleMake.isNotEmpty || vehicleModel.isNotEmpty)
-        '$vehicleMake $vehicleModel'.trim(),
-      if (licensePlate.isNotEmpty) licensePlate,
+      if (vehicleModel.isNotEmpty) vehicleModel.trim(),
+      if (licencePlate.isNotEmpty) licencePlate,
     ].join('  ·  ');
 
     return SeCard(

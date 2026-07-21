@@ -25,6 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _vehicleModelController = TextEditingController();
   final _licencePlateController = TextEditingController();
   final _licenceNumberController = TextEditingController();
 
@@ -48,6 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _vehicleModelController.dispose();
     _licencePlateController.dispose();
     _licenceNumberController.dispose();
     super.dispose();
@@ -79,6 +81,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _passwordController.text != _confirmPasswordController.text
               ? 'Passwords do not match'
               : null;
+      // Required, not optional. A driver the customer cannot identify at the
+      // kerb is a safety problem, not a data-completeness one (SCHEMA.md
+      // §drivers). The admin form has always demanded both; registration did
+      // not, which is why the two paths disagreed.
+      _errors['vehicleModel'] = _vehicleModelController.text.trim().isEmpty
+          ? 'Enter your vehicle make and model'
+          : null;
+      _errors['licencePlate'] = _licencePlateController.text.trim().isEmpty
+          ? 'Enter your licence plate'
+          : null;
     });
     return _errors.values.every((e) => e == null);
   }
@@ -99,6 +111,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'phone': _phoneController.text.trim(),
         'email': _emailController.text.trim(),
         'vehicleType': _selectedVehicle,
+        'vehicleModel': _vehicleModelController.text.trim(),
         'licencePlate': _licencePlateController.text.trim(),
         'licenceNumber': _licenceNumberController.text.trim(),
         'status': 'pending',
@@ -292,11 +305,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: SeSpacing.x4),
             SeTextField(
+              controller: _vehicleModelController,
+              label: 'Vehicle Make & Model',
+              hint: 'Toyota Corolla',
+              icon: SeIcons.car,
+              textInputAction: TextInputAction.next,
+              errorText: _errors['vehicleModel'],
+              onChanged: (_) => _clearError('vehicleModel'),
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            SeTextField(
               controller: _licencePlateController,
               label: 'Licence Plate',
               hint: 'ABC 1234',
               icon: SeIcons.creditCard,
               textInputAction: TextInputAction.next,
+              errorText: _errors['licencePlate'],
+              onChanged: (_) => _clearError('licencePlate'),
             ),
             const SizedBox(height: SeSpacing.x4),
             SeTextField(
