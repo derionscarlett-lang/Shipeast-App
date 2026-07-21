@@ -7,14 +7,12 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,collection,doc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-// ── Firebase Config (shipeast-1a1f6) ──
-const firebaseConfig={
-  apiKey:           'AIzaSyDcETjuHcvmy7TKL7vHW6sYlUk9sxa-6CA',
-  authDomain:       'shipeast-1a1f6.firebaseapp.com',
-  projectId:        'shipeast-1a1f6',
-  storageBucket:    'shipeast-1a1f6.firebasestorage.app',
-  messagingSenderId:'783428944628'
-};
+// ── Firebase Config ──
+// Lives in config.js so the panel can target staging during the Phase 1–3
+// migrations (P0-01). config.js also paints a banner on any non-prod
+// environment, so it is always visible which database is being mutated.
+import{firebaseConfig}from'./config.js';
+
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
@@ -195,13 +193,13 @@ function applyTheme(theme){
 }
 function initTheme(){
   var saved=null;
-  try{ saved=localStorage.getItem('se-theme'); }catch(e){}
+  try{ saved=localStorage.getItem('se-theme'); }catch{}
   applyTheme(saved||'light');   // dark ships default-off; toggle lives in the topbar
 }
 function toggleTheme(){
   var next=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
   applyTheme(next);
-  try{ localStorage.setItem('se-theme',next); }catch(e){}
+  try{ localStorage.setItem('se-theme',next); }catch{}
 }
 
 // ══════════════════════ AUTH ══════════════════════

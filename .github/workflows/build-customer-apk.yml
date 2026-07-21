@@ -13,7 +13,13 @@ permissions:
   contents: write
 
 jobs:
+  # No artifact publishes from code that does not analyze and test clean
+  # (execution-all-three-plan.md P0-03).
+  verify:
+    uses: ./.github/workflows/verify.yml
+
   build-apk:
+    needs: verify
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -28,9 +34,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Flutter (stable)
+      - name: Read pinned Flutter version
+        id: toolchain
+        working-directory: .
+        run: |
+          version="$(awk '/^flutter /{print $2}' .tool-versions | sed 's/-stable$//')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Flutter ${{ steps.toolchain.outputs.version }}
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: ${{ steps.toolchain.outputs.version }}
           channel: stable
           cache: true
 

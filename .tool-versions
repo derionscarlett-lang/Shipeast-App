@@ -1,0 +1,14 @@
+# Toolchain pin (P0-04 / execution-all-three-plan.md P0-02).
+#
+# Version is taken from the resolved lockfiles, not guessed:
+#   customer_app/pubspec.lock  →  flutter ">=3.38.4", dart ">=3.11.5"
+#   driver_app/pubspec.lock    →  flutter ">=3.38.4", dart ">=3.11.5"
+#
+# Both apps declare `sdk: ^3.11.5` in pubspec.yaml. Flutter 3.38.4 is the
+# version that produced the committed lockfiles, so it is the version CI and
+# local builds must use — otherwise `pub get` can silently resolve a different
+# dependency graph than the one that was reviewed.
+#
+# CI reads this file (.github/workflows/verify.yml) rather than tracking
+# `channel: stable`, so a Flutter release cannot change the build under us.
+flutter 3.38.4-stable

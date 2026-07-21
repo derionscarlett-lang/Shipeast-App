@@ -1,0 +1,111 @@
+name: Verify
+
+# The verification gate (execution-all-three-plan.md P0-03).
+#
+# Before this existed, the two APK workflows built and *published* release
+# artifacts on every push to main without ever running `flutter analyze` or
+# `flutter test`. Nothing prevented a broken commit from becoming a published
+# release that users sideload.
+#
+# This workflow is both:
+#   - a standalone check on pull requests and pushes to main, and
+#   - a reusable workflow (`workflow_call`) that the APK builds declare as a
+#     dependency, so no artifact can be published from code that does not pass.
+#
+# `needs:` only works between jobs in a single workflow file, which is why this
+# is a reusable workflow rather than a separate one the APK builds try to
+# reference.
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_call:
+  workflow_dispatch:
+
+# A newer push to the same branch makes an in-flight run obsolete.
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter:
+    name: Flutter (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false          # report both apps in one run, not just the first to break
+      matrix:
+        app: [ customer_app, driver_app ]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read pinned Flutter version
+        id: toolchain
+        working-directory: .
+        # .tool-versions is the single source of truth for the toolchain, so CI
+        # and local builds cannot drift. Tracking `channel: stable` instead would
+        # let an upstream Flutter release silently change the build.
+        run: |
+          version="$(awk '/^flutter /{print $2}' .tool-versions | sed 's/-stable$//')"
+          if [ -z "$version" ]; then
+            echo "::error file=.tool-versions::No 'flutter <version>' line found"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Pinned Flutter: $version"
+
+      - name: Set up Flutter ${{ steps.toolchain.outputs.version }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.toolchain.outputs.version }}
+          channel: stable
+          cache: true
+
+      - name: Flutter / Dart versions
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Errors block. Warnings and infos are reported but do not fail the job:
+      # the pre-existing baseline has not been cleared yet, and P6-02 is the
+      # work item that clears it and flips this to --fatal-infos. Gating on the
+      # baseline today would just block every PR on unrelated findings.
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Test
+        run: flutter test
+
+  admin:
+    name: Admin panel
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin_panel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: admin_panel/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The panel ships unbundled ES modules straight to the browser, so a
+      # syntax error blanks the page in production with no build step to catch
+      # it. These two steps are that missing build step.
+      - name: Syntax check
+        run: node --check app.js
+
+      - name: Lint
+        run: npx eslint app.js
