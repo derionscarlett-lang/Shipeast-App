@@ -1,374 +1,272 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="theme-color" content="#C8102E"/>
+<meta name="description" content="ShipEast Admin Portal — orders, drivers, merchants and analytics for ShipEast Couriers &amp; Bearer Services Ltd, Jamaica."/>
 <title>ShipEast Admin Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-:root{--red:#C8102E;--rd:#a00d24;--dark:#1A1A1A;--gray:#f4f5f7;--g2:#e2e4e8;--g3:#9ea3ad;--text:#2c2f36;--sw:240px;--swc:66px;}
-body{font-family:'Inter',sans-serif;background:#edf0f4;color:var(--text);min-height:100vh;font-size:14px;}
-
-/* ─ LOGIN ─ */
-#login-page{min-height:100vh;background:linear-gradient(135deg,#111 0%,#2a0810 55%,#111 100%);display:flex;align-items:center;justify-content:center;}
-.lc{background:#fff;border-radius:18px;padding:52px 44px;width:440px;box-shadow:0 24px 64px rgba(0,0,0,.45);}
-.lc-logo{font-family:'Montserrat',sans-serif;font-size:32px;font-weight:800;color:var(--red);text-align:center;margin-bottom:4px;letter-spacing:-1px;}
-.lc-logo span{color:var(--dark);}
-.lc-sub{text-align:center;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g3);margin-bottom:36px;}
-.fg{margin-bottom:20px;}
-.fg label{display:block;font-size:13px;font-weight:600;color:var(--dark);margin-bottom:8px;}
-.fg input{width:100%;padding:13px 16px;border:2px solid var(--g2);border-radius:10px;font-size:14px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;}
-.fg input:focus{border-color:var(--red);}
-.btn-login{width:100%;padding:14px;background:var(--red);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;font-family:'Montserrat',sans-serif;cursor:pointer;margin-top:8px;transition:background .2s;}
-.btn-login:hover{background:var(--rd);}
-#l-err{color:var(--red);font-size:13px;text-align:center;margin-top:8px;display:none;}
-.l-foot{text-align:center;font-size:12px;color:#bbb;margin-top:22px;}
-
-/* ─ APP SHELL ─ */
-#app{display:none;min-height:100vh;}
-.sidebar{width:var(--sw);background:var(--dark);position:fixed;top:0;left:0;height:100vh;display:flex;flex-direction:column;z-index:100;transition:width .28s;}
-.sidebar.collapsed{width:var(--swc);}
-.sb-logo{padding:22px 20px 20px;border-bottom:1px solid rgba(255,255,255,.08);overflow:hidden;white-space:nowrap;}
-.sb-logo .slt{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:800;color:var(--red);letter-spacing:-0.5px;}
-.sb-logo .slt span{color:#fff;}
-.sb-logo .sls{font-size:10px;color:rgba(255,255,255,.32);letter-spacing:1.2px;text-transform:uppercase;margin-top:2px;}
-.sidebar.collapsed .sls{display:none;}
-.sb-nav{flex:1;padding:14px 0;overflow-y:auto;overflow-x:hidden;}
-.ni{display:flex;align-items:center;gap:12px;padding:13px 20px;cursor:pointer;color:rgba(255,255,255,.52);font-size:14px;font-weight:500;border-left:3px solid transparent;transition:all .2s;white-space:nowrap;user-select:none;}
-.ni:hover{background:rgba(255,255,255,.06);color:#fff;}
-.ni.active{background:rgba(200,16,46,.18);color:var(--red);border-left-color:var(--red);}
-.ni .ico{font-size:18px;width:22px;text-align:center;flex-shrink:0;}
-.ni .lbl{transition:opacity .2s;}
-.sidebar.collapsed .lbl{opacity:0;pointer-events:none;}
-.sidebar.collapsed .ni{justify-content:center;padding:13px 0;}
-.ndiv{height:1px;background:rgba(255,255,255,.08);margin:8px 20px;}
-.sidebar.collapsed .ndiv{margin:8px 12px;}
-.main{margin-left:var(--sw);display:flex;flex-direction:column;min-height:100vh;min-width:0;transition:margin-left .28s;}
-.main.expanded{margin-left:var(--swc);}
-
-/* ─ TOPBAR ─ */
-.topbar{background:#fff;height:64px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--g2);position:sticky;top:0;z-index:50;gap:16px;}
-.tb-l{display:flex;align-items:center;gap:14px;}
-.hamburger{width:36px;height:36px;display:flex;flex-direction:column;justify-content:center;gap:5px;align-items:center;cursor:pointer;background:none;border:none;border-radius:8px;flex-shrink:0;padding:4px;}
-.hamburger:hover{background:var(--gray);}
-.hamburger span{width:20px;height:2px;background:var(--dark);border-radius:2px;display:block;}
-.tb-bc{font-size:11px;color:var(--g3);}
-.tb-bc em{color:var(--red);font-style:normal;}
-.tb-pg-title{font-family:'Montserrat',sans-serif;font-size:19px;font-weight:700;color:var(--dark);}
-.tb-r{display:flex;align-items:center;gap:14px;flex-shrink:0;}
-.tb-date{font-size:12px;color:var(--g3);}
-.ab{display:flex;align-items:center;gap:10px;background:var(--gray);padding:7px 13px;border-radius:10px;}
-.av{width:34px;height:34px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;flex-shrink:0;}
-.an{font-size:13px;font-weight:600;color:var(--dark);}
-.ar{font-size:11px;color:var(--g3);}
-
-/* ─ PAGES ─ */
-.pw{padding:24px;flex:1;}
-.page{display:none;}
-.page.active{display:block;}
-
-/* ─ COMMON COMPONENTS ─ */
-.pg-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
-.pg-title{font-family:'Montserrat',sans-serif;font-size:24px;font-weight:800;color:var(--dark);}
-.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px;}
-.sg.g3{grid-template-columns:repeat(3,1fr);}
-.sc{background:#fff;border-radius:14px;padding:20px 22px;box-shadow:0 1px 6px rgba(0,0,0,.07);border-top:3px solid var(--red);}
-.sc-ico{font-size:24px;margin-bottom:10px;}
-.sc-lbl{font-size:11px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;}
-.sc-val{font-family:'Montserrat',sans-serif;font-size:28px;font-weight:800;color:var(--dark);line-height:1;}
-.sc-sub{font-size:12px;color:var(--g3);margin-top:4px;}
-.card{background:#fff;border-radius:14px;padding:22px;box-shadow:0 1px 6px rgba(0,0,0,.07);margin-bottom:18px;}
-.card-title{font-family:'Montserrat',sans-serif;font-size:16px;font-weight:700;color:var(--dark);margin-bottom:18px;}
-table{width:100%;border-collapse:collapse;}
-th{text-align:left;padding:10px 14px;font-size:11px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--g2);}
-td{padding:12px 14px;font-size:13px;color:var(--text);border-bottom:1px solid #f3f4f6;vertical-align:middle;}
-tr:last-child td{border-bottom:none;}
-tr:hover td{background:#fafbfd;}
-.bdg{display:inline-flex;align-items:center;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px;white-space:nowrap;}
-.bg-green{background:#e6f4ea;color:#1e7e34;}
-.bg-yellow{background:#fff8e1;color:#b45309;}
-.bg-red{background:#fde8ec;color:#c0142e;}
-.bg-blue{background:#e3f0fd;color:#1558b0;}
-.bg-gray{background:#f0f0f2;color:#5a5f6b;}
-.bg-orange{background:#fff3e0;color:#d84315;}
-.bg-purple{background:#f3e8fd;color:#7c3aed;}
-.btn{padding:9px 18px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:all .2s;}
-.btn-red{background:var(--red);color:#fff;}
-.btn-red:hover{background:var(--rd);}
-.btn-outline{background:transparent;border:1.5px solid var(--g2);color:var(--text);}
-.btn-outline:hover{border-color:var(--red);color:var(--red);}
-.aicon{width:32px;height:32px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;border:none;transition:all .2s;}
-.ai-v{background:#e8f1fd;color:#1558b0;}
-.ai-v:hover{background:#1558b0;color:#fff;}
-.ai-e{background:#e6f4ea;color:#1e7e34;}
-.ai-e:hover{background:#1e7e34;color:#fff;}
-.ai-d{background:#fde8ec;color:#c0142e;}
-.ai-d:hover{background:#c0142e;color:#fff;}
-
-/* ─ TABS ─ */
-.tabs{display:flex;gap:4px;background:var(--gray);border-radius:9px;padding:4px;margin-bottom:18px;width:fit-content;}
-.tab{padding:8px 18px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;color:var(--g3);transition:all .2s;user-select:none;}
-.tab.active{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(0,0,0,.1);}
-
-/* ─ SEARCH ─ */
-.srch{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--g2);border-radius:9px;padding:9px 14px;margin-bottom:16px;width:360px;}
-.srch input{border:none;outline:none;font-size:14px;width:100%;font-family:'Inter',sans-serif;background:transparent;}
-
-/* ─ TOGGLE ─ */
-.tgl{position:relative;width:44px;height:24px;cursor:pointer;display:inline-block;flex-shrink:0;}
-.tgl input{opacity:0;width:0;height:0;position:absolute;}
-.ts{position:absolute;top:0;left:0;right:0;bottom:0;background:#ccc;border-radius:24px;transition:background .25s;}
-.ts:before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .25s;box-shadow:0 1px 3px rgba(0,0,0,.25);}
-.tgl input:checked+.ts{background:var(--red);}
-.tgl input:checked+.ts:before{transform:translateX(20px);}
-
-/* ─ MODAL ─ */
-.mbg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;display:none;align-items:center;justify-content:center;padding:16px;}
-.mbg.open{display:flex;}
-.mbox{background:#fff;border-radius:18px;padding:30px;width:520px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3);}
-.mbox.wide{width:580px;}
-.m-title{font-family:'Montserrat',sans-serif;font-size:19px;font-weight:700;color:var(--dark);margin-bottom:22px;}
-.mg{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-.fr{margin-bottom:14px;}
-.fr label{display:block;font-size:11px;font-weight:700;color:var(--g3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.5px;}
-.fr input,.fr select,.fr textarea{width:100%;padding:11px 13px;border:1.5px solid var(--g2);border-radius:9px;font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s;background:#fff;color:var(--text);}
-.fr input:focus,.fr select:focus,.fr textarea:focus{border-color:var(--red);}
-.fr textarea{resize:vertical;min-height:80px;}
-.m-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;padding-top:18px;border-top:1px solid var(--g2);}
-
-/* ─ SIDE PANEL ─ */
-#sp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;display:none;}
-#sp-overlay.open{display:block;}
-.spanel{position:fixed;right:0;top:0;height:100vh;width:400px;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.15);z-index:201;transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column;}
-.spanel.open{transform:translateX(0);}
-.sp-hd{padding:20px 22px;border-bottom:1px solid var(--g2);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
-.sp-hd-sub{font-size:11px;color:var(--g3);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px;}
-.sp-hd-title{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:700;color:var(--dark);}
-#sp-body{padding:22px;overflow-y:auto;flex:1;}
-.sp-sec{margin-bottom:22px;}
-.sp-sec-title{font-size:11px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--g2);}
-.sp-row{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid #f5f6f8;}
-.sp-row:last-child{border-bottom:none;}
-.sp-lbl{font-size:12px;color:var(--g3);font-weight:500;flex-shrink:0;}
-.sp-val{font-size:13px;font-weight:600;color:var(--dark);text-align:right;max-width:230px;}
-
-/* ─ STATUS FLOW ─ */
-.sf{display:flex;align-items:center;margin-bottom:16px;}
-.sf-dot{width:13px;height:13px;border-radius:50%;background:var(--g2);flex-shrink:0;}
-.sf-dot.done{background:var(--red);}
-.sf-line{flex:1;height:2px;background:var(--g2);}
-.sf-line.done{background:var(--red);}
-.sf-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;}
-.sf-lbl{font-size:9px;color:var(--g3);white-space:nowrap;}
-
-/* ─ NOTIFICATIONS ─ */
-.nl{display:grid;grid-template-columns:1fr 290px;gap:20px;}
-.phone-mock{background:#111;border-radius:40px;padding:14px;box-shadow:0 8px 32px rgba(0,0,0,.35);}
-.ph-notch{width:72px;height:4px;background:rgba(255,255,255,.25);border-radius:2px;margin:0 auto 10px;}
-.ph-screen{background:#fff;border-radius:26px;overflow:hidden;min-height:420px;}
-.ph-bar{background:#0a0a0a;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;}
-.ph-bar span{color:#fff;font-size:10px;}
-.ph-ni{padding:13px 14px;border-bottom:1px solid #f0f0f0;}
-.ph-app{font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;margin-bottom:3px;}
-.ph-title{font-size:13px;font-weight:700;color:var(--dark);}
-.ph-msg{font-size:11px;color:var(--g3);margin-top:2px;line-height:1.4;}
-.nh-item{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid #f3f4f6;}
-.nh-item:last-child{border-bottom:none;}
-.nh-ico{width:38px;height:38px;border-radius:9px;background:rgba(200,16,46,.1);color:var(--red);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
-.nh-title{font-size:13px;font-weight:600;color:var(--dark);}
-.nh-meta{font-size:11px;color:var(--g3);margin-top:2px;}
-
-/* ─ PROMO ─ */
-.pl{display:grid;grid-template-columns:1fr 290px;gap:20px;}
-.pc-prev{background:linear-gradient(135deg,var(--red) 0%,#6d0a1a 100%);border-radius:18px;padding:26px;color:#fff;margin-bottom:16px;}
-.pc-brand{font-size:11px;font-weight:700;letter-spacing:2px;opacity:.75;}
-.pc-code{font-family:'Montserrat',sans-serif;font-size:32px;font-weight:800;letter-spacing:5px;margin:10px 0 6px;}
-.pc-disc{font-size:15px;opacity:.9;}
-.pc-valid{font-size:11px;opacity:.55;margin-top:14px;}
-
-/* ─ ANALYTICS ─ */
-.ag{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.barchart{display:flex;align-items:flex-end;gap:8px;height:160px;padding:4px 0;}
-.bc{display:flex;flex-direction:column;align-items:center;flex:1;height:100%;}
-.bc-inner{width:100%;display:flex;align-items:flex-end;flex:1;}
-.bc-bar{width:100%;background:linear-gradient(to top,var(--red),#e8516e);border-radius:5px 5px 0 0;min-height:4px;transition:height .4s;}
-.bc-lbl{font-size:11px;color:var(--g3);margin-top:5px;}
-.bc-num{font-size:11px;font-weight:700;color:var(--dark);margin-bottom:3px;}
-.zr{display:flex;align-items:center;gap:10px;margin-bottom:13px;}
-.zn{font-size:13px;width:120px;font-weight:500;flex-shrink:0;}
-.zt{flex:1;height:9px;background:var(--g2);border-radius:5px;overflow:hidden;}
-.zf{height:100%;background:var(--red);border-radius:5px;}
-.zv{font-size:13px;font-weight:700;width:38px;text-align:right;flex-shrink:0;}
-.pay-bar{display:flex;height:24px;border-radius:9px;overflow:hidden;margin:14px 0 8px;}
-.pseg{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
-.prow{display:flex;align-items:center;margin-bottom:13px;}
-.prow-lbl{font-size:13px;font-weight:600;width:130px;}
-.ptrack{flex:1;height:12px;background:var(--g2);border-radius:6px;overflow:hidden;margin:0 12px;}
-.pfill{height:100%;border-radius:6px;}
-.prow-pct{font-size:13px;font-weight:700;width:36px;}
-
-/* ─ PERIOD BTNS ─ */
-.pbs{display:flex;gap:6px;}
-.pb{padding:8px 16px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--g2);background:#fff;color:var(--g3);transition:all .2s;font-family:'Inter',sans-serif;}
-.pb.active{background:var(--red);color:#fff;border-color:var(--red);}
-
-/* ─ MERCHANT ICON ─ */
-.cat-ico{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
-
-/* ─ STARS ─ */
-.stars{color:#f59e0b;}
-
-/* ─ RATING BAR ─ */
-.rbar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-.rbar-lbl{font-size:12px;width:14px;text-align:right;color:var(--g3);}
-.rbar-t{flex:1;height:8px;background:var(--g2);border-radius:4px;overflow:hidden;}
-.rbar-f{height:100%;background:var(--red);border-radius:4px;}
-.rbar-pct{font-size:11px;color:var(--g3);width:30px;}
-
-/* ─ MOBILE OVERLAY ─ */
-#mob-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:499;display:none;}
-#mob-overlay.open{display:block;}
-@media(max-width:900px){
-  .sidebar{z-index:500;transform:translateX(-100%);transition:transform .3s, width .28s;}
-  .sidebar.mob-open{transform:translateX(0);}
-  .sidebar.collapsed{width:var(--sw);}
-  .main{margin-left:0!important;}
-  .sg{grid-template-columns:repeat(2,1fr);}
-  .nl,.pl{grid-template-columns:1fr;}
-  .ag{grid-template-columns:1fr;}
-}
-@media(max-width:600px){
-  .mbox,.mbox.wide{width:100%;border-radius:18px 18px 0 0;}
-  .mbg{align-items:flex-end;padding:0;}
-  .spanel{width:100%;}
-  .sg{grid-template-columns:1fr 1fr;}
-  .srch{width:100%;}
-}
-@keyframes spin{to{transform:rotate(360deg)}}
-.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
-.spin-dark{border-color:var(--g2);border-top-color:var(--red);}
-.tbl-loading{text-align:center;padding:40px;color:var(--g3);font-size:13px;}
-.inline-success{background:#e6f4ea;color:#1e7e34;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;margin-top:10px;display:none;}
-.inline-error{background:#fde8ec;color:#c0142e;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;margin-top:10px;display:none;}
-</style>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml"/>
+<link rel="preload" href="assets/fonts/jakarta-latin.woff2" as="font" type="font/woff2" crossorigin/>
+<link rel="preload" href="assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin/>
+<link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
+
+<!-- ══ PHOSPHOR ICON SPRITE (MIT — phosphoricons.com) ══ -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+<symbol id="i-dashboard" viewBox="0 0 256 256"><path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"/></symbol>
+<symbol id="i-dashboard-f" viewBox="0 0 256 256"><path d="M120,56v48a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V56A16,16,0,0,1,56,40h48A16,16,0,0,1,120,56Zm80-16H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm-96,96H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm96,0H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Z"/></symbol>
+<symbol id="i-orders" viewBox="0 0 256 256"><path d="M223.68,66.15,135.68,18a15.88,15.88,0,0,0-15.36,0l-88,48.17a16,16,0,0,0-8.32,14v95.64a16,16,0,0,0,8.32,14l88,48.17a15.88,15.88,0,0,0,15.36,0l88-48.17a16,16,0,0,0,8.32-14V80.18A16,16,0,0,0,223.68,66.15ZM128,32l80.34,44-29.77,16.3-80.35-44ZM128,120,47.66,76l33.9-18.56,80.34,44ZM40,90l80,43.78v85.79L40,175.82Zm176,85.78h0l-80,43.79V133.82l32-17.51V152a8,8,0,0,0,16,0V107.55L216,90v85.77Z"/></symbol>
+<symbol id="i-orders-f" viewBox="0 0 256 256"><path d="M223.68,66.15,135.68,18a15.88,15.88,0,0,0-15.36,0l-88,48.17a16,16,0,0,0-8.32,14v95.64a16,16,0,0,0,8.32,14l88,48.17a15.88,15.88,0,0,0,15.36,0l88-48.17a16,16,0,0,0,8.32-14V80.18A16,16,0,0,0,223.68,66.15ZM128,32l80.35,44L178.57,92.29l-80.35-44Zm0,88L47.65,76,81.56,57.43l80.35,44Zm88,55.85h0l-80,43.79V133.83l32-17.51V152a8,8,0,0,0,16,0V107.56l32-17.51v85.76Z"/></symbol>
+<symbol id="i-drivers" viewBox="0 0 256 256"><path d="M240,104H229.2L201.42,41.5A16,16,0,0,0,186.8,32H69.2a16,16,0,0,0-14.62,9.5L26.8,104H16a8,8,0,0,0,0,16h8v80a16,16,0,0,0,16,16H64a16,16,0,0,0,16-16V184h96v16a16,16,0,0,0,16,16h24a16,16,0,0,0,16-16V120h8a8,8,0,0,0,0-16ZM69.2,48H186.8l24.89,56H44.31ZM64,200H40V184H64Zm128,0V184h24v16Zm24-32H40V120H216ZM56,144a8,8,0,0,1,8-8H80a8,8,0,0,1,0,16H64A8,8,0,0,1,56,144Zm112,0a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H176A8,8,0,0,1,168,144Z"/></symbol>
+<symbol id="i-drivers-f" viewBox="0 0 256 256"><path d="M240,104H229.2L201.42,41.5A16,16,0,0,0,186.8,32H69.2a16,16,0,0,0-14.62,9.5L26.8,104H16a8,8,0,0,0,0,16h8v80a16,16,0,0,0,16,16H64a16,16,0,0,0,16-16v-8h96v8a16,16,0,0,0,16,16h24a16,16,0,0,0,16-16V120h8a8,8,0,0,0,0-16ZM80,152H56a8,8,0,0,1,0-16H80a8,8,0,0,1,0,16Zm120,0H176a8,8,0,0,1,0-16h24a8,8,0,0,1,0,16ZM44.31,104,69.2,48H186.8l24.89,56Z"/></symbol>
+<symbol id="i-merchants" viewBox="0 0 256 256"><path d="M232,96a7.89,7.89,0,0,0-.3-2.2L217.35,43.6A16.07,16.07,0,0,0,202,32H54A16.07,16.07,0,0,0,38.65,43.6L24.31,93.8A7.89,7.89,0,0,0,24,96h0v16a40,40,0,0,0,16,32v72a8,8,0,0,0,8,8H208a8,8,0,0,0,8-8V144a40,40,0,0,0,16-32V96ZM54,48H202l11.42,40H42.61Zm50,56h48v8a24,24,0,0,1-48,0Zm-16,0v8a24,24,0,0,1-35.12,21.26,7.88,7.88,0,0,0-1.82-1.06A24,24,0,0,1,40,112v-8ZM200,208H56V151.2a40.57,40.57,0,0,0,8,.8,40,40,0,0,0,32-16,40,40,0,0,0,64,0,40,40,0,0,0,32,16,40.57,40.57,0,0,0,8-.8Zm4.93-75.8a8.08,8.08,0,0,0-1.8,1.05A24,24,0,0,1,168,112v-8h48v8A24,24,0,0,1,204.93,132.2Z"/></symbol>
+<symbol id="i-merchants-f" viewBox="0 0 256 256"><path d="M231.69,93.81,217.35,43.6A16.07,16.07,0,0,0,202,32H54A16.07,16.07,0,0,0,38.65,43.6L24.31,93.81A7.94,7.94,0,0,0,24,96v16a40,40,0,0,0,16,32v72a8,8,0,0,0,8,8H208a8,8,0,0,0,8-8V144a40,40,0,0,0,16-32V96A7.94,7.94,0,0,0,231.69,93.81ZM88,112a24,24,0,0,1-35.12,21.26,7.88,7.88,0,0,0-1.82-1.06A24,24,0,0,1,40,112v-8H88Zm64,0a24,24,0,0,1-48,0v-8h48Zm64,0a24,24,0,0,1-11.07,20.2,8.08,8.08,0,0,0-1.8,1.05A24,24,0,0,1,168,112v-8h48Z"/></symbol>
+<symbol id="i-notifications" viewBox="0 0 256 256"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"/></symbol>
+<symbol id="i-notifications-f" viewBox="0 0 256 256"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216Z"/></symbol>
+<symbol id="i-promos" viewBox="0 0 256 256"><path d="M232,104a8,8,0,0,0,8-8V64a16,16,0,0,0-16-16H32A16,16,0,0,0,16,64V96a8,8,0,0,0,8,8,24,24,0,0,1,0,48,8,8,0,0,0-8,8v32a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V160a8,8,0,0,0-8-8,24,24,0,0,1,0-48ZM32,167.2a40,40,0,0,0,0-78.4V64H88V192H32Zm192,0V192H104V64H224V88.8a40,40,0,0,0,0,78.4Z"/></symbol>
+<symbol id="i-promos-f" viewBox="0 0 256 256"><path d="M232,104a8,8,0,0,0,8-8V64a16,16,0,0,0-16-16H32A16,16,0,0,0,16,64V96a8,8,0,0,0,8,8,24,24,0,0,1,0,48,8,8,0,0,0-8,8v32a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V160a8,8,0,0,0-8-8,24,24,0,0,1,0-48ZM32,167.2a40,40,0,0,0,0-78.4V64H88V192H32Z"/></symbol>
+<symbol id="i-analytics" viewBox="0 0 256 256"><path d="M224,200h-8V40a8,8,0,0,0-8-8H152a8,8,0,0,0-8,8V80H96a8,8,0,0,0-8,8v40H48a8,8,0,0,0-8,8v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16ZM160,48h40V200H160ZM104,96h40V200H104ZM56,144H88v56H56Z"/></symbol>
+<symbol id="i-analytics-f" viewBox="0 0 256 256"><path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1,0-16h8V136a8,8,0,0,1,8-8H72a8,8,0,0,1,8,8v64H96V88a8,8,0,0,1,8-8h32a8,8,0,0,1,8,8V200h16V40a8,8,0,0,1,8-8h40a8,8,0,0,1,8,8V200h8A8,8,0,0,1,232,208Z"/></symbol>
+<symbol id="i-logout" viewBox="0 0 256 256"><path d="M120,216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H56V208h56A8,8,0,0,1,120,216Zm109.66-93.66-40-40a8,8,0,0,0-11.32,11.32L204.69,120H112a8,8,0,0,0,0,16h92.69l-26.35,26.34a8,8,0,0,0,11.32,11.32l40-40A8,8,0,0,0,229.66,122.34Z"/></symbol>
+<symbol id="i-menu" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"/></symbol>
+<symbol id="i-view" viewBox="0 0 256 256"><path d="M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.47,133.47,0,0,1,25,128,133.33,133.33,0,0,1,48.07,97.25C70.33,75.19,97.22,64,128,64s57.67,11.19,79.93,33.25A133.46,133.46,0,0,1,231.05,128C223.84,141.46,192.43,192,128,192Zm0-112a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z"/></symbol>
+<symbol id="i-edit" viewBox="0 0 256 256"><path d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"/></symbol>
+<symbol id="i-delete" viewBox="0 0 256 256"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"/></symbol>
+<symbol id="i-search" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></symbol>
+<symbol id="i-plus" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></symbol>
+<symbol id="i-check" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></symbol>
+<symbol id="i-close" viewBox="0 0 256 256"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></symbol>
+<symbol id="i-revenue" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm40-68a28,28,0,0,1-28,28h-4v8a8,8,0,0,1-16,0v-8H104a8,8,0,0,1,0-16h36a12,12,0,0,0,0-24H116a28,28,0,0,1,0-56h4V72a8,8,0,0,1,16,0v8h16a8,8,0,0,1,0,16H116a12,12,0,0,0,0,24h24A28,28,0,0,1,168,148Z"/></symbol>
+<symbol id="i-clock" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></symbol>
+<symbol id="i-star" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65a8,8,0,0,0-8.38,0L69.09,215.94c-.15.09-.19.12-.38,0a.37.37,0,0,1-.17-.48l14.88-62.8a8,8,0,0,0-2.56-7.91l-48.7-42c-.12-.1-.23-.19-.13-.5s.18-.27.33-.29l63.92-5.16A8,8,0,0,0,103,91.86l24.62-59.61c.08-.17.11-.25.35-.25s.27.08.35.25L153,91.86a8,8,0,0,0,6.75,4.92l63.92,5.16c.15,0,.24,0,.33.29S224,102.63,223.84,102.73Z"/></symbol>
+<symbol id="i-star-f" viewBox="0 0 256 256"><path d="M234.29,114.85l-45,38.83L203,211.75a16.4,16.4,0,0,1-24.5,17.82L128,198.49,77.47,229.57A16.4,16.4,0,0,1,53,211.75l13.76-58.07-45-38.83A16.46,16.46,0,0,1,31.08,86l59-4.76,22.76-55.08a16.36,16.36,0,0,1,30.27,0l22.75,55.08,59,4.76a16.46,16.46,0,0,1,9.37,28.86Z"/></symbol>
+<symbol id="i-send" viewBox="0 0 256 256"><path d="M227.32,28.68a16,16,0,0,0-15.66-4.08l-.15,0L19.57,82.84a16,16,0,0,0-2.49,29.8L102,154l41.3,84.87A15.86,15.86,0,0,0,157.74,248q.69,0,1.38-.06a15.88,15.88,0,0,0,14-11.51l58.2-191.94c0-.05,0-.1,0-.15A16,16,0,0,0,227.32,28.68ZM157.83,231.85l-.05.14,0-.07-40.06-82.3,48-48a8,8,0,0,0-11.31-11.31l-48,48L24.08,98.25l-.07,0,.14,0L216,40Z"/></symbol>
+<symbol id="i-moon" viewBox="0 0 256 256"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 256 256"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></symbol>
+<symbol id="i-caret-right" viewBox="0 0 256 256"><path d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"/></symbol>
+<symbol id="i-warning" viewBox="0 0 256 256"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></symbol>
+<symbol id="i-success" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></symbol>
+<symbol id="i-error" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm37.66,130.34a8,8,0,0,1-11.32,11.32L128,139.31l-26.34,26.35a8,8,0,0,1-11.32-11.32L116.69,128,90.34,101.66a8,8,0,0,1,11.32-11.32L128,116.69l26.34-26.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></symbol>
+<symbol id="i-info" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-4,48a12,12,0,1,1-12,12A12,12,0,0,1,124,72Zm12,112a16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40a8,8,0,0,1,0,16Z"/></symbol>
+<symbol id="i-cat-food" viewBox="0 0 256 256"><path d="M72,88V40a8,8,0,0,1,16,0V88a8,8,0,0,1-16,0ZM216,40V224a8,8,0,0,1-16,0V176H152a8,8,0,0,1-8-8,268.75,268.75,0,0,1,7.22-56.88c9.78-40.49,28.32-67.63,53.63-78.47A8,8,0,0,1,216,40ZM200,53.9c-32.17,24.57-38.47,84.42-39.7,106.1H200ZM119.89,38.69a8,8,0,1,0-15.78,2.63L112,88.63a32,32,0,0,1-64,0l7.88-47.31a8,8,0,1,0-15.78-2.63l-8,48A8.17,8.17,0,0,0,32,88a48.07,48.07,0,0,0,40,47.32V224a8,8,0,0,0,16,0V135.32A48.07,48.07,0,0,0,128,88a8.17,8.17,0,0,0-.11-1.31Z"/></symbol>
+<symbol id="i-cat-grocery" viewBox="0 0 256 256"><path d="M230.14,58.87A8,8,0,0,0,224,56H62.68L56.6,22.57A8,8,0,0,0,48.73,16H24a8,8,0,0,0,0,16h18L67.56,172.29a24,24,0,0,0,5.33,11.27,28,28,0,1,0,44.4,8.44h45.42A27.75,27.75,0,0,0,160,204a28,28,0,1,0,28-28H91.17a8,8,0,0,1-7.87-6.57L80.13,152h116a24,24,0,0,0,23.61-19.71l12.16-66.86A8,8,0,0,0,230.14,58.87ZM104,204a12,12,0,1,1-12-12A12,12,0,0,1,104,204Zm96,0a12,12,0,1,1-12-12A12,12,0,0,1,200,204Zm4-74.57A8,8,0,0,1,196.1,136H77.22L65.59,72H214.41Z"/></symbol>
+<symbol id="i-cat-pharmacy" viewBox="0 0 256 256"><path d="M216.42,39.6a53.26,53.26,0,0,0-75.32,0L39.6,141.09a53.26,53.26,0,0,0,75.32,75.31h0L216.43,114.91A53.31,53.31,0,0,0,216.42,39.6ZM103.61,205.09h0a37.26,37.26,0,0,1-52.7-52.69L96,107.31,148.7,160ZM205.11,103.6,160,148.69,107.32,96l45.1-45.09a37.26,37.26,0,0,1,52.69,52.69ZM189.68,82.34a8,8,0,0,1,0,11.32l-24,24a8,8,0,1,1-11.31-11.32l24-24A8,8,0,0,1,189.68,82.34Z"/></symbol>
+<symbol id="i-cat-packages" viewBox="0 0 256 256"><path d="M223.68,66.15,135.68,18a15.88,15.88,0,0,0-15.36,0l-88,48.17a16,16,0,0,0-8.32,14v95.64a16,16,0,0,0,8.32,14l88,48.17a15.88,15.88,0,0,0,15.36,0l88-48.17a16,16,0,0,0,8.32-14V80.18A16,16,0,0,0,223.68,66.15ZM128,32l80.34,44-29.77,16.3-80.35-44ZM128,120,47.66,76l33.9-18.56,80.34,44ZM40,90l80,43.78v85.79L40,175.82Zm176,85.78h0l-80,43.79V133.82l32-17.51V152a8,8,0,0,0,16,0V107.55L216,90v85.77Z"/></symbol>
+<symbol id="i-undo" viewBox="0 0 256 256"><path d="M232,144a64.07,64.07,0,0,1-64,64H80a8,8,0,0,1,0-16h88a48,48,0,0,0,0-96H51.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48A8,8,0,0,1,85.66,45.66L51.31,80H168A64.07,64.07,0,0,1,232,144Z"/></symbol>
+<symbol id="i-users" viewBox="0 0 256 256"><path d="M117.25,157.92a60,60,0,1,0-66.5,0A95.83,95.83,0,0,0,3.53,195.63a8,8,0,1,0,13.4,8.74,80,80,0,0,1,134.14,0,8,8,0,0,0,13.4-8.74A95.83,95.83,0,0,0,117.25,157.92ZM40,108a44,44,0,1,1,44,44A44.05,44.05,0,0,1,40,108Zm210.14,98.7a8,8,0,0,1-11.07-2.33A79.83,79.83,0,0,0,172,168a8,8,0,0,1,0-16,44,44,0,1,0-16.34-84.87,8,8,0,1,1-5.94-14.85,60,60,0,0,1,55.53,105.64,95.83,95.83,0,0,1,47.22,37.71A8,8,0,0,1,250.14,206.7Z"/></symbol>
+<symbol id="i-receipt" viewBox="0 0 256 256"><path d="M72,104a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,104Zm8,40h96a8,8,0,0,0,0-16H80a8,8,0,0,0,0,16ZM232,56V208a8,8,0,0,1-11.58,7.15L192,200.94l-28.42,14.21a8,8,0,0,1-7.16,0L128,200.94,99.58,215.15a8,8,0,0,1-7.16,0L64,200.94,35.58,215.15A8,8,0,0,1,24,208V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56Zm-16,0H40V195.06l20.42-10.22a8,8,0,0,1,7.16,0L96,199.06l28.42-14.22a8,8,0,0,1,7.16,0L160,199.06l28.42-14.22a8,8,0,0,1,7.16,0L216,195.06Z"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 256 256"><path d="M215.79,118.17a8,8,0,0,0-5-5.66L153.18,90.9l14.66-73.33a8,8,0,0,0-13.69-7l-112,120a8,8,0,0,0,3,13l57.63,21.61L88.16,238.43a8,8,0,0,0,13.69,7l112-120A8,8,0,0,0,215.79,118.17ZM109.37,214l10.47-52.38a8,8,0,0,0-5-9.06L62,132.71l84.62-90.66L136.16,94.43a8,8,0,0,0,5,9.06l52.8,19.8Z"/></symbol>
+</svg>
+
+<!-- ══ TOASTS ══ -->
+<div id="toast-host" aria-live="polite" aria-atomic="false"></div>
 
 <!-- ══ LOGIN ══ -->
 <div id="login-page">
   <div class="lc">
-    <div class="lc-logo">SHIP<span>EAST</span></div>
+    <div class="lc-logo">Ship<span>East</span></div>
     <div class="lc-sub">Admin Portal</div>
-    <div class="fg"><label>Email Address</label><input type="email" id="l-email" placeholder="admin@shipeast.com"/></div>
-    <div class="fg"><label>Password</label><input type="password" id="l-pass" placeholder="••••••••••"/></div>
-    <div id="l-err">Invalid credentials. Please try again.</div>
-    <button class="btn-login" onclick="doLogin()">Sign In →</button>
-    <div class="l-foot">ShipEast Couriers &amp; Bearer Services Ltd Jamaica</div>
+    <div class="fg"><label for="l-email">Email Address</label><input type="email" id="l-email" autocomplete="username" placeholder="admin@shipeast.com"/></div>
+    <div class="fg"><label for="l-pass">Password</label><input type="password" id="l-pass" autocomplete="current-password" placeholder="••••••••••"/></div>
+    <div id="l-err" role="alert"></div>
+    <button class="btn btn-primary btn-block" id="login-btn" style="margin-top:4px">Sign In<svg class="ic" aria-hidden="true"><use href="#i-caret-right"/></svg></button>
+    <div class="l-foot">ShipEast Couriers &amp; Bearer Services Ltd · Jamaica</div>
   </div>
 </div>
 
 <!-- ══ APP ══ -->
 <div id="app">
-  <div class="sidebar" id="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sb-logo">
-      <div class="slt">SHIP<span>EAST</span></div>
+      <div class="slt">Ship<span>East</span></div>
       <div class="sls">Couriers &amp; Bearer Services</div>
     </div>
-    <nav class="sb-nav">
-      <div class="ni active" data-page="dashboard"><span class="ico">⊞</span><span class="lbl">Dashboard</span></div>
-      <div class="ni" data-page="orders"><span class="ico">📦</span><span class="lbl">Orders</span></div>
-      <div class="ni" data-page="drivers"><span class="ico">🚗</span><span class="lbl">Drivers</span></div>
-      <div class="ni" data-page="merchants"><span class="ico">🏪</span><span class="lbl">Merchants</span></div>
-      <div class="ni" data-page="notifications"><span class="ico">🔔</span><span class="lbl">Notifications</span></div>
-      <div class="ni" data-page="promos"><span class="ico">🎫</span><span class="lbl">Promo Codes</span></div>
-      <div class="ni" data-page="analytics"><span class="ico">📊</span><span class="lbl">Analytics</span></div>
+    <nav class="sb-nav" aria-label="Main">
+      <div class="sb-sec">Operations</div>
+      <div class="ni active" data-page="dashboard" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-dashboard"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-dashboard-f"/></svg>
+        <span class="lbl">Dashboard</span>
+      </div>
+      <div class="ni" data-page="orders" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-orders"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-orders-f"/></svg>
+        <span class="lbl">Orders</span>
+      </div>
+      <div class="ni" data-page="drivers" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-drivers"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-drivers-f"/></svg>
+        <span class="lbl">Drivers</span>
+      </div>
+      <div class="ni" data-page="merchants" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-merchants"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-merchants-f"/></svg>
+        <span class="lbl">Merchants</span>
+      </div>
+      <div class="sb-sec">Growth</div>
+      <div class="ni" data-page="notifications" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-notifications"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-notifications-f"/></svg>
+        <span class="lbl">Notifications</span>
+      </div>
+      <div class="ni" data-page="promos" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-promos"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-promos-f"/></svg>
+        <span class="lbl">Promo Codes</span>
+      </div>
+      <div class="ni" data-page="analytics" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-analytics"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-analytics-f"/></svg>
+        <span class="lbl">Analytics</span>
+      </div>
       <div class="ndiv"></div>
-      <div class="ni" id="logout-btn"><span class="ico">⎋</span><span class="lbl">Logout</span></div>
+      <div class="ni" id="logout-btn" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-logout"/></svg>
+        <span class="lbl">Logout</span>
+      </div>
     </nav>
-  </div>
+  </aside>
 
   <div class="main" id="main">
-    <div class="topbar">
+    <header class="topbar">
       <div class="tb-l">
-        <button class="hamburger" id="hamburger" title="Toggle sidebar">
-          <span></span><span></span><span></span>
+        <button class="iconbtn" id="hamburger" title="Toggle sidebar" aria-label="Toggle sidebar">
+          <svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg>
         </button>
         <div>
-          <div class="tb-bc">ShipEast Admin / <em id="tb-pg">Dashboard</em></div>
+          <div class="tb-bc">ShipEast Admin
+            <svg class="ic" aria-hidden="true"><use href="#i-caret-right"/></svg>
+            <em id="tb-pg">Dashboard</em>
+          </div>
           <div class="tb-pg-title" id="tb-title">Dashboard</div>
         </div>
       </div>
       <div class="tb-r">
         <div class="tb-date" id="tb-date"></div>
+        <button class="iconbtn" id="theme-btn" title="Switch to dark theme" aria-label="Switch to dark theme">
+          <svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>
+        </button>
         <div class="ab">
           <div class="av">A</div>
           <div><div class="an">Admin User</div><div class="ar">Super Admin</div></div>
         </div>
       </div>
-    </div>
+    </header>
 
-    <div class="pw">
+    <main class="pw">
 
       <!-- ── DASHBOARD ── -->
-      <div class="page active" id="page-dashboard">
-        <div class="sg" id="dash-stats">
-          <div class="sc"><div class="sc-ico">📦</div><div class="sc-lbl">Orders Today</div><div class="sc-val" id="stat-orders">—</div><div class="sc-sub">Placed today</div></div>
-          <div class="sc"><div class="sc-ico">💰</div><div class="sc-lbl">Revenue Today</div><div class="sc-val" id="stat-delivered" style="font-size:22px">—</div><div class="sc-sub">Delivered orders</div></div>
-          <div class="sc"><div class="sc-ico">🕐</div><div class="sc-lbl">Pending Orders</div><div class="sc-val" id="stat-active">—</div><div class="sc-sub">Awaiting driver</div></div>
-          <div class="sc"><div class="sc-ico">🚗</div><div class="sc-lbl">Active Drivers</div><div class="sc-val" id="stat-drivers">—</div><div class="sc-sub">Online now</div></div>
+      <section class="page active" id="page-dashboard">
+        <div class="sg stagger">
+          <div class="sc">
+            <div class="sc-top">
+              <div><div class="sc-lbl">Orders Today</div><div class="sc-val num" id="stat-orders">0</div></div>
+              <div class="sc-chip"><svg class="ic" aria-hidden="true"><use href="#i-orders"/></svg></div>
+            </div>
+            <div class="sc-sub">Placed today</div>
+            <div id="spark-orders"></div>
+          </div>
+          <div class="sc ac-gold">
+            <div class="sc-top">
+              <div><div class="sc-lbl">Revenue Today</div><div class="sc-val sm num" id="stat-revenue">J$0</div></div>
+              <div class="sc-chip c-gold"><svg class="ic" aria-hidden="true"><use href="#i-revenue"/></svg></div>
+            </div>
+            <div class="sc-sub">Delivered orders</div>
+            <div id="spark-revenue"></div>
+          </div>
+          <div class="sc ac-ocean">
+            <div class="sc-top">
+              <div><div class="sc-lbl">Pending Orders</div><div class="sc-val num" id="stat-pending">0</div></div>
+              <div class="sc-chip c-ocean"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg></div>
+            </div>
+            <div class="sc-sub">Awaiting a driver</div>
+          </div>
+          <div class="sc ac-success">
+            <div class="sc-top">
+              <div><div class="sc-lbl">Active Drivers</div><div class="sc-val num" id="stat-drivers">0</div></div>
+              <div class="sc-chip c-success"><svg class="ic" aria-hidden="true"><use href="#i-drivers"/></svg></div>
+            </div>
+            <div class="sc-sub">Online now</div>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">Recent Orders</div>
-          <div style="overflow-x:auto"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody id="dash-tbody"></tbody></table></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th class="right">Amount</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="dash-tbody"></tbody>
+          </table></div>
         </div>
-      </div>
+      </section>
 
       <!-- ── ORDERS ── -->
-      <div class="page" id="page-orders">
-        <div class="pg-hdr"><div class="pg-title">Orders</div></div>
-        <div class="tabs" id="orders-tabs">
-          <div class="tab active" data-filter="All">All <b>48</b></div>
-          <div class="tab" data-filter="Active">Active <b>12</b></div>
-          <div class="tab" data-filter="Completed">Completed <b>32</b></div>
-          <div class="tab" data-filter="Cancelled">Cancelled <b>4</b></div>
+      <section class="page" id="page-orders">
+        <div class="pg-hdr"><h1 class="pg-title">Orders</h1></div>
+        <div class="tabs" id="orders-tabs" role="tablist"></div>
+        <div class="srch">
+          <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
+          <input id="orders-search" placeholder="Search order ID, customer, merchant…" aria-label="Search orders"/>
         </div>
-        <div class="srch"><span>🔍</span><input id="orders-search" placeholder="Search order ID, customer, merchant…"/></div>
-        <div class="card"><div style="overflow-x:auto"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th>Total</th><th>Payment</th><th>Status</th><th>Time</th><th>Actions</th></tr></thead><tbody id="orders-tbody"></tbody></table></div></div>
-      </div>
+        <div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th class="right">Total</th><th>Payment</th><th>Status</th><th>Time</th><th>Actions</th></tr></thead>
+          <tbody id="orders-tbody"></tbody>
+        </table></div></div>
+      </section>
 
       <!-- ── DRIVERS ── -->
-      <div class="page" id="page-drivers">
+      <section class="page" id="page-drivers">
         <div class="pg-hdr">
-          <div class="pg-title">Drivers</div>
-          <button class="btn btn-red" id="add-driver-btn">＋ Add Driver</button>
+          <h1 class="pg-title">Drivers</h1>
+          <button class="btn btn-primary" id="add-driver-btn">
+            <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Add Driver
+          </button>
         </div>
         <div class="sg" id="drivers-stats"></div>
-        <div class="card"><div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Phone</th><th>Vehicle</th><th>Plate</th><th>Rating</th><th>Trips</th><th>Status</th><th>Active</th><th>Actions</th></tr></thead><tbody id="drivers-tbody"></tbody></table></div></div>
-      </div>
+        <div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Vehicle</th><th>Plate</th><th>Rating</th><th class="right">Trips</th><th>Status</th><th>Active</th><th>Actions</th></tr></thead>
+          <tbody id="drivers-tbody"></tbody>
+        </table></div></div>
+      </section>
 
       <!-- ── MERCHANTS ── -->
-      <div class="page" id="page-merchants">
+      <section class="page" id="page-merchants">
         <div class="pg-hdr">
-          <div class="pg-title">Merchants</div>
-          <button class="btn btn-red" id="add-merchant-btn">＋ Add Merchant</button>
+          <h1 class="pg-title">Merchants</h1>
+          <button class="btn btn-primary" id="add-merchant-btn">
+            <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Add Merchant
+          </button>
         </div>
         <div class="sg g3" id="merchants-stats"></div>
-        <div class="card"><div style="overflow-x:auto"><table><thead><tr><th>Merchant</th><th>Category</th><th>Phone</th><th>Address</th><th>Orders Today</th><th>Rating</th><th>Status</th><th>Open</th><th>Actions</th></tr></thead><tbody id="merchants-tbody"></tbody></table></div></div>
-      </div>
+        <div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Merchant</th><th>Category</th><th>Phone</th><th>Address</th><th class="right">Orders Today</th><th>Rating</th><th>Status</th><th>Open</th><th>Actions</th></tr></thead>
+          <tbody id="merchants-tbody"></tbody>
+        </table></div></div>
+      </section>
 
       <!-- ── NOTIFICATIONS ── -->
-      <div class="page" id="page-notifications">
-        <div class="pg-hdr"><div class="pg-title">Notifications</div></div>
+      <section class="page" id="page-notifications">
+        <div class="pg-hdr"><h1 class="pg-title">Notifications</h1></div>
         <div class="nl">
           <div>
             <div class="card">
-              <div class="card-title">Send Notification</div>
-              <div class="fr"><label>Target Audience</label><select id="n-target"><option value="customers">All Customers</option><option value="drivers">All Drivers</option><option value="all" selected>Everyone</option></select></div>
-              <div class="fr"><label>Title</label><input id="n-title" placeholder="e.g. Flash Sale — 20% Off Deliveries!" oninput="updPhonePreview()"/></div>
-              <div class="fr"><label>Message</label><textarea id="n-msg" rows="4" placeholder="Write your notification message here…" oninput="updPhonePreview()"></textarea></div>
-              <button class="btn btn-red" style="width:100%;padding:13px;font-size:14px;" id="notif-send-btn" onclick="sendNotif()">✉ Send Now</button>
-              <div class="inline-success" id="notif-sent-ok">✓ Notification sent successfully!</div>
+              <div class="card-title">Compose Notification</div>
+              <div class="notice">
+                <svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg>
+                <div>This writes to the notification <b>log</b> only. Push delivery to devices is not wired up yet (FCM pending), so customers and drivers will not receive it on their phones.</div>
+              </div>
+              <div class="fr"><label for="n-target">Target Audience</label>
+                <select id="n-target">
+                  <option value="customers">All Customers</option>
+                  <option value="drivers">All Drivers</option>
+                  <option value="all" selected>Everyone</option>
+                </select>
+              </div>
+              <div class="fr"><label for="n-title">Title</label><input id="n-title" placeholder="e.g. Flash Sale — 20% Off Deliveries!"/></div>
+              <div class="fr"><label for="n-msg">Message</label><textarea id="n-msg" rows="4" placeholder="Write your notification message here…"></textarea></div>
+              <button class="btn btn-primary btn-block" id="notif-send-btn" data-action="send-notif">
+                <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Log Notification
+              </button>
             </div>
             <div class="card">
               <div class="card-title">Recent Notifications</div>
@@ -381,71 +279,75 @@ tr:hover td{background:#fafbfd;}
               <div class="phone-mock">
                 <div class="ph-notch"></div>
                 <div class="ph-screen">
-                  <div class="ph-bar"><span>9:41 AM</span><span>●●● 100%</span></div>
+                  <div class="ph-bar"><span>9:41</span><span>ShipEast</span></div>
                   <div class="ph-ni">
-                    <div class="ph-app">ShipEast</div>
-                    <div class="ph-title" id="pv-title">Flash Sale!</div>
-                    <div class="ph-msg" id="pv-msg">Use code SHIP20 for 20% off deliveries today.</div>
+                    <div class="ph-badge"><svg class="ic" aria-hidden="true"><use href="#i-notifications-f"/></svg></div>
+                    <div>
+                      <div class="ph-app">ShipEast</div>
+                      <div class="ph-title" id="pv-title">Notification Title</div>
+                      <div class="ph-msg" id="pv-msg">Your message will appear here.</div>
+                    </div>
                   </div>
-                  <div style="padding:12px;border-bottom:1px solid #f0f0f0">
-                    <div style="height:9px;background:#eee;border-radius:4px;width:82%;margin-bottom:7px"></div>
-                    <div style="height:9px;background:#eee;border-radius:4px;width:61%"></div>
-                  </div>
-                  <div style="padding:12px">
-                    <div style="height:9px;background:#eee;border-radius:4px;width:90%;margin-bottom:7px"></div>
-                    <div style="height:9px;background:#eee;border-radius:4px;width:68%"></div>
-                  </div>
+                  <div class="ph-filler"><div style="width:82%"></div><div style="width:61%"></div></div>
+                  <div class="ph-filler"><div style="width:90%"></div><div style="width:68%"></div></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- ── PROMO CODES ── -->
-      <div class="page" id="page-promos">
-        <div class="pg-hdr"><div class="pg-title">Promo Codes</div></div>
+      <section class="page" id="page-promos">
+        <div class="pg-hdr"><h1 class="pg-title">Promo Codes</h1></div>
         <div class="pl">
           <div>
             <div class="card">
               <div class="card-title">Create Promo Code</div>
               <div class="mg">
-                <div class="fr"><label>Code</label><input id="pc-code" placeholder="SUMMER25" style="text-transform:uppercase" oninput="updPromoPreview()"/></div>
-                <div class="fr"><label>Type</label><select id="pc-type" onchange="updPromoPreview()"><option value="percent">Percentage (%)</option><option value="fixed">Fixed Amount ($)</option></select></div>
-                <div class="fr"><label>Discount Amount</label><input id="pc-disc" type="number" placeholder="25" oninput="updPromoPreview()"/></div>
-                <div class="fr"><label>Max Uses</label><input id="pc-max" type="number" placeholder="100"/></div>
+                <div class="fr"><label for="pc-code">Code</label><input id="pc-code" placeholder="SUMMER25" style="text-transform:uppercase"/></div>
+                <div class="fr"><label for="pc-type">Type</label>
+                  <select id="pc-type"><option value="percent">Percentage (%)</option><option value="fixed">Fixed Amount (J$)</option></select>
+                </div>
+                <div class="fr"><label for="pc-disc">Discount Amount</label><input id="pc-disc" type="number" min="0" placeholder="25"/></div>
+                <div class="fr"><label for="pc-max">Max Uses</label><input id="pc-max" type="number" min="1" placeholder="100"/></div>
               </div>
-              <div class="fr"><label>Valid Until</label><input id="pc-valid" type="date" oninput="updPromoPreview()"/></div>
-              <button class="btn btn-red" style="width:100%;padding:13px;font-size:14px;margin-top:4px;" onclick="createPromo()">＋ Create Promo Code</button>
+              <div class="fr"><label for="pc-valid">Valid Until</label><input id="pc-valid" type="date"/></div>
+              <button class="btn btn-primary btn-block" id="promo-create-btn" data-action="create-promo">
+                <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Create Promo Code
+              </button>
             </div>
             <div class="card">
               <div class="card-title">Active Promo Codes</div>
-              <div style="overflow-x:auto"><table><thead><tr><th>Code</th><th>Discount</th><th>Used</th><th>Max</th><th>Valid Until</th><th>Status</th><th>Delete</th></tr></thead><tbody id="promos-tbody"></tbody></table></div>
+              <div class="tbl-wrap"><table>
+                <thead><tr><th>Code</th><th>Discount</th><th class="right">Used</th><th class="right">Max</th><th>Valid Until</th><th>Status</th><th>Delete</th></tr></thead>
+                <tbody id="promos-tbody"></tbody>
+              </table></div>
             </div>
           </div>
           <div>
             <div class="card">
               <div class="card-title">Live Preview</div>
               <div class="pc-prev">
-                <div class="pc-brand">SHIPEAST</div>
+                <div class="pc-brand">ShipEast</div>
                 <div class="pc-code" id="pcp-code">PROMO</div>
                 <div class="pc-disc" id="pcp-disc">Discount</div>
-                <div class="pc-valid" id="pcp-valid">Valid Until: —</div>
-                <div style="margin-top:18px;font-size:10px;opacity:.38;letter-spacing:2px;">COURIERS &amp; BEARER SERVICES LTD</div>
+                <div class="pc-valid" id="pcp-valid">Valid until —</div>
+                <div class="pc-foot">COURIERS &amp; BEARER SERVICES LTD</div>
               </div>
-              <div style="background:var(--gray);border-radius:9px;padding:13px;font-size:12px;color:var(--text);line-height:1.5;">
-                <b style="color:var(--g3);display:block;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">How to apply</b>
+              <div class="helper">
+                <b>How to apply</b>
                 Customers enter this code at checkout to receive the discount on their delivery order.
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- ── ANALYTICS ── -->
-      <div class="page" id="page-analytics">
+      <section class="page" id="page-analytics">
         <div class="pg-hdr">
-          <div class="pg-title">Analytics</div>
+          <h1 class="pg-title">Analytics</h1>
           <div class="pbs">
             <button class="pb active" data-period="Today">Today</button>
             <button class="pb" data-period="This Week">This Week</button>
@@ -456,1111 +358,115 @@ tr:hover td{background:#fafbfd;}
         <div class="ag">
           <div class="card">
             <div class="card-title" id="bar-title">Hourly Orders — Today</div>
-            <div class="barchart" id="bar-chart"></div>
+            <div class="chart" id="bar-chart"></div>
           </div>
           <div class="card">
-            <div class="card-title">Deliveries by Zone</div>
+            <div class="card-title">Deliveries by Zone
+              <span class="card-note">Derived from delivery addresses</span>
+            </div>
             <div id="zone-chart"></div>
           </div>
           <div class="card">
             <div class="card-title">Top Merchants</div>
-            <table><thead><tr><th>Merchant</th><th>Orders</th><th>Revenue</th></tr></thead><tbody id="top-merch"></tbody></table>
+            <table>
+              <thead><tr><th>Merchant</th><th class="right">Orders</th><th class="right">Revenue</th></tr></thead>
+              <tbody id="top-merch"></tbody>
+            </table>
           </div>
           <div class="card">
             <div class="card-title">Payment Split</div>
             <div id="pay-split"></div>
           </div>
         </div>
-      </div>
+      </section>
 
-    </div>
+    </main>
   </div>
 </div>
 
-<!-- ══ MOBILE OVERLAY ══ -->
+<!-- ══ OVERLAYS ══ -->
 <div id="mob-overlay"></div>
+<div id="sp-overlay"></div>
 
 <!-- ══ SIDE PANEL ══ -->
-<div id="sp-overlay"></div>
-<div class="spanel" id="spanel">
+<aside class="spanel" id="spanel" aria-label="Details panel">
   <div class="sp-hd">
     <div>
       <div class="sp-hd-sub" id="sp-sub">Details</div>
       <div class="sp-hd-title" id="sp-title">—</div>
     </div>
-    <button class="aicon ai-d" id="sp-close">✕</button>
+    <button class="iconbtn" id="sp-close" title="Close" aria-label="Close panel">
+      <svg class="ic" aria-hidden="true"><use href="#i-close"/></svg>
+    </button>
   </div>
   <div id="sp-body"></div>
+</aside>
+
+<!-- ══ CONFIRM DIALOG (replaces window.confirm) ══ -->
+<div class="mbg" id="modal-confirm" role="alertdialog" aria-labelledby="cf-title">
+  <div class="mbox narrow">
+    <div class="m-ico danger" id="cf-ico"></div>
+    <div class="m-title" id="cf-title">Are you sure?</div>
+    <div class="m-body" id="cf-body"></div>
+    <div class="m-actions">
+      <button class="btn btn-outline" id="cf-cancel">Cancel</button>
+      <button class="btn btn-danger" id="cf-ok">Delete</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ DRIVER MODAL ══ -->
-<div class="mbg" id="modal-driver">
+<div class="mbg" id="modal-driver" role="dialog" aria-labelledby="drv-modal-title">
   <div class="mbox wide">
     <div class="m-title" id="drv-modal-title">Add New Driver</div>
     <div class="mg">
-      <div class="fr"><label>Full Name *</label><input id="d-name" placeholder="Devon Campbell"/></div>
-      <div class="fr"><label>Phone Number</label><input id="d-phone" placeholder="876-xxx-xxxx"/></div>
-      <div class="fr"><label>Email Address</label><input id="d-email" type="email" placeholder="driver@email.com"/></div>
-      <div class="fr"><label>Vehicle Type</label>
+      <div class="fr"><label for="d-name">Full Name *</label><input id="d-name" placeholder="Devon Campbell"/></div>
+      <div class="fr"><label for="d-phone">Phone Number</label><input id="d-phone" placeholder="876-xxx-xxxx"/></div>
+      <div class="fr"><label for="d-email">Email Address</label><input id="d-email" type="email" placeholder="driver@email.com"/></div>
+      <div class="fr"><label for="d-vtype">Vehicle Type</label>
         <select id="d-vtype"><option>Car</option><option>Motorcycle</option><option>Van</option><option>Truck</option></select>
       </div>
-      <div class="fr"><label>Vehicle Model</label><input id="d-vehicle" placeholder="Toyota Axio"/></div>
-      <div class="fr"><label>Licence Plate Number</label><input id="d-plate" placeholder="PB 2341"/></div>
-      <div class="fr"><label>Driver's Licence Number</label><input id="d-dlicence" placeholder="JA-DL-00000"/></div>
-      <div class="fr"><label>Status</label>
+      <div class="fr"><label for="d-vehicle">Vehicle Model</label><input id="d-vehicle" placeholder="Toyota Axio"/></div>
+      <div class="fr"><label for="d-plate">Licence Plate Number</label><input id="d-plate" placeholder="PB 2341"/></div>
+      <div class="fr"><label for="d-dlicence">Driver's Licence Number</label><input id="d-dlicence" placeholder="JA-DL-00000"/></div>
+      <div class="fr"><label for="d-status">Status</label>
         <select id="d-status"><option value="Active">Active</option><option value="Inactive">Inactive</option></select>
       </div>
     </div>
     <div class="m-actions">
       <button class="btn btn-outline" data-close="modal-driver">Cancel</button>
-      <button class="btn btn-red" id="drv-save-btn" onclick="saveDriver()">Add Driver</button>
+      <button class="btn btn-primary" id="drv-save-btn" data-action="save-driver">Add Driver</button>
     </div>
   </div>
 </div>
 
 <!-- ══ MERCHANT MODAL ══ -->
-<div class="mbg" id="modal-merchant">
+<div class="mbg" id="modal-merchant" role="dialog" aria-labelledby="mer-modal-title">
   <div class="mbox wide">
     <div class="m-title" id="mer-modal-title">Add New Merchant</div>
     <div class="mg">
-      <div class="fr"><label>Business Name *</label><input id="m-name" placeholder="Restaurant Name"/></div>
-      <div class="fr"><label>Category</label>
+      <div class="fr"><label for="m-name">Business Name *</label><input id="m-name" placeholder="Restaurant Name"/></div>
+      <div class="fr"><label for="m-cat">Category</label>
         <select id="m-cat"><option>Food</option><option>Grocery</option><option>Pharmacy</option><option>Packages</option></select>
       </div>
-      <div class="fr"><label>Owner Name</label><input id="m-owner" placeholder="Owner Full Name"/></div>
-      <div class="fr"><label>Phone Number</label><input id="m-phone" placeholder="876-xxx-xxxx"/></div>
-      <div class="fr"><label>Email Address</label><input id="m-email" type="email" placeholder="business@email.com"/></div>
-      <div class="fr"><label>Delivery Fee (JMD)</label><input id="m-fee" placeholder="200"/></div>
-      <div class="fr"><label>Opening Hours</label><input id="m-hours" placeholder="8:00 AM – 10:00 PM"/></div>
-      <div class="fr"><label>Status</label>
+      <div class="fr"><label for="m-owner">Owner Name</label><input id="m-owner" placeholder="Owner Full Name"/></div>
+      <div class="fr"><label for="m-phone">Phone Number</label><input id="m-phone" placeholder="876-xxx-xxxx"/></div>
+      <div class="fr"><label for="m-email">Email Address</label><input id="m-email" type="email" placeholder="business@email.com"/></div>
+      <div class="fr"><label for="m-fee">Delivery Fee (JMD)</label><input id="m-fee" placeholder="200"/></div>
+      <div class="fr"><label for="m-hours">Opening Hours</label><input id="m-hours" placeholder="8:00 AM – 10:00 PM"/></div>
+      <div class="fr"><label for="m-status">Status</label>
         <select id="m-status"><option value="Open">Open</option><option value="Closed">Closed</option></select>
       </div>
     </div>
-    <div class="fr"><label>Address</label><input id="m-address" placeholder="Street address, Parish"/></div>
-    <div class="fr"><label>Merchant Image URL <small style="font-weight:400;color:#8a8f9e">(recommended: 800×400px — Imgur, Firebase Storage, etc.)</small></label><input id="m-imageurl" placeholder="https://i.imgur.com/example.jpg (optional)"/></div>
+    <div class="fr"><label for="m-address">Address</label><input id="m-address" placeholder="Street address, Parish"/></div>
+    <div class="fr"><label for="m-imageurl">Merchant Image URL <small>(recommended 800×400 — Firebase Storage, Imgur, etc.)</small></label><input id="m-imageurl" placeholder="https://… (optional)"/></div>
     <div class="m-actions">
       <button class="btn btn-outline" data-close="modal-merchant">Cancel</button>
-      <button class="btn btn-red" id="mer-save-btn" onclick="saveMerchant()">Add Merchant</button>
+      <button class="btn btn-primary" id="mer-save-btn" data-action="save-merchant">Add Merchant</button>
     </div>
   </div>
 </div>
 
-<script type="module">
-// ── Firebase 10.x Module Imports ──
-import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import{getFirestore,collection,doc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-// ── Firebase Config (shipeast-1a1f6) ──
-const firebaseConfig={
-  apiKey:           'AIzaSyDcETjuHcvmy7TKL7vHW6sYlUk9sxa-6CA',
-  authDomain:       'shipeast-1a1f6.firebaseapp.com',
-  projectId:        'shipeast-1a1f6',
-  storageBucket:    'shipeast-1a1f6.firebasestorage.app',
-  messagingSenderId:'783428944628'
-};
-const app=initializeApp(firebaseConfig);
-const auth=getAuth(app);
-const db=getFirestore(app);
-
-// ══════════════════════ LOCAL DATA MIRRORS ══════════════════════
-var orders=[],drivers=[],merchants=[],promoCodes=[],notifHistory=[];
-var analyticsStats={
-  'Today':    [{lbl:'Revenue',val:'$—'},{lbl:'Orders',val:'—'},{lbl:'Customers',val:'—'},{lbl:'Avg Order Value',val:'$—'}],
-  'This Week':[{lbl:'Revenue',val:'$—'},{lbl:'Orders',val:'—'},{lbl:'Customers',val:'—'},{lbl:'Avg Order Value',val:'$—'}],
-  'This Month':[{lbl:'Revenue',val:'$—'},{lbl:'Orders',val:'—'},{lbl:'Customers',val:'—'},{lbl:'Avg Order Value',val:'$—'}],
-};
-var currentPeriod='Today',ordersFilter='All',driverMode='add',driverEditId=null,merchantMode='add',merchantEditId=null,unsubscribers=[];
-var panelMerchantId=null,menuItemsUnsub=null,menuItemEditId=null,panelMenuItems=[];
-
-// ══════════════════════ HELPERS ══════════════════════
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function badge(s){
-  var colors={
-    delivered:'green',pending:'blue',cancelled:'red',accepted:'orange',
-    confirmed:'orange',in_transit:'yellow',picked_up:'purple',
-    Delivered:'green','On the Way':'yellow',Cancelled:'red',Pending:'blue',
-    Active:'green',Expired:'gray',Online:'green','On Delivery':'yellow',
-    Offline:'gray',Open:'green',Closed:'red',Inactive:'gray',
-    approved:'green',rejected:'red'
-  };
-  var labels={in_transit:'In Transit',picked_up:'Picked Up',accepted:'Accepted',
-    confirmed:'Confirmed',delivered:'Delivered',pending:'Pending',cancelled:'Cancelled'};
-  return '<span class="bdg bg-'+(colors[s]||'gray')+'">'+(labels[s]||esc(s))+'</span>';
-}
-function stars(r){
-  var f=Math.round(Number(r)||0),s='';
-  for(var i=0;i<f;i++) s+='★';for(var i=f;i<5;i++) s+='☆';
-  return '<span class="stars">'+s+'</span> <span style="font-size:12px;color:var(--g3)">'+r+'</span>';
-}
-var catMeta={Food:{ico:'🍔',bg:'#fde8ec',col:'#c0142e'},Grocery:{ico:'🛒',bg:'#e6f4ea',col:'#1e7e34'},Pharmacy:{ico:'💊',bg:'#e3f0fd',col:'#1558b0'},Packages:{ico:'📦',bg:'#fff3e0',col:'#d84315'}};
-function catIcon(cat){var c=catMeta[cat]||{ico:'🏪',bg:'#f0f0f2',col:'#5a5f6b'};return '<div class="cat-ico" style="background:'+c.bg+';color:'+c.col+'">'+c.ico+'</div>';}
-
-// ══════════════════════ AUTH ══════════════════════
-// NOTE: Create admin user in Firebase Console → Authentication → Add user → admin@shipeast.com
-function doLogin(){
-  var e=document.getElementById('l-email').value.trim();
-  var p=document.getElementById('l-pass').value;
-  var errEl=document.getElementById('l-err');
-  var btnEl=document.querySelector('.btn-login');
-  errEl.style.display='none';
-  if(!e||!p){errEl.textContent='Please enter email and password.';errEl.style.display='block';return;}
-  if(btnEl){btnEl.disabled=true;btnEl.innerHTML='<span class="spin"></span>Signing in…';}
-  signInWithEmailAndPassword(auth,e,p).catch(function(err){
-    var badCodes=['auth/user-not-found','auth/wrong-password','auth/invalid-credential','auth/invalid-email'];
-    errEl.textContent=badCodes.indexOf(err.code)>-1?'Invalid credentials. Please try again.':err.message;
-    errEl.style.display='block';
-    if(btnEl){btnEl.disabled=false;btnEl.textContent='Sign In →';}
-  });
-}
-function doLogout(){signOut(auth);}
-
-// ══════════════════════ NAVIGATION ══════════════════════
-var pageLabels={dashboard:'Dashboard',orders:'Orders',drivers:'Drivers',merchants:'Merchants',notifications:'Notifications',promos:'Promo Codes',analytics:'Analytics'};
-function navTo(page){
-  document.querySelectorAll('.ni').forEach(function(n){n.classList.remove('active');});
-  var ni=document.querySelector('.ni[data-page="'+page+'"]');if(ni)ni.classList.add('active');
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
-  var pg=document.getElementById('page-'+page);if(pg)pg.classList.add('active');
-  var lbl=pageLabels[page]||page;
-  document.getElementById('tb-pg').textContent=lbl;
-  document.getElementById('tb-title').textContent=lbl;
-  if(window.innerWidth<=900)closeMobileSidebar();
-}
-
-// ══════════════════════ SIDEBAR ══════════════════════
-var sidebarCollapsed=false;
-function toggleSidebar(){
-  if(window.innerWidth<=900){
-    var sb=document.getElementById('sidebar'),mob=document.getElementById('mob-overlay');
-    if(sb.classList.contains('mob-open')){sb.classList.remove('mob-open');mob.classList.remove('open');}
-    else{sb.classList.remove('collapsed');sb.classList.add('mob-open');mob.classList.add('open');}
-  }else{
-    sidebarCollapsed=!sidebarCollapsed;
-    document.getElementById('sidebar').classList.toggle('collapsed',sidebarCollapsed);
-    document.getElementById('main').classList.toggle('expanded',sidebarCollapsed);
-  }
-}
-function closeMobileSidebar(){
-  document.getElementById('sidebar').classList.remove('mob-open');
-  document.getElementById('mob-overlay').classList.remove('open');
-}
-
-// ══════════════════════ FIRESTORE LISTENERS ══════════════════════
-function startListeners(){
-  // ORDERS
-  try{
-    unsubscribers.push(onSnapshot(
-      query(collection(db,'orders'),orderBy('createdAt','desc'),limit(200)),
-      function(snap){
-        orders=snap.docs.map(function(d){
-          var o=d.data();
-          var ts=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null;
-          var tsStr=ts?ts.toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}):o.time||'—';
-          var drvName=o.driverName||o.driver||'';
-          if(!drvName&&o.driverId){var drv=drivers.find(function(x){return x.id===o.driverId;});if(drv)drvName=drv.name;}
-          var rawTotal=o.total!=null?Number(o.total):null;
-          var amt=rawTotal!=null?'J$'+rawTotal.toLocaleString():(o.amount||'—');
-          return {id:d.id,customer:o.customerName||o.customer||'Unknown',custPhone:o.customerPhone||o.custPhone||'—',
-            merchant:o.merchantName||o.merchant||'Unknown',merchantAddr:o.merchantAddr||'—',
-            driver:drvName||'—',driverId:o.driverId||'',
-            driverPhone:o.driverPhone||'—',amount:amt,rawTotal:rawTotal,payment:o.paymentMethod||o.payment||'—',
-            status:o.status||'pending',time:tsStr,_ts:ts,items:o.items||[],address:o.deliveryAddress||o.address||'—',_docId:d.id};
-        });
-        renderDashboard();renderOrders();renderAnalytics();renderZones();
-      },
-      function(e){console.warn('orders:',e.message);}
-    ));
-  }catch(e){console.warn('orders init:',e.message);}
-
-  // DRIVERS
-  try{
-    unsubscribers.push(onSnapshot(
-      collection(db,'drivers'),
-      function(snap){
-        drivers=snap.docs.map(function(d){
-          var o=d.data();
-          var rawStatus=o.status||'pending';
-          var approved=rawStatus==='approved';
-          var statusLbl=approved?(o.onDelivery?'On Delivery':(o.isOnline?'Online':'Offline')):rawStatus;
-          return {id:d.id,name:o.name||'—',phone:o.phone||'—',email:o.email||'—',
-            vtype:o.vehicleType||o.vtype||'Car',vehicle:o.vehicleModel||o.vehicle||'—',
-            plate:o.licencePlate||o.plate||'—',dlicence:o.licenceNumber||o.dlicence||'—',
-            rating:o.averageRating||o.rating||5.0,trips:o.totalTrips||o.trips||0,
-            status:statusLbl,rawStatus:rawStatus,approved:approved,
-            isOnline:o.isOnline||false,onDelivery:o.onDelivery||false,_docId:d.id};
-        });
-        renderDrivers();renderDashboard();renderOrders();
-      },
-      function(e){console.warn('drivers:',e.message);}
-    ));
-  }catch(e){console.warn('drivers init:',e.message);}
-
-  // MERCHANTS
-  try{
-    unsubscribers.push(onSnapshot(
-      collection(db,'merchants'),
-      function(snap){
-        merchants=snap.docs.map(function(d){
-          var o=d.data();
-          var isOpenVal=o.isOpen!=null?o.isOpen:(o.open!=null?o.open:true);
-          return {id:d.id,name:o.name||'—',category:o.category||'Food',owner:o.owner||'—',
-            phone:o.phone||'—',email:o.email||'—',address:o.address||'—',hours:o.hours||o.deliveryTime||'—',
-            fee:o.fee||o.deliveryFee||'—',ordersToday:o.ordersToday||0,rating:o.averageRating||o.rating||5.0,
-            open:isOpenVal,imageUrl:o.imageUrl||o.image||'',_docId:d.id};
-        });
-        renderMerchants();renderTopMerch();
-      },
-      function(e){console.warn('merchants:',e.message);}
-    ));
-  }catch(e){console.warn('merchants init:',e.message);}
-
-  // PROMO CODES
-  try{
-    unsubscribers.push(onSnapshot(
-      query(collection(db,'promoCodes'),orderBy('createdAt','desc')),
-      function(snap){
-        var now=new Date();
-        promoCodes=snap.docs.map(function(d){
-          var o=d.data();
-          var expired=o.validUntil&&o.validUntil!=='—'&&new Date(o.validUntil)<now;
-          var active=o.active!==false&&!expired;
-          var discAmt=o.discountAmount!=null?o.discountAmount:null;
-          var discType=o.discountType||o.type||'percent';
-          var discStr=discAmt!=null?(discType==='percent'?discAmt+'% Off':'J$'+discAmt+' Off'):(o.discount||'—');
-          return {id:d.id,code:o.code||d.id,discount:discStr,discountType:discType,discountAmount:discAmt,
-            usedCount:o.usedCount!=null?o.usedCount:(o.used!=null?o.used:0),
-            maxUses:o.maxUses!=null?o.maxUses:(o.max!=null?o.max:100),
-            validUntil:o.validUntil||'—',status:active?'Active':'Expired',_docId:d.id};
-        });
-        renderPromos();
-      },
-      function(e){console.warn('promoCodes:',e.message);}
-    ));
-  }catch(e){console.warn('promoCodes init:',e.message);}
-
-  // NOTIFICATIONS (read from notifications collection)
-  try{
-    unsubscribers.push(onSnapshot(
-      query(collection(db,'notifications'),orderBy('createdAt','desc'),limit(50)),
-      function(snap){
-        notifHistory=snap.docs.map(function(d){
-          var o=d.data();
-          var ts=o.createdAt&&o.createdAt.toDate?new Date(o.createdAt.toDate()).toLocaleString('en-JM',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
-          return {id:d.id,title:o.title||'—',msg:o.message||'—',target:o.target||'Everyone',time:ts,_docId:d.id};
-        });
-        renderNotifHist();
-      },
-      function(e){console.warn('notifications:',e.message);}
-    ));
-  }catch(e){console.warn('notifications init:',e.message);}
-}
-function stopListeners(){unsubscribers.forEach(function(u){u();});unsubscribers=[];}
-
-// ══════════════════════ DASHBOARD ══════════════════════
-function renderDashboard(){
-  var now=new Date();
-  var todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  var todayOrders=orders.filter(function(o){return o._ts&&o._ts>=todayStart;});
-  var pendingOrders=orders.filter(function(o){return o.status==='pending'||o.status==='Pending';}).length;
-  var revenueToday=todayOrders.filter(function(o){
-    return o.status==='delivered'||o.status==='Delivered';
-  }).reduce(function(s,o){return s+(o.rawTotal!=null?o.rawTotal:parseAmt(o.amount));},0);
-  var onlineDrv=drivers.filter(function(d){return d.isOnline;}).length;
-  var statO=document.getElementById('stat-orders');if(statO)statO.textContent=todayOrders.length;
-  var statD=document.getElementById('stat-delivered');if(statD)statD.textContent='J$'+revenueToday.toLocaleString();
-  var statA=document.getElementById('stat-active');if(statA)statA.textContent=pendingOrders;
-  var statDr=document.getElementById('stat-drivers');if(statDr)statDr.textContent=onlineDrv;
-  var html='';
-  orders.slice(0,10).forEach(function(o){
-    html+='<tr><td><b style="color:var(--red)">'+esc(o.id)+'</b></td><td>'+esc(o.customer)+'</td><td>'+esc(o.merchant)+'</td>'+
-      '<td>'+esc(o.driver)+'</td><td><b>'+esc(o.amount)+'</b></td><td>'+badge(o.status)+'</td>'+
-      '<td><button class="aicon ai-v" data-action="view-order" data-oid="'+esc(o._docId||o.id)+'">👁</button></td></tr>';
-  });
-  if(!html)html='<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--g3)">No orders yet</td></tr>';
-  document.getElementById('dash-tbody').innerHTML=html;
-}
-
-// ══════════════════════ ORDERS ══════════════════════
-function isActiveStatus(s){return['pending','accepted','confirmed','in_transit','picked_up','Pending','On the Way','Confirmed','Picked Up'].indexOf(s)>-1;}
-function isDeliveredStatus(s){return s==='delivered'||s==='Delivered';}
-function isCancelledStatus(s){return s==='cancelled'||s==='Cancelled';}
-function updateOrdersTabs(){
-  var all=orders.length;
-  var active=orders.filter(function(o){return isActiveStatus(o.status);}).length;
-  var completed=orders.filter(function(o){return isDeliveredStatus(o.status);}).length;
-  var cancelled=orders.filter(function(o){return isCancelledStatus(o.status);}).length;
-  var tabs=document.getElementById('orders-tabs');
-  if(tabs)tabs.innerHTML=
-    '<div class="tab'+(ordersFilter==='All'?' active':'')+'" data-filter="All">All <b>'+all+'</b></div>'+
-    '<div class="tab'+(ordersFilter==='Active'?' active':'')+'" data-filter="Active">Active <b>'+active+'</b></div>'+
-    '<div class="tab'+(ordersFilter==='Completed'?' active':'')+'" data-filter="Completed">Completed <b>'+completed+'</b></div>'+
-    '<div class="tab'+(ordersFilter==='Cancelled'?' active':'')+'" data-filter="Cancelled">Cancelled <b>'+cancelled+'</b></div>';
-}
-function renderOrders(){
-  updateOrdersTabs();
-  var search=(document.getElementById('orders-search')||{}).value;
-  search=(search||'').toLowerCase();
-  var rows=orders.filter(function(o){
-    var tm=ordersFilter==='All'||
-      (ordersFilter==='Active'&&isActiveStatus(o.status))||
-      (ordersFilter==='Completed'&&isDeliveredStatus(o.status))||
-      (ordersFilter==='Cancelled'&&isCancelledStatus(o.status));
-    var sm=!search||o.id.toLowerCase().includes(search)||o.customer.toLowerCase().includes(search)||o.merchant.toLowerCase().includes(search);
-    return tm&&sm;
-  });
-  var html='';
-  rows.forEach(function(o){
-    html+='<tr><td><b style="color:var(--red)">'+esc(o.id)+'</b></td><td>'+esc(o.customer)+'</td><td>'+esc(o.merchant)+'</td>'+
-      '<td>'+esc(o.driver)+'</td><td><b>'+esc(o.amount)+'</b></td><td><span class="bdg bg-gray">'+esc(o.payment)+'</span></td>'+
-      '<td>'+badge(o.status)+'</td><td style="color:var(--g3)">'+esc(o.time)+'</td>'+
-      '<td><button class="aicon ai-v" data-action="view-order" data-oid="'+esc(o._docId||o.id)+'">👁</button></td></tr>';
-  });
-  if(!rows.length)html='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g3)">No orders found</td></tr>';
-  document.getElementById('orders-tbody').innerHTML=html;
-}
-
-// ══════════════════════ ORDER SIDE PANEL ══════════════════════
-function openOrderPanel(oid){
-  var o=orders.find(function(x){return x._docId===oid||x.id===oid;});
-  if(!o)return;
-  document.getElementById('sp-sub').textContent='Order Details';
-  document.getElementById('sp-title').textContent=o.id;
-  var steps=['Placed','Confirmed','Picked Up','On the Way','Delivered'];
-  var sfMap={pending:1,confirmed:2,picked_up:3,in_transit:4,delivered:5,
-    Pending:1,Confirmed:2,'Picked Up':3,'On the Way':4,Delivered:5,accepted:2};
-  var idx=sfMap[o.status]||1;
-  if(o.status==='cancelled'||o.status==='Cancelled')idx=0;
-  var flow='<div class="sf">';
-  steps.forEach(function(s,i){
-    flow+='<div class="sf-wrap"><div class="sf-dot'+(i<idx?' done':'')+'"></div><div class="sf-lbl">'+s+'</div></div>';
-    if(i<steps.length-1)flow+='<div class="sf-line'+(i<idx-1?' done':'')+'"></div>';
-  });
-  flow+='</div><div style="text-align:center;margin-bottom:18px">'+badge(o.status)+'</div>';
-  var itemsHtml='';
-  (o.items||[]).forEach(function(item){
-    if(typeof item==='object'){
-      var qty=item.quantity||1;var price=item.price!=null?'J$'+Number(item.price).toLocaleString():'';
-      itemsHtml+='<div class="sp-row"><span class="sp-lbl">'+esc(item.name||item.title||'Item')+'</span><span class="sp-val">'+qty+'× '+(price||'—')+'</span></div>';
-    }else{
-      itemsHtml+='<div class="sp-row"><span class="sp-lbl">'+esc(item)+'</span></div>';
-    }
-  });
-  if(!itemsHtml)itemsHtml='<div style="color:var(--g3);font-size:13px">No items listed</div>';
-  document.getElementById('sp-body').innerHTML=
-    '<div class="sp-sec"><div class="sp-sec-title">Status Flow</div>'+flow+'</div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Customer</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Name</span><span class="sp-val">'+esc(o.customer)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Phone</span><span class="sp-val">'+esc(o.custPhone)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Delivery Address</span><span class="sp-val" style="font-size:12px">'+esc(o.address)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Payment</span><span class="sp-val">'+esc(o.payment)+'</span></div>'+
-    '</div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Merchant</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Name</span><span class="sp-val">'+esc(o.merchant)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Address</span><span class="sp-val" style="font-size:12px">'+esc(o.merchantAddr)+'</span></div>'+
-    '</div>'+
-    (function(){var di=o.driverId?drivers.find(function(x){return x.id===o.driverId;}):null;var dp=di?di.phone:(o.driverPhone||'—');return(
-    '<div class="sp-sec"><div class="sp-sec-title">Driver</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Name</span><span class="sp-val">'+esc(o.driver)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Phone</span><span class="sp-val">'+esc(dp)+'</span></div>'+
-    '</div>');})() +
-    '<div class="sp-sec"><div class="sp-sec-title">Order Total</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Amount</span><span class="sp-val" style="font-size:18px;font-family:Montserrat,sans-serif;font-weight:800;color:var(--red)">'+esc(o.amount)+'</span></div>'+
-    '</div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Items</div>'+itemsHtml+'</div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Admin Actions</div>'+
-      '<div class="fr"><label>Assign Driver</label>'+
-        '<select id="sp-assign-driver">'+
-          '<option value="">— Unassigned —</option>'+
-          drivers.filter(function(d){return d.approved;}).map(function(d){
-            return '<option value="'+esc(d.id)+'"'+(o.driverId===d.id?' selected':'')+'>'+esc(d.name)+(d.isOnline?' 🟢':' ⚫')+'</option>';
-          }).join('')+
-        '</select>'+
-      '</div>'+
-      '<div class="fr"><label>Update Status</label>'+
-        '<select id="sp-update-status">'+
-          ['pending','confirmed','accepted','in_transit','picked_up','delivered','cancelled'].map(function(s){
-            return '<option value="'+s+'"'+(o.status===s?' selected':'')+'>'+({in_transit:'In Transit',picked_up:'Picked Up',accepted:'Accepted',confirmed:'Confirmed',delivered:'Delivered',pending:'Pending',cancelled:'Cancelled'}[s]||s)+'</option>';
-          }).join('')+
-        '</select>'+
-      '</div>'+
-      '<button class="btn btn-red" style="width:100%;padding:12px;margin-top:4px" onclick="saveOrderChanges(\''+esc(o._docId)+'\')">Save Changes</button>'+
-    '</div>';
-  openSidePanel();
-}
-function saveOrderChanges(docId){
-  var driverId=(document.getElementById('sp-assign-driver')||{}).value||'';
-  var status=(document.getElementById('sp-update-status')||{}).value||'';
-  var upd={updatedAt:serverTimestamp()};
-  if(driverId){var drv=drivers.find(function(d){return d.id===driverId;});if(drv){upd.driverId=driverId;upd.driverName=drv.name;upd.driverPhone=drv.phone||'—';}}
-  if(status)upd.status=status;
-  if(Object.keys(upd).length<=1){alert('No changes selected.');return;}
-  var btn=document.querySelector('#sp-body .btn-red');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span>Saving…';}
-  updateDoc(doc(db,'orders',docId),upd).then(function(){
-    closeSidePanel();
-  }).catch(function(e){
-    alert('Error updating order: '+e.message);
-    if(btn){btn.disabled=false;btn.textContent='Save Changes';}
-  });
-}
-
-// ══════════════════════ DRIVERS ══════════════════════
-function renderDrivers(){
-  var el=document.getElementById('drivers-stats');
-  if(el){
-    var onlineC=drivers.filter(function(d){return d.isOnline;}).length;
-    var delC=drivers.filter(function(d){return d.onDelivery;}).length;
-    var pendC=drivers.filter(function(d){return d.rawStatus==='pending';}).length;
-    el.innerHTML=
-      '<div class="sc"><div class="sc-lbl">Total Drivers</div><div class="sc-val">'+drivers.length+'</div></div>'+
-      '<div class="sc"><div class="sc-lbl">Online</div><div class="sc-val">'+onlineC+'</div></div>'+
-      '<div class="sc"><div class="sc-lbl">On Delivery</div><div class="sc-val">'+delC+'</div></div>'+
-      '<div class="sc"><div class="sc-lbl">Pending Approval</div><div class="sc-val">'+pendC+'</div></div>';
-  }
-  var html='';
-  drivers.forEach(function(d){
-    var activeCol='';
-    if(d.rawStatus==='pending'){
-      activeCol=
-        '<button class="btn" style="background:#1e7e34;color:#fff;padding:5px 10px;font-size:11px;border-radius:7px;margin-right:3px;cursor:pointer" data-action="approve-driver" data-id="'+esc(d.id)+'">✓ Approve</button>'+
-        '<button class="btn" style="background:var(--red);color:#fff;padding:5px 10px;font-size:11px;border-radius:7px;cursor:pointer" data-action="reject-driver" data-id="'+esc(d.id)+'">✗ Reject</button>';
-    }else if(d.rawStatus==='rejected'){
-      activeCol='<span class="bdg bg-red" style="cursor:pointer" data-action="approve-driver" data-id="'+esc(d.id)+'" title="Click to re-approve">Rejected ↩</span>';
-    }else{
-      activeCol='<label class="tgl"><input type="checkbox"'+(d.isOnline?' checked':'')+' class="tgl-driver-online" data-id="'+esc(d.id)+'"><span class="ts"></span></label>';
-    }
-    var onlineDot='<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(d.isOnline&&d.rawStatus==='approved'?'#22c55e':'#9ea3ad')+';margin-right:7px;flex-shrink:0"></span>';
-    html+='<tr>'+
-      '<td><div style="display:flex;align-items:center">'+onlineDot+'<b>'+esc(d.name)+'</b></div></td>'+
-      '<td style="color:var(--g3)">'+esc(d.phone)+'</td>'+
-      '<td>'+esc(d.vtype)+'</td>'+
-      '<td><span class="bdg bg-gray">'+esc(d.plate)+'</span></td>'+
-      '<td>'+stars(d.rating)+'</td>'+
-      '<td>'+d.trips+'</td>'+
-      '<td>'+badge(d.rawStatus)+'</td>'+
-      '<td>'+activeCol+'</td>'+
-      '<td style="display:flex;gap:4px;flex-wrap:nowrap">'+
-        '<button class="aicon ai-v" data-action="view-driver" data-id="'+esc(d.id)+'" title="View">👁</button>'+
-        '<button class="aicon ai-e" data-action="edit-driver" data-id="'+esc(d.id)+'" title="Edit">✎</button>'+
-        '<button class="aicon ai-d" data-action="del-driver"  data-id="'+esc(d.id)+'" title="Delete">🗑</button>'+
-      '</td></tr>';
-  });
-  if(!html)html='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g3)">No drivers yet</td></tr>';
-  document.getElementById('drivers-tbody').innerHTML=html;
-}
-
-function openDriverModal(mode,id){
-  driverMode=mode;driverEditId=id||null;
-  var isEdit=mode==='edit';
-  document.getElementById('drv-modal-title').textContent=isEdit?'Edit Driver':'Add New Driver';
-  document.getElementById('drv-save-btn').textContent=isEdit?'Save Changes':'Add Driver';
-  var d=isEdit?drivers.find(function(x){return x.id===id;}):null;
-  document.getElementById('d-name').value    =d?d.name:'';
-  document.getElementById('d-phone').value   =d?d.phone:'';
-  document.getElementById('d-email').value   =d?d.email:'';
-  document.getElementById('d-vtype').value   =d?d.vtype:'Car';
-  document.getElementById('d-vehicle').value =d?d.vehicle:'';
-  document.getElementById('d-plate').value   =d?d.plate:'';
-  document.getElementById('d-dlicence').value=d?d.dlicence:'';
-  document.getElementById('d-status').value  =d?(d.approved?'Active':'Inactive'):'Active';
-  openModal('modal-driver');
-}
-
-function saveDriver(){
-  var name=document.getElementById('d-name').value.trim();
-  if(!name){alert('Full name is required.');return;}
-  var active=document.getElementById('d-status').value==='Active';
-  var obj={name:name,phone:document.getElementById('d-phone').value.trim()||'—',email:document.getElementById('d-email').value.trim()||'—',
-    vehicleType:document.getElementById('d-vtype').value,vehicleModel:document.getElementById('d-vehicle').value.trim()||'—',
-    licencePlate:document.getElementById('d-plate').value.trim().toUpperCase()||'—',
-    licenceNumber:document.getElementById('d-dlicence').value.trim()||'—',
-    status:active?'approved':'pending',isOnline:active,
-    updatedAt:serverTimestamp()};
-  var btn=document.getElementById('drv-save-btn');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span>Saving…';}
-  var promise;
-  if(driverMode==='add'){obj.rating=5.0;obj.totalTrips=0;obj.createdAt=serverTimestamp();promise=addDoc(collection(db,'drivers'),obj);}
-  else{promise=updateDoc(doc(db,'drivers',driverEditId),obj);}
-  promise.then(function(){closeModal('modal-driver');if(btn){btn.disabled=false;}})
-    .catch(function(e){alert('Error saving driver: '+e.message);if(btn){btn.disabled=false;btn.textContent=driverMode==='edit'?'Save Changes':'Add Driver';}});
-}
-
-function deleteDriver(id){
-  var d=drivers.find(function(x){return x.id===id;});if(!d)return;
-  if(!confirm('Delete driver "'+d.name+'"? This cannot be undone.'))return;
-  deleteDoc(doc(db,'drivers',id)).catch(function(e){alert('Error: '+e.message);});
-}
-
-function approveDriver(id){
-  updateDoc(doc(db,'drivers',id),{status:'approved',updatedAt:serverTimestamp()}).catch(function(e){alert('Error: '+e.message);});
-}
-
-function rejectDriver(id){
-  updateDoc(doc(db,'drivers',id),{status:'rejected',isOnline:false,updatedAt:serverTimestamp()}).catch(function(e){alert('Error: '+e.message);});
-}
-
-function toggleDriverOnline(id){
-  var d=drivers.find(function(x){return x.id===id;});if(!d)return;
-  updateDoc(doc(db,'drivers',id),{isOnline:!d.isOnline,updatedAt:serverTimestamp()}).catch(function(e){alert('Error: '+e.message);});
-}
-
-function openDriverPanel(id){
-  var d=drivers.find(function(x){return x.id===id;});if(!d)return;
-  document.getElementById('sp-sub').textContent='Driver Profile';
-  document.getElementById('sp-title').textContent=d.name;
-  var recentOrds=orders.filter(function(o){return o.driver===d.name;}).slice(0,4);
-  var recentHtml=recentOrds.length?recentOrds.map(function(o){
-    return '<div class="sp-row"><span class="sp-lbl">'+esc(o.id)+' — '+esc(o.merchant)+'</span><span class="sp-val">'+badge(o.status)+'</span></div>';
-  }).join(''):'<div style="color:var(--g3);font-size:13px;padding:8px 0">No recent deliveries</div>';
-  var rd=[{s:5,pct:Math.round(d.rating>=4.8?70:d.rating>=4.5?55:40)},{s:4,pct:Math.round(d.rating>=4.8?22:d.rating>=4.5?30:35)},{s:3,pct:5},{s:2,pct:2},{s:1,pct:1}];
-  var rh=rd.map(function(r){return '<div class="rbar-row"><span class="rbar-lbl">'+r.s+'</span><div class="rbar-t"><div class="rbar-f" style="width:'+r.pct+'%"></div></div><span class="rbar-pct">'+r.pct+'%</span></div>';}).join('');
-  document.getElementById('sp-body').innerHTML=
-    '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">'+
-      '<div style="width:60px;height:60px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-size:22px;font-weight:800;flex-shrink:0">'+esc(d.name[0])+'</div>'+
-      '<div><div style="font-family:Montserrat,sans-serif;font-size:17px;font-weight:700">'+esc(d.name)+'</div><div style="margin-top:4px">'+badge(d.status)+'</div></div></div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Contact</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Phone</span><span class="sp-val">'+esc(d.phone)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Email</span><span class="sp-val" style="font-size:12px">'+esc(d.email)+'</span></div></div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Vehicle</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Type</span><span class="sp-val">'+esc(d.vtype)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Model</span><span class="sp-val">'+esc(d.vehicle)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Plate</span><span class="sp-val">'+esc(d.plate)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Licence No.</span><span class="sp-val">'+esc(d.dlicence)+'</span></div></div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Performance</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Total Trips</span><span class="sp-val" style="font-family:Montserrat,sans-serif;font-size:18px;font-weight:800">'+d.trips+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Avg Rating</span><span class="sp-val">'+stars(d.rating)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Status</span><span class="sp-val">'+badge(d.approved?'approved':'pending')+'</span></div></div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Rating Breakdown</div>'+rh+'</div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Recent Deliveries</div>'+recentHtml+'</div>';
-  openSidePanel();
-}
-
-// ══════════════════════ MERCHANTS ══════════════════════
-function renderMerchantStats(){
-  var el=document.getElementById('merchants-stats');if(!el)return;
-  var openC=merchants.filter(function(m){return m.open;}).length;
-  el.innerHTML=
-    '<div class="sc"><div class="sc-lbl">Total Merchants</div><div class="sc-val">'+merchants.length+'</div></div>'+
-    '<div class="sc"><div class="sc-lbl">Open Now</div><div class="sc-val">'+openC+'</div></div>'+
-    '<div class="sc"><div class="sc-lbl">Closed</div><div class="sc-val">'+(merchants.length-openC)+'</div></div>';
-}
-function renderMerchants(){
-  renderMerchantStats();
-  var html='';
-  merchants.forEach(function(m){
-    html+='<tr>'+
-      '<td><div style="display:flex;align-items:center;gap:10px">'+(m.imageUrl?'<img src="'+esc(m.imageUrl)+'" style="width:32px;height:32px;border-radius:6px;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">':catIcon(m.category))+'<b>'+esc(m.name)+'</b></div></td>'+
-      '<td><span class="bdg bg-blue">'+esc(m.category)+'</span></td>'+
-      '<td style="color:var(--g3)">'+esc(m.phone)+'</td>'+
-      '<td style="font-size:12px;max-width:140px">'+esc(m.address)+'</td>'+
-      '<td><b style="color:var(--red)">'+m.ordersToday+'</b></td>'+
-      '<td>'+stars(m.rating)+'</td>'+
-      '<td id="mstat-'+esc(m.id)+'">'+badge(m.open?'Open':'Closed')+'</td>'+
-      '<td><label class="tgl"><input type="checkbox"'+(m.open?' checked':'')+' class="tgl-merchant" data-id="'+esc(m.id)+'"><span class="ts"></span></label></td>'+
-      '<td style="display:flex;gap:4px;flex-wrap:nowrap">'+
-        '<button class="aicon ai-v" data-action="view-merchant" data-id="'+esc(m.id)+'" title="View">👁</button>'+
-        '<button class="aicon ai-e" data-action="edit-merchant" data-id="'+esc(m.id)+'" title="Edit">✎</button>'+
-        '<button class="aicon ai-d" data-action="del-merchant"  data-id="'+esc(m.id)+'" title="Delete">🗑</button>'+
-      '</td></tr>';
-  });
-  if(!html)html='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--g3)">No merchants yet — add one above</td></tr>';
-  document.getElementById('merchants-tbody').innerHTML=html;
-}
-function openMerchantModal(mode,id){
-  merchantMode=mode;merchantEditId=id||null;
-  var isEdit=mode==='edit';
-  document.getElementById('mer-modal-title').textContent=isEdit?'Edit Merchant':'Add New Merchant';
-  document.getElementById('mer-save-btn').textContent=isEdit?'Save Changes':'Add Merchant';
-  var m=isEdit?merchants.find(function(x){return x.id===id;}):null;
-  document.getElementById('m-name').value   =m?m.name:'';
-  document.getElementById('m-cat').value    =m?m.category:'Food';
-  document.getElementById('m-owner').value  =m?(m.owner||''):'';
-  document.getElementById('m-phone').value  =m?m.phone:'';
-  document.getElementById('m-email').value  =m?(m.email||''):'';
-  document.getElementById('m-fee').value    =m?(m.fee?m.fee.replace('$',''):''):'';
-  document.getElementById('m-hours').value  =m?(m.hours||''):'';
-  document.getElementById('m-address').value=m?m.address:'';
-  document.getElementById('m-status').value =m?(m.open?'Open':'Closed'):'Open';
-  document.getElementById('m-imageurl').value=m?(m.imageUrl||m.image||''):'';
-  openModal('modal-merchant');
-}
-function saveMerchant(){
-  var name=document.getElementById('m-name').value.trim();
-  if(!name){alert('Business name is required.');return;}
-  var isOpenState=document.getElementById('m-status').value==='Open';
-  var obj={name:name,category:document.getElementById('m-cat').value,owner:document.getElementById('m-owner').value.trim()||'—',
-    phone:document.getElementById('m-phone').value.trim()||'—',email:document.getElementById('m-email').value.trim()||'—',
-    address:document.getElementById('m-address').value.trim()||'—',hours:document.getElementById('m-hours').value.trim()||'—',
-    fee:'$'+(document.getElementById('m-fee').value.trim()||'0'),isOpen:isOpenState,open:isOpenState,
-    imageUrl:document.getElementById('m-imageurl').value.trim()||'',updatedAt:serverTimestamp()};
-  var btn=document.getElementById('mer-save-btn');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span>Saving…';}
-  var promise;
-  if(merchantMode==='add'){obj.ordersToday=0;obj.rating=5.0;obj.createdAt=serverTimestamp();promise=addDoc(collection(db,'merchants'),obj);}
-  else{promise=updateDoc(doc(db,'merchants',merchantEditId),obj);}
-  promise.then(function(){closeModal('modal-merchant');if(btn)btn.disabled=false;})
-    .catch(function(e){alert('Error saving merchant: '+e.message);if(btn){btn.disabled=false;btn.textContent=merchantMode==='edit'?'Save Changes':'Add Merchant';}});
-}
-function deleteMerchant(id){
-  var m=merchants.find(function(x){return x.id===id;});if(!m)return;
-  if(!confirm('Delete merchant "'+m.name+'"? This cannot be undone.'))return;
-  deleteDoc(doc(db,'merchants',id)).catch(function(e){alert('Error: '+e.message);});
-}
-function toggleMerchant(id){
-  var m=merchants.find(function(x){return x.id===id;});if(!m)return;
-  updateDoc(doc(db,'merchants',id),{isOpen:!m.open,open:!m.open,updatedAt:serverTimestamp()}).catch(function(e){alert('Error: '+e.message);});
-}
-function openMerchantPanel(id){
-  panelMerchantId=id;
-  var m=merchants.find(function(x){return x.id===id;});if(!m)return;
-  document.getElementById('sp-sub').textContent='Merchant Profile';
-  document.getElementById('sp-title').textContent=m.name;
-  var recentOrds=orders.filter(function(o){return o.merchant===m.name;}).slice(0,4);
-  var recentHtml=recentOrds.length?recentOrds.map(function(o){
-    return '<div class="sp-row"><span class="sp-lbl">'+esc(o.id)+' — '+esc(o.customer)+'</span><span class="sp-val">'+badge(o.status)+'</span></div>';
-  }).join(''):'<div style="color:var(--g3);font-size:13px;padding:8px 0">No recent orders</div>';
-  var cm=catMeta[m.category]||{ico:'🏪',bg:'#f0f0f2',col:'#5a5f6b'};
-  var heroImg=m.imageUrl?'<img src="'+esc(m.imageUrl)+'" style="width:56px;height:56px;border-radius:12px;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">':'<div style="width:56px;height:56px;border-radius:12px;background:'+cm.bg+';color:'+cm.col+';display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">'+cm.ico+'</div>';
-  var detailsHtml=
-    '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">'+heroImg+
-      '<div><div style="font-family:Montserrat,sans-serif;font-size:17px;font-weight:700">'+esc(m.name)+'</div><div style="margin-top:4px">'+badge(m.open?'Open':'Closed')+'</div></div></div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Business Details</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Category</span><span class="sp-val"><span class="bdg bg-blue">'+esc(m.category)+'</span></span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Owner</span><span class="sp-val">'+esc(m.owner)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Hours</span><span class="sp-val" style="font-size:12px">'+esc(m.hours)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Delivery Fee</span><span class="sp-val">'+esc(m.fee)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Address</span><span class="sp-val" style="font-size:12px">'+esc(m.address)+'</span></div></div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Contact</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Phone</span><span class="sp-val">'+esc(m.phone)+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Email</span><span class="sp-val" style="font-size:12px">'+esc(m.email)+'</span></div></div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Stats</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Orders Today</span><span class="sp-val" style="color:var(--red);font-size:20px;font-family:Montserrat,sans-serif;font-weight:800">'+m.ordersToday+'</span></div>'+
-      '<div class="sp-row"><span class="sp-lbl">Rating</span><span class="sp-val">'+stars(m.rating)+'</span></div></div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Recent Orders</div>'+recentHtml+'</div>';
-  document.getElementById('sp-body').innerHTML=
-    '<div style="display:flex;gap:4px;background:var(--gray);border-radius:9px;padding:4px;margin-bottom:18px">'+
-      '<div id="mptab-details" class="tab active" onclick="switchMerchantTab(\'details\')" style="flex:1;text-align:center">Details</div>'+
-      '<div id="mptab-menu" class="tab" onclick="switchMerchantTab(\'menu\')" style="flex:1;text-align:center">Menu Items</div>'+
-    '</div>'+
-    '<div id="merch-tab-details">'+detailsHtml+'</div>'+
-    '<div id="merch-tab-menu" style="display:none"></div>';
-  openSidePanel();
-}
-function switchMerchantTab(tab){
-  document.getElementById('mptab-details').classList.toggle('active',tab==='details');
-  document.getElementById('mptab-menu').classList.toggle('active',tab==='menu');
-  document.getElementById('merch-tab-details').style.display=tab==='details'?'':'none';
-  document.getElementById('merch-tab-menu').style.display=tab==='menu'?'':'none';
-  if(tab==='menu')loadMenuItemsTab(panelMerchantId);
-}
-function loadMenuItemsTab(merchantId){
-  if(menuItemsUnsub){menuItemsUnsub();menuItemsUnsub=null;}
-  menuItemEditId=null;
-  var el=document.getElementById('merch-tab-menu');if(!el)return;
-  el.innerHTML=
-    '<div style="background:var(--gray);border-radius:10px;padding:14px;margin-bottom:16px">'+
-      '<div id="mi-form-title" style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;margin-bottom:12px">Add Menu Item</div>'+
-      '<div class="fr"><label>Name *</label><input id="mi-name" placeholder="Item name"/></div>'+
-      '<div class="fr"><label>Description</label><input id="mi-desc" placeholder="Brief description"/></div>'+
-      '<div class="fr"><label>Price (JMD) *</label><input id="mi-price" type="number" placeholder="1200" min="0"/></div>'+
-      '<div class="fr"><label>Category</label>'+
-        '<select id="mi-cat"><option value="mains">Mains</option><option value="sides">Sides</option><option value="drinks">Drinks</option><option value="popular">Popular</option></select>'+
-      '</div>'+
-      '<div class="fr"><label>Image URL <small style="font-weight:400;color:#8a8f9e">(optional)</small></label><input id="mi-img" placeholder="https://..."/></div>'+
-      '<div style="display:flex;gap:8px;margin-top:8px">'+
-        '<button class="btn btn-outline" id="mi-cancel-btn" onclick="cancelMenuItemEdit()" style="flex:1;display:none">Cancel</button>'+
-        '<button class="btn btn-red" onclick="saveMenuItem()" style="flex:1">Save Item</button>'+
-      '</div>'+
-    '</div>'+
-    '<div id="menu-items-list"><div style="color:var(--g3);font-size:13px;padding:20px;text-align:center">Loading…</div></div>';
-  try{
-    menuItemsUnsub=onSnapshot(
-      collection(db,'merchants',merchantId,'menuItems'),
-      function(snap){
-        panelMenuItems=snap.docs.map(function(d){var o=d.data();return{id:d.id,name:o.name||'',description:o.description||'',price:Number(o.price)||0,category:o.category||'mains',imageUrl:o.imageUrl||''}; });
-        renderMenuItems();
-      },
-      function(e){console.warn('menuItems:',e.message);}
-    );
-  }catch(e){console.warn('menuItems init:',e.message);}
-}
-function renderMenuItems(){
-  var listEl=document.getElementById('menu-items-list');if(!listEl)return;
-  if(!panelMenuItems.length){listEl.innerHTML='<div style="color:var(--g3);font-size:13px;text-align:center;padding:24px 0">No menu items yet — add one above</div>';return;}
-  listEl.innerHTML=panelMenuItems.map(function(item){
-    return '<div style="background:white;border-radius:10px;padding:11px 13px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">'+
-      '<div style="display:flex;align-items:center;gap:10px">'+
-        (item.imageUrl?'<img src="'+esc(item.imageUrl)+'" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">':
-          '<div style="width:40px;height:40px;border-radius:8px;background:var(--gray);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🍽️</div>')+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px">'+esc(item.name)+'</div>'+
-          (item.description?'<div style="font-size:11px;color:var(--g3);margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(item.description)+'</div>':'')+
-          '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">'+
-            '<b style="color:var(--red);font-family:Montserrat,sans-serif;font-size:13px">J$'+item.price.toLocaleString()+'</b>'+
-            '<span class="bdg bg-blue" style="font-size:10px;text-transform:capitalize">'+esc(item.category)+'</span>'+
-          '</div>'+
-        '</div>'+
-        '<div style="display:flex;gap:4px;flex-shrink:0">'+
-          '<button class="aicon ai-e" data-action="edit-menu-item" data-id="'+esc(item.id)+'" title="Edit">✎</button>'+
-          '<button class="aicon ai-d" data-action="del-menu-item" data-id="'+esc(item.id)+'" title="Delete">🗑</button>'+
-        '</div>'+
-      '</div>'+
-    '</div>';
-  }).join('');
-}
-function editMenuItemFn(id){
-  var item=panelMenuItems.find(function(i){return i.id===id;});if(!item)return;
-  menuItemEditId=id;
-  document.getElementById('mi-form-title').textContent='Edit Menu Item';
-  document.getElementById('mi-name').value=item.name;
-  document.getElementById('mi-desc').value=item.description;
-  document.getElementById('mi-price').value=item.price;
-  document.getElementById('mi-cat').value=item.category;
-  document.getElementById('mi-img').value=item.imageUrl;
-  var cb=document.getElementById('mi-cancel-btn');if(cb)cb.style.display='';
-  document.getElementById('mi-name').scrollIntoView({behavior:'smooth',block:'nearest'});
-}
-function cancelMenuItemEdit(){
-  menuItemEditId=null;
-  document.getElementById('mi-form-title').textContent='Add Menu Item';
-  ['mi-name','mi-desc','mi-price','mi-img'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('mi-cat').value='mains';
-  var cb=document.getElementById('mi-cancel-btn');if(cb)cb.style.display='none';
-}
-function saveMenuItem(){
-  var name=(document.getElementById('mi-name').value||'').trim();
-  var price=parseInt(document.getElementById('mi-price').value)||0;
-  if(!name){alert('Item name is required.');return;}
-  if(!price){alert('Price is required.');return;}
-  var obj={name:name,description:(document.getElementById('mi-desc').value||'').trim(),price:price,
-    category:document.getElementById('mi-cat').value,imageUrl:(document.getElementById('mi-img').value||'').trim()};
-  var promise=menuItemEditId
-    ?updateDoc(doc(db,'merchants',panelMerchantId,'menuItems',menuItemEditId),obj)
-    :addDoc(collection(db,'merchants',panelMerchantId,'menuItems'),obj);
-  promise.then(function(){cancelMenuItemEdit();}).catch(function(e){alert('Error: '+e.message);});
-}
-function deleteMenuItemFn(id){
-  if(!confirm('Delete this menu item?'))return;
-  deleteDoc(doc(db,'merchants',panelMerchantId,'menuItems',id)).catch(function(e){alert('Error: '+e.message);});
-}
-
-// ══════════════════════ NOTIFICATIONS ══════════════════════
-function updPhonePreview(){
-  var t=document.getElementById('n-title').value,m=document.getElementById('n-msg').value;
-  document.getElementById('pv-title').textContent=t||'Notification Title';
-  document.getElementById('pv-msg').textContent=m||'Your message will appear here.';
-}
-function renderNotifHist(){
-  var html='';
-  notifHistory.forEach(function(n){
-    html+='<div class="nh-item"><div class="nh-ico">🔔</div><div>'+
-      '<div class="nh-title">'+esc(n.title)+'</div>'+
-      '<div class="nh-meta">'+esc(n.msg)+'</div>'+
-      '<div style="display:flex;gap:8px;margin-top:6px"><span class="bdg bg-blue">'+esc(n.target)+'</span>'+
-      '<span style="font-size:11px;color:var(--g3)">'+esc(n.time)+'</span></div></div></div>';
-  });
-  document.getElementById('notif-hist').innerHTML=html||'<div style="color:var(--g3);font-size:13px">No notifications sent yet.</div>';
-}
-function sendNotif(){
-  var title=document.getElementById('n-title').value.trim();
-  var msg=document.getElementById('n-msg').value.trim();
-  var target=document.getElementById('n-target').value;
-  if(!title||!msg){alert('Please enter both a title and a message.');return;}
-  var btn=document.getElementById('notif-send-btn');
-  var okEl=document.getElementById('notif-sent-ok');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span>Sending…';}
-  addDoc(collection(db,'notifications'),{
-    title:title,message:msg,target:target,
-    sentBy:auth.currentUser?auth.currentUser.email:'admin',
-    createdAt:serverTimestamp()
-  }).then(function(){
-    document.getElementById('n-title').value='';
-    document.getElementById('n-msg').value='';
-    updPhonePreview();
-    if(btn){btn.disabled=false;btn.textContent='✉ Send Now';}
-    if(okEl){okEl.style.display='block';setTimeout(function(){okEl.style.display='none';},3500);}
-  }).catch(function(e){
-    alert('Error sending notification: '+e.message);
-    if(btn){btn.disabled=false;btn.textContent='✉ Send Now';}
-  });
-}
-
-// ══════════════════════ PROMO CODES ══════════════════════
-function updPromoPreview(){
-  var code=(document.getElementById('pc-code').value||'PROMO').toUpperCase();
-  var disc=document.getElementById('pc-disc').value,type=document.getElementById('pc-type').value,valid=document.getElementById('pc-valid').value;
-  var ds=disc?(type==='percent'?disc+'% Off':'$'+disc+' Off'):'Discount';
-  document.getElementById('pcp-code').textContent=code;
-  document.getElementById('pcp-disc').textContent=ds;
-  document.getElementById('pcp-valid').textContent='Valid Until: '+(valid||'—');
-}
-function renderPromos(){
-  var html='';
-  promoCodes.forEach(function(p){
-    html+='<tr>'+
-      '<td><b style="font-family:monospace;letter-spacing:1.5px;color:var(--red)">'+esc(p.code)+'</b></td>'+
-      '<td><b>'+esc(p.discount)+'</b></td>'+
-      '<td>'+p.usedCount+'</td>'+
-      '<td>'+p.maxUses+'</td>'+
-      '<td style="color:var(--g3)">'+esc(p.validUntil||'—')+'</td>'+
-      '<td>'+badge(p.status)+'</td>'+
-      '<td><button class="aicon ai-d" data-action="del-promo" data-id="'+esc(p.id)+'">🗑</button></td></tr>';
-  });
-  if(!html)html='<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--g3)">No promo codes yet</td></tr>';
-  document.getElementById('promos-tbody').innerHTML=html;
-}
-function createPromo(){
-  var code=document.getElementById('pc-code').value.trim().toUpperCase();
-  var discAmt=parseFloat(document.getElementById('pc-disc').value.trim())||0;
-  var discType=document.getElementById('pc-type').value;
-  if(!code){alert('Promo code is required.');return;}
-  if(!discAmt){alert('Discount amount is required.');return;}
-  var maxUses=parseInt(document.getElementById('pc-max').value)||100;
-  var validUntil=document.getElementById('pc-valid').value||'';
-  var btn=document.querySelector('#page-promos .btn-red');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span>Creating…';}
-  setDoc(doc(db,'promoCodes',code),{
-    code:code,discountType:discType,discountAmount:discAmt,
-    maxUses:maxUses,usedCount:0,validUntil:validUntil,
-    active:true,createdAt:serverTimestamp()
-  }).then(function(){
-    ['pc-code','pc-disc','pc-max','pc-valid'].forEach(function(i){document.getElementById(i).value='';});
-    document.getElementById('pc-type').value='percent';
-    updPromoPreview();
-    if(btn){btn.disabled=false;btn.textContent='＋ Create Promo Code';}
-  }).catch(function(e){
-    alert('Error creating promo code: '+e.message);
-    if(btn){btn.disabled=false;btn.textContent='＋ Create Promo Code';}
-  });
-}
-function deletePromo(id){
-  if(!confirm('Delete this promo code?'))return;
-  deleteDoc(doc(db,'promoCodes',id)).catch(function(e){alert('Error: '+e.message);});
-}
-
-// ══════════════════════ ANALYTICS ══════════════════════
-function parseAmt(a){var n=parseFloat(String(a||'0').replace(/[^0-9.]/g,''));return isNaN(n)?0:n;}
-function renderAnalytics(){
-  var now=new Date();
-  var todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  var weekStart=new Date(todayStart);weekStart.setDate(weekStart.getDate()-weekStart.getDay());
-  var monthStart=new Date(now.getFullYear(),now.getMonth(),1);
-  function forPeriod(p){
-    var start=p==='Today'?todayStart:p==='This Week'?weekStart:monthStart;
-    return orders.filter(function(o){return o._ts&&o._ts>=start;});
-  }
-  ['Today','This Week','This Month'].forEach(function(p){
-    var os=forPeriod(p);
-    var completed=os.filter(function(o){return isDeliveredStatus(o.status);});
-    var revenue=completed.reduce(function(s,o){return s+(o.rawTotal!=null?o.rawTotal:parseAmt(o.amount));},0);
-    var uniq=new Set(os.map(function(o){return o.customer;})).size;
-    var avg=completed.length?Math.round(revenue/completed.length):0;
-    analyticsStats[p]=[
-      {lbl:'Revenue',val:'J$'+revenue.toLocaleString()},
-      {lbl:'Orders',val:String(os.length)},
-      {lbl:'Customers',val:String(uniq)},
-      {lbl:'Avg Order Value',val:'J$'+avg.toLocaleString()},
-    ];
-  });
-  renderAnalyticsStats();
-  renderBarChart();
-  renderZones();
-  renderPaySplit();
-}
-function renderAnalyticsStats(){
-  var s=analyticsStats[currentPeriod]||analyticsStats['Today'];
-  document.getElementById('analytics-stats').innerHTML=s.map(function(c){
-    return '<div class="sc"><div class="sc-lbl">'+esc(c.lbl)+'</div><div class="sc-val" style="font-size:24px">'+esc(c.val)+'</div></div>';
-  }).join('');
-}
-function renderBarChart(){
-  var now=new Date();
-  var data,title;
-  if(currentPeriod==='Today'){
-    title='Hourly Orders — Today';
-    var hrs=[8,10,12,14,16,18,20];
-    data=hrs.map(function(h){
-      var s=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h);
-      var e=new Date(s.getTime()+7200000);
-      var v=orders.filter(function(o){return o._ts&&o._ts>=s&&o._ts<e;}).length;
-      return {l:h>12?(h-12)+'PM':(h===12?'12PM':h+'AM'),v:v};
-    });
-  }else if(currentPeriod==='This Week'){
-    title='Daily Orders — This Week';
-    var wkStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()-now.getDay());
-    var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    data=days.map(function(d,i){
-      var s=new Date(wkStart);s.setDate(s.getDate()+i);
-      var e=new Date(s);e.setDate(e.getDate()+1);
-      var v=orders.filter(function(o){return o._ts&&o._ts>=s&&o._ts<e;}).length;
-      return {l:d,v:v};
-    });
-  }else{
-    title='Weekly Orders — This Month';
-    var mStart=new Date(now.getFullYear(),now.getMonth(),1);
-    data=['Wk 1','Wk 2','Wk 3','Wk 4'].map(function(w,i){
-      var s=new Date(mStart);s.setDate(s.getDate()+i*7);
-      var e=new Date(s);e.setDate(e.getDate()+7);
-      var v=orders.filter(function(o){return o._ts&&o._ts>=s&&o._ts<e;}).length;
-      return {l:w,v:v};
-    });
-  }
-  document.getElementById('bar-title').textContent=title;
-  var max=Math.max.apply(null,data.map(function(d){return d.v;}))||1;
-  document.getElementById('bar-chart').innerHTML=data.map(function(b){
-    var pct=Math.round((b.v/max)*100);
-    return '<div class="bc"><div class="bc-num">'+b.v+'</div><div class="bc-inner"><div class="bc-bar" style="height:'+pct+'%"></div></div><div class="bc-lbl">'+esc(b.l)+'</div></div>';
-  }).join('');
-}
-function renderZones(){
-  var addrs={};
-  orders.forEach(function(o){
-    var addr=o.address||'';
-    var zone='Other';
-    if(/kingston/i.test(addr))zone='Kingston';
-    else if(/portmore/i.test(addr))zone='Portmore';
-    else if(/st\.?\s*thomas|morant/i.test(addr))zone='St Thomas';
-    else if(/st\.?\s*catherine/i.test(addr))zone='St Catherine';
-    addrs[zone]=(addrs[zone]||0)+1;
-  });
-  var total=Object.values(addrs).reduce(function(a,b){return a+b;},0)||1;
-  var sorted=Object.keys(addrs).sort(function(a,b){return addrs[b]-addrs[a];}).slice(0,5);
-  var el=document.getElementById('zone-chart');if(!el)return;
-  if(!sorted.length){el.innerHTML='<div style="color:var(--g3);font-size:13px;text-align:center;padding:20px 0">No delivery data yet</div>';return;}
-  el.innerHTML=sorted.map(function(z){
-    var pct=Math.round((addrs[z]/total)*100);
-    return '<div class="zr"><div class="zn">'+esc(z)+'</div><div class="zt"><div class="zf" style="width:'+pct+'%"></div></div><div class="zv">'+addrs[z]+'</div></div>';
-  }).join('');
-}
-function renderTopMerch(){
-  var mCounts={},mRevenue={};
-  orders.forEach(function(o){
-    var n=o.merchant||'Unknown';
-    mCounts[n]=(mCounts[n]||0)+1;
-    mRevenue[n]=(mRevenue[n]||0)+(o.rawTotal!=null?o.rawTotal:parseAmt(o.amount));
-  });
-  var data=Object.keys(mCounts).map(function(n){return{n:n,o:mCounts[n],r:'J$'+Math.round(mRevenue[n]).toLocaleString()};});
-  data.sort(function(a,b){return b.o-a.o;});
-  data=data.slice(0,4);
-  if(!data.length)data=[{n:'—',o:0,r:'J$0'}];
-  document.getElementById('top-merch').innerHTML=data.map(function(m){
-    return '<tr><td><b>'+esc(m.n)+'</b></td><td><b style="color:var(--red)">'+m.o+'</b></td><td><b>'+esc(m.r)+'</b></td></tr>';
-  }).join('');
-}
-function renderPaySplit(){
-  var paySrc=orders;
-  try{var pStart={'Today':new Date(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()),'This Week':(function(){var d=new Date();d.setDate(d.getDate()-d.getDay());d.setHours(0,0,0,0);return d;})(),'This Month':new Date(new Date().getFullYear(),new Date().getMonth(),1)}[currentPeriod];if(pStart)paySrc=orders.filter(function(o){return o._ts&&o._ts>=pStart;});}catch(e){}
-  var paypal=paySrc.filter(function(o){return o.payment&&(o.payment.toLowerCase().includes('paypal')||o.payment.toLowerCase().includes('card')||o.payment.toLowerCase().includes('online'));}).length;
-  var cod=paySrc.filter(function(o){return o.payment&&(o.payment.toLowerCase().includes('cod')||o.payment.toLowerCase().includes('cash'));}).length;
-  var total=paypal+cod||1;var ppPct=Math.round((paypal/total)*100)||0;var codPct=100-ppPct;
-  document.getElementById('pay-split').innerHTML=
-    '<div class="prow"><div class="prow-lbl">PayPal</div><div class="ptrack"><div class="pfill" style="width:'+ppPct+'%;background:var(--red)"></div></div><div class="prow-pct" style="color:var(--red)">'+ppPct+'%</div></div>'+
-    '<div class="prow"><div class="prow-lbl">Cash on Delivery</div><div class="ptrack"><div class="pfill" style="width:'+codPct+'%;background:var(--dark)"></div></div><div class="prow-pct">'+codPct+'%</div></div>'+
-    '<div style="font-size:11px;color:var(--g3);text-align:center;margin-top:6px">Based on '+currentPeriod.toLowerCase()+' transactions</div>';
-}
-function setPeriod(period){
-  currentPeriod=period;
-  document.querySelectorAll('.pb').forEach(function(b){b.classList.remove('active');});
-  var btn=document.querySelector('.pb[data-period="'+period+'"]');if(btn)btn.classList.add('active');
-  renderAnalyticsStats();renderBarChart();renderPaySplit();
-}
-
-// ══════════════════════ MODAL / SIDE PANEL ══════════════════════
-function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
-function openSidePanel(){document.getElementById('sp-overlay').classList.add('open');document.getElementById('spanel').classList.add('open');}
-function closeSidePanel(){
-  document.getElementById('sp-overlay').classList.remove('open');
-  document.getElementById('spanel').classList.remove('open');
-  if(menuItemsUnsub){menuItemsUnsub();menuItemsUnsub=null;}
-  panelMerchantId=null;panelMenuItems=[];
-}
-
-// ══════════════════════ EVENT DELEGATION ══════════════════════
-document.addEventListener('click',function(e){
-  var ni=e.target.closest('.ni[data-page]');if(ni){navTo(ni.getAttribute('data-page'));return;}
-  if(e.target.closest('#logout-btn')){doLogout();return;}
-  if(e.target.closest('#hamburger')){toggleSidebar();return;}
-  if(e.target.id==='sp-overlay'||e.target.closest('#sp-close')){closeSidePanel();return;}
-  if(e.target.id==='mob-overlay'){closeMobileSidebar();return;}
-  var cb=e.target.closest('[data-close]');if(cb){closeModal(cb.getAttribute('data-close'));return;}
-  var mbg=e.target.closest('.mbg');if(mbg&&e.target===mbg){closeModal(mbg.id);return;}
-  if(e.target.id==='add-driver-btn'){openDriverModal('add');return;}
-  if(e.target.id==='add-merchant-btn'){openMerchantModal('add');return;}
-  var pb=e.target.closest('.pb');if(pb){setPeriod(pb.getAttribute('data-period'));return;}
-  var tab=e.target.closest('.tab[data-filter]');
-  if(tab){ordersFilter=tab.getAttribute('data-filter');renderOrders();return;}
-  var btn=e.target.closest('[data-action]');if(!btn)return;
-  var action=btn.getAttribute('data-action'),id=btn.getAttribute('data-id'),oid=btn.getAttribute('data-oid');
-  switch(action){
-    case 'view-order':     openOrderPanel(oid);break;
-    case 'view-driver':    openDriverPanel(id);break;
-    case 'edit-driver':    openDriverModal('edit',id);break;
-    case 'del-driver':     deleteDriver(id);break;
-    case 'approve-driver': approveDriver(id);break;
-    case 'reject-driver':  rejectDriver(id);break;
-    case 'view-merchant':   openMerchantPanel(id);break;
-    case 'edit-merchant':   openMerchantModal('edit',id);break;
-    case 'del-merchant':    deleteMerchant(id);break;
-    case 'del-promo':       deletePromo(id);break;
-    case 'edit-menu-item':  editMenuItemFn(id);break;
-    case 'del-menu-item':   deleteMenuItemFn(id);break;
-  }
-});
-document.addEventListener('change',function(e){
-  if(e.target.classList.contains('tgl-driver-online'))toggleDriverOnline(e.target.getAttribute('data-id'));
-  if(e.target.classList.contains('tgl-merchant'))toggleMerchant(e.target.getAttribute('data-id'));
-});
-document.addEventListener('input',function(e){if(e.target.id==='orders-search')renderOrders();});
-document.addEventListener('keydown',function(e){if(e.key==='Enter'&&(e.target.id==='l-email'||e.target.id==='l-pass'))doLogin();});
-
-// ══════════════════════ INIT ══════════════════════
-function initApp(){
-  document.getElementById('tb-date').textContent=new Date().toLocaleDateString('en-JM',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  var loadHtml='<tr><td colspan="9" class="tbl-loading"><span class="spin spin-dark"></span> Loading…</td></tr>';
-  ['dash-tbody','orders-tbody','drivers-tbody','merchants-tbody'].forEach(function(id){
-    var el=document.getElementById(id);if(el)el.innerHTML=loadHtml;
-  });
-  var promoEl=document.getElementById('promos-tbody');
-  if(promoEl)promoEl.innerHTML='<tr><td colspan="7" class="tbl-loading"><span class="spin spin-dark"></span> Loading…</td></tr>';
-  startListeners();
-  renderAnalyticsStats();renderBarChart();renderZones();renderTopMerch();renderPaySplit();
-}
-
-// ══════════════════════ AUTH STATE OBSERVER ══════════════════════
-onAuthStateChanged(auth,function(user){
-  if(user){
-    document.getElementById('login-page').style.display='none';
-    document.getElementById('app').style.display='block';
-    var anEl=document.querySelector('.an');if(anEl)anEl.textContent=user.displayName||user.email;
-    initApp();
-  }else{
-    document.getElementById('login-page').style.display='flex';
-    document.getElementById('app').style.display='none';
-    stopListeners();
-    orders=[];drivers=[];merchants=[];promoCodes=[];notifHistory=[];
-  }
-});
-
-// Expose functions to global scope (required for inline onclick/oninput handlers with ES modules)
-window.doLogin=doLogin;
-window.doLogout=doLogout;
-window.saveDriver=saveDriver;
-window.saveMerchant=saveMerchant;
-window.sendNotif=sendNotif;
-window.createPromo=createPromo;
-window.updPhonePreview=updPhonePreview;
-window.updPromoPreview=updPromoPreview;
-window.switchMerchantTab=switchMerchantTab;
-window.saveMenuItem=saveMenuItem;
-window.cancelMenuItemEdit=cancelMenuItemEdit;
-window.saveOrderChanges=saveOrderChanges;
-
-// ── Firebase 10.x modular SDK — admin panel complete ──
-// SETUP: Firebase Console → shipeast-1a1f6 → Authentication → Add user → admin@shipeast.com
-// Collections: orders · drivers · merchants · promoCodes · notifications
-
-</script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="ember" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E11D34"/>
+      <stop offset="52%" stop-color="#C8102E"/>
+      <stop offset="100%" stop-color="#9A0B22"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#ember)"/>
+  <!-- parcel -->
+  <path d="M32 14 50 23v18l-18 9-18-9V23z" fill="#FFF1F3" fill-opacity=".2"/>
+  <path d="M32 14 50 23l-18 9-18-9z" fill="#FFF1F3"/>
+  <path d="M32 32v18l18-9V23z" fill="#FFE0E5" fill-opacity=".55"/>
+  <!-- motion streak -->
+  <path d="M6 40h13M2 47h11" stroke="#FFF1F3" stroke-width="3.5" stroke-linecap="round" opacity=".85"/>
+</svg>
