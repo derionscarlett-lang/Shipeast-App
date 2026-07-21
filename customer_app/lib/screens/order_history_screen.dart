@@ -277,7 +277,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   }
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
-    final status = order['status'] as String? ?? 'pending';
+    final status = order['status'] as String? ?? OrderStatus.pending;
     final displayStatus = _displayStatus(status);
     final colors = _statusColors(status);
     final merchantName = order['merchantName'] as String? ?? 'Merchant';
