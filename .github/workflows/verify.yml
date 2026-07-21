@@ -178,8 +178,21 @@ jobs:
       # (P3-04) — is deliberately free of firebase-admin so it can be pinned
       # here with no credentials and no emulator. Both decide what money
       # changes hands.
+      #
+      # The count guard is not decoration. The first version of this step used
+      # `lib/**/*.test.js`, which expands only when bash has `globstar` set —
+      # it does locally and does not here. A later variant found no files and
+      # exited 0, so the job would have reported PASS while running nothing.
+      # A suite that silently runs zero tests is worse than no suite at all.
       - name: Test
-        run: npm test
+        run: |
+          count=$(ls lib/*.test.js 2>/dev/null | wc -l)
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No compiled test files in functions/lib — the suite would have passed by running nothing."
+            exit 1
+          fi
+          echo "Running $count test file(s)"
+          npm test
 
   admin:
     name: Admin panel
