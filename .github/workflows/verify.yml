@@ -52,6 +52,15 @@ jobs:
       - name: Test the admin lifecycle module
         run: node tools/test-order-status.mjs
 
+      # The migration logic is pure functions with no firebase-admin dependency
+      # precisely so it can be tested here, with no credentials and no
+      # database. "Migration corrupts production data" is rated Medium/SEVERE
+      # in the plan's risk register, and an untested migration is how that
+      # happens. The suite runs every migration twice to prove idempotence,
+      # which is what makes an interrupted production run safe to resume.
+      - name: Test the data migrations
+        run: node --test tools/migrate/migrations.test.mjs
+
   flutter:
     name: Flutter (${{ matrix.app }})
     runs-on: ubuntu-latest
