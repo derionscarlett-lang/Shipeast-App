@@ -10,7 +10,7 @@ later phase, and it is deliberately not a code-change phase.
 | Item | Status | Notes |
 |---|---|---|
 | P0-01 — Staging Firebase project | 🟡 **Code prerequisite done; project not created** | Needs Firebase Console access — see below |
-| P0-02 — Install and pin the toolchain | 🟡 **Pinned; not installed, no baseline** | Needs a machine with Flutter — see below |
+| P0-02 — Install and pin the toolchain | 🟢 **Done** | Pinned 3.44.7; baseline captured on PR #2 |
 | P0-03 — Add real CI gates | 🟢 **Done** | Branch protection is a repo setting — see below |
 | P0-04 — Write the schema of record | 🟢 **Done** | [SCHEMA.md](SCHEMA.md) |
 | P0-05 — Freeze feature work | 🟢 **Declared** | Below |
@@ -169,30 +169,43 @@ contain real API keys, app IDs, and sender IDs that only `flutterfire configure`
 Fabricating plausible-looking values would produce a file that compiles and fails at runtime in a
 confusing way — strictly worse than its absence.
 
-### 2. Install Flutter and capture the analyzer baseline — *needs a machine with the toolchain*
+### ✅ Analyzer baseline — captured (P0-02 acceptance)
 
-P0-02 steps 1, 3, 4. There is no Flutter or Dart toolchain in this environment
-(`flutter: command not found`), so I could not run `flutter analyze`, `flutter test`, or build
-either app. This is the same gap the audit called out in its honesty statement.
+Recorded from the first green CI run on PR #2 (Flutter 3.44.7):
 
-What *was* done: the version is pinned in [`.tool-versions`](.tool-versions), and the value is
-**grounded in the repo's own lockfiles** rather than guessed —
-`customer_app/pubspec.lock` and `driver_app/pubspec.lock` both record `flutter: ">=3.38.4"` and
-`dart: ">=3.11.5"`. That is the toolchain that produced the committed lockfiles.
+| App | `flutter analyze` | `flutter test` |
+|---|---|---|
+| `customer_app` | **9 issues** — all `info`, all `unnecessary_underscores` | 45 passed |
+| `driver_app` | **No issues found** | 25 passed |
 
-**The first CI run on this branch is the baseline capture** (P0-02 step 3). Record its output in the
-PR description.
+The customer app's nine findings are a single trivial lint (`__` → `_`) across seven screens:
+`notifications_screen` (2), `order_confirmed_screen`, `order_history_screen` (2),
+`saved_addresses_screen` (2), `search_screen`, `splash_screen`. No warnings, no errors, in either
+app.
 
-> ⚠️ **Watch that first run.** `customer_app/test/widget_test.dart` pumps `ShipEastApp()`, whose
-> splash screen reaches Firebase — but the test never calls `Firebase.initializeApp`, which `main()`
-> normally does. I could not run it to confirm, but **it may well fail**, and because the APK
-> workflows now depend on `verify`, a failing test blocks releases.
->
-> If it fails, that is a real finding, not a CI misconfiguration — it means the only customer-app
-> test has never actually verified anything. The proper fix is P6-01 (replace both placeholder
-> tests). To unblock releases meanwhile, remove the `- name: Test` step from `verify.yml` and open a
-> ticket; do **not** weaken it to `flutter test || true`, which reports false confidence in CI
-> exactly the way `driver_app`'s `expect(true, isTrue)` placeholder already does.
+That baseline is small enough that **P6-02 (flip to `--fatal-infos`) is close to free** — it is
+nine mechanical edits, not the cleanup the plan budgeted a day for.
+
+Two corrections this run forced, both recorded so they are not repeated:
+
+- **The Flutter pin was wrong.** `.tool-versions` initially said `3.38.4`, read from
+  `pubspec.lock`'s `flutter: ">=3.38.4"`. That line is a *minimum constraint computed from the
+  dependency graph*, not the SDK that produced the lockfile — 3.38.4 ships Dart 3.10.3, below the
+  `sdk: ^3.11.5` both apps declare. Pub's own resolution, **3.44.7**, is now pinned.
+- **`customer_app/test/widget_test.dart` had never verified anything.** It pumped `ShipEastApp()`
+  without `Firebase.initializeApp`, so it failed the moment it was genuinely run. Replaced with
+  `test/providers/cart_provider_test.dart` — 25 real cases against pure-Dart cart arithmetic. The
+  gate was not weakened to `|| true`.
+
+`driver_app/test/widget_test.dart` still asserts `expect(true, isTrue)`. It passes, so it is not
+blocking, but it reports false confidence exactly as the plan warns. Scheduled for P6-01.
+
+### 2. ~~Install Flutter and capture the analyzer baseline~~ — done
+
+Resolved by the CI run above. There is still no Flutter toolchain in the development environment,
+so **CI is the only place either app is verified** — every Dart change on this branch is written
+unverified locally and proven by the PR run. Budget for that latency, and keep PRs small enough
+that a red run points at one thing.
 
 ### 3. Enable branch protection — *needs repo admin*
 
@@ -209,7 +222,7 @@ Until this is set, `verify` runs and reports but nothing *enforces* it on merge.
 |---|---|
 | `SCHEMA.md` reviewed and merged before any Phase 1 code | ⬜ **Needs your review** — this is the gate |
 | Every field written by any app appears in `SCHEMA.md` | 🟢 |
-| `flutter analyze` / `flutter test` execute and are recorded as a baseline | ⬜ Blocked — first CI run |
+| `flutter analyze` / `flutter test` execute and are recorded as a baseline | 🟢 customer 9 infos / 45 tests · driver clean / 25 tests |
 | A PR with a deliberate error is blocked by CI | ⬜ Blocked on branch protection |
 | APK workflows do not publish when `verify` fails | 🟢 |
 | Staging reachable by all three apps with zero writes to prod | ⬜ Blocked — project not created |
