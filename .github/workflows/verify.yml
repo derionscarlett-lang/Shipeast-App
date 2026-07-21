@@ -29,6 +29,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The canonical order lifecycle is duplicated into all three apps until
+  # P6-04 extracts a shared package. This job is what keeps the copies honest
+  # (P1-02). It runs first and is cheap — no toolchain needed.
+  status-parity:
+    name: Order status parity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check status constants are in sync across all three apps
+        run: node tools/check-status-parity.mjs
+
   flutter:
     name: Flutter (${{ matrix.app }})
     runs-on: ubuntu-latest

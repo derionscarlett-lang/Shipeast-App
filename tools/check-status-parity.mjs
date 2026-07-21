@@ -1,0 +1,136 @@
+#!/usr/bin/env node
+/* Verifies the canonical order lifecycle is identical across all three apps.
+   (execution-all-three-plan.md P1-02)
+
+   Two checks:
+     1. The two Dart copies are byte-identical.
+     2. The admin panel's JS copy declares the same statuses and the same
+        transition table as the Dart.
+
+   Check 2 is the one the plan does not ask for, and the one that matters most.
+   A byte-diff between the Dart files cannot notice the admin panel drifting —
+   and the admin panel is where the original damage was done: its dropdown
+   offered a status ('in_transit') that fell outside the driver's active-order
+   query, which stripped drivers of live deliveries mid-route.
+
+   Parses the Dart rather than importing it, which is why this is a text
+   comparison of a structure rather than a behavioural test. The Dart
+   behaviour is covered by order_status_test.dart in both apps.
+
+   Retire this when P6-04 lands packages/shipeast_core. */
+
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const CUSTOMER = 'customer_app/lib/models/order_status.dart';
+const DRIVER = 'driver_app/lib/models/order_status.dart';
+const ADMIN = 'admin_panel/order-status.js';
+
+const problems = [];
+const read = (p) => readFileSync(join(ROOT, p), 'utf8');
+
+// ── 1. The Dart copies must be byte-identical ──────────────────────────────
+const customerSrc = read(CUSTOMER);
+const driverSrc = read(DRIVER);
+
+if (customerSrc !== driverSrc) {
+  problems.push(
+    `order_status.dart has diverged between apps.\n` +
+    `  ${CUSTOMER}\n  ${DRIVER}\n` +
+    `  These must be byte-identical. Edit both, or neither.`
+  );
+} else {
+  console.log(`ok   Dart copies are byte-identical (${customerSrc.length} bytes)`);
+}
+
+// ── 2. The admin JS must declare the same lifecycle ────────────────────────
+
+/** Extracts `pending: [confirmed, cancelled],` style entries from the Dart
+ *  `transitions` map, resolving the identifier names to their string values. */
+function parseDartTransitions(src) {
+  const constants = {};
+  for (const m of src.matchAll(/static const (\w+) = '([a-z_]+)';/g)) {
+    constants[m[1]] = m[2];
+  }
+
+  const block = src.match(/static const transitions = <String, List<String>>\{([\s\S]*?)\n {2}\};/);
+  if (!block) throw new Error('could not locate the `transitions` map in the Dart source');
+
+  const table = {};
+  for (const m of block[1].matchAll(/(\w+):\s*\[([^\]]*)\]/g)) {
+    const from = constants[m[1]];
+    if (!from) throw new Error(`unknown Dart identifier "${m[1]}" as a transition key`);
+    const to = m[2].split(',').map((s) => s.trim()).filter(Boolean).map((name) => {
+      if (!constants[name]) throw new Error(`unknown Dart identifier "${name}" in transitions`);
+      return constants[name];
+    });
+    table[from] = to;
+  }
+  return table;
+}
+
+const dartTransitions = parseDartTransitions(customerSrc);
+const admin = await import(join(ROOT, ADMIN));
+
+const dartStatuses = Object.keys(dartTransitions).sort();
+const adminStatuses = [...admin.ALL].sort();
+
+if (dartStatuses.join() !== adminStatuses.join()) {
+  problems.push(
+    `Status vocabulary differs between Dart and the admin panel.\n` +
+    `  dart : ${dartStatuses.join(', ')}\n` +
+    `  admin: ${adminStatuses.join(', ')}`
+  );
+} else {
+  console.log(`ok   status vocabulary matches (${dartStatuses.length}): ${dartStatuses.join(', ')}`);
+}
+
+for (const from of dartStatuses) {
+  const a = (dartTransitions[from] || []).slice().sort().join(', ');
+  const b = (admin.TRANSITIONS[from] || []).slice().sort().join(', ');
+  if (a !== b) {
+    problems.push(
+      `Transitions from "${from}" differ.\n  dart : [${a}]\n  admin: [${b}]`
+    );
+  }
+}
+if (!problems.some((p) => p.startsWith('Transitions'))) {
+  console.log('ok   transition tables match for every status');
+}
+
+// 'accepted' is retired; make sure nobody reintroduces it. Comments are
+// stripped first — both files discuss the retired status in prose explaining
+// why it was removed, and matching that would be a false positive.
+function stripComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, '')   // block comments
+    .replace(/^\s*\/\/.*$/gm, '');      // line and /// doc comments
+}
+
+const retired = 'accepted';
+const inDart = stripComments(customerSrc).includes(`'${retired}'`);
+const inAdmin = stripComments(read(ADMIN)).includes(`'${retired}'`) ||
+  admin.ALL.includes(retired);
+
+if (inDart || inAdmin) {
+  problems.push(
+    `'${retired}' is a retired status and must not appear in the lifecycle ` +
+    `(dart: ${inDart}, admin: ${inAdmin}).`
+  );
+} else {
+  console.log(`ok   retired status '${retired}' is absent from all copies`);
+}
+
+// ── Report ─────────────────────────────────────────────────────────────────
+if (problems.length) {
+  console.error('\nStatus parity check FAILED:\n');
+  for (const p of problems) {
+    console.error('::error::' + p.split('\n')[0]);
+    console.error(p + '\n');
+  }
+  process.exit(1);
+}
+
+console.log('\nStatus parity check passed.');
