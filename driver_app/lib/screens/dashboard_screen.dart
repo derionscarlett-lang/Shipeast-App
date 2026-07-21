@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../driver_constants.dart';
+import '../models/order_status.dart';
 import '../services/driver_firestore_service.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
@@ -141,7 +142,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         final today = DateTime.now();
         final todayStart = DateTime(today.year, today.month, today.day);
         final deliveredToday = orders.where((o) {
-          if (o['status'] != 'delivered') return false;
+          if (o['status'] != OrderStatus.delivered) return false;
           final ts = (o['deliveredAt'] as Timestamp?)?.toDate();
           return ts != null && ts.isAfter(todayStart);
         }).toList();
@@ -230,12 +231,19 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  void _continueActiveOrder() {
+  /// Drives the active-order card's single tap target.
+  ///
+  /// Three states, not two. `picked_up` used to jump straight to delivery
+  /// confirmation, so `in_transit` was never written and the customer's
+  /// "On the Way" step was unreachable — their tracker went from "Picked Up"
+  /// to "Delivered" with no signal the driver had set off.
+  Future<void> _continueActiveOrder() async {
     final order = _activeOrder;
     if (order == null) return;
     final status = order['status'] as String? ?? '';
     final orderId = order['id'] as String? ?? '';
-    if (status == 'confirmed') {
+
+    if (status == OrderStatus.confirmed) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -243,7 +251,24 @@ class _DashboardScreenState extends State<DashboardScreen>
               PickupConfirmationScreen(orderId: orderId, order: order),
         ),
       );
-    } else if (status == 'picked_up') {
+      return;
+    }
+
+    if (status == OrderStatus.pickedUp) {
+      // Start the leg to the customer. The card re-renders from the stream as
+      // "Confirm Delivery" once the write lands.
+      try {
+        await DriverFirestoreService.startTransit(orderId);
+        if (mounted) SeToast.success(context, 'Delivery started.');
+      } catch (_) {
+        if (mounted) {
+          SeToast.error(context, 'Could not start the delivery. Try again.');
+        }
+      }
+      return;
+    }
+
+    if (status == OrderStatus.inTransit) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -520,7 +545,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     final merchantName = order['merchantName'] as String? ?? 'Merchant';
     final customerName = order['customerName'] as String? ?? 'Customer';
     final deliveryAddress = order['deliveryAddress'] as String? ?? '—';
-    final isPickup = status == 'confirmed';
+    final isPickup = status == OrderStatus.confirmed;
+    final isReadyToDepart = status == OrderStatus.pickedUp;
     final orderId = order['id'] as String? ?? '';
     final shortId = orderId.length > 8
         ? orderId.substring(0, 8).toUpperCase()
@@ -543,8 +569,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                   color: SeColors.red50,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(isPickup ? SeIcons.storefront : SeIcons.bike,
-                    color: SeColors.red700, size: 20),
+                child: Icon(
+                    isPickup
+                        ? SeIcons.storefront
+                        : isReadyToDepart
+                            ? SeIcons.box
+                            : SeIcons.bike,
+                    color: SeColors.red700,
+                    size: 20),
               ),
               const SizedBox(width: SeSpacing.x3),
               Expanded(
@@ -553,7 +585,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                   children: [
                     Text('ACTIVE DELIVERY', style: SeType.eyebrow),
                     Text(
-                      isPickup ? 'Head to merchant' : 'On the way',
+                      isPickup
+                          ? 'Head to merchant'
+                          : isReadyToDepart
+                              ? 'Start delivery'
+                              : 'On the way',
                       style: SeType.h3,
                     ),
                   ],

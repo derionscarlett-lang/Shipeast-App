@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../models/order_status.dart';
 import '../driver_constants.dart';
 import '../services/driver_firestore_service.dart';
 import '../theme/se_colors.dart';
@@ -38,7 +39,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
       List<Map<String, dynamic>> orders, int period) {
     final start = _periodStart(period);
     return orders.where((o) {
-      if (o['status'] != 'delivered') return false;
+      if (o['status'] != OrderStatus.delivered) return false;
       final ts = o['deliveredAt'] as Timestamp?;
       if (ts == null) return false;
       return ts.toDate().isAfter(start);

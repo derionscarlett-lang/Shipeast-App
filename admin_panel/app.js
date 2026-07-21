@@ -5,13 +5,14 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import{getFirestore,collection,doc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{getFirestore,collection,doc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // ── Firebase Config ──
 // Lives in config.js so the panel can target staging during the Phase 1–3
 // migrations (P0-01). config.js also paints a banner on any non-prod
 // environment, so it is always visible which database is being mutated.
 import{firebaseConfig}from'./config.js';
+import*as OrderStatus from'./order-status.js';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -149,12 +150,12 @@ function emptyRow(cols,art,title,copy){
 var STATUS_TONE={
   delivered:'success',approved:'success',Active:'success',Online:'success',Open:'success',
   pending:'info',Pending:'info',
-  confirmed:'warning',accepted:'warning',in_transit:'warning',picked_up:'warning',
+  confirmed:'warning',in_transit:'warning',picked_up:'warning',
   'On the Way':'warning','On Delivery':'warning','Picked Up':'warning',
   cancelled:'danger',rejected:'danger',Cancelled:'danger',Closed:'danger',
   Expired:'neutral',Offline:'neutral',Inactive:'neutral'
 };
-var STATUS_LABEL={in_transit:'In Transit',picked_up:'Picked Up',accepted:'Accepted',
+var STATUS_LABEL={in_transit:'In Transit',picked_up:'Picked Up',
   confirmed:'Confirmed',delivered:'Delivered',pending:'Pending',cancelled:'Cancelled',
   approved:'Approved',rejected:'Rejected'};
 function badge(s){
@@ -445,7 +446,8 @@ function renderDashboard(){
 }
 
 // ══════════════════════ ORDERS ══════════════════════
-function isActiveStatus(s){ return['pending','accepted','confirmed','in_transit','picked_up','Pending','On the Way','Confirmed','Picked Up'].indexOf(s)>-1; }
+// Canonical set, plus the display-label variants legacy rows still carry.
+function isActiveStatus(s){ return OrderStatus.ACTIVE.indexOf(s)>-1||['Pending','On the Way','Confirmed','Picked Up'].indexOf(s)>-1; }
 function isDeliveredStatus(s){ return s==='delivered'||s==='Delivered'; }
 function isCancelledStatus(s){ return s==='cancelled'||s==='Cancelled'; }
 function updateOrdersTabs(){
@@ -502,7 +504,7 @@ function openOrderPanel(oid){
   $('sp-sub').textContent='Order Details';
   $('sp-title').textContent=o.id;
   var steps=['Placed','Confirmed','Picked Up','On the Way','Delivered'];
-  var sfMap={pending:1,confirmed:2,accepted:2,picked_up:3,in_transit:4,delivered:5,
+  var sfMap={pending:1,confirmed:2,picked_up:3,in_transit:4,delivered:5,
     Pending:1,Confirmed:2,'Picked Up':3,'On the Way':4,Delivered:5};
   var idx=sfMap[o.status]||1;
   if(isCancelledStatus(o.status)) idx=0;
@@ -556,8 +558,8 @@ function openOrderPanel(oid){
         '</select></div>'+
       '<div class="fr"><label for="sp-update-status">Update Status</label>'+
         '<select id="sp-update-status">'+
-          ['pending','confirmed','accepted','in_transit','picked_up','delivered','cancelled'].map(function(s){
-            return '<option value="'+s+'"'+(o.status===s?' selected':'')+'>'+(STATUS_LABEL[s]||s)+'</option>';
+          OrderStatus.selectableFrom(o.status).map(function(s){
+            return '<option value="'+esc(s)+'"'+(o.status===s?' selected':'')+'>'+esc(STATUS_LABEL[s]||s)+'</option>';
           }).join('')+
         '</select></div>'+
       '<button class="btn btn-primary btn-block" id="sp-save-btn" data-action="save-order" data-oid="'+esc(o._docId)+'">'+
@@ -569,25 +571,136 @@ function row(label,valueHtml,raw){
   return '<div class="sp-row"><span class="sp-lbl">'+label+'</span>'+
     (raw?valueHtml:'<span class="sp-val">'+valueHtml+'</span>')+'</div>';
 }
+/** Applies the admin's driver and status edits to an order.
+ *
+ *  Runs in a transaction that re-reads the order, mirroring the driver app's
+ *  acceptOrder. The previous blind updateDoc meant two admins on two browsers —
+ *  or an admin racing a driver's Accept tap — produced a silent
+ *  last-write-wins steal.
+ *
+ *  Three defects fixed here:
+ *
+ *  1. Assigning a driver left status untouched. The order then satisfied
+ *     NEITHER driver query: the available pool wants driverId == null, and the
+ *     active-order stream wants a driver-held status. The order became
+ *     invisible to every driver, including the assigned one, while the
+ *     customer's tracker showed their name. It was never delivered.
+ *
+ *  2. The '— Unassigned —' option's value is '', and the old `if(driverId)`
+ *     guard meant selecting it did nothing at all, silently.
+ *
+ *  3. Any status could be written over any other. Now only legal transitions.
+ */
 function saveOrderChanges(docId){
-  var driverId=(($('sp-assign-driver')||{}).value)||'';
-  var status=(($('sp-update-status')||{}).value)||'';
-  var upd={updatedAt:serverTimestamp()};
-  if(driverId){
-    var drv=drivers.find(function(d){ return d.id===driverId; });
-    if(drv){ upd.driverId=driverId; upd.driverName=drv.name; upd.driverPhone=drv.phone||'—'; }
+  var sel=$('sp-assign-driver'), statusSel=$('sp-update-status');
+  var driverId=sel?sel.value:'';
+  var status=statusSel?statusSel.value:'';
+  var order=orders.find(function(o){ return o._docId===docId; });
+  var wasAssigned=order?(order.driverId||''):'';
+  var unassigning=driverId===''&&wasAssigned!=='';
+  var assigning=driverId!==''&&driverId!==wasAssigned;
+  var changingStatus=status!==''&&order&&status!==order.status;
+
+  if(!assigning&&!unassigning&&!changingStatus){
+    toast('warning','Nothing to save — pick a driver or a status first.');
+    return;
   }
-  if(status) upd.status=status;
-  if(Object.keys(upd).length<=1){ toast('warning','Nothing to save — pick a driver or a status first.'); return; }
+
+  if(changingStatus&&!OrderStatus.canTransition(order.status,status)){
+    toast('error','An order in "'+(STATUS_LABEL[order.status]||order.status)+
+      '" cannot move to "'+(STATUS_LABEL[status]||status)+'".','Illegal status change');
+    return;
+  }
+
   var btn=$('sp-save-btn');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>Saving…'; }
-  updateDoc(doc(db,'orders',docId),upd).then(function(){
-    closeSidePanel();
-    toast('success','Order updated.');
-  }).catch(function(e){
-    toast('error',e.message,'Could not update order');
-    if(btn){ btn.disabled=false; btn.innerHTML=icon('check')+'Save Changes'; }
-  });
+  function busy(on){
+    if(!btn) return;
+    btn.disabled=on;
+    btn.innerHTML=on?'<span class="spin"></span>Saving…':icon('check')+'Save Changes';
+  }
+
+  function apply(){
+    busy(true);
+    runTransaction(db,function(tx){
+      var ref=doc(db,'orders',docId);
+      return tx.get(ref).then(function(snap){
+        if(!snap.exists()) throw new Error('This order no longer exists.');
+        var cur=snap.data();
+        var curStatus=cur.status||OrderStatus.PENDING;
+        var curDriver=cur.driverId||'';
+
+        // Someone else claimed it between render and save.
+        if(assigning&&curDriver&&curDriver!==driverId&&curDriver!==wasAssigned){
+          throw new Error('Another driver already claimed this order.');
+        }
+
+        var upd={updatedAt:serverTimestamp()};
+
+        if(assigning){
+          var drv=drivers.find(function(d){ return d.id===driverId; });
+          if(!drv) throw new Error('That driver is no longer available.');
+          upd.driverId=driverId;
+          upd.driverName=drv.name;
+          upd.driverPhone=drv.phone||null;
+          upd.assignedBy=auth.currentUser?auth.currentUser.email:'admin';
+          upd.assignedAt=serverTimestamp();
+          // The fix for defect 1: a pending order must advance to confirmed in
+          // the SAME write, or no driver query will ever return it.
+          if(curStatus===OrderStatus.PENDING&&!changingStatus){
+            upd.status=OrderStatus.CONFIRMED;
+          }
+        }
+
+        if(unassigning){
+          upd.driverId=null;
+          upd.driverName=null;
+          upd.driverPhone=null;
+          upd.assignedBy=null;
+          upd.assignedAt=null;
+          // Back into the available pool, which filters on pending.
+          if(!changingStatus&&OrderStatus.isDriverHeld(curStatus)){
+            upd.status=OrderStatus.PENDING;
+          }
+        }
+
+        if(changingStatus){
+          // Re-check against the live value, not what the panel rendered.
+          if(!OrderStatus.canTransition(curStatus,status)){
+            throw new Error('This order moved to "'+(STATUS_LABEL[curStatus]||curStatus)+
+              '" while you were editing. Reopen it and try again.');
+          }
+          upd.status=status;
+          if(status===OrderStatus.CANCELLED){
+            upd.cancelledAt=serverTimestamp();
+            upd.cancelledBy='admin';
+          }
+        }
+
+        tx.update(ref,upd);
+      });
+    }).then(function(){
+      closeSidePanel();
+      toast('success',unassigning?'Driver unassigned — order returned to the pool.':'Order updated.');
+    }).catch(function(e){
+      toast('error',e.message,'Could not update order');
+      busy(false);
+    });
+  }
+
+  // Warn before cancelling an order a driver is physically holding.
+  if(changingStatus&&status===OrderStatus.CANCELLED&&
+     OrderStatus.isDriverHeld(order.status)&&order.driver&&order.driver!=='—'){
+    confirmDialog({
+      title:'Cancel this order?',
+      body:'Driver '+order.driver+' is currently delivering this order and will be notified. '+
+           'They may already have collected the goods.',
+      confirmLabel:'Cancel order',
+      tone:'warning'
+    }).then(function(ok){ if(ok) apply(); });
+    return;
+  }
+
+  apply();
 }
 
 // ══════════════════════ DRIVERS ══════════════════════
