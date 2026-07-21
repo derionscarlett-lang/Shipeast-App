@@ -139,6 +139,19 @@ delivered  → (terminal — no transitions out)
 cancelled  → (terminal — no transitions out)
 ```
 
+**Administrative reversal — the one exception.** The table above describes the *forward* path a
+driver walks. Unassignment is not on it: when an admin clears the driver from a held order, the
+order returns to `pending` so it re-enters the available pool (`confirmed`/`picked_up`/`in_transit`
+→ `pending`).
+
+This is deliberately **not** added to `transitions`. Widening the table would also permit a *driver*
+to push an order backwards, which is exactly what the table exists to prevent. It is instead a
+narrow, separately-guarded clause in `firestore.rules` (`adminUnassigning`), admissible only when
+the driver is genuinely being cleared and only back to `pending`.
+
+This gap was found by the rules test suite, which caught the rules and the admin panel's
+unassignment code (P1-07) contradicting each other.
+
 **Derived sets**, defined once and used everywhere instead of ad-hoc `whereIn` literals:
 
 | Set | Members | Used by |
