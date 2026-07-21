@@ -21,9 +21,9 @@ const db=getFirestore(app);
 // ══════════════════════ LOCAL DATA MIRRORS ══════════════════════
 var orders=[],drivers=[],merchants=[],promoCodes=[],notifHistory=[];
 var analyticsStats={
-  'Today':    [{lbl:'Revenue',val:'J$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'J$0'}],
-  'This Week':[{lbl:'Revenue',val:'J$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'J$0'}],
-  'This Month':[{lbl:'Revenue',val:'J$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'J$0'}],
+  'Today':    [{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
+  'This Week':[{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
+  'This Month':[{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
 };
 var currentPeriod='Today',ordersFilter='All',driverMode='add',driverEditId=null,merchantMode='add',merchantEditId=null,unsubscribers=[];
 var panelMerchantId=null,menuItemsUnsub=null,menuItemEditId=null,panelMenuItems=[];
@@ -37,8 +37,11 @@ function reduceMotion(){ return window.matchMedia('(prefers-reduced-motion: redu
 /** Phosphor icon from the inline sprite. */
 function icon(name,cls){ return '<svg class="ic '+(cls||'')+'" aria-hidden="true"><use href="#i-'+name+'"/></svg>'; }
 
-/** JMD money, always tabular. */
-function money(n){ return 'J$'+Math.round(Number(n)||0).toLocaleString('en-JM'); }
+/* Money, always tabular. The single place the currency glyph is defined for
+   the panel — it must match Money.symbol in both Flutter apps, or the admin
+   and the customer read the same order differently. The 'en-JM' locale is kept
+   for thousands grouping only; it is not what chooses the symbol. */
+function money(n){ return '$'+Math.round(Number(n)||0).toLocaleString('en-JM'); }
 function parseAmt(a){ var n=parseFloat(String(a==null?'0':a).replace(/[^0-9.]/g,'')); return isNaN(n)?0:n; }
 
 // ── Toasts (replaces every alert()) ──
@@ -1134,7 +1137,7 @@ function loadMenuItemsTab(merchantId){
       '<div class="mi-form-title" id="mi-form-title">Add Menu Item</div>'+
       '<div class="fr"><label for="mi-name">Name *</label><input id="mi-name" placeholder="Item name"/></div>'+
       '<div class="fr"><label for="mi-desc">Description</label><input id="mi-desc" placeholder="Brief description"/></div>'+
-      '<div class="fr"><label for="mi-price">Price (JMD) *</label><input id="mi-price" type="number" placeholder="1200" min="0"/></div>'+
+      '<div class="fr"><label for="mi-price">Price ($) *</label><input id="mi-price" type="number" placeholder="1200" min="0"/></div>'+
       '<div class="fr"><label for="mi-cat">Category</label>'+
         '<select id="mi-cat"><option value="mains">Mains</option><option value="sides">Sides</option>'+
         '<option value="drinks">Drinks</option><option value="popular">Popular</option></select></div>'+

@@ -170,7 +170,7 @@
           </div>
           <div class="sc ac-gold">
             <div class="sc-top">
-              <div><div class="sc-lbl">Revenue Today</div><div class="sc-val sm num" id="stat-revenue">J$0</div></div>
+              <div><div class="sc-lbl">Revenue Today</div><div class="sc-val sm num" id="stat-revenue">$0</div></div>
               <div class="sc-chip c-gold"><svg class="ic" aria-hidden="true"><use href="#i-revenue"/></svg></div>
             </div>
             <div class="sc-sub">Delivered orders</div>
@@ -307,14 +307,14 @@
               <div class="mg">
                 <div class="fr"><label for="pc-code">Code</label><input id="pc-code" placeholder="SUMMER25" style="text-transform:uppercase"/></div>
                 <div class="fr"><label for="pc-type">Type</label>
-                  <select id="pc-type"><option value="percent">Percentage (%)</option><option value="fixed">Fixed Amount (J$)</option></select>
+                  <select id="pc-type"><option value="percent">Percentage (%)</option><option value="fixed">Fixed Amount ($)</option></select>
                 </div>
                 <div class="fr"><label for="pc-disc">Discount Amount</label><input id="pc-disc" type="number" min="0" placeholder="25"/></div>
                 <div class="fr"><label for="pc-max">Max Uses</label><input id="pc-max" type="number" min="1" placeholder="100"/></div>
                 <!-- P3-03: neither of these existed, so no code could carry a
                      minimum and no percentage code could be capped. -->
-                <div class="fr"><label for="pc-min">Minimum Order (J$) <small>(0 for none)</small></label><input id="pc-min" type="number" min="0" step="1" placeholder="0"/></div>
-                <div class="fr"><label for="pc-maxdisc">Max Discount (J$) <small>(required for %)</small></label><input id="pc-maxdisc" type="number" min="0" step="1" placeholder="500"/></div>
+                <div class="fr"><label for="pc-min">Minimum Order ($) <small>(0 for none)</small></label><input id="pc-min" type="number" min="0" step="1" placeholder="0"/></div>
+                <div class="fr"><label for="pc-maxdisc">Max Discount ($) <small>(required for %)</small></label><input id="pc-maxdisc" type="number" min="0" step="1" placeholder="500"/></div>
               </div>
               <div class="fr"><label for="pc-valid">Valid Until <small>(blank = never expires)</small></label><input id="pc-valid" type="date"/></div>
               <button class="btn btn-primary btn-block" id="promo-create-btn" data-action="create-promo">
@@ -456,7 +456,7 @@
       <div class="fr"><label for="m-owner">Owner Name</label><input id="m-owner" placeholder="Owner Full Name"/></div>
       <div class="fr"><label for="m-phone">Phone Number</label><input id="m-phone" placeholder="876-xxx-xxxx"/></div>
       <div class="fr"><label for="m-email">Email Address</label><input id="m-email" type="email" placeholder="business@email.com"/></div>
-      <div class="fr"><label for="m-fee">Delivery Fee (JMD) <small>(0 shows as “Free delivery”)</small></label><input id="m-fee" type="number" min="0" step="1" inputmode="numeric" placeholder="200"/></div>
+      <div class="fr"><label for="m-fee">Delivery Fee ($) <small>(0 shows as “Free delivery”)</small></label><input id="m-fee" type="number" min="0" step="1" inputmode="numeric" placeholder="200"/></div>
       <div class="fr"><label for="m-hours">Opening Hours <small>(business hours)</small></label><input id="m-hours" placeholder="8:00 AM – 10:00 PM"/></div>
       <!-- P3-01: there was no input for this at all, which is why every merchant
            showed the customer app's hardcoded "25–35 min" fallback. -->

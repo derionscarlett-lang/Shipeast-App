@@ -39,19 +39,26 @@ void main() {
 
   group('Money.format', () {
     test('prefixes the currency symbol', () {
-      expect(Money.format(250), r'J$250');
-      expect(Money.format(1234567), r'J$1,234,567');
+      expect(Money.format(250), r'$250');
+      expect(Money.format(1234567), r'$1,234,567');
+    });
+
+    test('carries no currency prefix beyond the symbol', () {
+      // The 'J$' prefix was removed deliberately. Pinning its absence means a
+      // stray revert shows up here rather than on a customer's checkout screen.
+      expect(Money.format(250).startsWith(r'J$'), isFalse);
+      expect(Money.symbol, r'$');
     });
   });
 
   group('Money.deliveryFee', () {
-    test('says Free rather than J\$0', () {
-      // "J$0" reads like a missing value; "Free" is the actual offer.
+    test('says Free rather than \$0', () {
+      // "$0" reads like a missing value; "Free" is the actual offer.
       expect(Money.deliveryFee(0), 'Free');
     });
 
     test('formats a real fee', () {
-      expect(Money.deliveryFee(250), r'J$250');
+      expect(Money.deliveryFee(250), r'$250');
     });
   });
 }

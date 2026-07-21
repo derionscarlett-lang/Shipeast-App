@@ -3,7 +3,7 @@
 /// This replaces four hand-rolled `_formatPrice` copies (cart, checkout,
 /// payment, merchant menu). Every one of them was subtly wrong in the same
 /// way: they inserted a single separator at the thousands boundary, so
-/// J$1,234,567 rendered as "1234,567".
+/// 1,234,567 rendered as "1234,567".
 ///
 /// The logic here is ported verbatim from the driver app's `Money`
 /// (`driver_app/lib/driver_constants.dart`), which already had it right, so
@@ -15,9 +15,11 @@ library;
 class Money {
   Money._();
 
-  static const String symbol = 'J\$';
+  /// The single place the currency glyph is defined for this app. Changing it
+  /// here changes every price, fee, total and earnings figure on every screen.
+  static const String symbol = '\$';
 
-  /// `12345.6` → `J$12,346`
+  /// `12345.6` → `$12,346`
   static String format(num? value) => '$symbol${plain(value)}';
 
   /// `12345.6` → `12,346` (no symbol, for when the unit is shown separately).
@@ -33,6 +35,6 @@ class Money {
   }
 
   /// Delivery fee for display: free deliveries say so rather than showing
-  /// "J$0", which reads like a missing value.
+  /// "$0", which reads like a missing value.
   static String deliveryFee(int fee) => fee == 0 ? 'Free' : format(fee);
 }
