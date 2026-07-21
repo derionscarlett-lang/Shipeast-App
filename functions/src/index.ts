@@ -11,6 +11,11 @@ import { onRequest } from 'firebase-functions/v2/https';
 
 export { setAdminClaim } from './admin';
 
+// Phase 3 — the work the clients must not be trusted with.
+export { redeemPromo } from './redeemPromo';   // P3-03
+export { confirmDelivery } from './delivery';  // P3-04
+export { submitRating } from './rating';       // P3-05
+
 /**
  * Proves the deploy pipeline works end to end (P2-03's acceptance criterion).
  * Deliberately trivial and unauthenticated — it reveals nothing.

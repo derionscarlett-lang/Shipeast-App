@@ -177,8 +177,8 @@ raw status values are **never rendered to a user** — always through `OrderStat
 | `subtotal` | int | ✅ | customer @ create | all | Sum of `price × quantity`. Pre-discount. |
 | `deliveryFee` | int | ✅ | customer @ create | all | Copied from `merchants/{id}.deliveryFee` at order time. |
 | `serviceFee` | int | ✅ | customer @ create | all | |
-| `discount` | int | ✅ | customer @ create | all | **Currently never written** (audit §6.2). `0` when no promo. |
-| `promoCode` | string \| null | ✅ | customer @ create | admin | **Currently never written.** Audit trail for redemption. |
+| `discount` | int | ✅ | customer @ create | all | `0` when no promo. Written since P3-02; the value comes from `redeemPromo`, never from the client's own calculation. |
+| `promoCode` | string \| null | ✅ | customer @ create | admin | Audit trail for redemption. Written since P3-02. |
 | `total` | int | ✅ | customer @ create | all | **Invariant:** `subtotal + deliveryFee + serviceFee - discount == total`. Asserted client-side before write (P3-02) and recomputed server-side (P2-01). |
 | `paymentMethod` | string | ✅ | customer @ create | admin | **Currently a display string, not a slug**: `'Cash on Delivery'` or `'PayPal'` (`payment_screen.dart:575`). PayPal is hardcoded disabled, so only the former is ever written. Should be normalised to `'cod'` / `'paypal'` — that is a migration, not a Phase 1 change, so readers match loosely until then. |
 | `deliveryAddress` | string | ✅ | customer @ create | driver, admin | |
@@ -187,11 +187,13 @@ raw status values are **never rendered to a user** — always through `OrderStat
 | `driverId` | string \| null | ✅ | driver @ accept, admin @ assign | all, rules | `null` = unclaimed. Explicit `null`, never `''` — `pendingOrdersStream` filters `isNull: true`. |
 | `driverName` | string \| null | — | driver @ accept, admin @ assign | customer, admin | Denormalised. |
 | `driverPhone` | string \| null | — | driver @ accept, admin @ assign | customer, admin | |
-| `rated` | bool | ✅ | customer @ create (`false`), @ rate (`true`) | customer | |
-| `driverRating` | int (1–5) \| null | — | customer @ rate | admin | |
-| `merchantRating` | int (1–5) \| null | — | customer @ rate | admin | Collected today, **rolled up nowhere** (audit §11). P3-05 aggregates it. |
-| `comment` | string \| null | — | customer @ rate | admin | |
-| `tags` | array\<string\> | — | customer @ rate | admin | |
+| `rated` | bool | ✅ | customer @ create (`false`), **server @ rate** | customer | Since P3-05 the rating fields below are written only by `submitRating`; rules deny the client path so a rating cannot be recorded without its roll-up. |
+| `driverRating` | int (1–5) \| null | — | **server @ rate** | admin | |
+| `merchantRating` | int (1–5) \| null | — | **server @ rate** | admin | `null` when the customer skipped the question — never a default. It used to be sent as `5`, harmless while nothing counted it and inflationary now that P3-05 does. |
+| `comment` | string \| null | — | **server @ rate** | admin | Truncated to 1000 chars server-side. |
+| `tags` | array\<string\> | — | **server @ rate** | admin | Max 10, 40 chars each. |
+| `driverCommission` | int | — | **server @ deliver** | driver, admin | What the driver was actually paid (P3-04). Earnings screens sum this rather than recomputing, so a rate change cannot make the displayed total disagree with the payout. |
+| `commissionRate` | double | — | **server @ deliver** | admin | The rate applied, recorded so a historical payout stays explicable after the rate changes. |
 | `deliveryPhotoUrl` | string \| null | — | driver @ deliver | admin | Proof of delivery. Captured today, **displayed nowhere** — P5-06. |
 | `deliveryNote` | string \| null | — | driver @ deliver | admin | Same. |
 | `cancelledBy` | string \| null | — | customer / admin @ cancel | admin | `'customer'` \| `'admin'`. |
@@ -206,7 +208,8 @@ raw status values are **never rendered to a user** — always through `OrderStat
 | `acceptedAt` | driver claims (status → `confirmed`) |
 | `pickedUpAt` | status → `picked_up` |
 | `inTransitAt` | status → `in_transit` — **new** |
-| `deliveredAt` | status → `delivered` |
+| `deliveredAt` | status → `delivered` (written by `confirmDelivery`) |
+| `ratedAt` | customer submits a rating |
 | `cancelledAt` | status → `cancelled` |
 | `assignedAt` | admin assigns a driver |
 | `updatedAt` | any admin mutation |
@@ -288,7 +291,7 @@ panel reads `o.hours||o.deliveryTime` (`app.js:325`). Both are specified below, 
 | `address` | string | ✅ | admin | driver, admin | The driver's pickup location. |
 | `openingHours` | string | ✅ | admin | customer, admin | **Business hours**, display-only, e.g. `'9am–9pm'`. Renamed from `hours`. |
 | `deliveryTime` | string | ✅ | admin | customer | **ETA estimate**, e.g. `'25–35 min'`. **The admin has no input for this today**, which is why every admin-created merchant shows the hardcoded `'25–35 min'` fallback (audit §6.1). P3-01 adds the input. |
-| `deliveryFee` | int | ✅ | admin | customer | **Integer JMD** (§a). Replaces `fee: '$250'`. Customer renders "Free delivery" when `0`. This one field is currently three different numbers — configured, displayed, and charged (audit §6.1). |
+| `deliveryFee` | int | ✅ | admin | customer | **Integer JMD** (§a). Replaces `fee: '$250'`. Customer renders "Free" when `0`. Was three different numbers — configured, displayed, and charged (audit §6.1); P3-01 made it one. |
 | `isOpen` | bool | ✅ | admin | customer, admin | §e — `open` is deprecated. |
 | `imageUrl` | string \| null | — | admin | customer, admin | Cover image. Written by upload in P4-01; the URL text field is retained as a secondary option since existing records depend on it. |
 | `emoji` | string \| null | — | admin | customer | Display icon. **The admin has no input for this today**, so admin-created merchants fall back to a generic 🍽️ while seeded ones have bespoke icons. P4-02 adds a picker. |
@@ -337,7 +340,8 @@ today: every code validates, applies **J$0**, never expires, and ignores its usa
 | `maxDiscount` | int \| null | — | admin | customer, functions | **Caps percentage discounts.** A 100% code with no cap is an unbounded liability and nothing prevents an admin creating one by typo. |
 | `expiresAt` | Timestamp \| null | ✅ | admin | customer, functions | §b. **The admin writes `validUntil` as a string** today; the customer reads `expiresAt` as a Timestamp — so expiry is never enforced. `null` = never expires. |
 | `maxUses` | int | ✅ | admin | customer, functions | |
-| `usedCount` | int | ✅ | **server only** (P3-03) | customer, admin | Never incremented today, so the cap is fiction. Server-only in rules, so the cap becomes real rather than advisory. |
+| `usedCount` | int | ✅ | **server only** (`redeemPromo`) | customer, admin | Incremented transactionally at order placement, so two customers cannot both take the last use of a `maxUses: 1` code. |
+| `lastRedeemedAt` | Timestamp \| null | — | **server only** | admin | |
 | `active` | bool | ✅ | admin | customer, functions | The one field that already lines up. |
 | `createdAt` | Timestamp | ✅ | admin | admin | |
 

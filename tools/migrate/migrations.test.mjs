@@ -61,7 +61,7 @@ describe('idempotence — every migration must settle in one pass', () => {
         },
         promoCodes: {
           expiresAt: new Date('2026-08-01'), discountAmount: 20, discountType: 'percent',
-          minOrderTotal: 0, maxDiscount: null, usedCount: 0
+          minOrderTotal: 0, maxDiscount: 500, maxUses: 100, usedCount: 0
         },
         drivers: { licencePlate: 'ABC123', averageRating: 4.8, vehicleModel: 'Toyota Corolla' }
       }[migration.collection];
@@ -184,7 +184,29 @@ describe('promoCodes', () => {
     const r = promoCodes.migrate({ code: 'X' });
     assert.equal(r.usedCount, 0);
     assert.equal(r.minOrderTotal, 0);
+    assert.equal(r.maxUses, 0);
     assert.equal(r.maxDiscount, null);
+  });
+
+  test('an uncapped percentage code is FLAGGED, not silently capped', () => {
+    // Capping it at a number nobody chose would quietly change what an
+    // existing code is worth. A 100%-off code with no cap is a real
+    // liability, so it goes in front of a human instead.
+    const r = promoCodes.migrate({ code: 'X', discountType: 'percent', discountAmount: 20 });
+    assert.equal(r.maxDiscount, null);
+    assert.match(r._needsReview, /uncapped/);
+  });
+
+  test('an uncapped FIXED code is not flagged — it is self-limiting', () => {
+    const r = promoCodes.migrate({ code: 'X', discountType: 'fixed', discountAmount: 200 });
+    assert.equal(r.maxDiscount, null);
+    assert.equal(r._needsReview, undefined);
+  });
+
+  test("a legacy 'percentage' code is flagged too, after normalisation", () => {
+    const r = promoCodes.migrate({ code: 'X', discountType: 'percentage', discountAmount: 20 });
+    assert.equal(r.discountType, 'percent');
+    assert.match(r._needsReview, /uncapped/);
   });
 });
 

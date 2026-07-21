@@ -6,6 +6,7 @@ import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../services/firestore_service.dart';
+import '../utils/money.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_chip.dart';
 import '../widgets/se_skeleton.dart';
@@ -49,12 +50,6 @@ class _SearchScreenState extends State<SearchScreen> {
             (m['name'] as String? ?? '').toLowerCase().contains(q) ||
             (m['category'] as String? ?? '').toLowerCase().contains(q))
         .toList();
-  }
-
-  static int _parseDeliveryFee(String s) {
-    if (s.toLowerCase().contains('free')) return 0;
-    final match = RegExp(r'\d+').firstMatch(s);
-    return match != null ? int.tryParse(match.group(0)!) ?? 100 : 100;
   }
 
   @override
@@ -186,7 +181,8 @@ class _SearchScreenState extends State<SearchScreen> {
           final ratingStr = rating is double
               ? rating.toStringAsFixed(1)
               : rating?.toString() ?? '4.5';
-          final deliveryFee = m['deliveryFee'] as String? ?? 'Free delivery';
+          // Integer JMD (P3-01) — displayed and charged from one field.
+          final deliveryFee = (m['deliveryFee'] as num?)?.toInt() ?? 0;
           final deliveryTime = m['deliveryTime'] as String? ?? '25–35 min';
           final category = m['category'] as String? ?? '';
 
@@ -200,7 +196,6 @@ class _SearchScreenState extends State<SearchScreen> {
               'rating': ratingStr,
               'deliveryTime': deliveryTime,
               'deliveryFee': deliveryFee,
-              'deliveryFeeAmount': _parseDeliveryFee(deliveryFee),
               'isOpen': isOpen,
             }),
             child: Row(
@@ -250,7 +245,8 @@ class _SearchScreenState extends State<SearchScreen> {
                               const Icon(SeIcons.star,
                                   size: 13, color: SeColors.gold500),
                               const SizedBox(width: 3),
-                              Text('$ratingStr · $deliveryTime',
+                              Text(
+                                  '$ratingStr · $deliveryTime · ${Money.deliveryFee(deliveryFee)}',
                                   style: SeType.bodyS
                                       .copyWith(color: SeColors.ink500)),
                             ],

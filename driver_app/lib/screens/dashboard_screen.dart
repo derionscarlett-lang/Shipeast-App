@@ -147,14 +147,15 @@ class _DashboardScreenState extends State<DashboardScreen>
           return ts != null && ts.isAfter(todayStart);
         }).toList();
 
-        // Audit §7.2: `drivers/{uid}.todayEarnings` is incremented on delivery
-        // but never reset at midnight, so it drifts away from the Earnings tab
+        // Audit §7.2: `drivers/{uid}.todayEarnings` was incremented on delivery
+        // but never reset at midnight, so it drifted away from the Earnings tab
         // forever. Deriving the figure from today's delivered orders keeps the
         // two screens in agreement and needs no scheduled reset.
+        //
+        // `creditedOn` reads the commission the server actually paid (P3-04),
+        // so this figure cannot disagree with the payout.
         final earned = deliveredToday.fold<double>(
-          0,
-          (acc, o) => acc + DriverPay.commissionOn((o['total'] as num?) ?? 0),
-        );
+            0, (acc, o) => acc + DriverPay.creditedOn(o));
 
         setState(() {
           _todayDeliveries = deliveredToday.length;

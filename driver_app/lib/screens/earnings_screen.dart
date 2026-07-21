@@ -64,7 +64,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         1 => (ts.weekday - 1).clamp(0, 6).toInt(),
         _ => ((ts.day - 1) ~/ 7).clamp(0, 3).toInt(),
       };
-      bars[idx] += DriverPay.commissionOn((o['total'] as num?) ?? 0);
+      bars[idx] += DriverPay.creditedOn(o);
     }
     return bars;
   }
@@ -113,8 +113,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 final periodOrders = _filterByPeriod(allOrders, _selectedPeriod);
                 final totalEarnings = periodOrders.fold<double>(
                   0,
-                  (acc, o) =>
-                      acc + DriverPay.commissionOn((o['total'] as num?) ?? 0),
+                  (acc, o) => acc + DriverPay.creditedOn(o),
                 );
                 final bars = _computeBars(periodOrders, _selectedPeriod);
 
@@ -306,7 +305,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
               id.length > 8 ? '#${id.substring(0, 8).toUpperCase()}' : '#$id';
           final merchant = o['merchantName'] as String? ?? 'Merchant';
           final addr = o['deliveryAddress'] as String? ?? '—';
-          final commission = DriverPay.commissionOn((o['total'] as num?) ?? 0);
+          final commission = DriverPay.creditedOn(o);
 
           return Column(
             children: [

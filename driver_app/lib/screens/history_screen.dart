@@ -284,7 +284,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         '—';
     final deliverAddr = order['deliveryAddress'] as String? ?? '—';
     final total = (order['total'] as num?)?.toInt() ?? 0;
-    final commission = DriverPay.commissionOn(total);
+    final commission = DriverPay.creditedOn(order);
     final dateStr = _formatDate(
         order['deliveredAt'] ?? order['createdAt'] ?? order['acceptedAt']);
 

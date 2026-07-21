@@ -172,8 +172,21 @@ export const promoCodes = {
     if (data.discountType === 'percentage') updates.discountType = 'percent';
 
     if (data.minOrderTotal === undefined) updates.minOrderTotal = 0;
-    if (data.maxDiscount === undefined) updates.maxDiscount = null;
     if (data.usedCount === undefined) updates.usedCount = 0;
+    if (data.maxUses === undefined) updates.maxUses = 0;
+
+    /* maxDiscount caps a percentage code (P3-03). An existing uncapped
+       percentage code is an unbounded liability — 100% off with nothing to
+       stop it — so it is flagged rather than capped at a number nobody chose.
+       Fixed-amount codes are self-limiting and take a plain null. */
+    if (data.maxDiscount === undefined) {
+      updates.maxDiscount = null;
+      const type = updates.discountType ?? data.discountType;
+      if (type === 'percent' || type === 'percentage') {
+        updates._needsReview =
+          'percentage code has no maxDiscount — uncapped discount liability';
+      }
+    }
 
     return Object.keys(updates).length ? updates : null;
   }

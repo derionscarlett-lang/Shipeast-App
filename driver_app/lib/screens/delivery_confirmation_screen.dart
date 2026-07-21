@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -123,7 +122,6 @@ class _DeliveryConfirmationScreenState
 
   Future<void> _markAsDelivered() async {
     setState(() => _isLoading = true);
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     try {
       String? photoUrl;
       if (_photo != null) {
@@ -139,18 +137,19 @@ class _DeliveryConfirmationScreenState
           }
         }
       }
-      await DriverFirestoreService.confirmDelivery(
+      // The server returns the commission it actually credited. Showing that
+      // rather than a locally-computed estimate means the celebration figure
+      // and the earnings total can never disagree (P3-04).
+      final commission = await DriverFirestoreService.confirmDelivery(
         widget.orderId,
-        uid,
-        _total,
-        photoUrl,
-        _noteController.text.trim().isEmpty
+        photoUrl: photoUrl,
+        note: _noteController.text.trim().isEmpty
             ? null
             : _noteController.text.trim(),
       );
       if (mounted) {
         HapticFeedback.mediumImpact();
-        _showSuccessSheet();
+        _showSuccessSheet(commission);
       }
     } catch (_) {
       if (mounted) {
@@ -161,7 +160,7 @@ class _DeliveryConfirmationScreenState
   }
 
   /// The payoff moment — Sunset gradient with the driver's earnings counting up.
-  void _showSuccessSheet() {
+  void _showSuccessSheet(int commission) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -170,7 +169,7 @@ class _DeliveryConfirmationScreenState
       backgroundColor: Colors.transparent,
       builder: (ctx) => _DeliverySuccessSheet(
         customerName: _customerName,
-        commission: DriverPay.commissionOn(_total),
+        commission: commission.toDouble(),
         orderTotal: _total,
         collectCash: _isCod,
         onDone: () {

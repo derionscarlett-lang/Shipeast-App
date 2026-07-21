@@ -16,6 +16,17 @@ class DriverPay {
   static double commissionOn(num orderTotal) =>
       orderTotal.toDouble() * commissionRate;
 
+  /// What the driver was actually paid for [order].
+  ///
+  /// Prefers `driverCommission`, written by the server at delivery (P3-04),
+  /// and falls back to the local estimate only for orders delivered before
+  /// that field existed. Use this anywhere a *completed* delivery is shown;
+  /// [commissionOn] is for estimating a job not yet taken.
+  static double creditedOn(Map<String, dynamic> order) {
+    final credited = (order['driverCommission'] as num?)?.toDouble();
+    return credited ?? commissionOn((order['total'] as num?) ?? 0);
+  }
+
   /// Commission expressed for UI copy, e.g. "10%".
   static String get commissionLabel =>
       '${(commissionRate * 100).toStringAsFixed(0)}%';

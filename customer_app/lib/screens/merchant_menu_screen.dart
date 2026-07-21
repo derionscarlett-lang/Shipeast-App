@@ -9,6 +9,7 @@ import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../services/firestore_service.dart';
+import '../utils/money.dart';
 import '../widgets/se_chip.dart';
 import '../widgets/se_skeleton.dart';
 import '../widgets/se_empty_state.dart';
@@ -30,8 +31,9 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   String _merchantImageUrl = '';
   String _merchantRating = '4.5';
   String _merchantDeliveryTime = '25–35 min';
-  String _merchantDeliveryFee = 'Free delivery';
-  int _merchantDeliveryFeeAmount = 0;
+  /// Integer JMD. One field is the display value AND the charged value
+  /// (P3-01) — they used to be two, and they disagreed.
+  int _merchantDeliveryFee = 0;
   bool _merchantIsOpen = true;
   String _merchantCategory = 'Food';
   bool _favourite = false;
@@ -67,9 +69,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         _merchantImageUrl = args['imageUrl'] as String? ?? '';
         _merchantRating = args['rating'] as String? ?? '4.5';
         _merchantDeliveryTime = args['deliveryTime'] as String? ?? '25–35 min';
-        _merchantDeliveryFee =
-            args['deliveryFee'] as String? ?? 'Free delivery';
-        _merchantDeliveryFeeAmount = args['deliveryFeeAmount'] as int? ?? 0;
+        _merchantDeliveryFee = args['deliveryFee'] as int? ?? 0;
         _merchantIsOpen = args['isOpen'] as bool? ?? true;
         _merchantCategory = args['category'] as String? ?? 'Food';
       }
@@ -82,7 +82,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
           _merchantId.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _promptNewOrder());
       } else {
-        cart.setMerchant(_merchantId, _merchantName, _merchantDeliveryFeeAmount);
+        cart.setMerchant(_merchantId, _merchantName, _merchantDeliveryFee);
       }
     }
   }
@@ -101,7 +101,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
     if (confirmed) {
       cart.clearCart();
-      cart.setMerchant(_merchantId, _merchantName, _merchantDeliveryFeeAmount);
+      cart.setMerchant(_merchantId, _merchantName, _merchantDeliveryFee);
     }
   }
 
@@ -330,7 +330,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                 ],
               ),
               _infoBit(SeIcons.clock, _merchantDeliveryTime),
-              _infoBit(SeIcons.bike, _merchantDeliveryFee),
+              _infoBit(SeIcons.bike, Money.deliveryFee(_merchantDeliveryFee)),
               SeChip.status(
                 label: _merchantIsOpen ? 'Open Now' : 'Closed',
                 color: _merchantIsOpen ? SeColors.success : SeColors.danger,
@@ -440,7 +440,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('\$${_formatPrice(price)}',
+                    Text(Money.format(price),
                         style: SeType.tabular(SeType.title)
                             .copyWith(color: SeColors.red600)),
                     _qtyControl(item, itemId, qty),
@@ -580,7 +580,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                   style: SeType.jakarta(16, FontWeight.w700,
                       color: Colors.white)),
               const Spacer(),
-              Text('\$${_formatPrice(cart.cartTotal)}',
+              Text(Money.format(cart.cartTotal),
                   style: SeType.tabular(SeType.jakarta(16, FontWeight.w800,
                       color: Colors.white))),
               const SizedBox(width: 8),
@@ -590,14 +590,5 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         ),
       ),
     );
-  }
-
-  String _formatPrice(int price) {
-    if (price >= 1000) {
-      final thousands = price ~/ 1000;
-      final hundreds = price % 1000;
-      return '$thousands,${hundreds.toString().padLeft(3, '0')}';
-    }
-    return '$price';
   }
 }

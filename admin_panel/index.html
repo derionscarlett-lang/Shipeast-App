@@ -311,8 +311,12 @@
                 </div>
                 <div class="fr"><label for="pc-disc">Discount Amount</label><input id="pc-disc" type="number" min="0" placeholder="25"/></div>
                 <div class="fr"><label for="pc-max">Max Uses</label><input id="pc-max" type="number" min="1" placeholder="100"/></div>
+                <!-- P3-03: neither of these existed, so no code could carry a
+                     minimum and no percentage code could be capped. -->
+                <div class="fr"><label for="pc-min">Minimum Order (J$) <small>(0 for none)</small></label><input id="pc-min" type="number" min="0" step="1" placeholder="0"/></div>
+                <div class="fr"><label for="pc-maxdisc">Max Discount (J$) <small>(required for %)</small></label><input id="pc-maxdisc" type="number" min="0" step="1" placeholder="500"/></div>
               </div>
-              <div class="fr"><label for="pc-valid">Valid Until</label><input id="pc-valid" type="date"/></div>
+              <div class="fr"><label for="pc-valid">Valid Until <small>(blank = never expires)</small></label><input id="pc-valid" type="date"/></div>
               <button class="btn btn-primary btn-block" id="promo-create-btn" data-action="create-promo">
                 <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Create Promo Code
               </button>
@@ -452,8 +456,11 @@
       <div class="fr"><label for="m-owner">Owner Name</label><input id="m-owner" placeholder="Owner Full Name"/></div>
       <div class="fr"><label for="m-phone">Phone Number</label><input id="m-phone" placeholder="876-xxx-xxxx"/></div>
       <div class="fr"><label for="m-email">Email Address</label><input id="m-email" type="email" placeholder="business@email.com"/></div>
-      <div class="fr"><label for="m-fee">Delivery Fee (JMD)</label><input id="m-fee" placeholder="200"/></div>
-      <div class="fr"><label for="m-hours">Opening Hours</label><input id="m-hours" placeholder="8:00 AM – 10:00 PM"/></div>
+      <div class="fr"><label for="m-fee">Delivery Fee (JMD) <small>(0 shows as “Free delivery”)</small></label><input id="m-fee" type="number" min="0" step="1" inputmode="numeric" placeholder="200"/></div>
+      <div class="fr"><label for="m-hours">Opening Hours <small>(business hours)</small></label><input id="m-hours" placeholder="8:00 AM – 10:00 PM"/></div>
+      <!-- P3-01: there was no input for this at all, which is why every merchant
+           showed the customer app's hardcoded "25–35 min" fallback. -->
+      <div class="fr"><label for="m-etatime">Delivery Time <small>(ETA shown to customers)</small></label><input id="m-etatime" placeholder="25–35 min"/></div>
       <div class="fr"><label for="m-status">Status</label>
         <select id="m-status"><option value="Open">Open</option><option value="Closed">Closed</option></select>
       </div>

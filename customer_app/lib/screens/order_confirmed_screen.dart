@@ -5,6 +5,7 @@ import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
+import '../utils/money.dart';
 import '../widgets/se_button.dart';
 
 class OrderConfirmedScreen extends StatefulWidget {
@@ -32,6 +33,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
   int _subtotal = 0;
   int _deliveryFee = 0;
   int _serviceFee = 0;
+  int _discount = 0;
   int _total = 0;
   bool _argsLoaded = false;
   late final String _etaWindow;
@@ -82,6 +84,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
         _subtotal = args['subtotal'] as int? ?? 0;
         _deliveryFee = args['deliveryFee'] as int? ?? 0;
         _serviceFee = args['serviceFee'] as int? ?? 0;
+        _discount = args['discount'] as int? ?? 0;
         _total = args['total'] as int? ?? 0;
         final rawItems = args['items'] as List?;
         if (rawItems != null && rawItems.isNotEmpty) {
@@ -110,13 +113,6 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
     final m = t.minute.toString().padLeft(2, '0');
     final ap = t.hour < 12 ? 'AM' : 'PM';
     return '$h:$m $ap';
-  }
-
-  String _fmt(int price) {
-    if (price >= 1000) {
-      return '${price ~/ 1000},${(price % 1000).toString().padLeft(3, '0')}';
-    }
-    return '$price';
   }
 
   @override
@@ -320,7 +316,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                                   style: SeType.body
                                       .copyWith(color: SeColors.ink700)),
                             ),
-                            Text('\$${_fmt(item['price'] as int)}',
+                            Text(Money.format(item['price'] as int),
                                 style: SeType.tabular(SeType.body)
                                     .copyWith(color: SeColors.ink700)),
                           ],
@@ -329,10 +325,14 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                   if (_items.isNotEmpty)
                     const Divider(height: 1, color: SeColors.ink100),
                   const SizedBox(height: 12),
-                  _receiptRow('Subtotal', '\$${_fmt(_subtotal)}'),
+                  _receiptRow('Subtotal', Money.format(_subtotal)),
                   _receiptRow('Delivery fee',
-                      _deliveryFee == 0 ? 'Free' : '\$${_fmt(_deliveryFee)}'),
-                  _receiptRow('Service fee', '\$${_fmt(_serviceFee)}'),
+                      Money.deliveryFee(_deliveryFee)),
+                  _receiptRow('Service fee', Money.format(_serviceFee)),
+                  // The receipt has to explain the gap between the items and
+                  // the amount charged, or it does not reconcile (P3-02).
+                  if (_discount > 0)
+                    _receiptRow('Discount', '- ${Money.format(_discount)}'),
                 ],
               ),
             ),
@@ -344,7 +344,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Total Paid', style: SeType.h3),
-                  Text('\$${_fmt(_total)}',
+                  Text(Money.format(_total),
                       style: SeType.tabular(SeType.h3)
                           .copyWith(color: SeColors.red600)),
                 ],

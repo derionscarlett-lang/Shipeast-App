@@ -770,3 +770,16 @@ td .empty{padding:var(--s6) var(--s5);}
   .sk::after{display:none;}
   .btn:active,.aicon:active,.iconbtn:active{transform:none;}
 }
+
+/* ── Promo usage bar (P3-03) ──
+   `usedCount` is server-incremented at redemption, so this finally reflects
+   reality; before, every code read 0 uses forever. */
+.usage-track{
+  display:inline-block; width:52px; height:5px; margin-left:8px;
+  vertical-align:middle; border-radius:999px; overflow:hidden;
+  background:var(--ink-100);
+}
+.usage-fill{ display:block; height:100%; border-radius:999px; }
+.usage-fill.u-ok{ background:var(--success); }
+.usage-fill.u-warning{ background:var(--warning); }
+.usage-fill.u-danger{ background:var(--danger); }

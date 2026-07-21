@@ -20,6 +20,10 @@ class MainActivity : FlutterActivity() {
         registerPlugin(flutterEngine, "cloud_firestore") {
             flutterEngine.plugins.add(io.flutter.plugins.firebase.firestore.FlutterFirebaseFirestorePlugin())
         }
+        // P3-03: promo redemption is a callable function.
+        registerPlugin(flutterEngine, "cloud_functions") {
+            flutterEngine.plugins.add(io.flutter.plugins.firebase.functions.FlutterFirebaseFunctionsPlugin())
+        }
         registerPlugin(flutterEngine, "firebase_storage") {
             flutterEngine.plugins.add(io.flutter.plugins.firebase.storage.FlutterFirebaseStoragePlugin())
         }

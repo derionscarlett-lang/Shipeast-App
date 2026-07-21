@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/order_status.dart';
+import '../models/promo_code.dart';
 
 class FirestoreService {
   static final _db = FirebaseFirestore.instance;
@@ -42,9 +44,28 @@ class FirestoreService {
     required int total,
     required String paymentMethod,
     required String deliveryAddress,
+    int discount = 0,
+    String? promoCode,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Not authenticated');
+
+    // P3-02. Before this, a discounted order recorded only the final `total`
+    // with no field explaining the gap, so `subtotal + fees != total` on every
+    // one of them and nothing could reconcile. Asserting here means a
+    // mis-computed total fails loudly at the call site instead of becoming a
+    // permanently un-reconcilable order document.
+    //
+    // Security rules enforce the same equation on create (P2-01), so this is
+    // the friendly local copy of a check that is authoritative on the server.
+    final expected = subtotal + deliveryFee + serviceFee - discount;
+    if (expected != total) {
+      throw StateError(
+        'Order does not reconcile: subtotal($subtotal) + deliveryFee($deliveryFee) '
+        '+ serviceFee($serviceFee) - discount($discount) = $expected, '
+        'but total is $total.',
+      );
+    }
 
     String customerName = '';
     try {
@@ -67,6 +88,8 @@ class FirestoreService {
       'subtotal': subtotal,
       'deliveryFee': deliveryFee,
       'serviceFee': serviceFee,
+      'discount': discount,
+      'promoCode': promoCode,
       'total': total,
       'paymentMethod': paymentMethod,
       'status': OrderStatus.pending,
@@ -176,58 +199,77 @@ class FirestoreService {
 
   // ─── Rating ──────────────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>?> validatePromoCode(String code) async {
+  /// Previews a promo code without consuming a use (P3-03).
+  ///
+  /// Advisory only — the discount actually applied to the order comes from
+  /// [redeemPromo]. This exists so the customer sees the saving immediately
+  /// instead of waiting on a function cold start, and it enforces the full rule
+  /// set (expiry, usage cap, minimum) rather than the two checks it used to.
+  static Future<PromoResult> previewPromoCode(String code, int subtotal) async {
     try {
-      final doc = await _db.collection('promoCodes').doc(code.toUpperCase()).get();
-      if (!doc.exists) return null;
-      final data = doc.data()!;
-      if (data['active'] != true) return null;
-      final expiresAt = data['expiresAt'] as Timestamp?;
-      if (expiresAt != null && expiresAt.toDate().isBefore(DateTime.now())) return null;
-      return {'id': doc.id, ...data};
+      final doc =
+          await _db.collection('promoCodes').doc(code.trim().toUpperCase()).get();
+      return PromoCodes.evaluate(
+        doc.exists ? doc.data() : null,
+        subtotal,
+        DateTime.now(),
+      );
     } catch (_) {
-      return null;
+      // A read failure is not the same as a bad code, and must not be reported
+      // as one.
+      rethrow;
     }
   }
 
+  /// Consumes one use of [code] and returns the authoritative discount.
+  ///
+  /// Called at order placement, not at code entry — a customer who types a code
+  /// and abandons checkout must not burn a use. Throws when the code is
+  /// rejected; the message is safe to show.
+  static Future<int> redeemPromo(String code, int subtotal) async {
+    final callable = FirebaseFunctions.instance.httpsCallable('redeemPromo');
+    final result = await callable.call<Map<String, dynamic>>({
+      'code': code.trim().toUpperCase(),
+      'subtotal': subtotal,
+    });
+    return (result.data['discount'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Submits a rating for a delivered order.
+  ///
+  /// [merchantRating] is nullable on purpose: an unrated merchant must send
+  /// `null`, never a default. The caller used to substitute 5 stars when the
+  /// customer skipped that question, which was harmless while nothing counted
+  /// merchant ratings and would now silently inflate every merchant's average.
+  ///
+  /// The driver is read from the order server-side rather than passed in — the
+  /// caller does not get to decide who receives the rating.
   static Future<void> submitRating({
     required String orderId,
-    required String driverId,
     required int driverRating,
-    required int merchantRating,
+    int? merchantRating,
     required String comment,
     required List<String> tags,
   }) async {
     if (orderId.isEmpty) return;
-    final orderRef = _db.collection('orders').doc(orderId);
-    final orderData = {
-      'rated': true,
+
+    /* P3-05. This used to be a client-side transaction that rolled the rating
+       up into the driver document — and dropped `merchantRating` on the floor,
+       which is why every merchant showed a permanent 5.0.
+
+       It now goes through a callable, because the aggregate fields are
+       server-only under the P2-01 rules: a driver who can write their own
+       `averageRating` can award themselves five stars. The same function also
+       populates `ratingCounts`, the per-star histogram the admin panel has
+       been rendering an empty state for. */
+    final callable = FirebaseFunctions.instance.httpsCallable('submitRating');
+    await callable.call<Map<String, dynamic>>({
+      'orderId': orderId,
       'driverRating': driverRating,
       'merchantRating': merchantRating,
       'comment': comment,
       'tags': tags,
-    };
-    if (driverId.isNotEmpty) {
-      final driverRef = _db.collection('drivers').doc(driverId);
-      await _db.runTransaction((tx) async {
-        final snap = await tx.get(driverRef);
-        if (snap.exists) {
-          final data = snap.data()!;
-          final newTotal =
-              ((data['totalRatings'] as num?)?.toInt() ?? 0) + driverRating;
-          final newCount =
-              ((data['ratingCount'] as num?)?.toInt() ?? 0) + 1;
-          tx.update(driverRef, {
-            'totalRatings': newTotal,
-            'ratingCount': newCount,
-            'averageRating': newTotal / newCount,
-          });
-        }
-        tx.update(orderRef, orderData);
-      });
-    } else {
-      await orderRef.update(orderData);
-    }
+    });
   }
 
   // ─── Avatar ──────────────────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../driver_constants.dart';
 import '../models/order_status.dart';
 
 class DriverFirestoreService {
@@ -123,28 +123,29 @@ class DriverFirestoreService {
     return ref.getDownloadURL();
   }
 
-  /// Confirms delivery and atomically updates driver stats.
-  /// Increments todayEarnings by the driver commission (see [DriverPay]).
-  static Future<void> confirmDelivery(
-    String orderId,
-    String driverUid,
-    int orderTotal,
+  /// Confirms delivery via the server and returns the authoritative commission.
+  ///
+  /// P3-04. This used to be a client-side batch that computed the commission on
+  /// this device and wrote it straight into the driver's own earnings field —
+  /// a driver could pay themselves anything. Worse, it took `orderTotal` as a
+  /// parameter from the caller instead of reading it from the order, so even an
+  /// honest client paid the wrong amount whenever its cached total was stale.
+  ///
+  /// The function recomputes from the order's stored `total` using the server's
+  /// rate. [DriverPay.commissionOn] survives for on-screen estimates only.
+  static Future<int> confirmDelivery(
+    String orderId, {
     String? photoUrl,
     String? note,
-  ) async {
-    final commission = DriverPay.commissionOn(orderTotal).round();
-    final batch = _db.batch();
-    batch.update(_db.collection('orders').doc(orderId), {
-      'status': OrderStatus.delivered,
-      'deliveredAt': FieldValue.serverTimestamp(),
-      if (photoUrl != null && photoUrl.isNotEmpty) 'deliveryPhotoUrl': photoUrl,
-      if (note != null && note.isNotEmpty) 'deliveryNote': note,
+  }) async {
+    final callable =
+        FirebaseFunctions.instance.httpsCallable('confirmDelivery');
+    final result = await callable.call<Map<String, dynamic>>({
+      'orderId': orderId,
+      if (photoUrl != null && photoUrl.isNotEmpty) 'photoUrl': photoUrl,
+      if (note != null && note.isNotEmpty) 'note': note,
     });
-    batch.update(_db.collection('drivers').doc(driverUid), {
-      'totalTrips': FieldValue.increment(1),
-      'todayEarnings': FieldValue.increment(commission),
-    });
-    await batch.commit();
+    return (result.data['commission'] as num?)?.toInt() ?? 0;
   }
 
   static Future<String> uploadProfilePhoto(String uid, File file) async {

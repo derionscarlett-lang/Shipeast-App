@@ -9,6 +9,7 @@ import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../models/order_status.dart';
 import '../services/firestore_service.dart';
+import '../utils/money.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_chip.dart';
 import '../widgets/se_skeleton.dart';
@@ -133,13 +134,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         .join(', ');
   }
 
-  String _formatTotal(dynamic total) {
-    final t = (total as num?)?.toInt() ?? 0;
-    if (t >= 1000) {
-      return '\$${t ~/ 1000},${(t % 1000).toString().padLeft(3, '0')}';
-    }
-    return '\$$t';
-  }
+  String _formatTotal(dynamic total) => Money.format((total as num?) ?? 0);
 
   @override
   Widget build(BuildContext context) {

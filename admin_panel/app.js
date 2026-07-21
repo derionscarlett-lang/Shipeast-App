@@ -5,7 +5,7 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import{getFirestore,collection,doc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{getFirestore,collection,doc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // ── Firebase Config ──
 // Lives in config.js so the panel can target staging during the Phase 1–3
@@ -169,6 +169,30 @@ function stars(r){
   return '<span class="stars">'+s+'</span><span class="rating-val">'+v.toFixed(1)+'</span>';
 }
 
+/* Ratings that nobody has given yet must not render as a score (P3-05).
+   The old code defaulted every merchant to 5.0, so the panel showed a perfect
+   score for a merchant with zero ratings — a number that looks earned and is
+   not. Show the honest empty state instead, exactly as the driver panel
+   already does. */
+function starsOrNone(rating,count){
+  if(!count) return '<span class="cell-mute sm">No ratings yet</span>';
+  return stars(rating);
+}
+
+/* Orders placed today for a merchant, derived from the already-loaded orders
+   array (SCHEMA.md §d, P3-05). The stored `ordersToday` field had no reset
+   mechanism, so it showed 0 for every merchant, permanently.
+
+   Caveat: `orders` holds the 200 most recent. That covers a full day at current
+   volume; if daily volume ever approaches 200 this needs a real aggregation
+   query rather than an in-memory filter. */
+function ordersTodayFor(merchantId){
+  var start=new Date(); start.setHours(0,0,0,0);
+  return orders.filter(function(o){
+    return o.merchantId===merchantId&&o._ts!=null&&o._ts>=start;
+  }).length;
+}
+
 // ── Category glyphs (duotone tinted chips, per-category hue) ──
 var CATS={Food:{ic:'cat-food',cls:'c-food'},Grocery:{ic:'cat-grocery',cls:'c-grocery'},
   Pharmacy:{ic:'cat-pharmacy',cls:'c-pharmacy'},Packages:{ic:'cat-packages',cls:'c-packages'}};
@@ -274,6 +298,11 @@ function startListeners(){
             merchant:o.merchantName||o.merchant||'Unknown',merchantId:o.merchantId||'',merchantAddr:o.merchantAddr||'—',
             driver:drvName||'—',driverId:o.driverId||'',
             driverPhone:o.driverPhone||'—',rawTotal:rawTotal,
+            subtotal:o.subtotal!=null?Number(o.subtotal):null,
+            orderDeliveryFee:o.deliveryFee!=null?Number(o.deliveryFee):null,
+            serviceFee:o.serviceFee!=null?Number(o.serviceFee):null,
+            discount:Number(o.discount)||0,promoCode:o.promoCode||null,
+            driverCommission:o.driverCommission!=null?Number(o.driverCommission):null,
             amount:rawTotal!=null?money(rawTotal):(o.amount||'—'),
             payment:o.paymentMethod||o.payment||'—',
             status:o.status||'pending',time:tsStr,_ts:ts,items:o.items||[],
@@ -320,9 +349,19 @@ function startListeners(){
         merchants=snap.docs.map(function(d){
           var o=d.data();
           var isOpenVal=o.isOpen!=null?o.isOpen:(o.open!=null?o.open:true);
+          // openingHours (business hours) and deliveryTime (ETA) are two
+          // different things. They were conflated by the old
+          // `o.hours||o.deliveryTime`, which is why every merchant showed the
+          // customer app's hardcoded ETA fallback (P3-01).
           return {id:d.id,name:o.name||'—',category:o.category||'Food',owner:o.owner||'—',
-            phone:o.phone||'—',email:o.email||'—',address:o.address||'—',hours:o.hours||o.deliveryTime||'—',
-            fee:o.fee||o.deliveryFee||'—',ordersToday:o.ordersToday||0,rating:o.averageRating||o.rating||5.0,
+            phone:o.phone||'—',email:o.email||'—',address:o.address||'—',
+            openingHours:o.openingHours||o.hours||'',
+            deliveryTime:o.deliveryTime||'',
+            // Legacy `fee` was a display string like '$250'. Read it only as a
+            // fallback, and always expose an integer from here on.
+            deliveryFee:Math.round(parseAmt(o.deliveryFee!=null?o.deliveryFee:o.fee)),
+            rating:o.averageRating||o.rating||0,
+            ratingCount:Number(o.ratingCount)||0,
             open:isOpenVal,imageUrl:o.imageUrl||o.image||'',_docId:d.id};
         });
         loadedOnce.merchants=true;
@@ -340,15 +379,28 @@ function startListeners(){
         var now=new Date();
         promoCodes=snap.docs.map(function(d){
           var o=d.data();
-          var expired=o.validUntil&&o.validUntil!=='—'&&new Date(o.validUntil)<now;
-          var active=o.active!==false&&!expired;
-          var discAmt=o.discountAmount!=null?o.discountAmount:null;
-          var discType=o.discountType||o.type||'percent';
-          var discStr=discAmt!=null?(discType==='percent'?discAmt+'% Off':money(discAmt)+' Off'):(o.discount||'—');
+          // expiresAt is a Timestamp (SCHEMA.md §b). The legacy `validUntil`
+          // string is read only so un-migrated codes still display.
+          var expiry=o.expiresAt&&o.expiresAt.toDate?o.expiresAt.toDate()
+            :(o.validUntil&&o.validUntil!=='—'?new Date(o.validUntil):null);
+          if(expiry&&isNaN(expiry.getTime())) expiry=null;
+          var expired=expiry!=null&&expiry<=now;
+          var usedCount=Number(o.usedCount!=null?o.usedCount:(o.used!=null?o.used:0))||0;
+          var maxUses=Number(o.maxUses!=null?o.maxUses:(o.max!=null?o.max:0))||0;
+          var exhausted=maxUses>0&&usedCount>=maxUses;
+          var active=o.active!==false&&!expired&&!exhausted;
+          var discAmt=o.discountAmount!=null?o.discountAmount:(o.discount!=null?o.discount:null);
+          var discType=o.discountType==='percentage'?'percent':(o.discountType||o.type||'percent');
+          var discStr=discAmt!=null?(discType==='percent'?discAmt+'% Off':money(discAmt)+' Off'):'—';
           return {id:d.id,code:o.code||d.id,discount:discStr,discountType:discType,discountAmount:discAmt,
-            usedCount:o.usedCount!=null?o.usedCount:(o.used!=null?o.used:0),
-            maxUses:o.maxUses!=null?o.maxUses:(o.max!=null?o.max:100),
-            validUntil:o.validUntil||'—',status:active?'Active':'Expired',_docId:d.id};
+            usedCount:usedCount,maxUses:maxUses,
+            minOrderTotal:Number(o.minOrderTotal)||0,
+            maxDiscount:o.maxDiscount!=null?Number(o.maxDiscount):null,
+            expiresAt:expiry,
+            // Distinguish the three ways a code stops working — "Expired" on an
+            // exhausted code sends the admin looking at the wrong field.
+            status:active?'Active':(expired?'Expired':(exhausted?'Used up':'Inactive')),
+            _docId:d.id};
         });
         loadedOnce.promos=true;
         renderPromos();
@@ -498,6 +550,18 @@ function renderOrders(){
 }
 
 // ══════════════════════ ORDER SIDE PANEL ══════════════════════
+/* Flags an order whose parts do not add up (P3-02). Every pre-Phase-3
+   discounted order is in this state — the discount was never recorded, so the
+   gap between the items and the amount charged is unexplained. Showing it is
+   the point: this is the monitoring the plan asks for, in the place an admin
+   already looks. */
+function reconcileNote(o){
+  if(o.rawTotal==null||o.subtotal==null||o.orderDeliveryFee==null||o.serviceFee==null) return '';
+  var expected=o.subtotal+o.orderDeliveryFee+o.serviceFee-(o.discount||0);
+  if(expected===o.rawTotal) return '';
+  return '<div class="sp-row"><span class="sp-lbl">Reconciliation</span>'+
+    '<span class="bdg bg-warning plain">Off by '+money(Math.abs(expected-o.rawTotal))+'</span></div>';
+}
 function openOrderPanel(oid){
   var o=orders.find(function(x){ return x._docId===oid||x.id===oid; });
   if(!o) return;
@@ -545,7 +609,16 @@ function openOrderPanel(oid){
       row('Name',esc(o.driver))+row('Phone',esc(dp))+
     '</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Order Total</div>'+
+      /* P3-02: the breakdown, not just the charged amount. Without the discount
+         line a discounted order shows a total that does not match its items,
+         and nothing on screen explains the gap. */
+      (o.subtotal!=null?'<div class="sp-row"><span class="sp-lbl">Subtotal</span><span class="sp-val num">'+money(o.subtotal)+'</span></div>':'')+
+      (o.orderDeliveryFee!=null?'<div class="sp-row"><span class="sp-lbl">Delivery fee</span><span class="sp-val num">'+(o.orderDeliveryFee===0?'Free':money(o.orderDeliveryFee))+'</span></div>':'')+
+      (o.serviceFee!=null?'<div class="sp-row"><span class="sp-lbl">Service fee</span><span class="sp-val num">'+money(o.serviceFee)+'</span></div>':'')+
+      (o.discount>0?'<div class="sp-row"><span class="sp-lbl">Discount'+(o.promoCode?' ('+esc(o.promoCode)+')':'')+'</span><span class="sp-val num">-'+money(o.discount)+'</span></div>':'')+
       '<div class="sp-row"><span class="sp-lbl">Amount</span><span class="sp-val money">'+esc(o.amount)+'</span></div>'+
+      reconcileNote(o)+
+      (o.driverCommission!=null?'<div class="sp-row"><span class="sp-lbl">Driver commission</span><span class="sp-val num">'+money(o.driverCommission)+'</span></div>':'')+
     '</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Items</div>'+itemsHtml+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Admin Actions</div>'+
@@ -911,8 +984,8 @@ function renderMerchants(){
       '<td><span class="bdg bg-info plain">'+esc(m.category)+'</span></td>'+
       '<td class="cell-mute num">'+esc(m.phone)+'</td>'+
       '<td class="cell-mute" style="max-width:180px;font-size:12px">'+esc(m.address)+'</td>'+
-      '<td class="right cell-id">'+m.ordersToday+'</td>'+
-      '<td>'+stars(m.rating)+'</td>'+
+      '<td class="right cell-id">'+ordersTodayFor(m.id)+'</td>'+
+      '<td>'+starsOrNone(m.rating,m.ratingCount)+'</td>'+
       '<td>'+badge(m.open?'Open':'Closed')+'</td>'+
       '<td><label class="tgl" title="Toggle open"><input type="checkbox"'+(m.open?' checked':'')+
         ' class="tgl-merchant" data-id="'+esc(m.id)+'" aria-label="Merchant open"><span class="ts"></span></label></td>'+
@@ -935,8 +1008,9 @@ function openMerchantModal(mode,id){
   $('m-owner').value   =m?(m.owner||''):'';
   $('m-phone').value   =m?m.phone:'';
   $('m-email').value   =m?(m.email||''):'';
-  $('m-fee').value     =m?String(m.fee||'').replace(/[^0-9.]/g,''):'';
-  $('m-hours').value   =m?(m.hours||''):'';
+  $('m-fee').value     =m?String(m.deliveryFee):'';
+  $('m-hours').value   =m?m.openingHours:'';
+  $('m-etatime').value =m?m.deliveryTime:'';
   $('m-address').value =m?m.address:'';
   $('m-status').value  =m?(m.open?'Open':'Closed'):'Open';
   $('m-imageurl').value=m?(m.imageUrl||''):'';
@@ -946,16 +1020,41 @@ function saveMerchant(){
   var name=$('m-name').value.trim();
   if(!name){ toast('warning','Business name is required.'); $('m-name').focus(); return; }
   var isOpenState=$('m-status').value==='Open';
+
+  /* P3-01. The delivery fee is written as an INTEGER, not '$'+value.
+     The old string write is the root of the three-different-numbers bug:
+     the admin configured '$250', the customer regex-scraped a number out of a
+     different field, and when that failed it fell back to a hardcoded 100 —
+     so a J$250 fee was displayed as J$250 and charged as J$100. */
+  var feeRaw=$('m-fee').value.trim();
+  var deliveryFee=Math.round(parseAmt(feeRaw));
+  if(feeRaw!==''&&!isFinite(deliveryFee)){
+    toast('warning','Delivery fee must be a number.'); $('m-fee').focus(); return;
+  }
+  if(deliveryFee<0){
+    toast('warning','Delivery fee cannot be negative.'); $('m-fee').focus(); return;
+  }
+
   var obj={name:name,category:$('m-cat').value,owner:$('m-owner').value.trim()||'—',
     phone:$('m-phone').value.trim()||'—',email:$('m-email').value.trim()||'—',
-    address:$('m-address').value.trim()||'—',hours:$('m-hours').value.trim()||'—',
-    fee:'$'+($('m-fee').value.trim()||'0'),isOpen:isOpenState,open:isOpenState,
+    address:$('m-address').value.trim()||'—',
+    // Business hours and delivery ETA are separate fields (SCHEMA.md).
+    openingHours:$('m-hours').value.trim()||'—',
+    deliveryTime:$('m-etatime').value.trim()||'25–35 min',
+    deliveryFee:deliveryFee,
+    isOpen:isOpenState,
     imageUrl:$('m-imageurl').value.trim()||'',updatedAt:serverTimestamp()};
   var btn=$('mer-save-btn'), isEdit=merchantMode==='edit';
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Saving…';
   var promise;
   if(isEdit){ promise=updateDoc(doc(db,'merchants',merchantEditId),obj); }
-  else{ obj.ordersToday=0; obj.rating=5.0; obj.createdAt=serverTimestamp(); promise=addDoc(collection(db,'merchants'),obj); }
+  else{
+    // A new merchant starts with no ratings, not a perfect one. `ordersToday`
+    // is no longer stored at all — it is derived (P3-05).
+    obj.totalRatings=0; obj.ratingCount=0; obj.averageRating=0;
+    obj.createdAt=serverTimestamp();
+    promise=addDoc(collection(db,'merchants'),obj);
+  }
   promise.then(function(){
     closeModal('modal-merchant');
     btn.disabled=false;
@@ -977,7 +1076,7 @@ function deleteMerchant(id){
 }
 function toggleMerchant(id){
   var m=merchants.find(function(x){ return x.id===id; }); if(!m) return;
-  updateDoc(doc(db,'merchants',id),{isOpen:!m.open,open:!m.open,updatedAt:serverTimestamp()})
+  updateDoc(doc(db,'merchants',id),{isOpen:!m.open,updatedAt:serverTimestamp()})
     .catch(function(e){ toast('error',e.message,'Could not change status'); });
 }
 function openMerchantPanel(id){
@@ -998,15 +1097,16 @@ function openMerchantPanel(id){
     '<div class="sp-sec"><div class="sp-sec-title">Business Details</div>'+
       row('Category','<span class="bdg bg-info plain">'+esc(m.category)+'</span>')+
       row('Owner',esc(m.owner))+
-      row('Hours','<span class="sp-val sm">'+esc(m.hours)+'</span>',true)+
-      row('Delivery Fee','<span class="num">'+esc(m.fee)+'</span>')+
+      row('Opening Hours','<span class="sp-val sm">'+esc(m.openingHours||'—')+'</span>',true)+
+      row('Delivery ETA','<span class="sp-val sm">'+esc(m.deliveryTime||'—')+'</span>')+
+      row('Delivery Fee','<span class="num">'+esc(m.deliveryFee===0?'Free':money(m.deliveryFee))+'</span>')+
       row('Address','<span class="sp-val sm">'+esc(m.address)+'</span>',true)+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Contact</div>'+
       row('Phone','<span class="num">'+esc(m.phone)+'</span>')+
       row('Email','<span class="sp-val sm">'+esc(m.email)+'</span>',true)+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Stats</div>'+
-      '<div class="sp-row"><span class="sp-lbl">Orders Today</span><span class="sp-val money">'+m.ordersToday+'</span></div>'+
-      row('Rating',stars(m.rating))+'</div>'+
+      '<div class="sp-row"><span class="sp-lbl">Orders Today</span><span class="sp-val money">'+ordersTodayFor(m.id)+'</span></div>'+
+      row('Rating',starsOrNone(m.rating,m.ratingCount))+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Recent Orders</div>'+recentHtml+'</div>';
 
   $('sp-body').innerHTML=
@@ -1196,7 +1296,17 @@ function updPromoPreview(){
   var disc=$('pc-disc').value, type=$('pc-type').value, valid=$('pc-valid').value;
   $('pcp-code').textContent=code;
   $('pcp-disc').textContent=disc?(type==='percent'?disc+'% Off':money(disc)+' Off'):'Discount';
-  $('pcp-valid').textContent='Valid until '+(valid||'—');
+  $('pcp-valid').textContent=valid?('Valid until '+valid):'Never expires';
+}
+/* Live usage against the cap (P3-03). `usedCount` was never incremented before
+   redemption moved server-side, so this column read 0 forever. */
+function usageBar(used,max){
+  if(!max) return '<span class="num">'+used+'</span>';
+  var pct=Math.min(100,Math.round((used/max)*100));
+  var tone=pct>=100?"u-danger":(pct>=80?"u-warning":"u-ok");
+  return '<span class="num">'+used+'</span>'+
+    '<span class="usage-track" role="img" aria-label="'+used+' of '+max+' uses">'+
+      '<span class="usage-fill '+tone+'" style="width:'+pct+'%"></span></span>';
 }
 function renderPromos(){
   var tbody=$('promos-tbody'); if(!tbody) return;
@@ -1209,9 +1319,9 @@ function renderPromos(){
     return '<tr>'+
       '<td><b class="cell-id" style="letter-spacing:1.2px">'+esc(p.code)+'</b></td>'+
       '<td class="cell-strong">'+esc(p.discount)+'</td>'+
-      '<td class="right num">'+p.usedCount+'</td>'+
-      '<td class="right num">'+p.maxUses+'</td>'+
-      '<td class="cell-mute num">'+esc(p.validUntil||'—')+'</td>'+
+      '<td class="right num">'+usageBar(p.usedCount,p.maxUses)+'</td>'+
+      '<td class="right num">'+(p.maxUses||'∞')+'</td>'+
+      '<td class="cell-mute num">'+esc(p.expiresAt?p.expiresAt.toLocaleDateString('en-JM',{year:'numeric',month:'short',day:'numeric'}):'Never')+'</td>'+
       '<td>'+badge(p.status)+'</td>'+
       '<td><button class="aicon ai-d" data-action="del-promo" data-id="'+esc(p.id)+'" title="Delete" aria-label="Delete promo code">'+icon('delete')+'</button></td>'+
     '</tr>';
@@ -1224,15 +1334,42 @@ function createPromo(){
   if(!code){ toast('warning','A promo code is required.'); $('pc-code').focus(); return; }
   if(!discAmt){ toast('warning','A discount amount is required.'); $('pc-disc').focus(); return; }
   var maxUses=parseInt($('pc-max').value,10)||100;
+  var minOrderTotal=Math.max(0,Math.round(parseAmt($('pc-min').value)))||0;
+  var maxDiscRaw=$('pc-maxdisc').value.trim();
+  var maxDiscount=maxDiscRaw===''?null:Math.max(0,Math.round(parseAmt(maxDiscRaw)));
+
+  /* A percentage code with no cap is an unbounded liability — one extra zero
+     and a 10%-off code becomes 100% off with nothing to stop it. Refuse rather
+     than warn: an uncapped percentage code is not a thing anyone means to
+     create. Fixed-amount codes are self-limiting and need no cap. */
+  if(discType==='percent'&&maxDiscount==null){
+    toast('warning','A percentage code needs a maximum discount. Leaving it uncapped is an unbounded liability.');
+    $('pc-maxdisc').focus(); return;
+  }
+  if(discType==='percent'&&discAmt>100){
+    toast('warning','A percentage discount cannot exceed 100%.');
+    $('pc-disc').focus(); return;
+  }
+
+  // §b — a Timestamp, never a string. The old string write is why expiry was
+  // never enforced: the customer read `expiresAt` as a Timestamp and got null.
   var validUntil=$('pc-valid').value||'';
+  var expiresAt=null;
+  if(validUntil){
+    // End of the chosen day, so a code valid "until the 5th" works ON the 5th.
+    var d=new Date(validUntil+'T23:59:59');
+    if(!isNaN(d.getTime())) expiresAt=Timestamp.fromDate(d);
+  }
+
   var btn=$('promo-create-btn');
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Creating…';
   setDoc(doc(db,'promoCodes',code),{
-    code:code,discountType:discType,discountAmount:discAmt,
-    maxUses:maxUses,usedCount:0,validUntil:validUntil,
+    code:code,discountType:discType,discountAmount:Math.round(discAmt),
+    minOrderTotal:minOrderTotal,maxDiscount:maxDiscount,
+    maxUses:maxUses,usedCount:0,expiresAt:expiresAt,
     active:true,createdAt:serverTimestamp()
   }).then(function(){
-    ['pc-code','pc-disc','pc-max','pc-valid'].forEach(function(i){ $(i).value=''; });
+    ['pc-code','pc-disc','pc-max','pc-valid','pc-min','pc-maxdisc'].forEach(function(i){ $(i).value=''; });
     $('pc-type').value='percent';
     updPromoPreview();
     btn.disabled=false; btn.innerHTML=icon('plus')+'Create Promo Code';
@@ -1507,7 +1644,7 @@ document.addEventListener('change',function(e){
 document.addEventListener('input',function(e){
   if(e.target.id==='orders-search') renderOrders();
   if(e.target.id==='n-title'||e.target.id==='n-msg') updPhonePreview();
-  if(['pc-code','pc-disc','pc-valid'].indexOf(e.target.id)>-1) updPromoPreview();
+  if(['pc-code','pc-disc','pc-valid','pc-min','pc-maxdisc'].indexOf(e.target.id)>-1) updPromoPreview();
 });
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&(e.target.id==='l-email'||e.target.id==='l-pass')){ doLogin(); return; }

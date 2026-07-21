@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/se_colors.dart';
+import '../utils/money.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
@@ -142,12 +143,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>>? _merchantsFor(int catIndex) {
     if (_merchantsLoaded[catIndex] != true) return null;
     return _firestoreMerchants[catIndex] ?? [];
-  }
-
-  static int _parseDeliveryFee(String s) {
-    if (s.toLowerCase().contains('free')) return 0;
-    final match = RegExp(r'\d+').firstMatch(s);
-    return match != null ? int.tryParse(match.group(0)!) ?? 100 : 100;
   }
 
   void _toggleFavourite(String id) {
@@ -656,6 +651,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ? rating.toStringAsFixed(1)
         : rating?.toString() ?? '4.5';
     final isOpen = m['isOpen'] as bool? ?? true;
+    // P3-01: read the integer directly. This used to regex-scrape a number out
+    // of a display string and fall back to a hardcoded 100 when that failed —
+    // the source of the J$100 phantom charge.
+    final deliveryFee = (m['deliveryFee'] as num?)?.toInt() ?? 0;
     final promo = m['promo'] as String?;
     final imageUrl = m['imageUrl'] as String? ?? '';
     final id = (m['id'] ?? '').toString();
@@ -675,9 +674,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'category': _categoryLabels[_selectedCategory],
           'rating': ratingStr,
           'deliveryTime': m['deliveryTime'] ?? '25–35 min',
-          'deliveryFee': m['deliveryFee'] ?? 'Free delivery',
-          'deliveryFeeAmount':
-              _parseDeliveryFee(m['deliveryFee'] as String? ?? ''),
+          'deliveryFee': deliveryFee,
           'isOpen': isOpen,
         });
       },
@@ -768,7 +765,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _infoBit(SeIcons.clock, m['deliveryTime'] as String? ?? ''),
-                    _infoBit(SeIcons.bike, m['deliveryFee'] as String? ?? ''),
+                    _infoBit(SeIcons.bike, Money.deliveryFee(deliveryFee)),
                     SeChip.status(
                       label: isOpen ? 'Open' : 'Closed',
                       color: isOpen ? SeColors.success : SeColors.danger,

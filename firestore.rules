@@ -189,13 +189,13 @@ service cloud.firestore {
                   ]);
       }
 
-      function customerRating() {
-        return existing().customerId == uid()
-               && existing().status == 'delivered'
-               && changed().hasOnly([
-                    'rated', 'driverRating', 'merchantRating', 'comment', 'tags'
-                  ]);
-      }
+      /* Rating is NOT a client write (P3-05). It moved into the `submitRating`
+         callable, which rolls the stars up into the driver and merchant
+         aggregates in one transaction — fields a client must never touch.
+         Leaving the client path open would let a customer set `rated: true`
+         without the roll-up, permanently losing the rating, or re-rate the
+         same order and double-count it. The function runs with admin
+         credentials and so is unaffected by this. */
 
       // ── Driver updates ──
       // Claiming: only an unclaimed pending order, and only for themselves.
@@ -209,9 +209,18 @@ service cloud.firestore {
                   ]);
       }
 
-      // Advancing: only the holder, only forward, never the money.
+      /* Advancing: only the holder, only forward, never the money — and never
+         all the way to `delivered`.
+
+         Delivery is the moment money is decided, so it goes through the
+         `confirmDelivery` callable (P3-04), which recomputes the commission
+         from the order's own stored total. A driver who can write `delivered`
+         directly can complete an order with no commission recorded, and the
+         earnings screens then derive a figure from data that was never
+         written. */
       function driverAdvancing() {
         return existing().driverId == uid()
+               && incoming().status != 'delivered'
                && statusUnchangedOrLegal()
                && untouched([
                     'total', 'subtotal', 'deliveryFee', 'serviceFee', 'discount',
@@ -238,7 +247,6 @@ service cloud.firestore {
 
       allow update: if (isAdmin() && (statusUnchangedOrLegal() || adminUnassigning()))
                     || (signedIn() && (customerCancelling()
-                                       || customerRating()
                                        || driverClaiming()
                                        || driverAdvancing()));
 

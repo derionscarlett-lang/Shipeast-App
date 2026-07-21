@@ -206,6 +206,34 @@ describe('orders — money cannot be rewritten by a client', () => {
     );
   });
 
+  test('a discounted order must still reconcile', async () => {
+    /* P3-02. The whole point of recording `discount` is that the arithmetic
+       closes: subtotal + deliveryFee + serviceFee - discount == total. */
+    await assertSucceeds(
+      addDoc(collection(asCustomer(), 'orders'), order({
+        subtotal: 1200, deliveryFee: 250, serviceFee: 50,
+        discount: 200, promoCode: 'SAVE200', total: 1300
+      }))
+    );
+  });
+
+  test('a customer cannot claim a discount the total does not reflect', async () => {
+    // Claiming a discount without lowering the total, or lowering the total
+    // without declaring a discount, both leave an order that does not add up.
+    await assertFails(
+      addDoc(collection(asCustomer(), 'orders'), order({
+        subtotal: 1200, deliveryFee: 250, serviceFee: 50,
+        discount: 200, total: 1500
+      }))
+    );
+    await assertFails(
+      addDoc(collection(asCustomer(), 'orders'), order({
+        subtotal: 1200, deliveryFee: 250, serviceFee: 50,
+        discount: 0, total: 900
+      }))
+    );
+  });
+
   test('orders can never be deleted, by anyone', async () => {
     await seed('orders/o1', order());
     await assertFails(deleteDoc(doc(asCustomer(), 'orders/o1')));
@@ -247,6 +275,27 @@ describe('orders — claiming and the lifecycle', () => {
     await seed('orders/o1', order({ driverId: DRIVER, status: 'picked_up' }));
     await assertFails(
       updateDoc(doc(asDriver(), 'orders/o1'), { status: 'delivered' })
+    );
+  });
+
+  test('a driver CANNOT mark an order delivered directly', async () => {
+    /* P3-04. Delivery is where the commission is decided, so it goes through
+       the confirmDelivery callable, which recomputes it from the order's own
+       stored total. A driver who can write `delivered` here completes the
+       order with no commission recorded, and every earnings screen then
+       derives a figure from data nobody wrote. */
+    await seed('orders/o1', order({ driverId: DRIVER, status: 'in_transit' }));
+    await assertFails(
+      updateDoc(doc(asDriver(), 'orders/o1'), { status: 'delivered' })
+    );
+  });
+
+  test('a driver CAN still advance to in_transit', async () => {
+    // The step before delivery must keep working — closing the delivered path
+    // must not close the whole forward walk.
+    await seed('orders/o1', order({ driverId: DRIVER, status: 'picked_up' }));
+    await assertSucceeds(
+      updateDoc(doc(asDriver(), 'orders/o1'), { status: 'in_transit' })
     );
   });
 
@@ -315,16 +364,20 @@ describe('orders — customer cancellation and rating', () => {
     );
   });
 
-  test('a customer CAN rate a delivered order', async () => {
+  test('a customer CANNOT write a rating directly', async () => {
+    // P3-05 moved rating into the submitRating callable so the stars roll up
+    // into the driver and merchant aggregates in one transaction. Leaving this
+    // path open would let a customer mark an order `rated` with no roll-up —
+    // losing the rating permanently — or re-rate and double-count it.
     await seed('orders/o1', order({ status: 'delivered' }));
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asCustomer(), 'orders/o1'), {
         rated: true, driverRating: 5, merchantRating: 4, comment: 'Great', tags: []
       })
     );
   });
 
-  test('a customer cannot rate someone else\'s order', async () => {
+  test('a customer cannot rate someone else\'s order either', async () => {
     await seed('orders/o1', order({ status: 'delivered' }));
     await assertFails(
       updateDoc(doc(asOtherCustomer(), 'orders/o1'), { rated: true, driverRating: 5 })

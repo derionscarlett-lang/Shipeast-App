@@ -174,6 +174,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The pure logic — promo evaluation (P3-03) and the commission arithmetic
+      # (P3-04) — is deliberately free of firebase-admin so it can be pinned
+      # here with no credentials and no emulator. Both decide what money
+      # changes hands.
+      - name: Test
+        run: npm test
+
   admin:
     name: Admin panel
     runs-on: ubuntu-latest

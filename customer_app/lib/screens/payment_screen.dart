@@ -7,6 +7,7 @@ import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../services/firestore_service.dart';
+import '../utils/money.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_button.dart';
 import '../widgets/se_toast.dart';
@@ -26,6 +27,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool _validatingPromo = false;
   bool _placingOrder = false;
   int _discount = 0;
+  String? _appliedCode;
 
   String _merchantId = '';
   String _merchantName = '';
@@ -33,12 +35,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
   int _subtotal = 0;
   int _deliveryFee = 0;
   int _serviceFee = 0;
+  /// Pre-discount total as passed from checkout. Kept for the "Order total"
+  /// line above the discount row; the charged figure is [_finalTotal].
   int _total = 0;
   String _deliveryAddress = '';
   bool _argsLoaded = false;
 
-  int get _finalTotal =>
-      _total > 0 ? (_total - _discount).clamp(0, _total) : 0;
+  /// Derived from the components, not from the passed-in `_total`, so what is
+  /// displayed and what is charged cannot drift apart (P3-02).
+  int get _gross => _subtotal + _deliveryFee + _serviceFee;
+  int get _finalTotal => (_gross - _discount).clamp(0, _gross);
 
   @override
   void initState() {
@@ -72,13 +78,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-  String _formatPrice(int p) {
-    if (p >= 1000) {
-      return '${p ~/ 1000},${(p % 1000).toString().padLeft(3, '0')}';
-    }
-    return '$p';
-  }
-
   @override
   void dispose() {
     _promoController.dispose();
@@ -90,32 +89,31 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (code.isEmpty) return;
     setState(() => _validatingPromo = true);
     try {
-      final data = await FirestoreService.validatePromoCode(code);
+      // A preview only. The discount that reaches the order is whatever
+      // redeemPromo returns at placement (P3-03).
+      final result =
+          await FirestoreService.previewPromoCode(code, _subtotal);
       if (!mounted) return;
-      if (data == null) {
+      if (!result.isValid) {
         setState(() {
           _discount = 0;
           _promoApplied = false;
+          _appliedCode = null;
           _validatingPromo = false;
         });
-        SeToast.error(context, 'Invalid or expired promo code');
+        // Say WHY. "Invalid or expired" for an under-minimum order sends the
+        // customer looking for a new code instead of adding one more item.
+        SeToast.error(context, result.message ?? 'That promo code is not valid.');
         return;
       }
-      final discountType = data['discountType'] as String? ?? 'percentage';
-      final discountVal = (data['discount'] as num?)?.toInt() ?? 0;
-      int discount = 0;
-      if (discountType == 'percentage') {
-        discount = (_total * discountVal / 100).round();
-      } else {
-        discount = discountVal;
-      }
-      discount = discount.clamp(0, _total > 0 ? _total : 0);
       setState(() {
-        _discount = discount;
+        _discount = result.discount;
         _promoApplied = true;
+        _appliedCode = code.toUpperCase();
         _validatingPromo = false;
       });
-      SeToast.success(context, 'Promo applied! You saved \$${_formatPrice(discount)}');
+      SeToast.success(
+          context, 'Promo applied! You saved ${Money.format(result.discount)}');
     } catch (_) {
       if (mounted) {
         setState(() => _validatingPromo = false);
@@ -157,7 +155,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 style: SeType.h2, textAlign: TextAlign.center),
             const SizedBox(height: 8),
             Text(
-              'You are placing an order from $_merchantName for \$${_formatPrice(_finalTotal)}.',
+              'You are placing an order from $_merchantName for ${Money.format(_finalTotal)}.',
               textAlign: TextAlign.center,
               style: SeType.body.copyWith(color: SeColors.ink500),
             ),
@@ -515,7 +513,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 children: [
                   Text('Original Total',
                       style: SeType.body.copyWith(color: SeColors.ink400)),
-                  Text('\$${_formatPrice(_total)}',
+                  Text(Money.format(_total),
                       style: SeType.tabular(SeType.body).copyWith(
                           color: SeColors.ink400,
                           decoration: TextDecoration.lineThrough)),
@@ -535,7 +533,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               SeType.body.copyWith(color: SeColors.success)),
                     ],
                   ),
-                  Text('- \$${_formatPrice(_discount)}',
+                  Text('- ${Money.format(_discount)}',
                       style: SeType.tabular(SeType.body)
                           .copyWith(color: SeColors.success)),
                 ],
@@ -548,7 +546,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Total to Pay', style: SeType.h3),
-                Text('\$${_formatPrice(_finalTotal)}',
+                Text(Money.format(_finalTotal),
                     style: SeType.tabular(SeType.h3)
                         .copyWith(color: SeColors.red600)),
               ],
@@ -558,7 +556,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       );
 
   Widget _buildPlaceOrderButton() => SeButton(
-        label: 'Place Order · \$${_formatPrice(_finalTotal)}',
+        label: 'Place Order · ${Money.format(_finalTotal)}',
         icon: SeIcons.lock,
         loading: _placingOrder,
         onPressed: _placingOrder ? null : _placeOrder,
@@ -571,6 +569,36 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (!confirmed) return;
 
     setState(() => _placingOrder = true);
+
+    /* Redeem BEFORE writing the order, and use what the server returns.
+       The preview shown above is advisory: between typing the code and tapping
+       Place Order it may have expired or been exhausted by someone else. This
+       is also the only thing that increments `usedCount`, which is what makes
+       the usage cap real rather than advisory (P3-03). */
+    var discount = 0;
+    var promoCode = _appliedCode;
+    if (promoCode != null) {
+      try {
+        discount = await FirestoreService.redeemPromo(promoCode, _subtotal);
+      } catch (e) {
+        if (!mounted) return;
+        // The order still goes through at full price — refusing to sell
+        // because a coupon lapsed is worse than the lost discount.
+        setState(() {
+          _discount = 0;
+          _promoApplied = false;
+          _appliedCode = null;
+        });
+        discount = 0;
+        promoCode = null;
+        SeToast.info(context,
+            'That promo code could no longer be applied — placing your order at full price.');
+      }
+    }
+
+    final total = (_subtotal + _deliveryFee + _serviceFee - discount)
+        .clamp(0, _subtotal + _deliveryFee + _serviceFee);
+
     try {
       final paymentMethod =
           _selectedPayment == 0 ? 'PayPal' : 'Cash on Delivery';
@@ -583,7 +611,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
           subtotal: _subtotal,
           deliveryFee: _deliveryFee,
           serviceFee: _serviceFee,
-          total: _finalTotal,
+          discount: discount,
+          promoCode: promoCode,
+          total: total,
           paymentMethod: paymentMethod,
           deliveryAddress: _deliveryAddress,
         );
@@ -603,7 +633,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
           'subtotal': _subtotal,
           'deliveryFee': _deliveryFee,
           'serviceFee': _serviceFee,
-          'total': _finalTotal,
+          'discount': discount,
+          'total': total,
           'deliveryAddress': _deliveryAddress,
           'paymentMethod': paymentMethod,
         },

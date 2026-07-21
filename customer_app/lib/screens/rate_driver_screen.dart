@@ -87,9 +87,9 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
       if (_orderId.isNotEmpty) {
         await FirestoreService.submitRating(
           orderId: _orderId,
-          driverId: _driverId,
           driverRating: _driverRating,
-          merchantRating: _merchantRating > 0 ? _merchantRating : 5,
+          // null, not 5 — a skipped question is not a five-star review.
+          merchantRating: _merchantRating > 0 ? _merchantRating : null,
           comment: _commentCtrl.text.trim(),
           tags: _selectedTags.map((i) => _tags[i]).toList(),
         );
