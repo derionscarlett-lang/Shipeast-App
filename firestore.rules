@@ -1,0 +1,284 @@
+rules_version = '2';
+
+// ShipEast Firestore security rules.
+// Source of truth for shapes and vocabulary: SCHEMA.md
+// Implements execution-all-three-plan.md P2-01 (audit §7.1).
+//
+// Before this file existed the database was either world-readable and
+// world-writable, or governed by undocumented console edits. Anyone who
+// extracted the (public, and necessarily public) API key from the shipped APK
+// could read every customer's name, phone and home address, read every
+// driver's licence number, and rewrite any order's status or total.
+//
+// Two invariants this file exists to enforce, above all others:
+//   1. A driver cannot approve themselves. Nothing previously stopped a driver
+//      writing status:'approved' to their own document, bypassing the admin
+//      entirely.
+//   2. A client cannot change what an order costs after it is created.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // Admin is a custom claim set by the setAdminClaim function (P2-04), NOT an
+    // email allowlist in client code, which is trivially bypassed.
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Fields the write leaves different from what is already stored.
+    function changed() {
+      return incoming().diff(existing()).affectedKeys();
+    }
+
+    // True when the write touches none of [fields].
+    function untouched(fields) {
+      return !changed().hasAny(fields.toSet());
+    }
+
+    // ── Order lifecycle ──────────────────────────────────────────────────
+    // Mirrors OrderStatus.transitions in all three apps. Kept in sync by
+    // tools/check-status-parity.mjs for the apps; this copy is covered by the
+    // rules test suite.
+
+    function legalTransition(from, to) {
+      return (from == 'pending'    && to in ['confirmed', 'cancelled'])
+          || (from == 'confirmed'  && to in ['picked_up', 'cancelled'])
+          || (from == 'picked_up'  && to in ['in_transit', 'cancelled'])
+          || (from == 'in_transit' && to in ['delivered', 'cancelled']);
+      // 'delivered' and 'cancelled' are terminal: no clause, so nothing passes.
+    }
+
+    function statusUnchangedOrLegal() {
+      return !changed().hasAny(['status'])
+          || legalTransition(existing().status, incoming().status);
+    }
+
+    // ── users ────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      // Admin read supports the Customers page (P5-05). Admin cannot write a
+      // customer's profile — only disable the account.
+      allow read: if uid() == userId || isAdmin();
+
+      allow create: if uid() == userId
+                    && incoming().keys().hasAll(['name', 'email'])
+                    && !incoming().keys().hasAny(['disabled', 'fcmToken2']);
+
+      // A customer may not disable or re-enable their own account.
+      allow update: if (uid() == userId && untouched(['disabled']))
+                    || (isAdmin() && changed().hasOnly(['disabled']));
+
+      allow delete: if uid() == userId;
+
+      match /addresses/{addressId} {
+        allow read, write: if uid() == userId;
+        allow read: if isAdmin();
+      }
+    }
+
+    // ── merchants ────────────────────────────────────────────────────────
+    // Public read so the customer app can browse before sign-in.
+    // Admin-only write: the customer app previously seeded 15 demo merchants
+    // into production from the client (audit §13). That seeder is gone, and
+    // this rule is what guarantees it cannot come back.
+
+    match /merchants/{merchantId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /menuItems/{itemId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    // ── drivers ──────────────────────────────────────────────────────────
+
+    match /drivers/{driverId} {
+      // Any signed-in user can read the driver profile, because the customer
+      // tracking screen shows the name, rating and vehicle of the driver
+      // bringing their order (watchDriver, firestore_service.dart). Rules
+      // cannot express "the customer of an order this driver currently holds"
+      // — that would require querying orders from inside a driver-doc read.
+      //
+      // Personally identifying data therefore must NOT live on this document.
+      // licenceNumber belongs in the private subcollection below. See
+      // SCHEMA.md §drivers for the migration.
+      allow read: if signedIn();
+
+      // A driver creates their own document at registration, always pending.
+      // Self-approval is the hole this closes.
+      allow create: if uid() == driverId
+                    && incoming().status == 'pending'
+                    && incoming().totalTrips == 0;
+
+      // A driver may edit their own profile but NOT their approval status or
+      // any earned/aggregate stat. Those are admin- or server-owned.
+      allow update: if (uid() == driverId
+                        && untouched([
+                             'status', 'totalTrips', 'totalRatings',
+                             'ratingCount', 'averageRating', 'ratingCounts',
+                             'todayEarnings'
+                           ]))
+                    || isAdmin();
+
+      allow delete: if isAdmin();
+
+      // PII and anything else customers must never see.
+      match /private/{docId} {
+        allow read, write: if uid() == driverId || isAdmin();
+      }
+    }
+
+    // ── orders ───────────────────────────────────────────────────────────
+
+    match /orders/{orderId} {
+
+      allow read: if isAdmin()
+                  || (signedIn() && existing().customerId == uid())
+                  || (signedIn() && existing().driverId == uid());
+
+      // Created only by the customer placing it, always unclaimed and pending.
+      // The arithmetic invariant is enforced here so a modified client cannot
+      // submit a total that does not follow from its own line items
+      // (SCHEMA.md §orders: subtotal + deliveryFee + serviceFee - discount).
+      allow create: if signedIn()
+                    && incoming().customerId == uid()
+                    && incoming().status == 'pending'
+                    && incoming().driverId == null
+                    && incoming().subtotal is int
+                    && incoming().deliveryFee is int
+                    && incoming().serviceFee is int
+                    && incoming().total is int
+                    && incoming().subtotal >= 0
+                    && incoming().deliveryFee >= 0
+                    && incoming().serviceFee >= 0
+                    && incoming().total >= 0
+                    && incoming().total == incoming().subtotal
+                                         + incoming().deliveryFee
+                                         + incoming().serviceFee
+                                         - (incoming().get('discount', 0));
+
+      // ── Customer updates ──
+      // Two things only: cancel a pending order, or rate a delivered one.
+      // Never the money, never the driver, never the items.
+      function customerCancelling() {
+        return existing().customerId == uid()
+               && existing().status == 'pending'
+               && incoming().status == 'cancelled'
+               && changed().hasOnly([
+                    'status', 'cancelledAt', 'cancelledBy', 'cancellationReason'
+                  ]);
+      }
+
+      function customerRating() {
+        return existing().customerId == uid()
+               && existing().status == 'delivered'
+               && changed().hasOnly([
+                    'rated', 'driverRating', 'merchantRating', 'comment', 'tags'
+                  ]);
+      }
+
+      // ── Driver updates ──
+      // Claiming: only an unclaimed pending order, and only for themselves.
+      function driverClaiming() {
+        return existing().driverId == null
+               && existing().status == 'pending'
+               && incoming().driverId == uid()
+               && incoming().status == 'confirmed'
+               && changed().hasOnly([
+                    'driverId', 'driverName', 'driverPhone', 'status', 'acceptedAt'
+                  ]);
+      }
+
+      // Advancing: only the holder, only forward, never the money.
+      function driverAdvancing() {
+        return existing().driverId == uid()
+               && statusUnchangedOrLegal()
+               && untouched([
+                    'total', 'subtotal', 'deliveryFee', 'serviceFee', 'discount',
+                    'promoCode', 'items', 'customerId', 'customerName',
+                    'merchantId', 'driverId'
+                  ]);
+      }
+
+      // Unassignment is an administrative REVERSAL, not a lifecycle
+      // transition, and it is deliberately absent from legalTransition above:
+      // that table describes the forward path a driver walks, and widening it
+      // would also let a driver push an order backwards.
+      //
+      // Returning a held order to the pool is a legitimate admin action (the
+      // panel's '— Unassigned —' option, P1-07) and needs its own narrow
+      // clause. It is only permitted when the driver is genuinely being
+      // cleared, and only back to pending. See SCHEMA.md §orders.status.
+      function adminUnassigning() {
+        return existing().driverId != null
+               && incoming().driverId == null
+               && incoming().status == 'pending'
+               && existing().status in ['confirmed', 'picked_up', 'in_transit'];
+      }
+
+      allow update: if (isAdmin() && (statusUnchangedOrLegal() || adminUnassigning()))
+                    || (signedIn() && (customerCancelling()
+                                       || customerRating()
+                                       || driverClaiming()
+                                       || driverAdvancing()));
+
+      // Cancel, never delete. An order is a financial record.
+      allow delete: if false;
+    }
+
+    // ── promoCodes ───────────────────────────────────────────────────────
+    // Authenticated read so checkout can validate instantly. usedCount is
+    // server-only, which is what turns the usage cap from advisory into real
+    // (P3-03) — client validation stays for UI feedback but is not trusted.
+
+    match /promoCodes/{code} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── notifications ────────────────────────────────────────────────────
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── settings ─────────────────────────────────────────────────────────
+    // Pricing and commission rate. Public read (the client shows the service
+    // fee); admin write. The server reads this for authoritative commission,
+    // so a client write here would be a payout exploit.
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Default deny ─────────────────────────────────────────────────────
+    // Anything not matched above is denied. Explicit so that adding a
+    // collection without rules fails closed rather than inheriting access.
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

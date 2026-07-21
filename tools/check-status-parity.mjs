@@ -27,6 +27,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CUSTOMER = 'customer_app/lib/models/order_status.dart';
 const DRIVER = 'driver_app/lib/models/order_status.dart';
 const ADMIN = 'admin_panel/order-status.js';
+const FUNCTIONS = 'functions/src/orderStatus.ts';
 
 const problems = [];
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -100,6 +101,58 @@ if (!problems.some((p) => p.startsWith('Transitions'))) {
   console.log('ok   transition tables match for every status');
 }
 
+// ── 3. The functions copy must declare the same lifecycle ─────────────────
+// Parsed as text rather than imported: it is TypeScript, and compiling it just
+// to run this check would make a cheap job depend on the build.
+const fnSrc = read(FUNCTIONS);
+
+function parseTsTransitions(src) {
+  const constants = {};
+  for (const m of src.matchAll(/export const ([A-Z_]+) = '([a-z_]+)';/g)) {
+    constants[m[1]] = m[2];
+  }
+  const block = src.match(/export const TRANSITIONS[^=]*=\s*\{([\s\S]*?)\n\};/);
+  if (!block) throw new Error('could not locate TRANSITIONS in the functions source');
+
+  const table = {};
+  for (const m of block[1].matchAll(/\[(\w+)\]:\s*\[([^\]]*)\]/g)) {
+    const from = constants[m[1]];
+    if (!from) throw new Error(`unknown TS identifier "${m[1]}" as a transition key`);
+    table[from] = m[2].split(',').map((x) => x.trim()).filter(Boolean).map((name) => {
+      if (!constants[name]) throw new Error(`unknown TS identifier "${name}" in TRANSITIONS`);
+      return constants[name];
+    });
+  }
+  return table;
+}
+
+const fnTransitions = parseTsTransitions(fnSrc);
+const fnStatuses = Object.keys(fnTransitions).sort();
+
+if (fnStatuses.join() !== dartStatuses.join()) {
+  problems.push(
+    `Status vocabulary differs between Dart and functions.\n` +
+    `  dart     : ${dartStatuses.join(', ')}\n` +
+    `  functions: ${fnStatuses.join(', ')}`
+  );
+} else {
+  console.log('ok   functions vocabulary matches');
+}
+
+let fnTransitionsMatch = true;
+for (const from of dartStatuses) {
+  const a = (dartTransitions[from] || []).slice().sort().join(', ');
+  const b = (fnTransitions[from] || []).slice().sort().join(', ');
+  if (a !== b) {
+    fnTransitionsMatch = false;
+    problems.push(
+      `Transitions from "${from}" differ between Dart and functions.\n` +
+      `  dart     : [${a}]\n  functions: [${b}]`
+    );
+  }
+}
+if (fnTransitionsMatch) console.log('ok   functions transition table matches');
+
 // 'accepted' is retired; make sure nobody reintroduces it. Comments are
 // stripped first — both files discuss the retired status in prose explaining
 // why it was removed, and matching that would be a false positive.
@@ -113,11 +166,12 @@ const retired = 'accepted';
 const inDart = stripComments(customerSrc).includes(`'${retired}'`);
 const inAdmin = stripComments(read(ADMIN)).includes(`'${retired}'`) ||
   admin.ALL.includes(retired);
+const inFunctions = stripComments(fnSrc).includes(`'${retired}'`);
 
-if (inDart || inAdmin) {
+if (inDart || inAdmin || inFunctions) {
   problems.push(
     `'${retired}' is a retired status and must not appear in the lifecycle ` +
-    `(dart: ${inDart}, admin: ${inAdmin}).`
+    `(dart: ${inDart}, admin: ${inAdmin}, functions: ${inFunctions}).`
   );
 } else {
   console.log(`ok   retired status '${retired}' is absent from all copies`);

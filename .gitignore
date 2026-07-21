@@ -1,0 +1,12 @@
+# Node dependencies — installed by `npm ci` in CI, never committed.
+# Lockfiles ARE committed; `npm ci` requires them.
+node_modules/
+
+# Firebase emulator artifacts
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Compiled Cloud Functions output
+functions/lib/
