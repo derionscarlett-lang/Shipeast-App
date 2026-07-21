@@ -7,6 +7,7 @@ import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
+import '../models/order_status.dart';
 import '../services/firestore_service.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_chip.dart';
@@ -67,45 +68,39 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     final label = _tabs[_activeTab];
     return _orders.where((o) {
       final status = o['status'] as String? ?? '';
-      if (label == 'Active') {
-        return status == 'pending' ||
-            status == 'accepted' ||
-            status == 'in_transit';
-      }
-      if (label == 'Completed') return status == 'delivered';
-      if (label == 'Cancelled') return status == 'cancelled';
+      // Driven by the canonical sets, so a new status cannot silently match no
+      // tab. Previously 'confirmed' and 'picked_up' matched none of the three,
+      // so an order vanished from this list for the whole delivery — exactly
+      // the window the customer is most likely to be checking.
+      if (label == 'Active') return OrderStatus.isActive(status);
+      if (label == 'Completed') return status == OrderStatus.delivered;
+      if (label == 'Cancelled') return status == OrderStatus.cancelled;
       return false;
     }).toList();
   }
 
-  String _displayStatus(String status) {
-    switch (status) {
-      case 'pending':
-      case 'accepted':
-      case 'in_transit':
-        return 'Active';
-      case 'delivered':
-        return 'Completed';
-      case 'cancelled':
-        return 'Cancelled';
-      default:
-        return status;
-    }
-  }
+  /// The badge on each order card.
+  ///
+  /// Delegates to the canonical label, so the badge now names the actual state
+  /// ("Picked Up") rather than the coarse bucket ("Active"). The old switch had
+  /// a `default: return status` branch that rendered the raw database value —
+  /// which is how the literal text "picked_up" reached the customer.
+  String _displayStatus(String status) => OrderStatus.label(status);
 
   ({Color color, Color tint}) _statusColors(String status) {
-    switch (status) {
-      case 'pending':
-      case 'accepted':
-      case 'in_transit':
-        return (color: SeColors.success, tint: SeColors.successTint);
-      case 'delivered':
-        return (color: SeColors.ocean500, tint: SeColors.oceanTint);
-      case 'cancelled':
-        return (color: SeColors.danger, tint: SeColors.dangerTint);
-      default:
-        return (color: SeColors.ink500, tint: SeColors.surface50);
+    // Keyed off the canonical sets rather than individual statuses, so a status
+    // added later inherits a sensible colour instead of falling through to
+    // neutral grey.
+    if (status == OrderStatus.cancelled) {
+      return (color: SeColors.danger, tint: SeColors.dangerTint);
     }
+    if (status == OrderStatus.delivered) {
+      return (color: SeColors.ocean500, tint: SeColors.oceanTint);
+    }
+    if (OrderStatus.isActive(status)) {
+      return (color: SeColors.success, tint: SeColors.successTint);
+    }
+    return (color: SeColors.ink500, tint: SeColors.surface50);
   }
 
   String _formatDate(dynamic createdAt) {
@@ -282,7 +277,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   }
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
-    final status = order['status'] as String? ?? 'pending';
+    final status = order['status'] as String? ?? OrderStatus.pending;
     final displayStatus = _displayStatus(status);
     final colors = _statusColors(status);
     final merchantName = order['merchantName'] as String? ?? 'Merchant';

@@ -64,7 +64,6 @@ class _HomeScreenState extends State<HomeScreen> {
       statusBarIconBrightness: Brightness.light,
     ));
     _loadUserName();
-    FirestoreService.seedMerchantsIfEmpty();
     _subscribeMerchants(0);
     _subscribeMerchants(1);
     _subscribeMerchants(3);

@@ -7,6 +7,7 @@ import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
+import '../models/order_status.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_button.dart';
 import '../widgets/se_toast.dart';
@@ -30,61 +31,36 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
   Map<String, dynamic>? _driver;
   String? _watchedDriverId;
 
-  int get _currentStep {
-    final status = _order?['status'] as String? ?? 'pending';
-    switch (status) {
-      case 'pending':
-        return 0;
-      case 'accepted':
-        return 1;
-      case 'in_transit':
-        return 2;
-      case 'delivered':
-        return 3;
-      default:
-        return 0;
-    }
-  }
+  String get _status => _order?['status'] as String? ?? OrderStatus.pending;
 
-  String get _statusLabel {
-    switch (_currentStep) {
-      case 0:
-        return 'Order Confirmed';
-      case 1:
-        return 'Order Picked Up';
-      case 2:
-        return 'On the Way';
-      case 3:
-        return 'Delivered!';
-      default:
-        return 'Loading...';
-    }
-  }
+  int get _currentStep => OrderStatus.step(_status);
 
-  String get _etaLabel {
-    switch (_currentStep) {
-      case 0:
-        return '~40 min';
-      case 1:
-        return '~25 min';
-      case 2:
-        return '~15 min';
-      case 3:
-        return 'Done';
-      default:
-        return '';
-    }
-  }
+  /// Cancellation is not a step on the tracker.
+  ///
+  /// [OrderStatus.step] returns -1 for it, and every caller must branch: the
+  /// stepper has no node to highlight, and a negative width factor throws.
+  /// Before this, `cancelled` fell to step 0 and the screen cheerfully
+  /// displayed "Order Confirmed" on a cancelled order.
+  bool get _isCancelled => _status == OrderStatus.cancelled;
+
+  String get _statusLabel => OrderStatus.label(_status);
+
+  // The ETA pill is gone. It was hardcoded '~40 min' / '~25 min' / '~15 min' —
+  // invented numbers presented to the customer as an estimate, derived from
+  // nothing. A wrong ETA is worse than no ETA, and this screen already declines
+  // to fake a map for the same reason. Revisit with the maps work (P5-05).
 
   static const _stepNames = [
-    'Order Confirmed',
-    'Order Picked Up',
+    'Order Placed',
+    'Driver Assigned',
+    'Picked Up',
     'On the Way',
     'Delivered',
   ];
 
   static const _stepIcons = [
     SeIcons.checkCircle,
+    SeIcons.user,
     SeIcons.box,
     SeIcons.bike,
     SeIcons.home,
@@ -94,12 +70,17 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     final merchantName = _order?['merchantName'] as String? ?? 'Merchant';
     switch (index) {
       case 0:
-        return '$merchantName accepted your order';
+        // The old copy claimed "$merchantName accepted your order", which was
+        // wrong even before this change — no merchant accepts anything in this
+        // system. Only a driver ever accepts an order.
+        return 'Your order was sent to $merchantName';
       case 1:
-        return 'Driver collected your order';
+        return 'A driver accepted and is heading to $merchantName';
       case 2:
-        return 'Driver is heading to you now';
+        return 'Driver collected your order';
       case 3:
+        return 'Driver is heading to you now';
+      case 4:
         return 'Order delivered successfully!';
       default:
         return '';
@@ -165,7 +146,11 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
 
   @override
   Widget build(BuildContext context) {
-    final delivered = _currentStep == 3;
+    // Cancelled is a terminal state with its own presentation — not a stepper
+    // frozen at some index. Handled before anything reads _currentStep.
+    if (_isCancelled) return _buildCancelledScaffold();
+
+    final delivered = _currentStep == OrderStatus.stepCount - 1;
     return Scaffold(
       backgroundColor: SeColors.surface50,
       body: Column(
@@ -247,17 +232,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                           color: Colors.white.withValues(alpha: 0.85)),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: SeRadius.pill,
-                    ),
-                    child: Text(_etaLabel,
-                        style: SeType.tabular(SeType.label)
-                            .copyWith(color: Colors.white)),
-                  ),
+                  // The ETA pill stood here. Removed — see _stepNames.
                 ],
               ),
               const SizedBox(height: 16),
@@ -285,8 +260,150 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     colors: [Color(0xFF16A34A), Color(0xFF0B7A38)],
   );
 
+  /// Neutral slate, deliberately not the brand ember and not alarm red. A
+  /// cancelled order is a dead end, not an error the customer caused.
+  static const LinearGradient _cancelledGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF475467), Color(0xFF1D2939)],
+  );
+
+  /// Terminal presentation for a cancelled order.
+  ///
+  /// Deliberately does not fall through to the stepper: there is no progress to
+  /// show, and [OrderStatus.step] returns -1 here. Shows the reason when one was
+  /// recorded, and routes to support rather than leaving the customer with a
+  /// dead screen and no next action.
+  Widget _buildCancelledScaffold() {
+    final reason = (_order?['cancellationReason'] as String?)?.trim() ?? '';
+    final cancelledBy = _order?['cancelledBy'] as String? ?? '';
+
+    return Scaffold(
+      backgroundColor: SeColors.surface50,
+      body: Column(
+        children: [
+          Container(
+            decoration: const BoxDecoration(gradient: _cancelledGradient),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(12, 8, SeSpacing.gutter, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(SeIcons.arrowLeft,
+                                size: 20, color: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _orderId.isNotEmpty
+                                ? 'Order #${_orderId.substring(0, _orderId.length.clamp(0, 8)).toUpperCase()}'
+                                : 'Your Order',
+                            style: SeType.label.copyWith(
+                                color: Colors.white.withValues(alpha: 0.85)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(OrderStatus.label(OrderStatus.cancelled),
+                        style: SeType.h1.copyWith(color: Colors.white)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'This order is no longer being delivered.',
+                      style: SeType.bodyS.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(SeSpacing.gutter),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SeCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(SeIcons.warningCircle,
+                                size: 20, color: SeColors.danger),
+                            const SizedBox(width: 8),
+                            Text('What happened',
+                                style: SeType.label
+                                    .copyWith(color: SeColors.ink500)),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          reason.isNotEmpty
+                              ? reason
+                              : cancelledBy == 'customer'
+                                  ? 'You cancelled this order.'
+                                  : 'This order was cancelled. No reason was '
+                                      'recorded.',
+                          style: SeType.bodyS,
+                        ),
+                        // Matched loosely on purpose: the stored value is the
+                        // display string 'Cash on Delivery', not a slug.
+                        // Normalising it is a schema migration, not a Phase 1
+                        // change — see SCHEMA.md §orders.paymentMethod.
+                        if ((_order?['paymentMethod'] as String? ?? '')
+                            .toLowerCase()
+                            .contains('cash')) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            'Nothing was charged — this order was cash on '
+                            'delivery.',
+                            style: SeType.bodyS
+                                .copyWith(color: SeColors.ink300),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SeButton(
+                    label: 'Contact Support',
+                    icon: SeIcons.chat,
+                    onPressed: () =>
+                        Navigator.pushNamed(context, '/help-support'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _routeBar(bool delivered) {
-    final progress = (_currentStep / 3).clamp(0.0, 1.0);
+    // Guarded against the cancelled case: step() returns -1 there, and a
+    // negative width factor throws. The cancelled view never reaches this
+    // widget, and the clamp is the belt to that braces.
+    final progress =
+        (_currentStep / (OrderStatus.stepCount - 1)).clamp(0.0, 1.0);
     return LayoutBuilder(
       builder: (context, c) {
         final width = c.maxWidth;
@@ -370,7 +487,10 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     return SeCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
-        children: List.generate(4, (i) => _stepRow(i, isLast: i == 3)),
+        children: List.generate(
+          OrderStatus.stepCount,
+          (i) => _stepRow(i, isLast: i == OrderStatus.stepCount - 1),
+        ),
       ),
     );
   }
@@ -496,13 +616,18 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     final driverName = _driver?['name'] as String? ?? 'Your Driver';
     final avgRating =
         (_driver?['averageRating'] as num?)?.toStringAsFixed(1) ?? '5.0';
-    final vehicleMake = _driver?['vehicleMake'] as String? ?? '';
+    // British spelling, per SCHEMA.md §c — both writers (driver registration
+    // and the admin panel) already use it; only this reader was wrong.
+    //
+    // The `vehicleMake` read was deleted: no such field is written by anything,
+    // and combined with the American `licensePlate` it meant vehicleInfo
+    // resolved to an empty string for every driver. The customer saw a name and
+    // a rating with no way to identify the car pulling up outside.
     final vehicleModel = _driver?['vehicleModel'] as String? ?? '';
-    final licensePlate = _driver?['licensePlate'] as String? ?? '';
+    final licencePlate = _driver?['licencePlate'] as String? ?? '';
     final vehicleInfo = [
-      if (vehicleMake.isNotEmpty || vehicleModel.isNotEmpty)
-        '$vehicleMake $vehicleModel'.trim(),
-      if (licensePlate.isNotEmpty) licensePlate,
+      if (vehicleModel.isNotEmpty) vehicleModel.trim(),
+      if (licencePlate.isNotEmpty) licencePlate,
     ].join('  ·  ');
 
     return SeCard(

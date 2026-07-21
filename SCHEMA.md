@@ -167,7 +167,7 @@ raw status values are **never rendered to a user** — always through `OrderStat
 | `discount` | int | ✅ | customer @ create | all | **Currently never written** (audit §6.2). `0` when no promo. |
 | `promoCode` | string \| null | ✅ | customer @ create | admin | **Currently never written.** Audit trail for redemption. |
 | `total` | int | ✅ | customer @ create | all | **Invariant:** `subtotal + deliveryFee + serviceFee - discount == total`. Asserted client-side before write (P3-02) and recomputed server-side (P2-01). |
-| `paymentMethod` | string | ✅ | customer @ create | admin | `'cod'` only today. |
+| `paymentMethod` | string | ✅ | customer @ create | admin | **Currently a display string, not a slug**: `'Cash on Delivery'` or `'PayPal'` (`payment_screen.dart:575`). PayPal is hardcoded disabled, so only the former is ever written. Should be normalised to `'cod'` / `'paypal'` — that is a migration, not a Phase 1 change, so readers match loosely until then. |
 | `deliveryAddress` | string | ✅ | customer @ create | driver, admin | |
 | `status` | string | ✅ | customer @ create (`pending`), driver, admin | all | Canonical vocabulary above. |
 | `type` | string | ✅ | customer @ create | all | `'food'` \| `'package'` \| `'overseas'`. **Currently never written**; defaults to `'food'` when absent. Needed by P5-01. |
