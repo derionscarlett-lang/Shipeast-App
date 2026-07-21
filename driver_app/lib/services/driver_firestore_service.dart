@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../driver_constants.dart';
+import '../models/order_status.dart';
 
 class DriverFirestoreService {
   static final _db = FirebaseFirestore.instance;
@@ -26,19 +27,25 @@ class DriverFirestoreService {
   static Stream<List<Map<String, dynamic>>> pendingOrdersStream() =>
       _db
           .collection('orders')
-          .where('status', isEqualTo: 'pending')
+          .where('status', isEqualTo: OrderStatus.pending)
           .where('driverId', isNull: true)
           .snapshots()
           .map((s) => s.docs
               .map((d) => <String, dynamic>{'id': d.id, ...d.data()})
               .toList());
 
-  /// Stream of the driver's current active order (confirmed or picked_up).
+  /// Stream of the driver's current active order.
+  ///
+  /// Covers every state in which a driver holds the order. This previously
+  /// listed only confirmed and picked_up, so the moment an order moved to
+  /// in_transit it dropped out of this query and the driver's dashboard
+  /// blanked mid-delivery — with the goods already in their vehicle and no
+  /// recovery path in the UI.
   static Stream<List<Map<String, dynamic>>> activeOrderStream(String uid) =>
       _db
           .collection('orders')
           .where('driverId', isEqualTo: uid)
-          .where('status', whereIn: ['confirmed', 'picked_up'])
+          .where('status', whereIn: OrderStatus.driverHeld)
           .snapshots()
           .map((s) => s.docs
               .map((d) => <String, dynamic>{'id': d.id, ...d.data()})
@@ -73,11 +80,11 @@ class DriverFirestoreService {
 
       final data = snap.data() ?? const <String, dynamic>{};
       final existingDriver = data['driverId'];
-      final status = data['status'] as String? ?? 'pending';
+      final status = data['status'] as String? ?? OrderStatus.pending;
       final claimed = existingDriver != null &&
           (existingDriver as String).isNotEmpty &&
           existingDriver != driverUid;
-      if (claimed || status != 'pending') {
+      if (claimed || status != OrderStatus.pending) {
         throw StateError(orderTakenCode);
       }
 
@@ -85,7 +92,7 @@ class DriverFirestoreService {
         'driverId': driverUid,
         'driverName': driverName,
         'driverPhone': driverPhone,
-        'status': 'confirmed',
+        'status': OrderStatus.confirmed,
         'acceptedAt': FieldValue.serverTimestamp(),
       });
     });
@@ -93,8 +100,20 @@ class DriverFirestoreService {
 
   static Future<void> confirmPickup(String orderId) =>
       _db.collection('orders').doc(orderId).update({
-        'status': 'picked_up',
+        'status': OrderStatus.pickedUp,
         'pickedUpAt': FieldValue.serverTimestamp(),
+      });
+
+  /// Marks the driver as en route to the customer.
+  ///
+  /// This state has never existed in the data. It is what makes the customer's
+  /// "On the Way" tracker step reachable — before this, the customer jumped
+  /// from "Picked Up" straight to "Delivered" with no signal that the driver
+  /// had actually set off.
+  static Future<void> startTransit(String orderId) =>
+      _db.collection('orders').doc(orderId).update({
+        'status': OrderStatus.inTransit,
+        'inTransitAt': FieldValue.serverTimestamp(),
       });
 
   static Future<String> uploadDeliveryPhoto(String orderId, File file) async {
@@ -116,7 +135,7 @@ class DriverFirestoreService {
     final commission = DriverPay.commissionOn(orderTotal).round();
     final batch = _db.batch();
     batch.update(_db.collection('orders').doc(orderId), {
-      'status': 'delivered',
+      'status': OrderStatus.delivered,
       'deliveredAt': FieldValue.serverTimestamp(),
       if (photoUrl != null && photoUrl.isNotEmpty) 'deliveryPhotoUrl': photoUrl,
       if (note != null && note.isNotEmpty) 'deliveryNote': note,

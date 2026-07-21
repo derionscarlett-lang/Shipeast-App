@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../models/order_status.dart';
 import '../driver_constants.dart';
 import '../services/driver_firestore_service.dart';
 import '../theme/se_colors.dart';
@@ -47,14 +48,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
   ({String label, Color hue, Color tint, IconData icon}) _statusSpec(
       String status) {
     switch (status) {
-      case 'delivered':
+      case OrderStatus.delivered:
         return (
           label: 'Completed',
           hue: SeColors.success,
           tint: SeColors.successTint,
           icon: SeIcons.checkCircle
         );
-      case 'cancelled':
+      case OrderStatus.cancelled:
         return (
           label: 'Cancelled',
           hue: SeColors.danger,
@@ -74,9 +75,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<Map<String, dynamic>> _filtered(List<Map<String, dynamic>> all) {
     if (_activeTab == 0) return all;
     if (_activeTab == 1) {
-      return all.where((o) => o['status'] == 'delivered').toList();
+      return all.where((o) => o['status'] == OrderStatus.delivered).toList();
     }
-    return all.where((o) => o['status'] == 'cancelled').toList();
+    return all.where((o) => o['status'] == OrderStatus.cancelled).toList();
   }
 
   @override
@@ -109,7 +110,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 final all = snapshot.data ?? [];
                 final displayOrders = _filtered(all);
                 final completed =
-                    all.where((o) => o['status'] == 'delivered').length;
+                    all.where((o) => o['status'] == OrderStatus.delivered).length;
 
                 return Column(
                   children: [
@@ -273,7 +274,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _card(Map<String, dynamic> order) {
     final status = order['status'] as String? ?? '';
     final spec = _statusSpec(status);
-    final isCompleted = status == 'delivered';
+    final isCompleted = status == OrderStatus.delivered;
     final merchant = order['merchantName'] as String? ?? 'Merchant';
     final id = order['id'] as String? ?? '';
     final shortId =
