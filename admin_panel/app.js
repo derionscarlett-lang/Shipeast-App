@@ -17,6 +17,7 @@ import{firebaseConfig}from'./config.js';
 import*as OrderStatus from'./order-status.js';
 import{createUploader,merchantCoverPath,menuItemPath,storagePathFromUrl}from'./image-upload.js';
 import{parseBands,formatBands,describeBands,parseAmount}from'./pricing-form.js';
+import*as Overseas from'./overseas-status.js';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -25,7 +26,7 @@ const storage=getStorage(app);
 const fns=getFunctions(app);
 
 // ══════════════════════ LOCAL DATA MIRRORS ══════════════════════
-var orders=[],drivers=[],merchants=[],promoCodes=[],notifHistory=[],customers=[];
+var orders=[],drivers=[],merchants=[],promoCodes=[],notifHistory=[],customers=[],inquiries=[];
 var analyticsStats={
   'Today':    [{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
   'This Week':[{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
@@ -33,8 +34,9 @@ var analyticsStats={
 };
 var currentPeriod='Today',ordersFilter='All',driverMode='add',driverEditId=null,merchantMode='add',merchantEditId=null,unsubscribers=[];
 var panelMerchantId=null,menuItemsUnsub=null,menuItemEditId=null,panelMenuItems=[],menuItemUploader=null;
-var loadedOnce={orders:false,drivers:false,merchants:false,promos:false,notifs:false,customers:false};
+var loadedOnce={orders:false,drivers:false,merchants:false,promos:false,notifs:false,customers:false,overseas:false};
 var customerSearch='',panelCustomerId=null;
+var overseasFilter='open',overseasSearch='',panelInquiryId=null;
 
 // ══════════════════════ PRIMITIVES ══════════════════════
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -220,9 +222,13 @@ function typeBadge(t){
   return ' <span class="bdg bg-info plain" title="Order type">'+esc(lbl)+'</span>';
 }
 /** Firestore Timestamp → readable local string, or '' when never set. */
+/* Accepts a Firestore Timestamp or a plain Date. The order mirror keeps raw
+   Timestamps; the overseas mirror converts on the way in, because its list is
+   sorted by date rather than by the server. One formatter either way. */
 function fmtStamp(ts){
-  if(!ts||!ts.toDate) return '';
-  var d=ts.toDate();
+  if(!ts) return '';
+  var d=ts.toDate?ts.toDate():(ts instanceof Date?ts:null);
+  if(!d) return '';
   if(isNaN(d.getTime())) return '';
   return d.toLocaleString('en-JM',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 }
@@ -317,7 +323,8 @@ function doLogout(){ signOut(auth); }
 
 // ══════════════════════ NAVIGATION ══════════════════════
 var pageLabels={dashboard:'Dashboard',orders:'Orders',drivers:'Drivers',merchants:'Merchants',
-  customers:'Customers',notifications:'Notifications',promos:'Promo Codes',analytics:'Analytics'};
+  customers:'Customers',overseas:'Overseas Enquiries',notifications:'Notifications',
+  promos:'Promo Codes',analytics:'Analytics'};
 function navTo(page){
   document.querySelectorAll('.ni').forEach(function(n){ n.classList.remove('active'); });
   var ni=document.querySelector('.ni[data-page="'+page+'"]'); if(ni) ni.classList.add('active');
@@ -331,6 +338,7 @@ function navTo(page){
   // an admin who navigates here quickly sees an empty table and reads it as
   // "no customers".
   if(page==='customers'){ renderCustomers(); }
+  if(page==='overseas'){ renderOverseas(); }
   // Loaded on first visit rather than streamed: pricing changes a few times a
   // year, and a live listener would fight the admin's own typing.
   if(page==='settings'&&!pricingLoaded){ loadPricing(); }
@@ -502,6 +510,47 @@ function startListeners(){
       function(e){ loadedOnce.customers=true; console.warn('users:',e.message); toast('error','Could not load customers: '+e.message); renderCustomers(); }
     ));
   }catch(e){ console.warn('users init:',e.message); }
+
+  /* OVERSEAS ENQUIRIES
+     Requests to ship something to family in Jamaica. The customer app used to
+     point a WebView at two placeholder form URLs and write nothing anywhere,
+     so no request ever reached a person; there was no queue, which is why
+     there was no page.
+
+     No orderBy and no limit. `createdAt` is a serverTimestamp, so the newest
+     enquiry — the one an operator most needs to see — is briefly null on the
+     client, and an orderBy would sort it into the void. Overseas.filterInquiries
+     sorts these, and puts the unresolved one first. */
+  try{
+    unsubscribers.push(onSnapshot(
+      collection(db,'overseasInquiries'),
+      function(snap){
+        inquiries=snap.docs.map(function(d){
+          var o=d.data();
+          return {id:d.id,
+            customerId:o.customerId||'',customerName:o.customerName||'—',
+            contactEmail:o.contactEmail||'',contactPhone:o.contactPhone||'',
+            originCountry:o.originCountry||'—',
+            recipientName:o.recipientName||'—',recipientPhone:o.recipientPhone||'',
+            recipientAddress:o.recipientAddress||'—',
+            recipientParish:o.recipientParish||'—',
+            itemCategory:o.itemCategory||'—',
+            itemDescription:o.itemDescription||'—',
+            weightKg:o.estimatedWeightKg!=null?Number(o.estimatedWeightKg):null,
+            notes:o.notes||'',
+            status:Overseas.normalise(o.status),
+            adminNote:o.adminNote||'',
+            handledBy:o.handledBy||'',handledAt:o.handledAt||null,
+            createdAt:o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null,
+            updatedAt:o.updatedAt&&o.updatedAt.toDate?o.updatedAt.toDate():null,
+            _docId:d.id};
+        });
+        loadedOnce.overseas=true;
+        renderOverseas();
+      },
+      function(e){ loadedOnce.overseas=true; console.warn('overseasInquiries:',e.message); toast('error','Could not load overseas enquiries: '+e.message); renderOverseas(); }
+    ));
+  }catch(e){ console.warn('overseasInquiries init:',e.message); }
 
   // PROMO CODES
   try{
@@ -1273,8 +1322,8 @@ function renderCustomers(){
     var ordering=customers.filter(function(c){ return customerOrders(c.id).length>0; }).length;
     stats.innerHTML=
       statCard('users','Total Customers',customers.length,'','')+
-      statCard('orders','Have Ordered',ordering,customers.length?Math.round((ordering/customers.length)*100)+'% of accounts':'','ac-ocean')+
-      statCard('close','Disabled',disabledCount,disabledCount?'blocked from signing in':'','ac-gold');
+      statCard('orders','Have Ordered',ordering,customers.length?Math.round((ordering/customers.length)*100)+'% of accounts':'','ocean')+
+      statCard('close','Disabled',disabledCount,disabledCount?'blocked from signing in':'','gold');
   }
 
   if(!rows.length){
@@ -1412,6 +1461,172 @@ function applyCustomerDisabled(uid,disabled,reason){
     .catch(function(e){
       toast('error',e.message,'Could not change the account');
     });
+}
+
+// ══════════════════════ OVERSEAS ENQUIRIES ══════════════════════
+/* The other half of the customer app's overseas form. A status an operator
+   moves here is shown to the customer in the app, which is the only reason
+   moving it is worth anything: somebody is waiting to hear back.
+
+   Filtering, searching and sorting all live in overseas-status.js so they are
+   testable in Node; this file does the painting. */
+
+function inquiryBadge(s){
+  var st=Overseas.normalise(s);
+  return '<span class="bdg bg-'+Overseas.TONE[st]+'">'+esc(Overseas.LABEL[st])+'</span>';
+}
+function inquiryWeight(kg){
+  // Optional on the form — a customer who does not know what the box weighs
+  // should still be able to ask. Blank must not read as "0 kg".
+  return kg==null?'—':(Math.round(kg*10)/10)+' kg';
+}
+function inquiryRef(id){ return String(id||'').slice(0,6).toUpperCase(); }
+
+function renderOverseasTabs(){
+  var tabs=$('overseas-tabs'); if(!tabs) return;
+  var s=Overseas.summarise(inquiries);
+  var defs=[{k:'open',lbl:'Open',n:s.open},{k:'all',lbl:'All',n:s.total}]
+    .concat(Overseas.ALL.map(function(st){
+      return {k:st,lbl:Overseas.LABEL[st],n:s.counts[st]};
+    }));
+  tabs.innerHTML=defs.map(function(d){
+    return '<div class="tab'+(overseasFilter===d.k?' active':'')+'" data-otab="'+d.k+'" role="tab" tabindex="0">'+
+      esc(d.lbl)+' <b class="num">'+d.n+'</b></div>';
+  }).join('');
+}
+function renderOverseas(){
+  renderOverseasTabs();
+  var tbody=$('overseas-tbody'); if(!tbody) return;
+  if(!loadedOnce.overseas){ tbody.innerHTML=skeletonRows(9,5); return; }
+
+  var stats=$('overseas-stats');
+  if(stats){
+    var s=Overseas.summarise(inquiries);
+    stats.innerHTML=
+      statCard('send','Open Enquiries',s.open,s.counts[Overseas.NEW]+' not yet touched','')+
+      statCard('clock','Awaiting Reply',s.counts[Overseas.QUOTED],'quoted, customer deciding','gold')+
+      statCard('success','Closed',s.counts[Overseas.CLOSED],s.counts[Overseas.DECLINED]+' declined','success');
+  }
+
+  var rows=Overseas.filterInquiries(inquiries,{status:overseasFilter,q:overseasSearch});
+  if(!rows.length){
+    tbody.innerHTML=overseasSearch
+      ? emptyRow(9,'search','No matching enquiries','Nothing matched “'+esc(overseasSearch)+'”. Try a name, parish or phone number.')
+      : emptyRow(9,'box','Nothing here','Overseas requests from the customer app land in this queue.');
+    return;
+  }
+  tbody.innerHTML=rows.map(function(i){
+    var contents=i.itemDescription.length>44?i.itemDescription.slice(0,44)+'…':i.itemDescription;
+    return '<tr>'+
+      '<td><span class="cell-id">'+esc(inquiryRef(i.id))+'</span></td>'+
+      '<td><b>'+esc(i.customerName)+'</b><div class="cell-mute">'+esc(i.originCountry)+'</div></td>'+
+      '<td>'+esc(i.recipientName)+'</td>'+
+      '<td class="cell-mute">'+esc(i.recipientParish)+'</td>'+
+      '<td class="cell-mute">'+esc(i.itemCategory)+' · '+esc(contents)+'</td>'+
+      '<td class="right num">'+esc(inquiryWeight(i.weightKg))+'</td>'+
+      '<td>'+inquiryBadge(i.status)+'</td>'+
+      // A brand-new enquiry has no resolved timestamp yet, and "—" would read
+      // as missing data rather than "seconds ago".
+      '<td class="cell-mute num">'+esc(i.createdAt?fmtStamp(i.createdAt):'Just now')+'</td>'+
+      '<td><button class="aicon ai-v" data-action="view-inquiry" data-iid="'+esc(i.id)+'" title="View enquiry" aria-label="View enquiry">'+icon('view')+'</button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function openInquiryPanel(id){
+  var i=inquiries.find(function(x){ return x.id===id; }); if(!i) return;
+  panelInquiryId=id;
+  $('sp-sub').textContent='Overseas Enquiry';
+  $('sp-title').textContent='#'+inquiryRef(i.id);
+
+  /* mailto: and tel: rather than a copy button. Replying is the entire job of
+     this page, and the reply happens in the operator's mail client — the panel
+     should hand them the draft, not the address to retype. */
+  var subject=encodeURIComponent('Your ShipEast overseas request #'+inquiryRef(i.id));
+  var contactHtml=
+    row('Name',esc(i.customerName))+
+    row('Email',i.contactEmail
+      ?'<a class="sp-val sm" href="mailto:'+esc(i.contactEmail)+'?subject='+subject+'">'+esc(i.contactEmail)+'</a>'
+      :'—',true)+
+    row('Phone',i.contactPhone
+      ?'<a class="sp-val num" href="tel:'+esc(i.contactPhone.replace(/[^0-9+]/g,''))+'">'+esc(i.contactPhone)+'</a>'
+      :'—')+
+    row('Sending from',esc(i.originCountry));
+
+  var recipientHtml=
+    row('Recipient',esc(i.recipientName))+
+    row('Phone',i.recipientPhone
+      ?'<a class="sp-val num" href="tel:'+esc(i.recipientPhone.replace(/[^0-9+]/g,''))+'">'+esc(i.recipientPhone)+'</a>'
+      :'—')+
+    row('Address','<span class="sp-val sm">'+esc(i.recipientAddress)+'</span>',true)+
+    row('Parish',esc(i.recipientParish));
+
+  var shipmentHtml=
+    row('Category',esc(i.itemCategory))+
+    row('Weight','<span class="num">'+esc(inquiryWeight(i.weightKg))+'</span>')+
+    '<div class="sp-row"><span class="sp-lbl">Contents</span></div>'+
+    '<div class="empty-copy" style="max-width:none">'+esc(i.itemDescription)+'</div>'+
+    (i.notes?'<div class="sp-row"><span class="sp-lbl">Customer notes</span></div>'+
+      '<div class="empty-copy" style="max-width:none">'+esc(i.notes)+'</div>':'');
+
+  var handledHtml=
+    row('Received',esc(i.createdAt?fmtStamp(i.createdAt):'Just now'))+
+    (i.updatedAt?row('Last updated',esc(fmtStamp(i.updatedAt))):'')+
+    (i.handledBy?row('Handled by','<span class="sp-val sm num">'+esc(i.handledBy)+'</span>',true):'');
+
+  var options=[i.status].concat(Overseas.nextStatuses(i.status)).map(function(st){
+    return '<option value="'+st+'"'+(st===i.status?' selected':'')+'>'+esc(Overseas.LABEL[st])+'</option>';
+  }).join('');
+
+  $('sp-body').innerHTML=
+    '<div class="sp-sec"><div class="sp-sec-title">Status</div>'+
+      '<div class="sp-row"><span class="sp-lbl">Now</span><span class="sp-val">'+inquiryBadge(i.status)+'</span></div>'+
+    '</div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Customer</div>'+contactHtml+'</div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Delivering To</div>'+recipientHtml+'</div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Shipment</div>'+shipmentHtml+'</div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Handling</div>'+handledHtml+'</div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Update</div>'+
+      '<div class="fr"><label for="sp-inq-status">Status</label>'+
+        '<select id="sp-inq-status">'+options+'</select></div>'+
+      // Internal: the customer never sees this, which is exactly why it needs
+      // saying on the label. An operator who assumes otherwise writes the reply
+      // in here and nobody receives it.
+      '<div class="fr"><label for="sp-inq-note">Internal note — not shown to the customer</label>'+
+        '<textarea id="sp-inq-note" rows="4" maxlength="1000" '+
+        'placeholder="Carrier quoted, waiting on dimensions…">'+esc(i.adminNote)+'</textarea></div>'+
+      '<button class="btn btn-primary btn-block" data-action="save-inquiry" data-iid="'+esc(i.id)+'">'+
+        icon('check')+'Save</button>'+
+      '<div class="sc-sub" style="margin-top:8px">The customer sees the status change in '+
+        'their app. Reply to them by email — this panel does not send anything.</div>'+
+    '</div>';
+  openSidePanel();
+}
+
+function saveInquiry(id){
+  var i=inquiries.find(function(x){ return x.id===id; }); if(!i) return;
+  var status=(($('sp-inq-status')||{}).value||i.status);
+  var note=(($('sp-inq-note')||{}).value||'').trim();
+  if(status===i.status&&note===i.adminNote){ toast('info','Nothing changed.'); return; }
+
+  /* Exactly the five fields firestore.rules permits an admin to touch. The
+     customer's own account of what they are sending is deliberately not among
+     them: it is what the carrier and customs get quoted against, so a wrong
+     description is a new enquiry rather than an edit. Sending a sixth field
+     here would fail the whole write. */
+  updateDoc(doc(db,'overseasInquiries',id),{
+    status:status,
+    adminNote:note,
+    handledBy:auth.currentUser?auth.currentUser.uid:'',
+    handledAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+  }).then(function(){
+    toast('success','Enquiry updated.');
+    // The listener refreshes the row; reopen so the panel agrees with it.
+    if(panelInquiryId===id) setTimeout(function(){ openInquiryPanel(id); },250);
+  }).catch(function(e){
+    toast('error',e.message,'Could not update the enquiry');
+  });
 }
 
 // ══════════════════════ PRICING (P5-01) ══════════════════════
@@ -2234,6 +2449,7 @@ function closeSidePanel(){
   // Cleared so a late address fetch cannot paint into a panel that has since
   // been closed or reopened on somebody else (P5-05).
   panelCustomerId=null;
+  panelInquiryId=null;
 }
 
 // ══════════════════════ EVENT DELEGATION ══════════════════════
@@ -2261,16 +2477,20 @@ document.addEventListener('click',function(e){
   var pb=t.closest('.pb'); if(pb){ setPeriod(pb.getAttribute('data-period')); return; }
   var mtab=t.closest('[data-mtab]'); if(mtab){ switchMerchantTab(mtab.getAttribute('data-mtab')); return; }
   var tab=t.closest('.tab[data-filter]'); if(tab){ ordersFilter=tab.getAttribute('data-filter'); renderOrders(); return; }
+  var otab=t.closest('.tab[data-otab]'); if(otab){ overseasFilter=otab.getAttribute('data-otab'); renderOverseas(); return; }
 
   var btn=t.closest('[data-action]'); if(!btn) return;
   var action=btn.getAttribute('data-action'),
       id=btn.getAttribute('data-id'),
       oid=btn.getAttribute('data-oid'),
-      cid=btn.getAttribute('data-cid');
+      cid=btn.getAttribute('data-cid'),
+      iid=btn.getAttribute('data-iid');
   switch(action){
     case 'view-order':      openOrderPanel(oid); break;
     case 'view-customer':   openCustomerPanel(cid); break;
     case 'toggle-customer': toggleCustomerDisabled(cid); break;
+    case 'view-inquiry':    openInquiryPanel(iid); break;
+    case 'save-inquiry':    saveInquiry(iid); break;
     case 'save-order':      saveOrderChanges(oid); break;
     case 'view-driver':     openDriverPanel(id); break;
     case 'edit-driver':     openDriverModal('edit',id); break;
@@ -2300,6 +2520,7 @@ document.addEventListener('change',function(e){
 document.addEventListener('input',function(e){
   if(e.target.id==='orders-search') renderOrders();
   if(e.target.id==='customers-search'){ customerSearch=e.target.value.trim(); renderCustomers(); }
+  if(e.target.id==='overseas-search'){ overseasSearch=e.target.value.trim(); renderOverseas(); }
   if(['pr-bands','pr-overage','pr-packing'].indexOf(e.target.id)>-1) renderPricingPreview();
   if(e.target.id==='n-title'||e.target.id==='n-msg') updPhonePreview();
   // The paste field and the dropzone are two ways to set one value. Typing a
@@ -2344,7 +2565,7 @@ window.addEventListener('resize',function(){
 function initApp(){
   $('tb-date').textContent=new Date().toLocaleDateString('en-JM',{weekday:'long',month:'long',day:'numeric'});
   renderDashboard(); renderOrders(); renderDrivers(); renderMerchants();
-  renderPromos(); renderNotifHist(); renderAnalytics();
+  renderPromos(); renderNotifHist(); renderAnalytics(); renderOverseas();
   updPromoPreview(); updPhonePreview(); renderEmojiPicker();
   startListeners();
 }
@@ -2361,8 +2582,9 @@ onAuthStateChanged(auth,function(user){
     $('login-page').style.display='flex';
     $('app').style.display='none';
     stopListeners();
-    orders=[]; drivers=[]; merchants=[]; promoCodes=[]; notifHistory=[];
-    loadedOnce={orders:false,drivers:false,merchants:false,promos:false,notifs:false};
+    orders=[]; drivers=[]; merchants=[]; promoCodes=[]; notifHistory=[]; customers=[]; inquiries=[];
+    loadedOnce={orders:false,drivers:false,merchants:false,promos:false,notifs:false,
+      customers:false,overseas:false};
     var btn=$('login-btn');
     if(btn){ btn.disabled=false; btn.innerHTML='Sign In'+icon('caret-right'); }
   }

@@ -23,9 +23,10 @@ class OrderType {
   /// A point-to-point courier job with no merchant and no goods.
   static const package = 'package';
 
-  /// Diaspora ordering. Reserved — the feature is gated behind a waitlist
-  /// (P5-02) and no order of this type can be created yet. It is declared here
-  /// so that when it lands it is not invented twice.
+  /// Diaspora ordering. Reserved — the feature is an enquiry that an admin
+  /// prices by hand (`overseasInquiries`), not an order, so no order of this
+  /// type can be created. It is declared here so that when overseas shipping
+  /// does become an order it is not invented twice.
   static const overseas = 'overseas';
 
   static const all = <String>[food, package, overseas];

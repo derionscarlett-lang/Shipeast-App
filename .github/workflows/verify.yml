@@ -75,6 +75,14 @@ jobs:
       - name: Test the package pricing editor
         run: node --test tools/test-pricing-form.mjs
 
+      # The overseas enquiry queue. An enquiry is a person waiting to hear back
+      # about sending something to their family, so the failure that matters is
+      # not a crash — it is an enquiry that quietly never appears in the queue
+      # an operator works from. Filtering, sorting and search live in an
+      # import-free module precisely so those cases can be pinned here.
+      - name: Test the overseas enquiry queue
+        run: node --test tools/test-overseas-status.mjs
+
   flutter:
     name: Flutter (${{ matrix.app }})
     runs-on: ubuntu-latest

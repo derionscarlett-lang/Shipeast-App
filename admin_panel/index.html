@@ -111,6 +111,14 @@
         <svg class="ic ni-fill" aria-hidden="true"><use href="#i-users"/></svg>
         <span class="lbl">Customers</span>
       </div>
+      <!-- Overseas shipping enquiries. The customer app used to point a WebView
+           at two placeholder form URLs and write nothing anywhere; there was no
+           queue for a request to land in, so there was no page to build. -->
+      <div class="ni" data-page="overseas" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-send"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-send"/></svg>
+        <span class="lbl">Overseas</span>
+      </div>
       <div class="sb-sec">Growth</div>
       <div class="ni" data-page="notifications" role="button" tabindex="0">
         <svg class="ic ni-line" aria-hidden="true"><use href="#i-notifications"/></svg>
@@ -269,6 +277,21 @@
         <div class="card"><div class="tbl-wrap"><table>
           <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Orders</th><th class="right">Lifetime Value</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="customers-tbody"></tbody>
+        </table></div></div>
+      </section>
+
+      <!-- ── OVERSEAS ENQUIRIES ── -->
+      <section class="page" id="page-overseas">
+        <div class="pg-hdr"><h1 class="pg-title">Overseas Enquiries</h1></div>
+        <div class="sg g3" id="overseas-stats"></div>
+        <div class="tabs" id="overseas-tabs" role="tablist"></div>
+        <div class="srch">
+          <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
+          <input id="overseas-search" placeholder="Search sender, recipient, parish, contents…" aria-label="Search overseas enquiries"/>
+        </div>
+        <div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Ref</th><th>From</th><th>Sending to</th><th>Parish</th><th>Contents</th><th class="right">Weight</th><th>Status</th><th>Received</th><th>Actions</th></tr></thead>
+          <tbody id="overseas-tbody"></tbody>
         </table></div></div>
       </section>
 

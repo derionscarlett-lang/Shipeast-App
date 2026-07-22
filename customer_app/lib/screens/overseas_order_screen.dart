@@ -1,56 +1,47 @@
-/// Overseas ordering — gated, with interest capture (P5-02).
+/// Overseas shipping — a real request form, answered by a real person.
 ///
 /// ## What was here before
 ///
-/// A `WebView` pointed at `https://tally.so/r/shipeast`, falling back to
+/// First a `WebView` pointed at `https://tally.so/r/shipeast`, falling back to
 /// `https://form.jotform.com/shipeast`. Neither is a form this project owns.
 /// The screen contained **zero** Firestore writes, so even in the best case —
-/// a form that loaded — nothing reached the system. In the actual case, both
+/// a form that loaded — nothing reached the system. In the actual case both
 /// URLs fail, the customer sees "Connection Error", and a person who wanted to
 /// send groceries home to family in Jamaica is told the internet is broken.
 ///
-/// ## Why this is gated rather than built
+/// Then it was an email waitlist: honest, but it recorded only that somebody
+/// was interested, not what they wanted to send. Every one of those still
+/// needed a phone call before anything could be priced.
 ///
-/// Overseas shipping needs customs declarations, dimensional weight, prohibited
-/// -item screening and a carrier integration. That is a project, not a screen,
-/// and the plan scopes it out explicitly. Half-building it would produce the
-/// same class of defect as the Packages form: a flow that accepts a commitment
-/// the business cannot honour.
+/// ## What it is now
 ///
-/// So the screen says what is true — this is not available yet — and does the
-/// one useful thing it can: records who wants it, so the work can be prioritised
-/// against real demand instead of a guess.
+/// A structured enquiry. The customer describes the shipment; it is written to
+/// `overseasInquiries`; the admin panel has a page for them where an operator
+/// works the queue and moves the status; the customer sees that status move
+/// here. No price is quoted and no payment is taken, because an overseas
+/// shipment is priced by carrier, route and customs classification and none of
+/// that lives in this system. Quoting one anyway would be the same defect in a
+/// more confident voice.
+///
+/// So the promise on this screen is exactly the one the business can keep:
+/// tell us what you want to send, and a person will come back to you.
 library;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../models/overseas_inquiry.dart';
 import '../services/firestore_service.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../widgets/se_app_bar.dart';
+import '../widgets/se_bottom_sheet.dart';
 import '../widgets/se_button.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_text_field.dart';
 import '../widgets/se_toast.dart';
-
-/// The `feature` value recorded on waitlist entries from this screen.
-const String kOverseasWaitlistFeature = 'overseas';
-
-/// Accepts anything with a local part, an `@`, a dot-bearing domain and no
-/// whitespace.
-///
-/// Deliberately permissive: the only thing an over-strict pattern achieves is
-/// rejecting a real customer's real address. The address is verified by sending
-/// to it, not by a regex.
-bool isPlausibleEmail(String input) {
-  final value = input.trim();
-  if (value.isEmpty || value.length > 320) return false;
-  if (value.contains(RegExp(r'\s'))) return false;
-  return RegExp(r'^[^@]+@[^@]+\.[^@.]+$').hasMatch(value);
-}
 
 class OverseasOrderScreen extends StatefulWidget {
   const OverseasOrderScreen({super.key});
@@ -60,9 +51,27 @@ class OverseasOrderScreen extends StatefulWidget {
 }
 
 class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
-  final _emailCtrl = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
+  final _origin = TextEditingController();
+  final _recipientName = TextEditingController();
+  final _recipientPhone = TextEditingController();
+  final _recipientAddress = TextEditingController();
+  final _description = TextEditingController();
+  final _weight = TextEditingController();
+  final _notes = TextEditingController();
+
+  String _parish = '';
+  String _category = '';
   bool _submitting = false;
-  bool _joined = false;
+
+  /// Populated only after a successful write, and shown instead of the form.
+  /// A confirmation that appears before the write lands is the original defect.
+  String? _submittedId;
+
+  /// Empty until the customer taps submit. Errors that appear while somebody is
+  /// still typing the first field read as nagging, not help.
+  Map<String, String> _errors = const {};
 
   static const LinearGradient _oceanGradient = LinearGradient(
     begin: Alignment.topLeft,
@@ -77,53 +86,103 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ));
-    // Pre-fill from the signed-in account. Most people will want the address
-    // they already gave us, and typing it again is friction with no purpose.
-    final email = FirebaseAuth.instance.currentUser?.email;
-    if (email != null) _emailCtrl.text = email;
+    // Pre-filled from the signed-in account. Most people want to be reached on
+    // the details they already gave us, and retyping them is friction with no
+    // purpose — but both stay editable, because the person paying is not
+    // always the person to call about a shipment.
+    final user = FirebaseAuth.instance.currentUser;
+    if (user?.email != null) _email.text = user!.email!;
+    if (user?.phoneNumber != null) _phone.text = user!.phoneNumber!;
   }
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    for (final c in [
+      _email,
+      _phone,
+      _origin,
+      _recipientName,
+      _recipientPhone,
+      _recipientAddress,
+      _description,
+      _weight,
+      _notes,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _join() async {
-    final email = _emailCtrl.text.trim();
-    if (!isPlausibleEmail(email)) {
-      SeToast.error(context, 'Enter an email address we can reach you at');
+  OverseasInquiryDraft get _draft => OverseasInquiryDraft(
+        contactEmail: _email.text,
+        contactPhone: _phone.text,
+        originCountry: _origin.text,
+        recipientName: _recipientName.text,
+        recipientPhone: _recipientPhone.text,
+        recipientAddress: _recipientAddress.text,
+        recipientParish: _parish,
+        itemCategory: _category,
+        itemDescription: _description.text,
+        weightKgRaw: _weight.text,
+        notes: _notes.text,
+      );
+
+  Future<void> _submit() async {
+    final draft = _draft;
+    final errors = draft.errors();
+    if (errors.isNotEmpty) {
+      setState(() => _errors = errors);
+      SeToast.error(context, 'Check the highlighted fields');
       return;
     }
-    setState(() => _submitting = true);
+
+    setState(() {
+      _errors = const {};
+      _submitting = true;
+    });
     try {
-      await FirestoreService.joinWaitlist(
-        feature: kOverseasWaitlistFeature,
-        email: email,
-      );
+      final id = await FirestoreService.submitOverseasInquiry(draft);
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _joined = true;
+        _submittedId = id;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      // Saying "we'll be in touch" after a failed write is the exact defect
-      // this screen exists to remove. Fail out loud.
-      SeToast.error(context, 'Could not save that. Please try again.');
+      // Telling somebody "we'll be in touch" after a failed write is precisely
+      // what this screen was rebuilt to stop. Fail out loud.
+      SeToast.error(context, 'Could not send that request. Please try again.');
     }
+  }
+
+  void _startAnother() {
+    setState(() {
+      _submittedId = null;
+      _errors = const {};
+      _recipientName.clear();
+      _recipientPhone.clear();
+      _recipientAddress.clear();
+      _description.clear();
+      _weight.clear();
+      _notes.clear();
+      _parish = '';
+      _category = '';
+      // Contact details and origin are deliberately kept: the same person is
+      // sending the next parcel from the same place.
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     return Scaffold(
       backgroundColor: SeColors.surface50,
       body: Column(
         children: [
           const SeGradientHeader(
-            title: 'Order for Family in Jamaica',
-            subtitle: 'Diaspora overseas ordering',
+            title: 'Send to Family in Jamaica',
+            subtitle: 'Overseas shipping enquiry',
             gradient: _oceanGradient,
             trailing: Icon(SeIcons.plane, size: 24, color: Colors.white),
           ),
@@ -135,9 +194,15 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                 children: [
                   _explainer(),
                   const SizedBox(height: 14),
-                  if (_joined) _confirmation() else _signupCard(),
-                  const SizedBox(height: 14),
-                  _alternative(),
+                  if (_submittedId != null)
+                    _confirmation(_submittedId!)
+                  else
+                    _form(),
+                  if (uid != null) ...[
+                    const SizedBox(height: 14),
+                    _myInquiries(uid),
+                  ],
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
@@ -146,6 +211,8 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
       ),
     );
   }
+
+  // ── Sections ───────────────────────────────────────────────────────────────
 
   Widget _explainer() => Container(
         padding: const EdgeInsets.all(16),
@@ -158,107 +225,423 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
           children: [
             Row(
               children: [
-                const Icon(SeIcons.plane, size: 20, color: SeColors.ocean500),
+                const Icon(SeIcons.info, size: 20, color: SeColors.ocean500),
                 const SizedBox(width: 8),
-                Text('Not available yet',
+                Text('How this works',
                     style: SeType.title.copyWith(color: SeColors.ocean500)),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              'Sending groceries, meals or gifts to family in Jamaica from '
-              'overseas involves customs and international carriers. We are '
-              'not ready to take those orders, and we would rather say so than '
-              'take your money and hope.',
+              'Overseas shipments are priced by the carrier, the route and what '
+              'is in the box, so we cannot quote one instantly. Send us the '
+              'details and a member of the team will come back to you with a '
+              'price. Nothing is charged until you agree to it.',
               style: SeType.bodyS.copyWith(color: const Color(0xFF0B6E66)),
             ),
           ],
         ),
       );
 
-  Widget _signupCard() => SeCard(
+  Widget _form() => SeCard(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Tell us you want it', style: SeType.h3),
+            Text('Shipment details', style: SeType.h3),
             const SizedBox(height: 4),
             Text(
-              'We will email you once, when overseas ordering opens. '
-              'Nothing else.',
+              'Everything here is something we need before we can price it.',
               style: SeType.bodyS.copyWith(color: SeColors.ink500),
             ),
-            const SizedBox(height: 14),
+
+            _sectionLabel('Where we reach you'),
             SeTextField(
-              controller: _emailCtrl,
-              label: 'Email',
+              controller: _email,
+              label: 'Your email',
               hint: 'you@example.com',
               icon: SeIcons.envelope,
               keyboardType: TextInputType.emailAddress,
+              errorText: _errors['contactEmail'],
             ),
             const SizedBox(height: 14),
-            SeButton(
-              label: _submitting ? 'Saving…' : 'Notify Me',
-              icon: SeIcons.check,
-              onPressed: _submitting ? null : _join,
+            SeTextField(
+              controller: _phone,
+              label: 'Your phone',
+              hint: '+1 555 123 4567',
+              icon: SeIcons.phone,
+              keyboardType: TextInputType.phone,
+              errorText: _errors['contactPhone'],
             ),
-          ],
-        ),
-      );
+            const SizedBox(height: 14),
+            SeTextField(
+              controller: _origin,
+              label: 'Sending from',
+              hint: 'City and country, e.g. Brooklyn, USA',
+              icon: SeIcons.plane,
+              errorText: _errors['originCountry'],
+            ),
 
-  Widget _confirmation() => SeCard(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: const BoxDecoration(
-                color: SeColors.successTint,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(SeIcons.checkCircle,
-                  size: 22, color: SeColors.success),
+            _sectionLabel('Who receives it in Jamaica'),
+            SeTextField(
+              controller: _recipientName,
+              label: 'Recipient name',
+              hint: 'Full name',
+              icon: SeIcons.user,
+              errorText: _errors['recipientName'],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("You're on the list", style: SeType.title),
-                  const SizedBox(height: 2),
-                  Text(
-                    'We saved ${_emailCtrl.text.trim()} and will email you when '
-                    'overseas ordering opens.',
+            const SizedBox(height: 14),
+            SeTextField(
+              controller: _recipientPhone,
+              label: 'Recipient phone',
+              hint: '876 000 0000',
+              icon: SeIcons.phone,
+              keyboardType: TextInputType.phone,
+              errorText: _errors['recipientPhone'],
+            ),
+            const SizedBox(height: 14),
+            SeTextField(
+              controller: _recipientAddress,
+              label: 'Delivery address',
+              hint: 'Street, town, any landmark',
+              icon: SeIcons.location,
+              keyboardType: TextInputType.streetAddress,
+              minLines: 2,
+              maxLines: 3,
+              errorText: _errors['recipientAddress'],
+            ),
+            const SizedBox(height: 14),
+            _pickerField(
+              label: 'Parish',
+              value: _parish,
+              hint: 'Choose a parish',
+              icon: SeIcons.locationLine,
+              options: JamaicaParish.all,
+              error: _errors['recipientParish'],
+              onPick: (v) => setState(() => _parish = v),
+            ),
+
+            _sectionLabel('What you are sending'),
+            _pickerField(
+              label: 'Category',
+              value: _category,
+              hint: 'Choose a category',
+              icon: SeIcons.packages,
+              options: OverseasItemCategory.all,
+              error: _errors['itemCategory'],
+              onPick: (v) => setState(() => _category = v),
+            ),
+            const SizedBox(height: 14),
+            SeTextField(
+              controller: _description,
+              label: 'Contents',
+              hint: 'e.g. 3 tins of ackee, 2 packs of rice, one t-shirt',
+              icon: SeIcons.note,
+              minLines: 2,
+              maxLines: 4,
+              errorText: _errors['itemDescription'],
+            ),
+            const SizedBox(height: 14),
+            SeTextField(
+              controller: _weight,
+              label: 'Approximate weight in kg (optional)',
+              hint: 'e.g. 4.5',
+              icon: SeIcons.scales,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              errorText: _errors['weightKgRaw'],
+            ),
+            const SizedBox(height: 14),
+            SeTextField(
+              controller: _notes,
+              label: 'Anything else (optional)',
+              hint: 'Timing, fragile items, questions',
+              icon: SeIcons.chat,
+              minLines: 2,
+              maxLines: 4,
+              errorText: _errors['notes'],
+            ),
+
+            const SizedBox(height: 12),
+            // Said before submitting, not after a shipment is refused at the
+            // airport. A customer who reads this and changes what they send has
+            // been served better than one we had to phone to say no to.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(SeIcons.warning, size: 16, color: SeColors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Cash, weapons, perishables and anything a carrier or '
+                    'Jamaica Customs prohibits cannot be shipped. We will tell '
+                    'you if what you have described is a problem.',
                     style: SeType.bodyS.copyWith(color: SeColors.ink500),
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SeButton(
+              label: _submitting ? 'Sending…' : 'Send Request',
+              icon: SeIcons.send,
+              loading: _submitting,
+              onPressed: _submitting ? null : _submit,
             ),
           ],
         ),
       );
 
-  Widget _alternative() => SeCard(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('In the meantime', style: SeType.title),
-            const SizedBox(height: 4),
-            Text(
-              'If someone in Jamaica can place the order, ShipEast delivers '
-              'food, groceries and packages across St. Thomas today.',
-              style: SeType.bodyS.copyWith(color: SeColors.ink500),
+  Widget _confirmation(String id) {
+    final ref = id.length <= 6 ? id.toUpperCase() : id.substring(0, 6).toUpperCase();
+    return SeCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: const BoxDecoration(
+                  color: SeColors.successTint,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(SeIcons.checkCircle,
+                    size: 22, color: SeColors.success),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Request sent', style: SeType.title),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Reference #$ref. We will reply to '
+                      '${_email.text.trim()} with a price.',
+                      style: SeType.bodyS.copyWith(color: SeColors.ink500),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SeButton(
+            label: 'Send Another Request',
+            icon: SeIcons.plus,
+            variant: SeButtonVariant.secondary,
+            onPressed: _startAnother,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The customer's own enquiries and where each one has got to.
+  ///
+  /// This is the half that makes the admin page mean something: an operator
+  /// moving a status is only useful if the person waiting can see it move.
+  Widget _myInquiries(String uid) => StreamBuilder<List<OverseasInquiry>>(
+        stream: FirestoreService.myOverseasInquiriesStream(uid),
+        builder: (context, snap) {
+          final list = snap.data ?? const <OverseasInquiry>[];
+          if (list.isEmpty) return const SizedBox.shrink();
+          return SeCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Your requests', style: SeType.h3),
+                const SizedBox(height: 10),
+                for (final inquiry in list) _inquiryRow(inquiry),
+              ],
             ),
-            const SizedBox(height: 12),
-            SeButton(
-              label: 'Browse Merchants',
-              icon: SeIcons.arrowRight,
-              variant: SeButtonVariant.secondary,
-              onPressed: () => Navigator.pop(context),
+          );
+        },
+      );
+
+  Widget _inquiryRow(OverseasInquiry inquiry) {
+    final open = OverseasStatus.isOpen(inquiry.status);
+    final declined = inquiry.status == OverseasStatus.declined;
+    final tint = declined
+        ? SeColors.dangerTint
+        : (open ? SeColors.oceanTint : SeColors.successTint);
+    final ink = declined
+        ? SeColors.danger
+        : (open ? SeColors.ocean500 : SeColors.success);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '#${inquiry.shortId} · ${inquiry.itemCategory}',
+                  style: SeType.title.copyWith(fontSize: 14),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: tint,
+                  borderRadius: SeRadius.all(SeRadius.sm),
+                ),
+                child: Text(
+                  OverseasStatus.label(inquiry.status),
+                  style: SeType.label.copyWith(color: ink, fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'To ${inquiry.recipientName}'
+            '${inquiry.recipientParish.isEmpty ? '' : ', ${inquiry.recipientParish}'}',
+            style: SeType.bodyS.copyWith(color: SeColors.ink500),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            OverseasStatus.explain(inquiry.status),
+            style: SeType.bodyS.copyWith(color: SeColors.ink400, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Building blocks ────────────────────────────────────────────────────────
+
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.only(top: 20, bottom: 12),
+        child: Text(text.toUpperCase(),
+            style: SeType.eyebrow.copyWith(color: SeColors.ink400)),
+      );
+
+  /// A read-only field that opens a sheet of choices.
+  ///
+  /// A dropdown, not a text box: parish and category are joined against fixed
+  /// lists on the admin side, and free text there means an operator sorting a
+  /// queue by destination misses "St Thomas", "st. thomas" and "StThomas".
+  Widget _pickerField({
+    required String label,
+    required String value,
+    required String hint,
+    required IconData icon,
+    required List<String> options,
+    required ValueChanged<String> onPick,
+    String? error,
+  }) {
+    final chosen = value.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: SeType.label.copyWith(color: SeColors.ink700)),
+        const SizedBox(height: 7),
+        InkWell(
+          borderRadius: SeRadius.inputRadius,
+          onTap: () => _openPicker(label, options, value, onPick),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+            decoration: BoxDecoration(
+              color: SeColors.surface50,
+              borderRadius: SeRadius.inputRadius,
+              border: Border.all(
+                color: error != null ? SeColors.danger : SeColors.ink200,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: SeColors.ink400),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    chosen ? value : hint,
+                    style: SeType.body.copyWith(
+                      color: chosen ? SeColors.ink900 : SeColors.ink400,
+                    ),
+                  ),
+                ),
+                const Icon(SeIcons.caretDown, size: 20, color: SeColors.ink400),
+              ],
+            ),
+          ),
+        ),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(error,
+                style: SeType.bodyS.copyWith(color: SeColors.danger)),
+          ),
+      ],
+    );
+  }
+
+  void _openPicker(
+    String title,
+    List<String> options,
+    String current,
+    ValueChanged<String> onPick,
+  ) {
+    showSeBottomSheet(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: SeSpacing.gutter,
+          right: SeSpacing.gutter,
+          top: 4,
+          bottom: MediaQuery.of(ctx).padding.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SeSheetHandle(),
+            const SizedBox(height: 8),
+            Text(title, style: SeType.h3),
+            const SizedBox(height: 8),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: options.map((option) {
+                    final selected = option == current;
+                    return InkWell(
+                      onTap: () {
+                        onPick(option);
+                        Navigator.pop(ctx);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        child: Row(
+                          children: [
+                            Icon(
+                              selected ? SeIcons.checkCircle : SeIcons.radioOff,
+                              size: 20,
+                              color: selected
+                                  ? SeColors.ocean500
+                                  : SeColors.ink300,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(option, style: SeType.body),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
             ),
           ],
         ),
-      );
+      ),
+    );
+  }
 }

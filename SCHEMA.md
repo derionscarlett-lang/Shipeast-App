@@ -183,7 +183,7 @@ raw status values are **never rendered to a user** — always through `OrderStat
 | `paymentMethod` | string | ✅ | customer @ create | admin | **Currently a display string, not a slug**: `'Cash on Delivery'` or `'PayPal'` (`payment_screen.dart:575`). PayPal is hardcoded disabled, so only the former is ever written. Should be normalised to `'cod'` / `'paypal'` — that is a migration, not a Phase 1 change, so readers match loosely until then. |
 | `deliveryAddress` | string | ✅ | customer @ create | driver, admin | |
 | `status` | string | ✅ | customer @ create (`pending`), driver, admin | all | Canonical vocabulary above. |
-| `type` | string | ✅ | customer @ create | all | `'food'` \| `'package'`. Written since P5-01; defaults to `'food'` when absent, which every pre-Phase-5 order legitimately is. `'overseas'` is **reserved and refused at create** — that feature is a waitlist (P5-02), so an order of that type could only come from a client that invented it. |
+| `type` | string | ✅ | customer @ create | all | `'food'` \| `'package'`. Written since P5-01; defaults to `'food'` when absent, which every pre-Phase-5 order legitimately is. `'overseas'` is **reserved and refused at create** — that feature is an enquiry an admin prices by hand (`overseasInquiries`), never an order, so an order of that type could only come from a client that invented it. |
 | `package` | map \| null | — | customer @ create | driver, admin | Present only when `type == 'package'`. `{itemCategory, pickupAddress, weightKg, weightBand, packingRequired, instructions}`. See below. |
 | `driverId` | string \| null | ✅ | driver @ accept, admin @ assign | all, rules | `null` = unclaimed. Explicit `null`, never `''` — `pendingOrdersStream` filters `isNull: true`. |
 | `driverName` | string \| null | — | driver @ accept, admin @ assign | customer, admin | Denormalised. |
@@ -465,24 +465,64 @@ PII kept off the parent document, which **every signed-in user can read** (P4-05
 
 ---
 
-## `waitlist/{entryId}`
+## `overseasInquiries/{inquiryId}`
 
-Interest in a feature that does not exist yet (P5-02). Create-only for a signed-in customer; no
-client can read, edit or delete one. Admin read.
+A request to ship something to family in Jamaica, and the record of how it was handled.
 
 Overseas ordering was a `WebView` pointed at two placeholder form URLs this project does not own,
 with **zero** Firestore writes. When both failed — which is what a placeholder URL does — the
-customer saw "Connection Error" and their interest went nowhere. This is where it goes now.
+customer saw "Connection Error" and their request went nowhere. It was then briefly an email-only
+waitlist, which recorded that somebody was interested but not what they wanted to send, so every
+entry still needed a phone call before anything could happen. This is the request itself.
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `feature` | string | ✅ | `'overseas'` today. |
-| `email` | string | ✅ | Max 320 chars, enforced in rules. Pre-filled from the Auth account. |
-| `userId` | string | ✅ | Pinned to the caller by rules, so the collection is not an anonymous write target. |
-| `createdAt` | Timestamp | ✅ | |
+**An enquiry is not an order.** No money, no driver, no `orders` lifecycle. An overseas shipment is
+priced by carrier, route, dimensional weight and customs classification, none of which is in this
+system — so nothing quotes a price here, and the customer is told a person will come back to them.
+Read the customer app's `overseas_inquiry.dart` header for why the alternative is dishonest.
 
-Entries are immutable: a signup is a fact about a moment, and an admin reconciling the list needs
-it not to move underneath them.
+Created by the customer; **handled** by the admin. Rules split it exactly there: the customer owns
+the request, the admin owns `status`, `adminNote`, `handledBy` and `handledAt`, and neither can
+write the other's half. Read access is the author or an admin — the document carries a household's
+name, phone number and street address.
+
+| Field | Type | Required | Written by | Notes |
+|---|---|---|---|---|
+| `customerId` | string | ✅ | customer @ create | Pinned to the caller by rules. |
+| `customerName` | string | ✅ | customer @ create | Denormalised from the Auth profile. |
+| `contactEmail` | string | ✅ | customer @ create | Max 320. How the quote is sent — the panel links a pre-addressed `mailto:`. |
+| `contactPhone` | string | ✅ | customer @ create | Max 120. The sender may be abroad, so a country code is expected. |
+| `originCountry` | string | ✅ | customer @ create | Free text, e.g. `'Brooklyn, USA'`. |
+| `recipientName` | string | ✅ | customer @ create | Max 120. |
+| `recipientPhone` | string | ✅ | customer @ create | Max 120. |
+| `recipientAddress` | string | ✅ | customer @ create | Max 400. A parish alone is not somewhere a courier can knock, so the form requires 8+ characters. |
+| `recipientParish` | string | ✅ | customer @ create | One of the 14 parishes (`JamaicaParish.all`). A dropdown, not free text: the panel groups the queue by this, and "St Thomas" / "st. thomas" as separate destinations is how an operator misses one. |
+| `itemCategory` | string | ✅ | customer @ create | From `OverseasItemCategory.all`. |
+| `itemDescription` | string | ✅ | customer @ create | Max 1000. What customs is told is in the box. |
+| `estimatedWeightKg` | double\|null | — | customer @ create | Optional — a customer who does not know what the box weighs can still ask. `null`, never `0`: zero is a weight, and would read as an empty box. |
+| `notes` | string | — | customer @ create | Max 1000. |
+| `status` | string | ✅ | customer @ create, admin @ update | `'new'` \| `'contacted'` \| `'quoted'` \| `'closed'` \| `'declined'`. Always `'new'` at create — rules refuse anything else, so a modified client cannot file a request that skips the queue. |
+| `adminNote` | string | — | **admin only** | Internal. Never shown to the customer; the panel says so on the label. Rules refuse it at create. |
+| `handledBy` | string | — | **admin only** | Admin uid. |
+| `handledAt` | Timestamp | — | **admin only** | |
+| `createdAt` | Timestamp | ✅ | customer @ create | `serverTimestamp()`, so it is briefly `null` on the client. Both the app and the panel sort an unresolved enquiry **first** — it is the newest thing there is, and the one most needing attention. |
+| `updatedAt` | Timestamp | ✅ | customer @ create, admin @ update | |
+
+### Handling
+
+Every status is reachable from every other. An operator who marks the wrong enquiry `declined` must
+be able to put it back; a one-way lifecycle only moves the correction into the Firebase console,
+which is the habit the panel exists to end. The panel orders the choices so the likely next step is
+first (`overseas-status.js` → `nextStatuses`).
+
+What an admin may **not** do is edit the customer's own account of what they are sending. It is what
+the carrier and customs are quoted against, so a wrong description is a new enquiry, not an edit.
+Rules enforce this with `changed().hasOnly([...])`.
+
+Enquiries are never deleted, by anyone. One is the only record of what somebody asked us to ship —
+including the ones we refused, and the reason given.
+
+The customer sees the status move, in the app, on the same screen they filed it from. That is what
+makes moving it worth anything.
 
 ---
 

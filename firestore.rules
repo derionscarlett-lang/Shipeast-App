@@ -176,9 +176,10 @@ service cloud.firestore {
                     // delivery. Defaulted rather than required, because every
                     // order written before P5-01 legitimately has no type and
                     // the migration backfills 'food'. 'overseas' is refused
-                    // here on purpose: the feature is a waitlist (P5-02), so an
-                    // order of that type could only come from a client that
-                    // invented it.
+                    // here on purpose: overseas shipping is an enquiry an
+                    // admin prices by hand (see /overseasInquiries), never an
+                    // order, so an order of that type could only come from a
+                    // client that invented it.
                     && incoming().get('type', 'food') in ['food', 'package']
                     && incoming().subtotal is int
                     && incoming().deliveryFee is int
@@ -287,24 +288,66 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // ── waitlist ─────────────────────────────────────────────────────────
-    // Interest in a feature that does not exist yet (P5-02). Overseas ordering
-    // was a WebView pointed at two placeholder form URLs; when both failed the
-    // customer saw "Connection Error" and their interest went nowhere.
+    // ── overseasInquiries ────────────────────────────────────────────────
+    // Requests for an overseas shipment quote. Overseas ordering was a WebView
+    // pointed at two placeholder form URLs; when both failed the customer saw
+    // "Connection Error" and their request went nowhere.
     //
-    // Create-only for a signed-in user, and no client read: the list is a set
-    // of email addresses belonging to other customers. Entries are never
-    // edited or deleted from a client — a signup is a fact about a moment, and
-    // an admin reconciling the list needs it not to move underneath them.
+    // An enquiry is not an order: no money, no driver, no lifecycle. What it
+    // does carry is a household's name, phone number and street address in
+    // Jamaica, plus a description of what is being sent to them — which is why
+    // the read rule is the author or an admin, and nobody else.
+    //
+    // The division of labour is the whole point of these rules: the customer
+    // owns the request, the admin owns the handling. Neither can write the
+    // other's half.
 
-    match /waitlist/{entryId} {
-      allow read: if isAdmin();
+    function overseasStatus() {
+      return ['new', 'contacted', 'quoted', 'closed', 'declined'];
+    }
+
+    match /overseasInquiries/{inquiryId} {
+
+      allow read: if isAdmin()
+                  || (signedIn() && existing().customerId == uid());
+
+      // Filed by the customer, always as 'new'. The handling fields are
+      // refused outright rather than ignored: a client that could create an
+      // enquiry already marked 'closed', or already carrying an internal note,
+      // could hide a request from the queue it exists to enter.
       allow create: if signedIn()
-                    && incoming().userId == uid()
-                    && incoming().email is string
-                    && incoming().email.size() <= 320
-                    && incoming().feature is string;
-      allow update, delete: if false;
+                    && incoming().customerId == uid()
+                    && incoming().status == 'new'
+                    && !incoming().keys().hasAny(
+                         ['adminNote', 'handledBy', 'handledAt'])
+                    && incoming().contactEmail is string
+                    && incoming().contactEmail.size() <= 320
+                    && incoming().contactPhone is string
+                    && incoming().contactPhone.size() <= 120
+                    && incoming().recipientName is string
+                    && incoming().recipientName.size() <= 120
+                    && incoming().recipientPhone is string
+                    && incoming().recipientPhone.size() <= 120
+                    && incoming().recipientAddress is string
+                    && incoming().recipientAddress.size() <= 400
+                    && incoming().itemDescription is string
+                    && incoming().itemDescription.size() <= 1000
+                    && incoming().get('notes', '').size() <= 1000;
+
+      // Handling is admin-only, and confined to the handling fields. The
+      // customer's own account of what they are sending is what customs and
+      // the carrier are quoted against, so nobody edits it after the fact —
+      // not even an admin. A wrong description is a new enquiry.
+      allow update: if isAdmin()
+                    && changed().hasOnly(
+                         ['status', 'adminNote', 'handledBy',
+                          'handledAt', 'updatedAt'])
+                    && incoming().status in overseasStatus();
+
+      // Kept, never deleted. An enquiry is a record of what somebody asked us
+      // to ship; deleting one loses the only account of a request that may
+      // have been declined for a reason worth being able to point at later.
+      allow delete: if false;
     }
 
     // ── pushLog ──────────────────────────────────────────────────────────

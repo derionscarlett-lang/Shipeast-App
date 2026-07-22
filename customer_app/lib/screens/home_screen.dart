@@ -656,10 +656,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Order for Family in Jamaica',
+                    // Not "Order for Family in Jamaica". Overseas shipping is
+                    // quoted by hand, so the banner promises what the screen
+                    // behind it actually does: a request, answered by a person.
+                    Text('Send to Family in Jamaica',
                         style: SeType.title.copyWith(color: Colors.white)),
                     const SizedBox(height: 2),
-                    Text('Living overseas? Send groceries & gifts home',
+                    Text('Living overseas? Ask us for a shipping quote',
                         style: SeType.bodyS.copyWith(
                             color: Colors.white.withValues(alpha: 0.85))),
                   ],

@@ -607,7 +607,7 @@ describe('Phase 4 — push plumbing and driver PII', () => {
   });
 });
 
-describe('Phase 5 — order types, cancellation and the waitlist', () => {
+describe('Phase 5 — order types, cancellation and overseas enquiries', () => {
   test('a customer CAN place a package order', async () => {
     // P5-01. A package job has no merchant and no goods: subtotal is 0, the
     // weight-band rate is the delivery fee and packing is the service fee.
@@ -635,8 +635,9 @@ describe('Phase 5 — order types, cancellation and the waitlist', () => {
   });
 
   test('an invented order type is rejected', async () => {
-    // 'overseas' is the interesting case: the feature is a waitlist (P5-02),
-    // so an order of that type could only come from a client that made it up.
+    // 'overseas' is the interesting case: that feature is an enquiry an admin
+    // prices by hand, never an order, so an order of that type could only come
+    // from a client that made it up.
     for (const type of ['overseas', 'freight', '', 'FOOD']) {
       await assertFails(
         addDoc(collection(asCustomer(), 'orders'), order({ type }))
@@ -712,53 +713,139 @@ describe('Phase 5 — order types, cancellation and the waitlist', () => {
     );
   });
 
-  test('a signed-in customer CAN join the waitlist', async () => {
+  // ── Overseas enquiries ──
+  // The customer owns the request; the admin owns the handling. Neither can
+  // write the other's half, and the enquiry carries a household's name, phone
+  // and street address in Jamaica — so the read rule matters as much as the
+  // write rules.
+
+  const inquiry = (over = {}) => ({
+    customerId: CUSTOMER,
+    customerName: 'Marcia Brown',
+    contactEmail: 'marcia@example.com',
+    contactPhone: '+1 718 555 0134',
+    originCountry: 'Brooklyn, USA',
+    recipientName: 'Delroy Brown',
+    recipientPhone: '876 555 0110',
+    recipientAddress: '14 Bay Street, Morant Bay',
+    recipientParish: 'St. Thomas',
+    itemCategory: 'Food & groceries',
+    itemDescription: '3 tins of ackee, 2 packs of rice',
+    estimatedWeightKg: 4.5,
+    notes: '',
+    status: 'new',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...over
+  });
+
+  test('a signed-in customer CAN file an overseas enquiry', async () => {
     await assertSucceeds(
-      addDoc(collection(asCustomer(), 'waitlist'), {
-        feature: 'overseas',
-        email: 'me@example.com',
-        userId: CUSTOMER,
-        createdAt: new Date()
-      })
+      addDoc(collection(asCustomer(), 'overseasInquiries'), inquiry())
     );
   });
 
-  test('a waitlist entry cannot be attributed to somebody else', async () => {
+  test('an enquiry cannot be attributed to somebody else', async () => {
     await assertFails(
-      addDoc(collection(asCustomer(), 'waitlist'), {
-        feature: 'overseas',
-        email: 'me@example.com',
-        userId: OTHER_CUSTOMER,
-        createdAt: new Date()
-      })
+      addDoc(collection(asCustomer(), 'overseasInquiries'),
+        inquiry({ customerId: OTHER_CUSTOMER }))
     );
   });
 
-  test('an anonymous visitor cannot join the waitlist', async () => {
+  test('an anonymous visitor cannot file an enquiry', async () => {
     await assertFails(
-      addDoc(collection(asAnon(), 'waitlist'), {
-        feature: 'overseas',
-        email: 'spam@example.com',
-        userId: null,
-        createdAt: new Date()
+      addDoc(collection(asAnon(), 'overseasInquiries'),
+        inquiry({ customerId: null }))
+    );
+  });
+
+  test('an enquiry cannot be created already handled', async () => {
+    // Both of these would let a modified client file a request that never
+    // enters the queue it exists to enter.
+    await assertFails(
+      addDoc(collection(asCustomer(), 'overseasInquiries'),
+        inquiry({ status: 'closed' }))
+    );
+    await assertFails(
+      addDoc(collection(asCustomer(), 'overseasInquiries'),
+        inquiry({ adminNote: 'already dealt with' }))
+    );
+  });
+
+  test('an enquiry cannot carry unbounded text', async () => {
+    await assertFails(
+      addDoc(collection(asCustomer(), 'overseasInquiries'),
+        inquiry({ itemDescription: 'x'.repeat(1001) }))
+    );
+    await assertFails(
+      addDoc(collection(asCustomer(), 'overseasInquiries'),
+        inquiry({ notes: 'x'.repeat(1001) }))
+    );
+  });
+
+  test('only the author and an admin can read an enquiry', async () => {
+    await seed('overseasInquiries/i1', inquiry());
+    await assertSucceeds(getDoc(doc(asCustomer(), 'overseasInquiries/i1')));
+    await assertSucceeds(getDoc(doc(asAdmin(), 'overseasInquiries/i1')));
+    // Another customer's household address and phone number.
+    await assertFails(getDoc(doc(asOtherCustomer(), 'overseasInquiries/i1')));
+    await assertFails(getDoc(doc(asAnon(), 'overseasInquiries/i1')));
+  });
+
+  test('an admin CAN work the enquiry through its statuses', async () => {
+    await seed('overseasInquiries/i2', inquiry());
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), 'overseasInquiries/i2'), {
+        status: 'contacted',
+        adminNote: 'Called, quoting for a 5kg box',
+        handledBy: ADMIN,
+        handledAt: new Date(),
+        updatedAt: new Date()
       })
     );
   });
 
-  test('nobody but an admin can read the waitlist', async () => {
-    // It is a list of other customers' email addresses.
-    await seed('waitlist/w1', { feature: 'overseas', email: 'a@b.com', userId: CUSTOMER });
-    await assertSucceeds(getDoc(doc(asAdmin(), 'waitlist/w1')));
-    await assertFails(getDoc(doc(asCustomer(), 'waitlist/w1')));
-    await assertFails(getDoc(doc(asAnon(), 'waitlist/w1')));
+  test('an admin cannot rewrite what the customer said they are sending', async () => {
+    // The customer's own description is what the carrier and customs are
+    // quoted against. A wrong one is a new enquiry, not an edit.
+    await seed('overseasInquiries/i3', inquiry());
+    await assertFails(
+      updateDoc(doc(asAdmin(), 'overseasInquiries/i3'), {
+        status: 'quoted',
+        itemDescription: 'one envelope'
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asAdmin(), 'overseasInquiries/i3'), {
+        recipientAddress: 'somewhere else'
+      })
+    );
   });
 
-  test('a waitlist entry cannot be edited or deleted, even by its author', async () => {
-    // A signup is a fact about a moment. An admin reconciling the list needs
-    // it not to move underneath them.
-    await seed('waitlist/w2', { feature: 'overseas', email: 'a@b.com', userId: CUSTOMER });
-    await assertFails(updateDoc(doc(asCustomer(), 'waitlist/w2'), { email: 'c@d.com' }));
-    await assertFails(deleteDoc(doc(asCustomer(), 'waitlist/w2')));
-    await assertFails(deleteDoc(doc(asAdmin(), 'waitlist/w2')));
+  test('an admin cannot invent a status', async () => {
+    await seed('overseasInquiries/i4', inquiry());
+    await assertFails(
+      updateDoc(doc(asAdmin(), 'overseasInquiries/i4'), { status: 'shipped' })
+    );
+  });
+
+  test('the customer cannot handle their own enquiry', async () => {
+    // Otherwise "quoted" would mean nothing: the person waiting on a price
+    // could set it themselves.
+    await seed('overseasInquiries/i5', inquiry());
+    await assertFails(
+      updateDoc(doc(asCustomer(), 'overseasInquiries/i5'), { status: 'quoted' })
+    );
+    await assertFails(
+      updateDoc(doc(asCustomer(), 'overseasInquiries/i5'), { adminNote: 'ship it free' })
+    );
+  });
+
+  test('an enquiry is never deleted, by anyone', async () => {
+    // It is the only record of what somebody asked us to ship, including the
+    // ones we refused and the reason we gave.
+    await seed('overseasInquiries/i6', inquiry());
+    await assertFails(deleteDoc(doc(asCustomer(), 'overseasInquiries/i6')));
+    await assertFails(deleteDoc(doc(asAdmin(), 'overseasInquiries/i6')));
   });
 });

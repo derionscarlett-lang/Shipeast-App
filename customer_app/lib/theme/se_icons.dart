@@ -78,6 +78,9 @@ class SeIcons {
   static const IconData phone = Icons.phone_rounded;
   static const IconData copy = Icons.content_copy_rounded;
   static const IconData share = Icons.share_rounded;
+  // Submitting a request to a person rather than to a queue — the overseas
+  // enquiry form, where nothing is bought and something is sent.
+  static const IconData send = Icons.send_rounded;
 
   // Chevrons / arrows
   static const IconData caretRight = Icons.chevron_right_rounded;

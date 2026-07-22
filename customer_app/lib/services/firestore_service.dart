@@ -5,6 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/order_status.dart';
 import '../models/order_type.dart';
+import '../models/overseas_inquiry.dart';
 import '../models/package_pricing.dart';
 import '../models/promo_code.dart';
 
@@ -230,29 +231,65 @@ class FirestoreService {
     });
   }
 
-  // ─── Waitlist (P5-02) ────────────────────────────────────────────────────────
+  // ─── Overseas enquiries ──────────────────────────────────────────────────────
 
-  /// Registers interest in a feature that does not exist yet.
+  /// Files a request for an overseas shipment quote.
   ///
   /// Overseas ordering was a WebView pointed at two placeholder form URLs. When
   /// both failed — which is what a placeholder URL does — the customer got
-  /// "Connection Error" and their interest was lost. This records it instead.
-  static Future<void> joinWaitlist({
-    required String feature,
-    required String email,
-  }) async {
+  /// "Connection Error" and their request was lost. Then it was an email-only
+  /// waitlist, which recorded that somebody was interested but not what they
+  /// wanted to send. This records the request itself, in a shape an operator
+  /// can price and reply to.
+  ///
+  /// Returns the new document id so the screen can quote it back.
+  static Future<String> submitOverseasInquiry(OverseasInquiryDraft draft) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Not authenticated');
-    await _db.collection('waitlist').add({
-      'feature': feature,
-      'email': email.trim(),
-      // Rules pin this to the caller. Without it the collection would be an
-      // anonymous write target for anyone holding the (public, necessarily
-      // public) API key.
-      'userId': user.uid,
+
+    // Validated here as well as in the form. The form is the only caller
+    // today; this is what stops the *next* caller filing an enquiry nobody
+    // can act on, and it is cheaper than discovering it in the panel.
+    final errors = draft.errors();
+    if (errors.isNotEmpty) {
+      throw ArgumentError('Overseas enquiry is incomplete: ${errors.keys.join(', ')}');
+    }
+
+    final ref = await _db.collection('overseasInquiries').add({
+      ...draft.toFirestore(
+        // Rules pin this to the caller. Without it the collection would be a
+        // write target attributable to anyone, for anyone holding the (public,
+        // necessarily public) API key.
+        customerId: user.uid,
+        customerName: user.displayName ?? draft.recipientName,
+      ),
       'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
+    return ref.id;
   }
+
+  /// The caller's own enquiries, newest first.
+  ///
+  /// Sorted client-side for the same reason [orderHistoryStream] is: an
+  /// `orderBy` alongside the `customerId` equality needs a composite index, and
+  /// a missing index fails the query outright rather than degrading.
+  static Stream<List<OverseasInquiry>> myOverseasInquiriesStream(String uid) =>
+      _db
+          .collection('overseasInquiries')
+          .where('customerId', isEqualTo: uid)
+          .snapshots()
+          .map((s) {
+            final list = s.docs
+                .map((d) => OverseasInquiry.fromMap(d.id, d.data()))
+                .toList();
+            list.sort((a, b) {
+              final at = a.createdAt ?? DateTime(0);
+              final bt = b.createdAt ?? DateTime(0);
+              return bt.compareTo(at);
+            });
+            return list;
+          });
 
   static Stream<List<Map<String, dynamic>>> orderHistoryStream(String uid) =>
       _db
