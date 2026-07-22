@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/order_status.dart';
+import '../models/order_type.dart';
 import '../models/package_pricing.dart';
 import '../models/promo_code.dart';
 
