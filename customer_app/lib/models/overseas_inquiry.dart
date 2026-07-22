@@ -238,9 +238,14 @@ class OverseasInquiryDraft {
     if (!isPlausiblePhone(recipientPhone)) {
       e['recipientPhone'] = 'A number for the person receiving it';
     }
-    if (recipientAddress.trim().length < 8) {
-      // A parish alone is not somewhere a courier can knock.
-      e['recipientAddress'] = 'A street address, not just a town';
+    // A town alone — "Kingston", "Morant Bay" — is not somewhere a courier can
+    // knock. An address names at least two things, so it carries either a
+    // number or a comma between street and town. Requiring a number alone
+    // would reject the many rural Jamaican addresses that have none, which is
+    // the more expensive of the two mistakes; hence either, not both.
+    final address = recipientAddress.trim();
+    if (address.length < 10 || !address.contains(RegExp(r'[0-9,]'))) {
+      e['recipientAddress'] = 'Street and town, e.g. “Top Road, Cedar Valley”';
     }
     if (!JamaicaParish.all.contains(recipientParish)) {
       e['recipientParish'] = 'Choose the parish';

@@ -169,6 +169,14 @@ void main() {
       // A town name alone is not somewhere a courier can knock.
       expect(valid(recipientAddress: 'Kingston').errors(),
           contains('recipientAddress'));
+      expect(valid(recipientAddress: 'Morant Bay').errors(),
+          contains('recipientAddress'));
+    });
+
+    test('accepts a rural address with no house number', () {
+      // Plenty of Jamaican addresses have none. Requiring a digit would reject
+      // a real one, which is the more expensive of the two mistakes.
+      expect(valid(recipientAddress: 'Top Road, Cedar Valley').errors(), isEmpty);
     });
 
     test('parish and category must come from the lists, not free text', () {
