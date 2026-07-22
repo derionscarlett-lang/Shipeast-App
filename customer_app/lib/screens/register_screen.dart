@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/notification_service.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
@@ -72,6 +73,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'email': email,
         'createdAt': FieldValue.serverTimestamp(),
       });
+      await NotificationService.onSignedIn(cred.user!.uid);
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } on FirebaseAuthException catch (e) {
       if (mounted) {

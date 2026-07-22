@@ -113,13 +113,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'vehicleType': _selectedVehicle,
         'vehicleModel': _vehicleModelController.text.trim(),
         'licencePlate': _licencePlateController.text.trim(),
-        'licenceNumber': _licenceNumberController.text.trim(),
+        // licenceNumber is deliberately absent — see below.
         'status': 'pending',
         'isOnline': false,
         'rating': 5.0,
         'totalTrips': 0,
         'createdAt': FieldValue.serverTimestamp(),
       });
+      // The licence number goes to the private subcollection, never onto
+      // drivers/{uid} (P4-05). The parent document is readable by every
+      // signed-in user — it has to be, because the customer's tracking card
+      // shows the driver's name and vehicle — so a licence number there was
+      // readable by every customer who had ever placed an order.
+      final licence = _licenceNumberController.text.trim();
+      if (licence.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('drivers')
+            .doc(uid)
+            .collection('private')
+            .doc('identity')
+            .set({
+          'licenceNumber': licence,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,

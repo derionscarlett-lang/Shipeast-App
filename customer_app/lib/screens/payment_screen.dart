@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
+import '../services/notification_service.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
@@ -620,6 +622,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
       } else {
         orderId = '';
       }
+      // The one permission prompt, spent here (P4-03). The order exists, so
+      // "we'll tell you when your driver is on the way" is an offer rather
+      // than an interruption from an app the customer has not used yet.
+      // Deliberately not awaited: the confirmation screen must not wait on a
+      // system dialog, and the result changes nothing about this order.
+      unawaited(NotificationService.maybeRequestAfterOrder());
       if (!mounted) return;
       Provider.of<CartProvider>(context, listen: false).clearCart();
       Navigator.pushNamedAndRemoveUntil(

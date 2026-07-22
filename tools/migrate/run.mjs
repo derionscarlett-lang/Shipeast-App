@@ -195,8 +195,21 @@ async function main() {
         if (!args.dryRun) {
           const payload = {};
           for (const [k, v] of Object.entries(updates)) {
+            if (k === '_subdocs') continue;   // handled below, not a field
             payload[k] = v === DELETE ? admin.firestore.FieldValue.delete() : v;
           }
+
+          /* Subcollection writes, for migrations that MOVE data rather than
+             rename it (P4-05 moves licenceNumber to private/identity). Queued
+             before the parent update so a single batch either writes the copy
+             and deletes the original, or does neither — an interrupted run can
+             never leave the value nowhere. */
+          for (const sub of updates._subdocs ?? []) {
+            batch.set(docSnap.ref.collection(sub.path[0]).doc(sub.path[1]),
+              sub.data, { merge: true });
+            batchWrites++;
+          }
+
           batch.update(docSnap.ref, payload);
           batchWrites++;
         }

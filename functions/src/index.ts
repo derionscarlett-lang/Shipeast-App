@@ -16,6 +16,15 @@ export { redeemPromo } from './redeemPromo';   // P3-03
 export { confirmDelivery } from './delivery';  // P3-04
 export { submitRating } from './rating';       // P3-05
 
+// Phase 4 — the capabilities that did not exist at all.
+export {
+  onNotificationCreated,   // fixes the admin's "All Drivers" dead end
+  onOrderCreated,          // a backgrounded driver finally hears about an order
+  onOrderStatusChanged,
+  onDriverStatusChanged
+} from './notifications';   // P4-04
+export { createDriverAccount } from './drivers';  // P4-05
+
 /**
  * Proves the deploy pipeline works end to end (P2-03's acceptance criterion).
  * Deliberately trivial and unauthenticated — it reveals nothing.

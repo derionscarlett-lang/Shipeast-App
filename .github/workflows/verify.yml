@@ -61,6 +61,13 @@ jobs:
       - name: Test the data migrations
         run: node --test tools/migrate/migrations.test.mjs
 
+      # The panel's image pipeline (P4-01/P4-02). `image-upload.js` is
+      # deliberately import-free so it loads in plain Node: what we refuse to
+      # upload, what we resize to, and whether a stored image is ours before we
+      # delete it are all decidable here rather than in a browser.
+      - name: Test the admin image pipeline
+        run: node --test tools/test-image-upload.mjs
+
   flutter:
     name: Flutter (${{ matrix.app }})
     runs-on: ubuntu-latest
@@ -218,7 +225,7 @@ jobs:
       # syntax error blanks the page in production with no build step to catch
       # it. These two steps are that missing build step.
       - name: Syntax check
-        run: node --check app.js
+        run: node --check app.js && node --check image-upload.js
 
       - name: Lint
-        run: npx eslint app.js
+        run: npx eslint app.js image-upload.js

@@ -5,7 +5,9 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import{getFirestore,collection,doc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{getFirestore,collection,doc,getDoc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{getStorage,ref,uploadBytesResumable,getDownloadURL,deleteObject,listAll}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+import{getFunctions,httpsCallable}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
 // ── Firebase Config ──
 // Lives in config.js so the panel can target staging during the Phase 1–3
@@ -13,10 +15,13 @@ import{getFirestore,collection,doc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,
 // environment, so it is always visible which database is being mutated.
 import{firebaseConfig}from'./config.js';
 import*as OrderStatus from'./order-status.js';
+import{createUploader,merchantCoverPath,menuItemPath,storagePathFromUrl}from'./image-upload.js';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
+const storage=getStorage(app);
+const fns=getFunctions(app);
 
 // ══════════════════════ LOCAL DATA MIRRORS ══════════════════════
 var orders=[],drivers=[],merchants=[],promoCodes=[],notifHistory=[];
@@ -26,7 +31,7 @@ var analyticsStats={
   'This Month':[{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
 };
 var currentPeriod='Today',ordersFilter='All',driverMode='add',driverEditId=null,merchantMode='add',merchantEditId=null,unsubscribers=[];
-var panelMerchantId=null,menuItemsUnsub=null,menuItemEditId=null,panelMenuItems=[];
+var panelMerchantId=null,menuItemsUnsub=null,menuItemEditId=null,panelMenuItems=[],menuItemUploader=null;
 var loadedOnce={orders:false,drivers:false,merchants:false,promos:false,notifs:false};
 
 // ══════════════════════ PRIMITIVES ══════════════════════
@@ -43,6 +48,49 @@ function icon(name,cls){ return '<svg class="ic '+(cls||'')+'" aria-hidden="true
    for thousands grouping only; it is not what chooses the symbol. */
 function money(n){ return '$'+Math.round(Number(n)||0).toLocaleString('en-JM'); }
 function parseAmt(a){ var n=parseFloat(String(a==null?'0':a).replace(/[^0-9.]/g,'')); return isNaN(n)?0:n; }
+
+// ══════════════════════ STORAGE (P4-01/P4-02) ══════════════════════
+/* The only three Storage operations the panel performs. Injected into
+   createUploader so image-upload.js stays free of imports and testable. */
+
+/** Resumable so the progress bar reports real bytes, not a fake animation. */
+function storageUpload(blob,path,onProgress){
+  return new Promise(function(resolve,reject){
+    var task=uploadBytesResumable(ref(storage,path),blob,{contentType:'image/jpeg'});
+    task.on('state_changed',
+      function(snap){
+        if(onProgress&&snap.totalBytes) onProgress(Math.round((snap.bytesTransferred/snap.totalBytes)*100));
+      },
+      reject,
+      function(){ getDownloadURL(task.snapshot.ref).then(resolve,reject); }
+    );
+  });
+}
+
+/** Deletes an object only if the URL is one we uploaded. A merchant whose
+    imageUrl is a pasted third-party link must be left untouched — the paste
+    field still exists because existing merchants depend on it. */
+function storageRemove(url){
+  var path=storagePathFromUrl(url);
+  if(!path) return Promise.resolve();
+  return deleteObject(ref(storage,path)).catch(function(e){
+    // Already gone is the outcome we wanted. Anything else is logged, not
+    // surfaced: a failed cleanup must never block the admin's actual save.
+    if(e&&e.code!=='storage/object-not-found') console.warn('storage delete:',e.code||e.message);
+  });
+}
+
+/** Recursively empties a Storage folder. Used on merchant delete so the
+    bucket does not accumulate covers and menu photos for merchants that no
+    longer exist — nothing else would ever reference them again. */
+function storageRemoveFolder(path){
+  return listAll(ref(storage,path)).then(function(res){
+    return Promise.all(
+      res.items.map(function(item){ return deleteObject(item).catch(function(){}); })
+        .concat(res.prefixes.map(function(p){ return storageRemoveFolder(p.fullPath); }))
+    );
+  }).catch(function(e){ console.warn('storage list:',e.code||e.message); });
+}
 
 // ── Toasts (replaces every alert()) ──
 var TOAST_ICON={success:'success',error:'error',warning:'warning',info:'info'};
@@ -365,7 +413,8 @@ function startListeners(){
             deliveryFee:Math.round(parseAmt(o.deliveryFee!=null?o.deliveryFee:o.fee)),
             rating:o.averageRating||o.rating||0,
             ratingCount:Number(o.ratingCount)||0,
-            open:isOpenVal,imageUrl:o.imageUrl||o.image||'',_docId:d.id};
+            open:isOpenVal,imageUrl:o.imageUrl||o.image||'',
+            emoji:o.emoji||'',_docId:d.id};
         });
         loadedOnce.merchants=true;
         renderMerchants();renderTopMerch();
@@ -852,31 +901,108 @@ function openDriverModal(mode,id){
   $('d-plate').value   =d?d.plate:'';
   $('d-dlicence').value=d?d.dlicence:'';
   $('d-status').value  =d?(d.approved?'Active':'Inactive'):'Active';
+  // A new driver is always created pending — the callable ignores this field
+  // on creation, so showing it as editable would be a lie.
+  $('d-status').disabled=!isEdit;
+  $('d-status-note').hidden=isEdit;
+  $('d-email').readOnly=isEdit;   // the email IS the account key
+  if(isEdit) loadDriverLicence(id);
   openModal('modal-driver');
 }
+/* The licence number lives in drivers/{uid}/private/identity (P4-05), not on
+   the parent document. Old records still hold it on the parent; the mirror's
+   `dlicence` covers those, and this overwrites it when the private copy
+   exists. Async on purpose — the modal must open immediately. */
+function loadDriverLicence(id){
+  getDoc(doc(db,'drivers',id,'private','identity')).then(function(snap){
+    if(!snap.exists()||driverEditId!==id) return;
+    var v=snap.data().licenceNumber;
+    if(v) $('d-dlicence').value=v;
+  }).catch(function(){ /* no private record, or no access — keep what we have */ });
+}
+/* P4-05. "Add Driver" used to call addDoc, producing drivers/{randomId} with
+   no Auth account behind it. That person could never sign in, and when they
+   eventually self-registered they got a SECOND document — leaving the first
+   as an orphan that still appeared in the roster and could still be
+   "approved", approving nobody.
+
+   Creating an Auth account requires the Admin SDK, so this now goes through
+   the createDriverAccount callable (functions/src/drivers.ts). Editing an
+   existing driver still writes directly; only creation moved. */
+var createDriverAccount=httpsCallable(fns,'createDriverAccount');
+
 function saveDriver(){
   var name=$('d-name').value.trim();
   if(!name){ toast('warning','Full name is required.'); $('d-name').focus(); return; }
+  var email=$('d-email').value.trim();
+  var licence=$('d-dlicence').value.trim();
+  var btn=$('drv-save-btn'), isEdit=driverMode==='edit';
+  function restore(){ btn.disabled=false; btn.innerHTML=icon('check')+(isEdit?'Save Changes':'Add Driver'); }
+
+  if(!isEdit){
+    if(!email){ toast('warning','An email address is required — it is how the driver signs in.'); $('d-email').focus(); return; }
+    btn.disabled=true; btn.innerHTML='<span class="spin"></span>Creating account…';
+    createDriverAccount({
+      email:email,name:name,phone:$('d-phone').value.trim(),
+      vehicleType:$('d-vtype').value,vehicleModel:$('d-vehicle').value.trim(),
+      licencePlate:$('d-plate').value.trim(),licenceNumber:licence
+    }).then(function(res){
+      var data=res.data||{};
+      closeModal('modal-driver'); restore();
+      toast('success',data.note||'Driver account created.','Driver invited');
+      // The status dropdown is deliberately ignored on creation: an
+      // admin-created driver is still an application, and approval stays a
+      // separate, deliberate act on the roster.
+      if(data.inviteLink) showInviteLink(data.email,data.inviteLink);
+    }).catch(function(e){
+      toast('error',e.message,'Could not add driver'); restore();
+    });
+    return;
+  }
+
   var active=$('d-status').value==='Active';
-  var obj={name:name,phone:$('d-phone').value.trim()||'—',email:$('d-email').value.trim()||'—',
+  var obj={name:name,phone:$('d-phone').value.trim()||'—',email:email||'—',
     vehicleType:$('d-vtype').value,vehicleModel:$('d-vehicle').value.trim()||'—',
     licencePlate:$('d-plate').value.trim().toUpperCase()||'—',
-    licenceNumber:$('d-dlicence').value.trim()||'—',
     status:active?'approved':'pending',isOnline:active,
     updatedAt:serverTimestamp()};
-  var btn=$('drv-save-btn'), isEdit=driverMode==='edit';
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Saving…';
-  var promise;
-  if(isEdit){ promise=updateDoc(doc(db,'drivers',driverEditId),obj); }
-  else{ obj.rating=5.0; obj.totalTrips=0; obj.createdAt=serverTimestamp(); promise=addDoc(collection(db,'drivers'),obj); }
-  promise.then(function(){
-    closeModal('modal-driver');
-    btn.disabled=false;
-    toast('success',isEdit?'Driver updated.':'Driver added.');
-  }).catch(function(e){
-    toast('error',e.message,'Could not save driver');
-    btn.disabled=false; btn.innerHTML=icon('check')+(isEdit?'Save Changes':'Add Driver');
-  });
+  /* licenceNumber is NOT in `obj`. drivers/{uid} is readable by any signed-in
+     user — it has to be, because the customer's tracking card shows the
+     driver's name and vehicle — so a licence number there is readable by
+     every customer who ever placed an order. It goes to the private
+     subcollection, which only the driver and an admin can read. */
+  updateDoc(doc(db,'drivers',driverEditId),obj)
+    .then(function(){
+      if(!licence||licence==='—') return;
+      return setDoc(doc(db,'drivers',driverEditId,'private','identity'),
+        {licenceNumber:licence,updatedAt:serverTimestamp()},{merge:true});
+    })
+    .then(function(){
+      closeModal('modal-driver'); restore();
+      toast('success','Driver updated.');
+    }).catch(function(e){
+      toast('error',e.message,'Could not save driver'); restore();
+    });
+}
+/* The invite is a password-reset link, so no temporary password is ever
+   transmitted or stored. It is shown once, for the admin to pass on. */
+function showInviteLink(email,link){
+  $('cf-ico').className='m-ico warning';
+  $('cf-ico').innerHTML=icon('send','ic-lg');
+  $('cf-title').textContent='Invite link for '+email;
+  $('cf-body').innerHTML='Send this link so they can set a password and sign in. '+
+    'It is shown once.<br><textarea readonly rows="3" class="invite-link" '+
+    'aria-label="Invite link">'+esc(link)+'</textarea>';
+  var ok=$('cf-ok'); ok.textContent='Copy link'; ok.className='btn btn-primary';
+  confirmResolve=function(copy){
+    $('cf-body').innerHTML='';
+    if(!copy) return;
+    navigator.clipboard.writeText(link)
+      .then(function(){ toast('success','Invite link copied.'); })
+      .catch(function(){ toast('warning','Copy failed — select the link and copy it manually.'); });
+  };
+  openModal('modal-confirm');
 }
 function deleteDriver(id){
   var d=drivers.find(function(x){ return x.id===id; }); if(!d) return;
@@ -1000,6 +1126,57 @@ function renderMerchants(){
     '</tr>';
   }).join('');
 }
+/* ── Merchant cover uploader (P4-01) ──────────────────────────────────
+   Built once and re-pointed at whichever merchant is open. The single
+   source of truth for the value stays `#m-imageurl`, so `saveMerchant`
+   below is unchanged by this feature and the "or paste a URL" escape
+   hatch keeps working for merchants that already depend on it. */
+var merchantUploader=null;
+function mountMerchantUploader(){
+  if(merchantUploader) return merchantUploader;
+  merchantUploader=createUploader({
+    inputId:'m-image-file',
+    title:'Drop the merchant photo here',
+    hint:'or click to browse · JPEG, PNG or WebP · resized to 1600×800 · max 5 MB',
+    maxW:1600,maxH:800,minW:800,minH:400,
+    // There is no merchantId until the document exists, so a new merchant is
+    // saved first and the upload zone unlocks on the second step.
+    pathFor:function(){
+      if(!merchantEditId) throw new Error('Save the merchant first, then add a photo.');
+      return merchantCoverPath(merchantEditId);
+    },
+    upload:storageUpload,
+    removeObject:storageRemove,
+    onChange:function(url){ $('m-imageurl').value=url; },
+    toast:toast
+  });
+  $('m-image-drop').appendChild(merchantUploader.el);
+  return merchantUploader;
+}
+/* Common category icons plus free text — the field is a string, not an enum,
+   so the picker is a shortcut rather than a constraint. */
+var EMOJI_CHOICES=['🍽️','🍔','🍕','🍗','🥘','🐟','🍞','☕','🥤','🍦','🛒','💊','📦','🏪','🌶️'];
+function renderEmojiPicker(){
+  var host=$('m-emoji-picker'); if(!host) return;
+  host.innerHTML=EMOJI_CHOICES.map(function(e){
+    return '<button type="button" class="emoji-opt" data-emoji="'+esc(e)+'" '+
+      'aria-label="Use '+esc(e)+'">'+esc(e)+'</button>';
+  }).join('');
+}
+function pickEmoji(e){
+  var input=$('m-emoji'); if(!input) return;
+  input.value=input.value===e?'':e;   // clicking the current one clears it
+  syncEmojiSelection();
+}
+function syncEmojiSelection(){
+  var current=($('m-emoji')||{}).value||'';
+  var host=$('m-emoji-picker'); if(!host) return;
+  Array.prototype.forEach.call(host.querySelectorAll('.emoji-opt'),function(b){
+    var on=b.getAttribute('data-emoji')===current;
+    b.classList.toggle('sel',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  });
+}
 function openMerchantModal(mode,id){
   merchantMode=mode; merchantEditId=id||null;
   var isEdit=mode==='edit';
@@ -1017,6 +1194,13 @@ function openMerchantModal(mode,id){
   $('m-address').value =m?m.address:'';
   $('m-status').value  =m?(m.open?'Open':'Closed'):'Open';
   $('m-imageurl').value=m?(m.imageUrl||''):'';
+  $('m-emoji').value   =m?(m.emoji||''):'';
+  syncEmojiSelection();
+
+  var up=mountMerchantUploader();
+  up.setValue(m?(m.imageUrl||''):'');
+  up.setEnabled(isEdit);
+  $('m-image-locked').hidden=isEdit;
   openModal('modal-merchant');
 }
 function saveMerchant(){
@@ -1046,6 +1230,10 @@ function saveMerchant(){
     deliveryTime:$('m-etatime').value.trim()||'25–35 min',
     deliveryFee:deliveryFee,
     isOpen:isOpenState,
+    // P4-02. Customer-facing display icon (home_screen.dart:672). Until now
+    // the panel had no input for it, so every admin-created merchant fell
+    // back to a generic plate while seeded ones had bespoke icons.
+    emoji:$('m-emoji').value.trim()||'',
     imageUrl:$('m-imageurl').value.trim()||'',updatedAt:serverTimestamp()};
   var btn=$('mer-save-btn'), isEdit=merchantMode==='edit';
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Saving…';
@@ -1058,10 +1246,31 @@ function saveMerchant(){
     obj.createdAt=serverTimestamp();
     promise=addDoc(collection(db,'merchants'),obj);
   }
-  promise.then(function(){
-    closeModal('modal-merchant');
+  promise.then(function(created){
     btn.disabled=false;
-    toast('success',isEdit?'Merchant updated.':'Merchant added.');
+    btn.innerHTML=icon('check')+(isEdit?'Save Changes':'Add Merchant');
+    if(isEdit){
+      closeModal('modal-merchant');
+      toast('success','Merchant updated.');
+      return;
+    }
+    /* A new merchant has no id until this write lands, and there is nowhere
+       to upload a photo to without one. Rather than leave the admin to find
+       the merchant again in the table, stay open and switch to edit mode —
+       the upload zone unlocks in place. */
+    toast('success','Merchant added — you can add a photo now.');
+    openMerchantModal('edit',created.id);
+    var live=merchants.find(function(x){ return x.id===created.id; });
+    if(!live){
+      // The snapshot listener has not delivered the new document yet, so
+      // openMerchantModal found nothing to prefill. Put the typed values back.
+      $('m-name').value=name; $('m-cat').value=obj.category;
+      $('m-owner').value=obj.owner; $('m-phone').value=obj.phone;
+      $('m-email').value=obj.email; $('m-fee').value=String(deliveryFee);
+      $('m-hours').value=obj.openingHours; $('m-etatime').value=obj.deliveryTime;
+      $('m-address').value=obj.address; $('m-status').value=isOpenState?'Open':'Closed';
+      $('m-emoji').value=obj.emoji; syncEmojiSelection();
+    }
   }).catch(function(e){
     toast('error',e.message,'Could not save merchant');
     btn.disabled=false; btn.innerHTML=icon('check')+(isEdit?'Save Changes':'Add Merchant');
@@ -1073,7 +1282,14 @@ function deleteMerchant(id){
     .then(function(ok){
       if(!ok) return;
       deleteDoc(doc(db,'merchants',id))
-        .then(function(){ toast('success','Merchant deleted.'); })
+        .then(function(){
+          toast('success','Merchant deleted.');
+          // Storage has no cascade. Without this the bucket keeps the cover
+          // and every menu photo for a merchant nothing references any more.
+          // Fire-and-forget: the document is already gone, and a failure to
+          // tidy up must not be reported as a failed delete.
+          storageRemoveFolder('merchants/'+id);
+        })
         .catch(function(e){ toast('error',e.message,'Delete failed'); });
     });
 }
@@ -1141,7 +1357,8 @@ function loadMenuItemsTab(merchantId){
       '<div class="fr"><label for="mi-cat">Category</label>'+
         '<select id="mi-cat"><option value="mains">Mains</option><option value="sides">Sides</option>'+
         '<option value="drinks">Drinks</option><option value="popular">Popular</option></select></div>'+
-      '<div class="fr"><label for="mi-img">Image URL <small>(optional)</small></label><input id="mi-img" placeholder="https://…"/></div>'+
+      '<div class="fr"><label>Item Photo</label><div id="mi-image-drop"></div></div>'+
+      '<div class="fr"><label for="mi-img">…or paste an image URL <small>(optional)</small></label><input id="mi-img" placeholder="https://…"/></div>'+
       '<div style="display:flex;gap:8px;margin-top:12px">'+
         '<button class="btn btn-outline" id="mi-cancel-btn" data-action="cancel-menu-item" style="flex:1;display:none">Cancel</button>'+
         '<button class="btn btn-primary" data-action="save-menu-item" style="flex:1">'+icon('check')+'Save Item</button>'+
@@ -1155,6 +1372,32 @@ function loadMenuItemsTab(merchantId){
       '<div style="flex:1"><div class="sk sk-line" style="width:44%;margin-bottom:7px"></div>'+
       '<div class="sk sk-line" style="width:28%"></div></div></div>'+
     '</div>';
+
+  /* P4-02. Same component as the merchant cover, smaller bounds — these
+     render as ~72px thumbnails in merchant_menu_screen.dart, so 1600px wide
+     would be four times the bytes for no visible gain. The panel is rebuilt
+     every time the tab opens, so the uploader is rebuilt with it. */
+  menuItemUploader=createUploader({
+    inputId:'mi-image-file',
+    title:'Drop the item photo here',
+    hint:'or click to browse · resized to 800×600 · max 5 MB',
+    maxW:800,maxH:600,minW:400,minH:300,
+    /* Unlike a merchant, a menu item can be photographed before it is saved:
+       the merchant folder already exists, so there is somewhere to put the
+       bytes. A not-yet-saved item has no id, hence the `draft` prefix; the
+       timestamp keeps two drafts apart, and anything abandoned is swept up
+       when the merchant is deleted. */
+    pathFor:function(){
+      if(!panelMerchantId) throw new Error('Open a merchant first.');
+      return menuItemPath(panelMerchantId,menuItemEditId||'draft');
+    },
+    upload:storageUpload,
+    removeObject:storageRemove,
+    onChange:function(url){ var f=$('mi-img'); if(f) f.value=url; },
+    toast:toast
+  });
+  $('mi-image-drop').appendChild(menuItemUploader.el);
+
   try{
     menuItemsUnsub=onSnapshot(
       collection(db,'merchants',merchantId,'menuItems'),
@@ -1205,6 +1448,7 @@ function editMenuItemFn(id){
   $('mi-price').value=item.price;
   $('mi-cat').value=item.category;
   $('mi-img').value=item.imageUrl;
+  if(menuItemUploader) menuItemUploader.setValue(item.imageUrl);
   $('mi-cancel-btn').style.display='';
   $('mi-name').scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'nearest'});
 }
@@ -1213,6 +1457,7 @@ function cancelMenuItemEdit(){
   $('mi-form-title').textContent='Add Menu Item';
   ['mi-name','mi-desc','mi-price','mi-img'].forEach(function(id){ var el=$(id); if(el) el.value=''; });
   var cat=$('mi-cat'); if(cat) cat.value='mains';
+  if(menuItemUploader) menuItemUploader.reset();
   var cb=$('mi-cancel-btn'); if(cb) cb.style.display='none';
 }
 function saveMenuItem(){
@@ -1236,8 +1481,12 @@ function deleteMenuItemFn(id){
   confirmDialog({title:'Delete menu item?',body:item?'“'+item.name+'” will be removed from this merchant’s menu.':'This item will be removed.',confirmLabel:'Delete item'})
     .then(function(ok){
       if(!ok) return;
+      var removedImage=item?item.imageUrl:'';
       deleteDoc(doc(db,'merchants',panelMerchantId,'menuItems',id))
-        .then(function(){ toast('success','Menu item deleted.'); })
+        .then(function(){
+          toast('success','Menu item deleted.');
+          if(removedImage) storageRemove(removedImage);
+        })
         .catch(function(e){ toast('error',e.message,'Delete failed'); });
     });
 }
@@ -1586,7 +1835,7 @@ function closeSidePanel(){
   $('sp-overlay').classList.remove('open');
   $('spanel').classList.remove('open');
   if(menuItemsUnsub){ menuItemsUnsub(); menuItemsUnsub=null; }
-  panelMerchantId=null; panelMenuItems=[];
+  panelMerchantId=null; panelMenuItems=[]; menuItemUploader=null;
 }
 
 // ══════════════════════ EVENT DELEGATION ══════════════════════
@@ -1605,6 +1854,8 @@ document.addEventListener('click',function(e){
   var cb=t.closest('[data-close]'); if(cb){ closeModal(cb.getAttribute('data-close')); return; }
   var mbg=t.closest('.mbg');
   if(mbg&&t===mbg){ if(mbg.id==='modal-confirm') settleConfirm(false); else closeModal(mbg.id); return; }
+
+  var eo=t.closest('.emoji-opt'); if(eo){ pickEmoji(eo.getAttribute('data-emoji')); return; }
 
   if(t.closest('#add-driver-btn')){ openDriverModal('add'); return; }
   if(t.closest('#add-merchant-btn')){ openMerchantModal('add'); return; }
@@ -1647,6 +1898,12 @@ document.addEventListener('change',function(e){
 document.addEventListener('input',function(e){
   if(e.target.id==='orders-search') renderOrders();
   if(e.target.id==='n-title'||e.target.id==='n-msg') updPhonePreview();
+  // The paste field and the dropzone are two ways to set one value. Typing a
+  // URL updates the preview, so the form never shows one image and saves
+  // another. `setValue` only paints — it does not touch Storage.
+  if(e.target.id==='m-imageurl'&&merchantUploader) merchantUploader.setValue(e.target.value.trim());
+  if(e.target.id==='mi-img'&&menuItemUploader) menuItemUploader.setValue(e.target.value.trim());
+  if(e.target.id==='m-emoji') syncEmojiSelection();
   if(['pc-code','pc-disc','pc-valid','pc-min','pc-maxdisc'].indexOf(e.target.id)>-1) updPromoPreview();
 });
 document.addEventListener('keydown',function(e){
@@ -1684,7 +1941,7 @@ function initApp(){
   $('tb-date').textContent=new Date().toLocaleDateString('en-JM',{weekday:'long',month:'long',day:'numeric'});
   renderDashboard(); renderOrders(); renderDrivers(); renderMerchants();
   renderPromos(); renderNotifHist(); renderAnalytics();
-  updPromoPreview(); updPhonePreview();
+  updPromoPreview(); updPhonePreview(); renderEmojiPicker();
   startListeners();
 }
 

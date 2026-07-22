@@ -426,15 +426,22 @@
     <div class="mg">
       <div class="fr"><label for="d-name">Full Name *</label><input id="d-name" placeholder="Devon Campbell"/></div>
       <div class="fr"><label for="d-phone">Phone Number</label><input id="d-phone" placeholder="876-xxx-xxxx"/></div>
-      <div class="fr"><label for="d-email">Email Address</label><input id="d-email" type="email" placeholder="driver@email.com"/></div>
+      <div class="fr"><label for="d-email">Email Address *</label><input id="d-email" type="email" placeholder="driver@email.com"/>
+        <div class="up-locked">This is how the driver signs in. They receive an invite link to set a password.</div>
+      </div>
       <div class="fr"><label for="d-vtype">Vehicle Type</label>
         <select id="d-vtype"><option>Car</option><option>Motorcycle</option><option>Van</option><option>Truck</option></select>
       </div>
       <div class="fr"><label for="d-vehicle">Vehicle Model</label><input id="d-vehicle" placeholder="Toyota Axio"/></div>
       <div class="fr"><label for="d-plate">Licence Plate Number</label><input id="d-plate" placeholder="PB 2341"/></div>
-      <div class="fr"><label for="d-dlicence">Driver's Licence Number</label><input id="d-dlicence" placeholder="JA-DL-00000"/></div>
+      <!-- P4-05: stored in drivers/{uid}/private/identity, never on the parent
+           document, which every signed-in user can read. -->
+      <div class="fr"><label for="d-dlicence">Driver's Licence Number <small>(private)</small></label><input id="d-dlicence" placeholder="JA-DL-00000"/></div>
       <div class="fr"><label for="d-status">Status</label>
         <select id="d-status"><option value="Active">Active</option><option value="Inactive">Inactive</option></select>
+        <!-- P4-05: a new driver is always created pending. The status here is
+             ignored on creation, so it is disabled rather than misleading. -->
+        <div id="d-status-note" class="up-locked" hidden>New drivers start as pending — approve them from the roster.</div>
       </div>
     </div>
     <div class="m-actions">
@@ -466,7 +473,25 @@
       </div>
     </div>
     <div class="fr"><label for="m-address">Address</label><input id="m-address" placeholder="Street address, Parish"/></div>
-    <div class="fr"><label for="m-imageurl">Merchant Image URL <small>(recommended 800×400 — Firebase Storage, Imgur, etc.)</small></label><input id="m-imageurl" placeholder="https://… (optional)"/></div>
+
+    <!-- P4-02: `emoji` is customer-facing display data (home_screen.dart:672)
+         that the panel had no input for, so admin-created merchants fell back
+         to a generic plate while seeded ones had bespoke icons. -->
+    <div class="fr"><label for="m-emoji">Display Icon <small>(shown on the customer home screen)</small></label>
+      <div class="emoji-row">
+        <input id="m-emoji" class="emoji-field" maxlength="8" placeholder="🍔"/>
+        <div id="m-emoji-picker" class="emoji-picker" role="group" aria-label="Common icons"></div>
+      </div>
+    </div>
+
+    <!-- P4-01: was a bare text field expecting a pasted URL. The dropzone is
+         injected here by app.js; the paste field below stays as a secondary
+         path because merchants configured before this feature depend on it. -->
+    <div class="fr"><label for="m-image-file">Merchant Photo <small>(recommended 1600×800)</small></label>
+      <div id="m-image-drop"></div>
+      <div id="m-image-locked" class="up-locked" hidden>Save the merchant first — a photo needs somewhere to live.</div>
+    </div>
+    <div class="fr"><label for="m-imageurl">…or paste an image URL <small>(optional)</small></label><input id="m-imageurl" placeholder="https://…"/></div>
     <div class="m-actions">
       <button class="btn btn-outline" data-close="modal-merchant">Cancel</button>
       <button class="btn btn-primary" id="mer-save-btn" data-action="save-merchant">Add Merchant</button>

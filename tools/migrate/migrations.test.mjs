@@ -231,6 +231,42 @@ describe('drivers', () => {
     const r = drivers.migrate({ vehicleModel: '—' });
     assert.equal(r.vehicleModel, null);
   });
+
+  test('the licence number moves to private/identity and leaves the parent', () => {
+    // drivers/{uid} is readable by every signed-in user, so a licence number
+    // there is readable by every customer who ever placed an order (P4-05).
+    const r = drivers.migrate({ licenceNumber: ' JA-DL-99887 ' });
+    assert.deepEqual(r._subdocs, [
+      { path: ['private', 'identity'], data: { licenceNumber: 'JA-DL-99887' } }
+    ]);
+    assert.equal(r.licenceNumber, DELETE);
+  });
+
+  test('the copy and the delete are one unit of work', () => {
+    // The runner queues both into a single batch. If they could land
+    // separately, an interrupted run would leave the number nowhere.
+    const r = drivers.migrate({ licenceNumber: 'JA-DL-1' });
+    assert.ok(r._subdocs && r.licenceNumber === DELETE);
+  });
+
+  test('an empty licence number is dropped, not copied as a blank record', () => {
+    // A blank private document is indistinguishable from a real one that
+    // failed to save.
+    for (const v of ['', '   ', '—']) {
+      const r = drivers.migrate({ licenceNumber: v });
+      assert.equal(r.licenceNumber, DELETE, JSON.stringify(v));
+      assert.equal(r._subdocs, undefined, JSON.stringify(v));
+    }
+  });
+
+  test('a driver already migrated is left alone', () => {
+    // Idempotence: the second run finds no licenceNumber on the parent and
+    // must not resurrect or blank the private copy.
+    const r = drivers.migrate({ name: 'D', vehicleModel: 'Axio', licencePlate: 'PB1' });
+    // No updates at all — the migration returns null rather than an empty
+    // object, which is what stops the runner writing a no-op batch.
+    assert.equal(r, null);
+  });
 });
 
 describe('parsers', () => {

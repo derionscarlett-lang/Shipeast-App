@@ -6,6 +6,7 @@ import 'firebase_options.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'services/firestore_service.dart';
+import 'services/notification_service.dart';
 import 'providers/cart_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -46,10 +47,19 @@ Future<void> _initFirebase() async {
   }
 }
 
+/// Owned by main so NotificationService can open the order a push refers to
+/// from outside the widget tree (P4-03).
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _initFirebase();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  // Registers handlers only. The permission prompt is deliberately NOT here —
+  // see NotificationService for why spending it on a cold launch is a
+  // permanent, unrecoverable loss on iOS.
+  NotificationService.navigatorKey = appNavigatorKey;
+  await NotificationService.initialise();
   runApp(const ShipEastApp());
 }
 
@@ -61,6 +71,7 @@ class ShipEastApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => CartProvider(),
       child: MaterialApp(
+        navigatorKey: appNavigatorKey,
         title: 'ShipEast',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,

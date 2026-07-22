@@ -196,7 +196,8 @@ export const promoCodes = {
 
 export const drivers = {
   collection: 'drivers',
-  describe: 'licensePlate → licencePlate; seed averageRating; drop todayEarnings.',
+  describe: 'licensePlate → licencePlate; licenceNumber → private/identity; ' +
+            'seed averageRating; drop todayEarnings.',
 
   migrate(data) {
     const updates = {};
@@ -209,6 +210,30 @@ export const drivers = {
 
     if (data.averageRating === undefined && data.rating !== undefined) {
       updates.averageRating = Number(data.rating) || 5.0;
+    }
+
+    /* PII off the parent document (P4-05). drivers/{uid} is readable by every
+       signed-in user — it has to be, because the customer's tracking card
+       shows the driver's name and vehicle — so a licence number here was
+       readable by every customer who had ever placed an order.
+
+       The copy is written FIRST and the parent field deleted in the same
+       batch, so an interrupted run can never leave the number nowhere. */
+    const licence = typeof data.licenceNumber === 'string'
+      ? data.licenceNumber.trim() : '';
+    // '—' is the admin panel's placeholder for "not provided", written by
+    // saveDriver for every blank field. Copying it would create a private
+    // record that says nothing.
+    if (licence !== '' && licence !== '—') {
+      updates._subdocs = [{
+        path: ['private', 'identity'],
+        data: { licenceNumber: licence }
+      }];
+      updates.licenceNumber = DELETE;
+    } else if (data.licenceNumber !== undefined) {
+      // An empty placeholder is worse than nothing: indistinguishable from a
+      // real record that failed to save.
+      updates.licenceNumber = DELETE;
     }
 
     // Derived at read time from today's delivered orders (SCHEMA.md §f).

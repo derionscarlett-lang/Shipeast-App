@@ -550,3 +550,59 @@ describe('admin unassignment is a reversal, not a lifecycle transition', () => {
     );
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('Phase 4 — push plumbing and driver PII', () => {
+  test('pushLog is invisible and unwritable to every client, admin included', async () => {
+    // The fan-out functions (P4-04) claim an event key here to make an
+    // at-least-once trigger send at most once. A client that could forge a key
+    // would silently suppress a real notification — a customer never told
+    // their order was cancelled. The Admin SDK bypasses rules, so denying
+    // everything costs the server nothing.
+    await assertFails(setDoc(doc(asAdmin(), 'pushLog/order_created_o1'), { at: 1 }));
+    await assertFails(setDoc(doc(asDriver(), 'pushLog/order_created_o1'), { at: 1 }));
+    await assertFails(getDoc(doc(asAdmin(), 'pushLog/order_created_o1')));
+    await assertFails(getDoc(doc(asCustomer(), 'pushLog/order_created_o1')));
+  });
+
+  test('a customer can store and clear their own push token', async () => {
+    // P4-03 writes it on sign-in and deletes it on sign-out. If the delete
+    // failed, the next person to use a shared phone would receive the previous
+    // customer's order updates.
+    await seed(`users/${CUSTOMER}`, { name: 'Ann', email: 'a@e.com' });
+    await assertSucceeds(
+      updateDoc(doc(asCustomer(), `users/${CUSTOMER}`), { fcmToken: 'tok-1' })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asCustomer(), `users/${CUSTOMER}`), { fcmToken: null })
+    );
+  });
+
+  test('a customer cannot write a push token onto someone else', async () => {
+    // Otherwise anyone could redirect another customer's order notifications
+    // to their own device.
+    await seed(`users/${OTHER_CUSTOMER}`, { name: 'Bea', email: 'b@e.com' });
+    await assertFails(
+      updateDoc(doc(asCustomer(), `users/${OTHER_CUSTOMER}`), { fcmToken: 'tok-mine' })
+    );
+  });
+
+  test('a driver licence number is readable by its owner and an admin only', async () => {
+    // P4-05 moved it off drivers/{uid}, which every signed-in user can read
+    // because the customer's tracking card shows the driver's name and
+    // vehicle. On the parent document, every customer who had ever placed an
+    // order could read every driver's licence.
+    await seed(`drivers/${DRIVER}/private/identity`, { licenceNumber: 'JA-DL-99887' });
+    await assertSucceeds(getDoc(doc(asDriver(), `drivers/${DRIVER}/private/identity`)));
+    await assertSucceeds(getDoc(doc(asAdmin(), `drivers/${DRIVER}/private/identity`)));
+    await assertFails(getDoc(doc(asCustomer(), `drivers/${DRIVER}/private/identity`)));
+    await assertFails(getDoc(doc(asOtherDriver(), `drivers/${DRIVER}/private/identity`)));
+    await assertFails(getDoc(doc(asAnon(), `drivers/${DRIVER}/private/identity`)));
+  });
+
+  test('an admin can record a licence number without touching the public doc', async () => {
+    await assertSucceeds(
+      setDoc(doc(asAdmin(), `drivers/${DRIVER}/private/identity`), { licenceNumber: 'JA-DL-1' })
+    );
+  });
+});

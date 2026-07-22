@@ -271,6 +271,18 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── pushLog ──────────────────────────────────────────────────────────
+    // Server-only bookkeeping (P4-04). Firestore triggers are at-least-once,
+    // so each fan-out claims an event key here before sending; a retry finds
+    // the document already present and stays quiet. Admin SDK writes bypass
+    // rules, so denying everything is exactly right: no client has any reason
+    // to read or forge one, and a forged key would silently suppress a real
+    // notification.
+
+    match /pushLog/{eventKey} {
+      allow read, write: if false;
+    }
+
     // ── settings ─────────────────────────────────────────────────────────
     // Pricing and commission rate. Public read (the client shows the service
     // fee); admin write. The server reads this for authoritative commission,

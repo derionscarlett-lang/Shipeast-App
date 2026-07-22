@@ -249,11 +249,11 @@ P4-05 (`createDriverAccount` Cloud Function); mitigated in the interim by removi
 | `vehicleType` | string | ✅ | driver @ register, admin | customer, admin | `'Car'` \| `'Motorcycle'` \| `'Bicycle'` \| `'Van'`. |
 | `vehicleModel` | string | ✅ | driver @ register, admin | customer | Make and model, e.g. `'Toyota Corolla'`. **Driver registration does not collect this today** — admin does. P1-08 adds it and makes it required: an unidentifiable vehicle is a safety issue. |
 | `licencePlate` | string | ✅ | driver @ register, admin | customer, admin | British spelling (§c). Uppercased. |
-| `licenceNumber` | string | ✅ | driver @ register, admin | admin | PII — admin-read only, never exposed to customers. |
+| ~~`licenceNumber`~~ | — | — | — | — | **Moved to `drivers/{uid}/private/identity` (P4-05).** `drivers/{uid}` is readable by every signed-in user — it has to be, because the customer's tracking card shows the driver's name and vehicle — so a licence number here was readable by every customer who ever placed an order. The admin panel now writes the private copy and reads it back when editing. Legacy documents still carrying it on the parent are covered by the P2-05 migration. |
 | `status` | string | ✅ | driver @ register (`pending`), **admin only** thereafter | all, rules | `'pending'` \| `'approved'` \| `'rejected'` \| `'suspended'`. **Rules must forbid a driver writing this to their own document** — today nothing stops self-approval (audit §7.1). |
 | `isOnline` | bool | ✅ | driver | admin, functions | Availability toggle. |
 | `onDelivery` | bool | — | driver | admin | Derived-ish; admin reads it (`app.js:308`). |
-| `fcmToken` | string \| null | — | driver | functions | Collected today, **sent to by nothing** (audit §9). P4-04 uses it. |
+| `fcmToken` | string \| null | — | driver | functions | Written by the driver app. Read by the fan-out functions (P4-04), which **delete it** when FCM reports the token unregistered — an uninstalled app otherwise leaves a corpse that fails every future send. |
 | `avatarUrl` | string \| null | — | driver | customer, admin | |
 | `totalTrips` | int | ✅ | **server only** (P3-04) | all | Lifetime. Stored (does not reset). |
 | `totalRatings` | int | ✅ | server @ rating | — | Sum of stars, for the average. |
@@ -293,8 +293,8 @@ panel reads `o.hours||o.deliveryTime` (`app.js:325`). Both are specified below, 
 | `deliveryTime` | string | ✅ | admin | customer | **ETA estimate**, e.g. `'25–35 min'`. **The admin has no input for this today**, which is why every admin-created merchant shows the hardcoded `'25–35 min'` fallback (audit §6.1). P3-01 adds the input. |
 | `deliveryFee` | int | ✅ | admin | customer | **Integer JMD** (§a). Replaces `fee: '$250'`. Customer renders "Free" when `0`. Was three different numbers — configured, displayed, and charged (audit §6.1); P3-01 made it one. |
 | `isOpen` | bool | ✅ | admin | customer, admin | §e — `open` is deprecated. |
-| `imageUrl` | string \| null | — | admin | customer, admin | Cover image. Written by upload in P4-01; the URL text field is retained as a secondary option since existing records depend on it. |
-| `emoji` | string \| null | — | admin | customer | Display icon. **The admin has no input for this today**, so admin-created merchants fall back to a generic 🍽️ while seeded ones have bespoke icons. P4-02 adds a picker. |
+| `imageUrl` | string \| null | — | admin | customer, admin | Cover image. Written by the P4-01 uploader as a Storage download URL under `merchants/{id}/cover_{ts}.jpg` — **timestamped, never a fixed name**, or the CDN serves stale bytes after a replacement. The paste-a-URL field is retained as a secondary option since existing records depend on it. |
+| `emoji` | string \| null | — | admin | customer | Display icon. P4-02 added the picker; before it, admin-created merchants fell back to a generic 🍽️ while seeded ones had bespoke icons. |
 | `promo` | string \| null | — | admin | customer | Badge text, e.g. `'🔥 Popular'`. No admin input today. |
 | `totalRatings` | int | ✅ | server @ rating | — | |
 | `ratingCount` | int | ✅ | server @ rating | admin | |
@@ -367,7 +367,8 @@ callable function (P3-03).
 | `phone` | string | ✅ | customer | customer, admin | |
 | `email` | string | ✅ | customer | customer, admin | Mirrors Auth. |
 | `avatarUrl` | string \| null | — | customer | customer | |
-| `fcmToken` | string \| null | — | customer | functions | **Nothing writes this today** — `firebase_messaging` is declared in `pubspec.yaml:44` and unused (audit §9). P4-03. Must be written on **login** and **cleared on logout**, or the next user of a shared device receives the previous user's notifications. |
+| `fcmToken` | string \| null | — | customer | functions | Written on **sign-in** and **deleted on sign-out** (P4-03) — a shared or resold phone would otherwise keep delivering one customer's order updates to whoever signs in next. Also deleted by the fan-out functions when FCM reports it unregistered. |
+| `fcmTokenUpdatedAt` | Timestamp \| null | — | customer | — | When the token was last refreshed. Diagnostic only. |
 | `notificationsReadAt` | Timestamp \| null | — | customer | customer | Drives the unread badge. |
 | `disabled` | bool | — | admin | rules | Account suspension (P5-05). |
 | `createdAt` | Timestamp | ✅ | customer | admin | |
@@ -387,9 +388,9 @@ Same access as the parent: owner-only read/write, admin read-only.
 
 ## `notifications/{id}`
 
-Admin-written broadcast log. Fanned out to devices by a Cloud Function (P4-04) — today nothing
-sends, and the driver app does not read this collection at all, so selecting "All Drivers"
-delivers to nobody (audit §9).
+Admin-written broadcast log. Fanned out to devices by `onNotificationCreated` (P4-04). Before that
+function existed nothing sent, and the driver app does not read this collection at all, so
+selecting "All Drivers" delivered to nobody (audit §9).
 
 | Field | Type | Required | Written by | Read by | Notes |
 |---|---|---|---|---|---|
@@ -398,7 +399,38 @@ delivers to nobody (audit §9).
 | `target` | string | ✅ | admin | customer, functions | `'all'` \| `'customers'` \| `'drivers'` \| a specific UID. |
 | `sentBy` | string | ✅ | admin | admin | Admin email, audit trail. |
 | `createdAt` | Timestamp | ✅ | admin | all | |
-| `deliveredCount` | int \| null | — | functions | admin | How many devices actually received it. Closes the loop between "logged" and "sent". |
+| `deliveredCount` | int \| null | — | functions | admin | How many devices actually received it. Closes the loop between "logged" and "sent". Written back by the fan-out. |
+
+---
+
+## `pushLog/{eventKey}`
+
+**Server-only. No client may read or write it** (firestore.rules denies both; the Admin SDK
+bypasses rules).
+
+Firestore triggers are **at-least-once** — a retry after a transient error re-runs the handler with
+the same event, and without a guard the customer gets "Your driver is on the way" three times. Each
+fan-out claims its event key with `create()`, which fails if the document already exists, making the
+check and the claim one atomic operation. A `get`-then-`set` would race two concurrent retries.
+
+| Field | Type | Required | Written by | Read by | Notes |
+|---|---|---|---|---|---|
+| `at` | Timestamp | ✅ | functions | — | When the send was claimed. |
+
+Key formats: `notification_{id}`, `order_created_{orderId}`, `order_status_{orderId}_{status}`,
+`driver_status_{uid}_{status}`. Keys are derived from the event, not from a random id — that is what
+makes a duplicate delivery collide.
+
+---
+
+## `drivers/{uid}/private/identity`
+
+PII kept off the parent document, which **every signed-in user can read** (P4-05).
+
+| Field | Type | Required | Written by | Read by | Notes |
+|---|---|---|---|---|---|
+| `licenceNumber` | string | ✅ | driver, admin | driver, admin | British spelling (§c). Was on `drivers/{uid}` until P4-05, where every customer who had placed an order could read it. |
+| `updatedAt` | Timestamp | — | driver, admin | — | |
 
 ---
 
