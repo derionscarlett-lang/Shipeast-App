@@ -67,6 +67,11 @@ class SeIcons {
   static const IconData close = Icons.close_rounded;
   static const IconData check = Icons.check_rounded;
   static const IconData checkCircle = Icons.check_circle_rounded;
+
+  /// Unselected state for the cancellation reason picker (P5-03). Paired
+  /// with [checkCircle] rather than a Material Radio so the row stays one
+  /// tappable surface instead of a small circle beside dead text.
+  static const IconData radioOff = Icons.radio_button_unchecked;
   static const IconData trash = Icons.delete_outline_rounded;
   static const IconData edit = Icons.edit_rounded;
   static const IconData camera = Icons.photo_camera_rounded;

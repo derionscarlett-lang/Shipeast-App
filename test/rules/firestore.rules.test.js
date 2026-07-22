@@ -606,3 +606,159 @@ describe('Phase 4 — push plumbing and driver PII', () => {
     );
   });
 });
+
+describe('Phase 5 — order types, cancellation and the waitlist', () => {
+  test('a customer CAN place a package order', async () => {
+    // P5-01. A package job has no merchant and no goods: subtotal is 0, the
+    // weight-band rate is the delivery fee and packing is the service fee.
+    // It still has to satisfy the same arithmetic invariant.
+    await assertSucceeds(
+      addDoc(collection(asCustomer(), 'orders'), order({
+        type: 'package',
+        merchantId: null,
+        merchantName: 'Package pickup',
+        merchantAddr: '12 Bay Street',
+        items: [],
+        subtotal: 0,
+        deliveryFee: 900,
+        serviceFee: 350,
+        discount: 0,
+        total: 1250
+      }))
+    );
+  });
+
+  test('an order with no type is still accepted', async () => {
+    // Every order written before Phase 5 has no `type`, and the rule defaults
+    // rather than requires so the field can be adopted without a flag day.
+    await assertSucceeds(addDoc(collection(asCustomer(), 'orders'), order()));
+  });
+
+  test('an invented order type is rejected', async () => {
+    // 'overseas' is the interesting case: the feature is a waitlist (P5-02),
+    // so an order of that type could only come from a client that made it up.
+    for (const type of ['overseas', 'freight', '', 'FOOD']) {
+      await assertFails(
+        addDoc(collection(asCustomer(), 'orders'), order({ type }))
+      );
+    }
+  });
+
+  test('a package order still cannot lie about its total', async () => {
+    await assertFails(
+      addDoc(collection(asCustomer(), 'orders'), order({
+        type: 'package',
+        items: [],
+        subtotal: 0,
+        deliveryFee: 900,
+        serviceFee: 350,
+        total: 100
+      }))
+    );
+  });
+
+  test('a customer CAN cancel their own pending order', async () => {
+    // P5-03, audit §15. The app has always rendered a "Cancelled" tab that no
+    // customer action could produce. This is the write behind that action.
+    await seed('orders/o-cancel', order());
+    await assertSucceeds(
+      updateDoc(doc(asCustomer(), 'orders/o-cancel'), {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancelledBy: 'customer',
+        cancellationReason: 'Ordered by mistake'
+      })
+    );
+  });
+
+  test('a customer cannot cancel once a driver has accepted', async () => {
+    // The driver is already riding to the merchant. Cancelling out from under
+    // them is an operational decision, not a customer one.
+    await seed('orders/o-claimed', order({ status: 'confirmed', driverId: DRIVER }));
+    await assertFails(
+      updateDoc(doc(asCustomer(), 'orders/o-claimed'), {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancelledBy: 'customer',
+        cancellationReason: 'Changed my mind'
+      })
+    );
+  });
+
+  test('a customer cannot cancel somebody else’s order', async () => {
+    await seed('orders/o-theirs', order({ customerId: OTHER_CUSTOMER }));
+    await assertFails(
+      updateDoc(doc(asCustomer(), 'orders/o-theirs'), {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancelledBy: 'customer',
+        cancellationReason: 'Nope'
+      })
+    );
+  });
+
+  test('cancelling cannot smuggle a price change through with it', async () => {
+    // `hasOnly` is what stops this. Without it, cancellation would be a
+    // customer-writable path onto the money fields.
+    await seed('orders/o-smuggle', order());
+    await assertFails(
+      updateDoc(doc(asCustomer(), 'orders/o-smuggle'), {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancelledBy: 'customer',
+        cancellationReason: 'Too slow',
+        total: 1
+      })
+    );
+  });
+
+  test('a signed-in customer CAN join the waitlist', async () => {
+    await assertSucceeds(
+      addDoc(collection(asCustomer(), 'waitlist'), {
+        feature: 'overseas',
+        email: 'me@example.com',
+        userId: CUSTOMER,
+        createdAt: new Date()
+      })
+    );
+  });
+
+  test('a waitlist entry cannot be attributed to somebody else', async () => {
+    await assertFails(
+      addDoc(collection(asCustomer(), 'waitlist'), {
+        feature: 'overseas',
+        email: 'me@example.com',
+        userId: OTHER_CUSTOMER,
+        createdAt: new Date()
+      })
+    );
+  });
+
+  test('an anonymous visitor cannot join the waitlist', async () => {
+    await assertFails(
+      addDoc(collection(asAnon(), 'waitlist'), {
+        feature: 'overseas',
+        email: 'spam@example.com',
+        userId: null,
+        createdAt: new Date()
+      })
+    );
+  });
+
+  test('nobody but an admin can read the waitlist', async () => {
+    // It is a list of other customers' email addresses.
+    await seed('waitlist/w1', { feature: 'overseas', email: 'a@b.com', userId: CUSTOMER });
+    await assertSucceeds(getDoc(doc(asAdmin(), 'waitlist/w1')));
+    await assertFails(getDoc(doc(asCustomer(), 'waitlist/w1')));
+    await assertFails(getDoc(doc(asAnon(), 'waitlist/w1')));
+  });
+
+  test('a waitlist entry cannot be edited or deleted, even by its author', async () => {
+    // A signup is a fact about a moment. An admin reconciling the list needs
+    // it not to move underneath them.
+    await seed('waitlist/w2', { feature: 'overseas', email: 'a@b.com', userId: CUSTOMER });
+    await assertFails(updateDoc(doc(asCustomer(), 'waitlist/w2'), { email: 'c@d.com' }));
+    await assertFails(deleteDoc(doc(asCustomer(), 'waitlist/w2')));
+    await assertFails(deleteDoc(doc(asAdmin(), 'waitlist/w2')));
+  });
+});

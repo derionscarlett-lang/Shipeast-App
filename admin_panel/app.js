@@ -5,7 +5,7 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import{getFirestore,collection,doc,getDoc,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{getFirestore,collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getStorage,ref,uploadBytesResumable,getDownloadURL,deleteObject,listAll}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 import{getFunctions,httpsCallable}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
@@ -16,6 +16,7 @@ import{getFunctions,httpsCallable}from'https://www.gstatic.com/firebasejs/10.12.
 import{firebaseConfig}from'./config.js';
 import*as OrderStatus from'./order-status.js';
 import{createUploader,merchantCoverPath,menuItemPath,storagePathFromUrl}from'./image-upload.js';
+import{parseBands,formatBands,describeBands,parseAmount}from'./pricing-form.js';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -24,7 +25,7 @@ const storage=getStorage(app);
 const fns=getFunctions(app);
 
 // ══════════════════════ LOCAL DATA MIRRORS ══════════════════════
-var orders=[],drivers=[],merchants=[],promoCodes=[],notifHistory=[];
+var orders=[],drivers=[],merchants=[],promoCodes=[],notifHistory=[],customers=[];
 var analyticsStats={
   'Today':    [{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
   'This Week':[{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
@@ -32,7 +33,8 @@ var analyticsStats={
 };
 var currentPeriod='Today',ordersFilter='All',driverMode='add',driverEditId=null,merchantMode='add',merchantEditId=null,unsubscribers=[];
 var panelMerchantId=null,menuItemsUnsub=null,menuItemEditId=null,panelMenuItems=[],menuItemUploader=null;
-var loadedOnce={orders:false,drivers:false,merchants:false,promos:false,notifs:false};
+var loadedOnce={orders:false,drivers:false,merchants:false,promos:false,notifs:false,customers:false};
+var customerSearch='',panelCustomerId=null;
 
 // ══════════════════════ PRIMITIVES ══════════════════════
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -209,6 +211,21 @@ var STATUS_TONE={
 var STATUS_LABEL={in_transit:'In Transit',picked_up:'Picked Up',
   confirmed:'Confirmed',delivered:'Delivered',pending:'Pending',cancelled:'Cancelled',
   approved:'Approved',rejected:'Rejected'};
+/* Order type (P5-01). Food is the overwhelming majority and every pre-Phase-5
+   order is one, so it gets no badge — a badge on everything is a badge on
+   nothing. Only the kinds that need different handling are called out. */
+var TYPE_LABEL={package:'Package',overseas:'Overseas'};
+function typeBadge(t){
+  var lbl=TYPE_LABEL[t]; if(!lbl) return '';
+  return ' <span class="bdg bg-info plain" title="Order type">'+esc(lbl)+'</span>';
+}
+/** Firestore Timestamp → readable local string, or '' when never set. */
+function fmtStamp(ts){
+  if(!ts||!ts.toDate) return '';
+  var d=ts.toDate();
+  if(isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-JM',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
 function badge(s){
   return '<span class="bdg bg-'+(STATUS_TONE[s]||'neutral')+'">'+esc(STATUS_LABEL[s]||s)+'</span>';
 }
@@ -300,7 +317,7 @@ function doLogout(){ signOut(auth); }
 
 // ══════════════════════ NAVIGATION ══════════════════════
 var pageLabels={dashboard:'Dashboard',orders:'Orders',drivers:'Drivers',merchants:'Merchants',
-  notifications:'Notifications',promos:'Promo Codes',analytics:'Analytics'};
+  customers:'Customers',notifications:'Notifications',promos:'Promo Codes',analytics:'Analytics'};
 function navTo(page){
   document.querySelectorAll('.ni').forEach(function(n){ n.classList.remove('active'); });
   var ni=document.querySelector('.ni[data-page="'+page+'"]'); if(ni) ni.classList.add('active');
@@ -310,6 +327,13 @@ function navTo(page){
   $('tb-pg').textContent=lbl;
   $('tb-title').textContent=lbl;
   if(page==='analytics'){ renderBarChart(); }
+  // Paints the skeleton if the first snapshot has not landed yet — otherwise
+  // an admin who navigates here quickly sees an empty table and reads it as
+  // "no customers".
+  if(page==='customers'){ renderCustomers(); }
+  // Loaded on first visit rather than streamed: pricing changes a few times a
+  // year, and a live listener would fight the admin's own typing.
+  if(page==='settings'&&!pricingLoaded){ loadPricing(); }
   if(window.innerWidth<=900) closeMobileSidebar();
 }
 
@@ -345,7 +369,12 @@ function startListeners(){
           var drvName=o.driverName||o.driver||'';
           if(!drvName&&o.driverId){ var drv=drivers.find(function(x){return x.id===o.driverId;}); if(drv) drvName=drv.name; }
           var rawTotal=o.total!=null?Number(o.total):null;
-          return {id:d.id,customer:o.customerName||o.customer||'Unknown',custPhone:o.customerPhone||o.custPhone||'—',
+          return {id:d.id,customer:o.customerName||o.customer||'Unknown',
+            // P5-05. The Customers page joins orders to accounts on this, and
+            // it was never carried into the mirror because nothing had needed
+            // it: the panel only ever showed a denormalised name.
+            customerId:o.customerId||'',
+            custPhone:o.customerPhone||o.custPhone||'—',
             merchant:o.merchantName||o.merchant||'Unknown',merchantId:o.merchantId||'',merchantAddr:o.merchantAddr||'—',
             driver:drvName||'—',driverId:o.driverId||'',
             driverPhone:o.driverPhone||'—',rawTotal:rawTotal,
@@ -357,7 +386,25 @@ function startListeners(){
             amount:rawTotal!=null?money(rawTotal):(o.amount||'—'),
             payment:o.paymentMethod||o.payment||'—',
             status:o.status||'pending',time:tsStr,_ts:ts,items:o.items||[],
-            address:o.deliveryAddress||o.address||'—',_docId:d.id};
+            address:o.deliveryAddress||o.address||'—',
+            // P5-01. Absent on every order written before Phase 5, and those
+            // are all food deliveries — see SCHEMA.md §orders.type.
+            type:o.type||'food',pkg:o.package||null,
+            /* P5-06. All of the below is already stored on the order and was
+               displayed nowhere. deliveryPhotoUrl in particular is proof of
+               delivery: the driver photographs the handover, the app uploads
+               it, and no human being could see it. A dispute could not be
+               settled with evidence the system already had. */
+            deliveryPhotoUrl:o.deliveryPhotoUrl||'',
+            deliveryNote:o.deliveryNote||'',
+            cancelledBy:o.cancelledBy||'',
+            cancellationReason:o.cancellationReason||'',
+            assignedBy:o.assignedBy||'',
+            stamps:{createdAt:o.createdAt,acceptedAt:o.acceptedAt,
+              assignedAt:o.assignedAt,pickedUpAt:o.pickedUpAt,
+              inTransitAt:o.inTransitAt,deliveredAt:o.deliveredAt,
+              cancelledAt:o.cancelledAt,ratedAt:o.ratedAt},
+            _docId:d.id};
         });
         loadedOnce.orders=true;
         renderDashboard();renderOrders();renderAnalytics();renderTopMerch();
@@ -422,6 +469,39 @@ function startListeners(){
       function(e){ loadedOnce.merchants=true; console.warn('merchants:',e.message); toast('error','Could not load merchants: '+e.message); renderMerchants(); }
     ));
   }catch(e){ console.warn('merchants init:',e.message); }
+
+  /* CUSTOMERS (P5-05)
+     The `users` collection had no admin surface at all. An admin could open an
+     order and see a name, and could go no further: no history, no addresses,
+     no lifetime value, and no way to stop an account abusing the service.
+
+     The read is permitted by P2-01's `allow read: if uid() == userId ||
+     isAdmin()`. There is no orderBy: `createdAt` is absent on every account
+     created before Phase 1, and ordering by it would silently hide them. */
+  try{
+    unsubscribers.push(onSnapshot(
+      collection(db,'users'),
+      function(snap){
+        customers=snap.docs.map(function(d){
+          var o=d.data();
+          var joined=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null;
+          return {id:d.id,name:o.name||'—',email:o.email||'—',
+            phone:o.phone||'—',avatarUrl:o.avatarUrl||'',
+            disabled:o.disabled===true,
+            disabledReason:o.disabledReason||'',
+            joined:joined,
+            // Presence of a token is the only honest answer available here:
+            // whether the device still accepts pushes is known to FCM, not to
+            // us, and P4-04 prunes dead ones on the next send.
+            hasPush:typeof o.fcmToken==='string'&&o.fcmToken.length>0,
+            _docId:d.id};
+        });
+        loadedOnce.customers=true;
+        renderCustomers();
+      },
+      function(e){ loadedOnce.customers=true; console.warn('users:',e.message); toast('error','Could not load customers: '+e.message); renderCustomers(); }
+    ));
+  }catch(e){ console.warn('users init:',e.message); }
 
   // PROMO CODES
   try{
@@ -538,7 +618,9 @@ function renderDashboard(){
   }
   tbody.innerHTML=orders.slice(0,10).map(function(o){
     return '<tr>'+
-      '<td><span class="cell-id">'+esc(o.id)+'</span></td>'+
+      // Beside the id, not in its own column: a package job needs to be
+      // obvious at a glance, and the orders table is already nine columns wide.
+      '<td><span class="cell-id">'+esc(o.id)+'</span>'+typeBadge(o.type)+'</td>'+
       '<td>'+esc(o.customer)+'</td>'+
       '<td>'+esc(o.merchant)+'</td>'+
       '<td class="cell-mute">'+esc(o.driver)+'</td>'+
@@ -588,7 +670,9 @@ function renderOrders(){
   }
   tbody.innerHTML=rows.map(function(o){
     return '<tr>'+
-      '<td><span class="cell-id">'+esc(o.id)+'</span></td>'+
+      // Beside the id, not in its own column: a package job needs to be
+      // obvious at a glance, and the orders table is already nine columns wide.
+      '<td><span class="cell-id">'+esc(o.id)+'</span>'+typeBadge(o.type)+'</td>'+
       '<td>'+esc(o.customer)+'</td>'+
       '<td>'+esc(o.merchant)+'</td>'+
       '<td class="cell-mute">'+esc(o.driver)+'</td>'+
@@ -646,17 +730,73 @@ function openOrderPanel(oid){
   var di=o.driverId?drivers.find(function(x){ return x.id===o.driverId; }):null;
   var dp=di?di.phone:(o.driverPhone||'—');
 
+  /* ── P5-06: the data the order already carried and nobody could see ──── */
+
+  // A package job has no merchant and no line items; its detail lives in the
+  // `package` map (P5-01). Rendering it under "Items" would be a lie of layout.
+  var pkg=o.pkg;
+  var packageHtml=pkg?
+    '<div class="sp-sec"><div class="sp-sec-title">Package</div>'+
+      row('Contents',esc(pkg.itemCategory||'—'))+
+      row('Pickup','<span class="sp-val sm">'+esc(pkg.pickupAddress||'—')+'</span>',true)+
+      row('Weight',esc(pkg.weightKg!=null?pkg.weightKg+' kg':'—')+
+        (pkg.weightBand?' <span class="sp-val sm">('+esc(pkg.weightBand)+')</span>':''))+
+      row('Packing',pkg.packingRequired?'Requested':'Not requested')+
+      (pkg.instructions?row('Instructions','<span class="sp-val sm">'+esc(pkg.instructions)+'</span>',true):'')+
+    '</div>':'';
+
+  /* Proof of delivery. The driver has been photographing every handover since
+     Phase 1 and uploading it; `deliveryPhotoUrl` was written to the order and
+     read by absolutely nothing. A disputed delivery could not be settled with
+     evidence the system already held. */
+  var proofHtml=(o.deliveryPhotoUrl||o.deliveryNote)?
+    '<div class="sp-sec"><div class="sp-sec-title">Proof of Delivery</div>'+
+      (o.deliveryPhotoUrl?
+        '<a class="sp-proof" href="'+esc(o.deliveryPhotoUrl)+'" target="_blank" rel="noopener noreferrer">'+
+          '<img src="'+esc(o.deliveryPhotoUrl)+'" alt="Delivery photo for order '+esc(o.id)+'" loading="lazy"/>'+
+        '</a>':'')+
+      (o.deliveryNote?row('Driver note','<span class="sp-val sm">'+esc(o.deliveryNote)+'</span>',true):'')+
+    '</div>':'';
+
+  var cancelHtml=isCancelledStatus(o.status)?
+    '<div class="sp-sec"><div class="sp-sec-title">Cancellation</div>'+
+      row('Cancelled by',esc(o.cancelledBy||'—'))+
+      // An empty reason is shown as such rather than hidden: "no reason
+      // recorded" is itself the finding when cancellations are being reviewed.
+      row('Reason','<span class="sp-val sm">'+esc(o.cancellationReason||'No reason recorded')+'</span>',true)+
+    '</div>':'';
+
+  /* Every transition timestamp, in lifecycle order. Only the ones that
+     happened are listed — a row of em-dashes for a stage the order has not
+     reached reads as missing data rather than as the future. */
+  var stampRows=[['createdAt','Placed'],['acceptedAt','Driver accepted'],
+    ['assignedAt','Admin assigned'],['pickedUpAt','Picked up'],
+    ['inTransitAt','On the way'],['deliveredAt','Delivered'],
+    ['cancelledAt','Cancelled'],['ratedAt','Rated']]
+    .map(function(pair){
+      var v=fmtStamp((o.stamps||{})[pair[0]]);
+      return v?row(pair[1],'<span class="sp-val sm num">'+esc(v)+'</span>',true):'';
+    }).join('');
+  var timelineHtml=stampRows?
+    '<div class="sp-sec"><div class="sp-sec-title">Timeline</div>'+stampRows+
+      (o.assignedBy?row('Assigned by','<span class="sp-val sm">'+esc(o.assignedBy)+'</span>',true):'')+
+    '</div>':'';
+
   $('sp-body').innerHTML=
     '<div class="sp-sec"><div class="sp-sec-title">Status Flow</div>'+flow+'</div>'+
+    cancelHtml+
     '<div class="sp-sec"><div class="sp-sec-title">Customer</div>'+
       row('Name',esc(o.customer))+row('Phone',esc(o.custPhone))+
       row('Delivery Address','<span class="sp-val sm">'+esc(o.address)+'</span>',true)+
       row('Payment',esc(o.payment))+
     '</div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Merchant</div>'+
-      row('Name',esc(o.merchant))+
-      row('Address','<span class="sp-val sm">'+esc(o.merchantAddr)+'</span>',true)+
-    '</div>'+
+    // A package order has no merchant, so it gets the Package block instead of
+    // a Merchant block full of placeholders.
+    (pkg?packageHtml:
+      '<div class="sp-sec"><div class="sp-sec-title">Merchant</div>'+
+        row('Name',esc(o.merchant))+
+        row('Address','<span class="sp-val sm">'+esc(o.merchantAddr)+'</span>',true)+
+      '</div>')+
     '<div class="sp-sec"><div class="sp-sec-title">Driver</div>'+
       row('Name',esc(o.driver))+row('Phone',esc(dp))+
     '</div>'+
@@ -672,7 +812,9 @@ function openOrderPanel(oid){
       reconcileNote(o)+
       (o.driverCommission!=null?'<div class="sp-row"><span class="sp-lbl">Driver commission</span><span class="sp-val num">'+money(o.driverCommission)+'</span></div>':'')+
     '</div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Items</div>'+itemsHtml+'</div>'+
+    (pkg?'':'<div class="sp-sec"><div class="sp-sec-title">Items</div>'+itemsHtml+'</div>')+
+    proofHtml+
+    timelineHtml+
     '<div class="sp-sec"><div class="sp-sec-title">Admin Actions</div>'+
       '<div class="fr"><label for="sp-assign-driver">Assign Driver</label>'+
         '<select id="sp-assign-driver"><option value="">— Unassigned —</option>'+
@@ -1088,6 +1230,259 @@ function animateBars(){
       b.style.width=b.getAttribute('data-w')+'%';
     });
   });
+}
+
+// ══════════════════════ CUSTOMERS (P5-05) ══════════════════════
+/* The `users` collection had no admin surface at all. An admin looking at an
+   order could see a name and go no further — no history, no addresses, no
+   lifetime value, and no way to stop an account abusing the service.
+
+   Everything here is derived from the orders already streamed for the Orders
+   page rather than re-queried per customer: the panel opens instantly, and a
+   customer's figures cannot disagree with the order table they came from. */
+function customerOrders(uid){
+  return orders.filter(function(o){ return o.customerId===uid; });
+}
+function customerValue(uid){
+  // Delivered only. Counting pending or cancelled orders as "lifetime value"
+  // inflates it with money that was never collected — and cancellation is now
+  // something customers can do themselves (P5-03), so that number would move.
+  return customerOrders(uid).reduce(function(sum,o){
+    return isDeliveredStatus(o.status)&&o.rawTotal!=null?sum+o.rawTotal:sum;
+  },0);
+}
+function renderCustomers(){
+  var tbody=$('customers-tbody'); if(!tbody) return;
+  if(!loadedOnce.customers){ tbody.innerHTML=skeletonRows(7,6); return; }
+  var q=customerSearch.toLowerCase();
+  var rows=customers.filter(function(c){
+    return !q||c.name.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||
+      c.phone.toLowerCase().includes(q)||c.id.toLowerCase().includes(q);
+  }).sort(function(a,b){
+    // Newest first, but accounts with no createdAt (everyone from before
+    // Phase 1) sort last rather than being dropped or floated to the top.
+    if(!a.joined&&!b.joined) return a.name.localeCompare(b.name);
+    if(!a.joined) return 1;
+    if(!b.joined) return -1;
+    return b.joined-a.joined;
+  });
+
+  var stats=$('customers-stats');
+  if(stats){
+    var disabledCount=customers.filter(function(c){ return c.disabled; }).length;
+    var ordering=customers.filter(function(c){ return customerOrders(c.id).length>0; }).length;
+    stats.innerHTML=
+      statCard('users','Total Customers',customers.length,'','')+
+      statCard('orders','Have Ordered',ordering,customers.length?Math.round((ordering/customers.length)*100)+'% of accounts':'','ac-ocean')+
+      statCard('close','Disabled',disabledCount,disabledCount?'blocked from signing in':'','ac-gold');
+  }
+
+  if(!rows.length){
+    tbody.innerHTML=customerSearch
+      ? emptyRow(7,'search','No matching customers','Nothing matched “'+esc(customerSearch)+'”. Try a name, email or phone number.')
+      : emptyRow(7,'users','No customers yet','Accounts appear here as soon as somebody registers in the app.');
+    return;
+  }
+  tbody.innerHTML=rows.map(function(c){
+    var count=customerOrders(c.id).length;
+    return '<tr'+(c.disabled?' class="row-muted"':'')+'>'+
+      '<td><b>'+esc(c.name)+'</b></td>'+
+      '<td class="cell-mute">'+esc(c.email)+'</td>'+
+      '<td class="cell-mute num">'+esc(c.phone)+'</td>'+
+      '<td class="right cell-id">'+count+'</td>'+
+      '<td class="right cell-strong">'+money(customerValue(c.id))+'</td>'+
+      '<td>'+(c.disabled
+        ?'<span class="bdg bg-danger plain">Disabled</span>'
+        :'<span class="bdg bg-success plain">Active</span>')+'</td>'+
+      '<td><button class="aicon ai-v" data-action="view-customer" data-cid="'+esc(c.id)+'" title="View customer" aria-label="View customer">'+icon('view')+'</button></td>'+
+    '</tr>';
+  }).join('');
+}
+function openCustomerPanel(uid){
+  var c=customers.find(function(x){ return x.id===uid; }); if(!c) return;
+  panelCustomerId=uid;
+  $('sp-sub').textContent='Customer';
+  $('sp-title').textContent=c.name;
+
+  var hist=customerOrders(uid).slice(0,10);
+  var histHtml=hist.length?hist.map(function(o){
+    return '<div class="sp-row"><span class="sp-lbl">'+esc(o.id)+typeBadge(o.type)+'</span>'+
+      '<span class="sp-val num">'+esc(o.amount)+' · '+badge(o.status)+'</span></div>';
+  }).join(''):'<div class="empty-copy">This customer has not placed an order yet.</div>';
+
+  var delivered=customerOrders(uid).filter(function(o){ return isDeliveredStatus(o.status); }).length;
+  var cancelled=customerOrders(uid).filter(function(o){ return isCancelledStatus(o.status); }).length;
+
+  $('sp-body').innerHTML=
+    '<div class="sp-hero"><div class="sp-avatar">'+esc((c.name[0]||'?').toUpperCase())+'</div>'+
+      '<div><div class="sp-hero-name">'+esc(c.name)+'</div><div style="margin-top:5px">'+
+      (c.disabled?'<span class="bdg bg-danger plain">Disabled</span>':'<span class="bdg bg-success plain">Active</span>')+
+      '</div></div></div>'+
+    (c.disabled&&c.disabledReason
+      ?'<div class="sp-sec"><div class="sp-sec-title">Why this account is disabled</div>'+
+        '<div class="empty-copy">'+esc(c.disabledReason)+'</div></div>':'')+
+    '<div class="sp-sec"><div class="sp-sec-title">Contact</div>'+
+      row('Email','<span class="sp-val sm">'+esc(c.email)+'</span>',true)+
+      row('Phone','<span class="num">'+esc(c.phone)+'</span>')+
+      row('Joined',esc(c.joined?c.joined.toLocaleDateString('en-JM',{year:'numeric',month:'short',day:'numeric'}):'Before records began'))+
+      row('Push',c.hasPush?'Registered':'No device registered')+
+      row('User ID','<span class="sp-val sm num">'+esc(c.id)+'</span>',true)+
+    '</div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Value</div>'+
+      '<div class="sp-row"><span class="sp-lbl">Lifetime (delivered)</span><span class="sp-val money">'+money(customerValue(uid))+'</span></div>'+
+      row('Orders delivered',String(delivered))+
+      row('Orders cancelled',String(cancelled))+
+    '</div>'+
+    // Addresses are a subcollection, so they are not in the streamed mirror.
+    // Loaded on demand, which is also the only time an admin needs them.
+    '<div class="sp-sec"><div class="sp-sec-title">Saved Addresses</div>'+
+      '<div id="cust-addresses"><div class="empty-copy">Loading…</div></div></div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Recent Orders</div>'+histHtml+'</div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Account</div>'+
+      '<button class="btn '+(c.disabled?'btn-secondary':'btn-danger')+' btn-block" '+
+        'data-action="toggle-customer" data-cid="'+esc(c.id)+'">'+
+        icon(c.disabled?'check':'close')+(c.disabled?'Re-enable account':'Disable account')+'</button>'+
+      '<div class="sc-sub" style="margin-top:8px">Disabling signs the customer out '+
+        'immediately and blocks them from signing in again.</div>'+
+    '</div>';
+  openSidePanel();
+  loadCustomerAddresses(uid);
+}
+function loadCustomerAddresses(uid){
+  getDocs(collection(db,'users',uid,'addresses')).then(function(snap){
+    // The panel may have been closed or switched while this was in flight.
+    if(panelCustomerId!==uid) return;
+    var el=$('cust-addresses'); if(!el) return;
+    if(snap.empty){ el.innerHTML='<div class="empty-copy">No saved addresses.</div>'; return; }
+    el.innerHTML=snap.docs.map(function(d){
+      var a=d.data();
+      return row(esc(a.label||'Address'),'<span class="sp-val sm">'+esc(a.text||'—')+'</span>',true);
+    }).join('');
+  }).catch(function(e){
+    if(panelCustomerId!==uid) return;
+    var el=$('cust-addresses'); if(!el) return;
+    // A failure here must not read as "this customer has no addresses".
+    el.innerHTML='<div class="empty-copy">Could not load addresses: '+esc(e.message)+'</div>';
+  });
+}
+var setUserDisabled=httpsCallable(fns,'setUserDisabled');
+/* Goes through a callable, not a document write.
+   `users/{uid}.disabled` is a flag Firestore rules never consult, so setting it
+   from here would stop nobody: the customer keeps their session and keeps
+   ordering. The function disables the Auth account and revokes refresh tokens,
+   then records the flag — so the panel and reality agree. */
+function toggleCustomerDisabled(uid){
+  var c=customers.find(function(x){ return x.id===uid; }); if(!c) return;
+
+  if(c.disabled){
+    confirmDialog({title:'Re-enable this account?',
+      body:'“'+c.name+'” will be able to sign in and place orders again.',
+      confirmLabel:'Re-enable'})
+      .then(function(ok){ if(ok) applyCustomerDisabled(uid,false,''); });
+    return;
+  }
+
+  // A reason is required when taking access away. An audit trail that says
+  // only "an admin did this" answers none of the questions asked later.
+  $('cf-ico').className='m-ico danger';
+  $('cf-ico').innerHTML=icon('close','ic-lg');
+  $('cf-title').textContent='Disable '+c.name+'?';
+  $('cf-body').innerHTML='They will be signed out immediately and cannot sign in again '+
+    'until re-enabled. Their past orders are kept.'+
+    '<label for="cf-reason" style="display:block;margin-top:12px;font-size:13px">Reason (required)</label>'+
+    '<input id="cf-reason" type="text" maxlength="500" placeholder="e.g. repeated fraudulent orders" '+
+    'style="width:100%;margin-top:6px"/>';
+  var ok=$('cf-ok'); ok.textContent='Disable account'; ok.className='btn btn-danger';
+  confirmResolve=function(confirmed){
+    var reason=(($('cf-reason')||{}).value||'').trim();
+    $('cf-body').innerHTML='';
+    if(!confirmed) return;
+    if(!reason){ toast('warning','Give a reason — it is recorded against the account.'); return; }
+    applyCustomerDisabled(uid,true,reason);
+  };
+  openModal('modal-confirm');
+}
+function applyCustomerDisabled(uid,disabled,reason){
+  setUserDisabled({uid:uid,disabled:disabled,reason:reason})
+    .then(function(){
+      toast('success',disabled?'Account disabled.':'Account re-enabled.');
+      // The users listener refreshes the row; reopen so the panel matches.
+      if(panelCustomerId===uid) setTimeout(function(){ openCustomerPanel(uid); },300);
+    })
+    .catch(function(e){
+      toast('error',e.message,'Could not change the account');
+    });
+}
+
+// ══════════════════════ PRICING (P5-01) ══════════════════════
+/* `settings/pricing` was created in Phase 3 for the driver commission rate and
+   has only ever been editable from the Firebase console — the undocumented
+   console-edit habit this project exists to end.
+
+   It now also holds the package weight bands, and the customer app refuses to
+   quote a package price until they exist. So this form is what turns the
+   Packages category on, and there is no default table anywhere in the codebase
+   that could turn it on by accident. */
+var pricingLoaded=false;
+function loadPricing(){
+  getDoc(doc(db,'settings','pricing')).then(function(snap){
+    var s=snap.exists()?snap.data():{};
+    if($('pr-bands')) $('pr-bands').value=formatBands(s.packageBands);
+    if($('pr-overage')) $('pr-overage').value=s.packageOveragePerKg!=null?s.packageOveragePerKg:'';
+    if($('pr-packing')) $('pr-packing').value=s.packingSurcharge!=null?s.packingSurcharge:'';
+    if($('pr-maxweight')) $('pr-maxweight').value=s.packageMaxWeightKg!=null?s.packageMaxWeightKg:'';
+    if($('pr-commission')) $('pr-commission').value=s.driverCommissionRate!=null?s.driverCommissionRate:'';
+    pricingLoaded=true;
+    renderPricingPreview();
+  }).catch(function(e){
+    // Never silently show an empty form over a table that exists — the admin
+    // would retype it and could overwrite live prices with a typo.
+    toast('error','Could not load pricing: '+e.message);
+  });
+}
+function renderPricingPreview(){
+  var el=$('pr-preview'); if(!el) return;
+  var parsed=parseBands(($('pr-bands')||{}).value||'');
+  if(parsed.errors.length){
+    el.innerHTML='<b style="color:var(--danger)">Not saveable yet</b><br>'+
+      parsed.errors.map(esc).join('<br>');
+    return;
+  }
+  var lines=describeBands(parsed.bands,parseAmount(($('pr-overage')||{}).value)||0);
+  var packing=parseAmount(($('pr-packing')||{}).value);
+  el.innerHTML='<b>A customer will be quoted</b><br>'+lines.map(esc).join('<br>')+
+    (packing?'<br>Packing adds '+money(packing)+'.':'');
+}
+function savePricing(){
+  var parsed=parseBands(($('pr-bands')||{}).value||'');
+  if(parsed.errors.length){
+    // Saving a partially-parsed table would price parcels from a list nobody
+    // approved. Refuse the whole write.
+    toast('error',parsed.errors[0],'Fix the weight bands first');
+    return;
+  }
+  var maxWeight=parseAmount(($('pr-maxweight')||{}).value);
+  var rateRaw=(($('pr-commission')||{}).value||'').trim();
+  var rate=rateRaw===''?null:Number(rateRaw);
+  if(rate!==null&&(!isFinite(rate)||rate<=0||rate>1)){
+    toast('error','The commission rate must be between 0 and 1 — 0.1 means 10%.');
+    return;
+  }
+
+  var payload={
+    packageBands:parsed.bands,
+    packageOveragePerKg:parseAmount(($('pr-overage')||{}).value)||0,
+    packingSurcharge:parseAmount(($('pr-packing')||{}).value)||0,
+    updatedAt:serverTimestamp()
+  };
+  // Only written when given, so clearing the field cannot silently reset the
+  // limit or the payout rate to something nobody chose.
+  if(maxWeight) payload.packageMaxWeightKg=maxWeight;
+  if(rate!==null) payload.driverCommissionRate=rate;
+
+  setDoc(doc(db,'settings','pricing'),payload,{merge:true})
+    .then(function(){ toast('success','Pricing saved. Packages are live.'); })
+    .catch(function(e){ toast('error',e.message,'Could not save pricing'); });
 }
 
 // ══════════════════════ MERCHANTS ══════════════════════
@@ -1836,6 +2231,9 @@ function closeSidePanel(){
   $('spanel').classList.remove('open');
   if(menuItemsUnsub){ menuItemsUnsub(); menuItemsUnsub=null; }
   panelMerchantId=null; panelMenuItems=[]; menuItemUploader=null;
+  // Cleared so a late address fetch cannot paint into a panel that has since
+  // been closed or reopened on somebody else (P5-05).
+  panelCustomerId=null;
 }
 
 // ══════════════════════ EVENT DELEGATION ══════════════════════
@@ -1867,9 +2265,12 @@ document.addEventListener('click',function(e){
   var btn=t.closest('[data-action]'); if(!btn) return;
   var action=btn.getAttribute('data-action'),
       id=btn.getAttribute('data-id'),
-      oid=btn.getAttribute('data-oid');
+      oid=btn.getAttribute('data-oid'),
+      cid=btn.getAttribute('data-cid');
   switch(action){
     case 'view-order':      openOrderPanel(oid); break;
+    case 'view-customer':   openCustomerPanel(cid); break;
+    case 'toggle-customer': toggleCustomerDisabled(cid); break;
     case 'save-order':      saveOrderChanges(oid); break;
     case 'view-driver':     openDriverPanel(id); break;
     case 'edit-driver':     openDriverModal('edit',id); break;
@@ -1886,6 +2287,7 @@ document.addEventListener('click',function(e){
     case 'cancel-menu-item':cancelMenuItemEdit(); break;
     case 'save-driver':     saveDriver(); break;
     case 'save-merchant':   saveMerchant(); break;
+    case 'save-pricing':    savePricing(); break;
     case 'send-notif':      sendNotif(); break;
     case 'create-promo':    createPromo(); break;
   }
@@ -1897,6 +2299,8 @@ document.addEventListener('change',function(e){
 });
 document.addEventListener('input',function(e){
   if(e.target.id==='orders-search') renderOrders();
+  if(e.target.id==='customers-search'){ customerSearch=e.target.value.trim(); renderCustomers(); }
+  if(['pr-bands','pr-overage','pr-packing'].indexOf(e.target.id)>-1) renderPricingPreview();
   if(e.target.id==='n-title'||e.target.id==='n-msg') updPhonePreview();
   // The paste field and the dropzone are two ways to set one value. Typing a
   // URL updates the preview, so the form never shows one image and saves

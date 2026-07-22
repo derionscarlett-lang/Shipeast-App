@@ -331,6 +331,12 @@ td.right,th.right{text-align:right;font-variant-numeric:tabular-nums;}
 .cell-mute{color:var(--text-lo);}
 .cell-strong{font-weight:600;font-variant-numeric:tabular-nums;}
 .cell-actions{display:flex;gap:6px;flex-wrap:nowrap;}
+/* A disabled customer's row (P5-05). Dimmed rather than hidden — an admin
+   looking for the account they just disabled must still be able to find it.
+   Opacity alone would be an accessibility failure, so the row keeps its
+   explicit "Disabled" badge and this is only reinforcement. */
+tr.row-muted td{opacity:.55;}
+tr.row-muted:hover td{opacity:1;}
 .cell-media{display:flex;align-items:center;gap:10px;min-width:0;}
 
 /* ─────────────── BADGES ─────────────── */
@@ -494,6 +500,12 @@ td.right,th.right{text-align:right;font-variant-numeric:tabular-nums;}
 .sp-row{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--s4);
   padding:9px 0;border-bottom:1px solid var(--border);}
 .sp-row:last-child{border-bottom:none;}
+/* Proof of delivery (P5-06). The driver has photographed every handover since
+   Phase 1; the URL was written to the order and rendered nowhere. Links out to
+   the full-size image, because a thumbnail settles no dispute. */
+.sp-proof{display:block;border-radius:var(--r-md);overflow:hidden;border:1px solid var(--border);}
+.sp-proof img{display:block;width:100%;height:auto;max-height:280px;object-fit:cover;background:var(--bg);}
+.sp-proof:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
 .sp-lbl{font-size:13px;color:var(--text-lo);flex-shrink:0;}
 .sp-val{font-size:13px;font-weight:600;color:var(--text-hi);text-align:right;
   max-width:240px;overflow-wrap:anywhere;}

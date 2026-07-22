@@ -82,7 +82,15 @@ service cloud.firestore {
                     && incoming().keys().hasAll(['name', 'email'])
                     && !incoming().keys().hasAny(['disabled', 'fcmToken2']);
 
-      // A customer may not disable or re-enable their own account.
+      /* A customer may not disable or re-enable their own account.
+
+         The admin clause is a backstop, NOT the path the panel uses. On its
+         own this flag is decoration: Firestore rules never consult it, so a
+         customer marked `disabled` keeps their session and keeps ordering.
+         Only disabling the Auth account stops them, and that is privileged —
+         so the panel calls `setUserDisabled` (P5-05), which changes the
+         account and the flag together. Writing the flag from a client leaves
+         it lying about an account that still works. */
       allow update: if (uid() == userId && untouched(['disabled']))
                     || (isAdmin() && changed().hasOnly(['disabled']));
 
@@ -164,6 +172,14 @@ service cloud.firestore {
                     && incoming().customerId == uid()
                     && incoming().status == 'pending'
                     && incoming().driverId == null
+                    // P5-01. `type` distinguishes a courier job from a food
+                    // delivery. Defaulted rather than required, because every
+                    // order written before P5-01 legitimately has no type and
+                    // the migration backfills 'food'. 'overseas' is refused
+                    // here on purpose: the feature is a waitlist (P5-02), so an
+                    // order of that type could only come from a client that
+                    // invented it.
+                    && incoming().get('type', 'food') in ['food', 'package']
                     && incoming().subtotal is int
                     && incoming().deliveryFee is int
                     && incoming().serviceFee is int
@@ -269,6 +285,26 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read: if signedIn();
       allow write: if isAdmin();
+    }
+
+    // ── waitlist ─────────────────────────────────────────────────────────
+    // Interest in a feature that does not exist yet (P5-02). Overseas ordering
+    // was a WebView pointed at two placeholder form URLs; when both failed the
+    // customer saw "Connection Error" and their interest went nowhere.
+    //
+    // Create-only for a signed-in user, and no client read: the list is a set
+    // of email addresses belonging to other customers. Entries are never
+    // edited or deleted from a client — a signup is a fact about a moment, and
+    // an admin reconciling the list needs it not to move underneath them.
+
+    match /waitlist/{entryId} {
+      allow read: if isAdmin();
+      allow create: if signedIn()
+                    && incoming().userId == uid()
+                    && incoming().email is string
+                    && incoming().email.size() <= 320
+                    && incoming().feature is string;
+      allow update, delete: if false;
     }
 
     // ── pushLog ──────────────────────────────────────────────────────────

@@ -68,6 +68,13 @@ jobs:
       - name: Test the admin image pipeline
         run: node --test tools/test-image-upload.mjs
 
+      # The package price list (P5-01). The customer app refuses to quote a
+      # package price unless this table parses, so a table that parses WRONGLY
+      # is worse than one that fails — every case pinned here is a way the
+      # admin's intent and the saved table could quietly disagree.
+      - name: Test the package pricing editor
+        run: node --test tools/test-pricing-form.mjs
+
   flutter:
     name: Flutter (${{ matrix.app }})
     runs-on: ubuntu-latest
@@ -225,7 +232,7 @@ jobs:
       # syntax error blanks the page in production with no build step to catch
       # it. These two steps are that missing build step.
       - name: Syntax check
-        run: node --check app.js && node --check image-upload.js
+        run: node --check app.js && node --check image-upload.js && node --check pricing-form.js
 
       - name: Lint
-        run: npx eslint app.js image-upload.js
+        run: npx eslint app.js image-upload.js pricing-form.js

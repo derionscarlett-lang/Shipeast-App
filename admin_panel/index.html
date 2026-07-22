@@ -105,6 +105,12 @@
         <svg class="ic ni-fill" aria-hidden="true"><use href="#i-merchants-f"/></svg>
         <span class="lbl">Merchants</span>
       </div>
+      <!-- P5-05: the users collection had no admin surface at all. -->
+      <div class="ni" data-page="customers" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-users"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-users"/></svg>
+        <span class="lbl">Customers</span>
+      </div>
       <div class="sb-sec">Growth</div>
       <div class="ni" data-page="notifications" role="button" tabindex="0">
         <svg class="ic ni-line" aria-hidden="true"><use href="#i-notifications"/></svg>
@@ -120,6 +126,14 @@
         <svg class="ic ni-line" aria-hidden="true"><use href="#i-analytics"/></svg>
         <svg class="ic ni-fill" aria-hidden="true"><use href="#i-analytics-f"/></svg>
         <span class="lbl">Analytics</span>
+      </div>
+      <!-- P5-01: without this the package price list can only be edited in the
+           Firebase console, which is the undocumented-console-edit habit this
+           project exists to end. -->
+      <div class="ni" data-page="settings" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-revenue"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-revenue"/></svg>
+        <span class="lbl">Pricing</span>
       </div>
       <div class="ndiv"></div>
       <div class="ni" id="logout-btn" role="button" tabindex="0">
@@ -241,6 +255,20 @@
         <div class="card"><div class="tbl-wrap"><table>
           <thead><tr><th>Merchant</th><th>Category</th><th>Phone</th><th>Address</th><th class="right">Orders Today</th><th>Rating</th><th>Status</th><th>Open</th><th>Actions</th></tr></thead>
           <tbody id="merchants-tbody"></tbody>
+        </table></div></div>
+      </section>
+
+      <!-- ── CUSTOMERS (P5-05) ── -->
+      <section class="page" id="page-customers">
+        <div class="pg-hdr"><h1 class="pg-title">Customers</h1></div>
+        <div class="sg g3" id="customers-stats"></div>
+        <div class="srch">
+          <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
+          <input id="customers-search" placeholder="Search name, email, phone or user ID…" aria-label="Search customers"/>
+        </div>
+        <div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Orders</th><th class="right">Lifetime Value</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="customers-tbody"></tbody>
         </table></div></div>
       </section>
 
@@ -380,6 +408,53 @@
           <div class="card">
             <div class="card-title">Payment Split</div>
             <div id="pay-split"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── PRICING (P5-01) ── -->
+      <section class="page" id="page-settings">
+        <div class="pg-hdr"><h1 class="pg-title">Pricing</h1></div>
+        <div class="ag">
+          <div class="card">
+            <div class="card-title">Package Delivery
+              <span class="card-note">Weight bands, in J$</span>
+            </div>
+            <p class="empty-copy" style="max-width:none;margin-bottom:12px">
+              Until this table is saved, the Packages category in the customer app
+              declines to quote and takes no requests. That is deliberate — a price
+              nobody chose is worse than an unavailable feature.
+            </p>
+            <div class="fr">
+              <label for="pr-bands">Weight bands — one per line, <code>kg = price</code>.
+                Use <code>+</code> for “anything heavier”.</label>
+              <textarea id="pr-bands" rows="6" spellcheck="false"
+                placeholder="2 = 600&#10;5 = 900&#10;10 = 1400&#10;+ = 2200"></textarea>
+            </div>
+            <div id="pr-preview" class="empty-copy" style="max-width:none"></div>
+            <div class="mg">
+              <div class="fr">
+                <label for="pr-overage">Per extra kg above the last band</label>
+                <input id="pr-overage" type="number" min="0" step="1" placeholder="100"/>
+              </div>
+              <div class="fr">
+                <label for="pr-packing">Packing surcharge</label>
+                <input id="pr-packing" type="number" min="0" step="1" placeholder="350"/>
+              </div>
+            </div>
+            <div class="mg">
+              <div class="fr">
+                <label for="pr-maxweight">Heaviest parcel we carry (kg)</label>
+                <input id="pr-maxweight" type="number" min="1" step="1" placeholder="50"/>
+              </div>
+              <div class="fr">
+                <label for="pr-commission">Driver commission rate</label>
+                <input id="pr-commission" type="number" min="0" max="1" step="0.01" placeholder="0.10"/>
+              </div>
+            </div>
+            <button class="btn btn-primary" data-action="save-pricing">
+              <svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Save pricing
+            </button>
           </div>
         </div>
       </section>

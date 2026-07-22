@@ -10,6 +10,7 @@ import '../theme/se_typography.dart';
 import '../models/order_status.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_button.dart';
+import '../widgets/se_bottom_sheet.dart';
 import '../widgets/se_toast.dart';
 
 class OrderStatusScreen extends StatefulWidget {
@@ -44,6 +45,27 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
   bool get _isCancelled => _status == OrderStatus.cancelled;
 
   String get _statusLabel => OrderStatus.label(_status);
+
+  /// P5-03, audit §15. The app has always rendered a "Cancelled" tab and a
+  /// cancelled badge that **no customer action could ever produce**.
+  ///
+  /// The window is `pending` only, and that is not a UI preference — it is the
+  /// only transition rules permit a customer to make (`customerCancelling()` in
+  /// firestore.rules). Once a driver has claimed the order they are already
+  /// riding to the merchant, and cancelling out from under them is an
+  /// operational decision, not a customer one. From there the customer is
+  /// routed to support.
+  bool get _canCancel => _order != null && _status == OrderStatus.pending;
+
+  bool _cancelling = false;
+
+  static const _cancelReasons = [
+    'Ordered by mistake',
+    'Taking too long',
+    'Changed my mind',
+    'Wrong delivery address',
+    'Found it cheaper elsewhere',
+  ];
 
   // The ETA pill is gone. It was hardcoded '~40 min' / '~25 min' / '~15 min' —
   // invented numbers presented to the customer as an estimate, derived from
@@ -182,6 +204,15 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                       ),
                     ),
                   if (!delivered) _buildTrackingNote(),
+                  if (_canCancel) ...[
+                    const SizedBox(height: 12),
+                    SeButton(
+                      label: _cancelling ? 'Cancelling…' : 'Cancel Order',
+                      icon: SeIcons.close,
+                      variant: SeButtonVariant.destructive,
+                      onPressed: _cancelling ? null : _showCancelSheet,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -396,6 +427,133 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
         ],
       ),
     );
+  }
+
+  /// Confirmation sheet with a reason picker (P5-03).
+  ///
+  /// The reason is required, and it is not decoration: `cancellationReason` is
+  /// the only field the cancelled screen has to explain itself with, and it is
+  /// what tells operations whether cancellations are a pricing problem or a
+  /// speed problem.
+  void _showCancelSheet() {
+    String? selected;
+
+    showSeBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: SeSpacing.gutter,
+            right: SeSpacing.gutter,
+            top: 4,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SeSheetHandle(),
+              const SizedBox(height: 12),
+              Text('Cancel this order?', style: SeType.h2),
+              const SizedBox(height: 4),
+              Text(
+                'This cannot be undone. Nothing was charged — this order is '
+                'cash on delivery.',
+                style: SeType.bodyS.copyWith(color: SeColors.ink500),
+              ),
+              const SizedBox(height: 18),
+              Text('Why are you cancelling?',
+                  style: SeType.label.copyWith(color: SeColors.ink700)),
+              const SizedBox(height: 8),
+              ..._cancelReasons.map((reason) {
+                final isSelected = selected == reason;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: GestureDetector(
+                    onTap: () => setSheetState(() => selected = reason),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? SeColors.dangerTint
+                            : SeColors.surface50,
+                        borderRadius: SeRadius.inputRadius,
+                        border: Border.all(
+                          color: isSelected
+                              ? SeColors.danger
+                              : SeColors.ink200,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSelected
+                                ? SeIcons.checkCircle
+                                : SeIcons.radioOff,
+                            size: 20,
+                            color: isSelected
+                                ? SeColors.danger
+                                : SeColors.ink300,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(reason,
+                                style: SeType.body
+                                    .copyWith(color: SeColors.ink900)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 10),
+              SeButton(
+                label: 'Cancel Order',
+                icon: SeIcons.close,
+                variant: SeButtonVariant.destructive,
+                // Disabled until a reason is chosen. An optional reason is an
+                // empty reason: nobody fills in a field they can skip, and the
+                // cancelled screen then has nothing to say.
+                onPressed: selected == null
+                    ? null
+                    : () {
+                        Navigator.pop(ctx);
+                        _cancelOrder(selected!);
+                      },
+              ),
+              const SizedBox(height: 8),
+              SeButton(
+                label: 'Keep My Order',
+                icon: SeIcons.arrowLeft,
+                variant: SeButtonVariant.ghost,
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _cancelOrder(String reason) async {
+    setState(() => _cancelling = true);
+    try {
+      await FirestoreService.cancelOrder(orderId: _orderId, reason: reason);
+      // No success toast and no navigation: the order stream is already live,
+      // so the screen switches to its terminal cancelled presentation on its
+      // own. Pushing a route here would race that rebuild.
+      if (mounted) setState(() => _cancelling = false);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cancelling = false);
+      // The likeliest cause is that a driver claimed the order a moment ago,
+      // which rules reject. Say the true thing rather than "try again".
+      SeToast.error(
+          context, 'Could not cancel — a driver may have already accepted it.');
+    }
   }
 
   Widget _routeBar(bool delivered) {

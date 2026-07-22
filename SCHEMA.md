@@ -170,9 +170,9 @@ raw status values are **never rendered to a user** — always through `OrderStat
 | `customerId` | string (Auth UID) | ✅ | customer @ create | customer, driver, admin, rules | Immutable after create. |
 | `customerName` | string | ✅ | customer @ create | admin, driver | Denormalised from `users/{uid}.name`. |
 | `customerPhone` | string \| null | — | customer @ create | admin, driver | **Currently never written**; admin reads it (`app.js:275`) and always shows `—`. Add in P3-02. |
-| `merchantId` | string | ✅ | customer @ create | admin, driver | |
+| `merchantId` | string \| null | ✅ | customer @ create | admin, driver | **`null` on a package order** (P5-01) — there is no merchant, and a placeholder id would put a courier job into some merchant's order count and analytics. |
 | `merchantName` | string | ✅ | customer @ create | all | Denormalised. |
-| `merchantAddr` | string \| null | — | customer @ create | driver, admin | **Currently never written**; the driver needs it to reach the pickup. Add in P3-02. |
+| `merchantAddr` | string \| null | — | customer @ create | driver, admin | The pickup address. On a package order this is the **collection address** and is the only thing telling the driver where to go. Note the spelling: the driver app briefly read `merchantAddress`, which resolved to `—` for every order. |
 | `items` | array\<OrderItem\> | ✅ | customer @ create | all | See below. Immutable. |
 | `subtotal` | int | ✅ | customer @ create | all | Sum of `price × quantity`. Pre-discount. |
 | `deliveryFee` | int | ✅ | customer @ create | all | Copied from `merchants/{id}.deliveryFee` at order time. |
@@ -183,7 +183,8 @@ raw status values are **never rendered to a user** — always through `OrderStat
 | `paymentMethod` | string | ✅ | customer @ create | admin | **Currently a display string, not a slug**: `'Cash on Delivery'` or `'PayPal'` (`payment_screen.dart:575`). PayPal is hardcoded disabled, so only the former is ever written. Should be normalised to `'cod'` / `'paypal'` — that is a migration, not a Phase 1 change, so readers match loosely until then. |
 | `deliveryAddress` | string | ✅ | customer @ create | driver, admin | |
 | `status` | string | ✅ | customer @ create (`pending`), driver, admin | all | Canonical vocabulary above. |
-| `type` | string | ✅ | customer @ create | all | `'food'` \| `'package'` \| `'overseas'`. **Currently never written**; defaults to `'food'` when absent. Needed by P5-01. |
+| `type` | string | ✅ | customer @ create | all | `'food'` \| `'package'`. Written since P5-01; defaults to `'food'` when absent, which every pre-Phase-5 order legitimately is. `'overseas'` is **reserved and refused at create** — that feature is a waitlist (P5-02), so an order of that type could only come from a client that invented it. |
+| `package` | map \| null | — | customer @ create | driver, admin | Present only when `type == 'package'`. `{itemCategory, pickupAddress, weightKg, weightBand, packingRequired, instructions}`. See below. |
 | `driverId` | string \| null | ✅ | driver @ accept, admin @ assign | all, rules | `null` = unclaimed. Explicit `null`, never `''` — `pendingOrdersStream` filters `isNull: true`. |
 | `driverName` | string \| null | — | driver @ accept, admin @ assign | customer, admin | Denormalised. |
 | `driverPhone` | string \| null | — | driver @ accept, admin @ assign | customer, admin | |
@@ -223,6 +224,33 @@ Each transition writes its timestamp **in the same write** as the status change,
 | `name` | string | Denormalised from the menu item. |
 | `price` | int | Unit price **at time of order**. Never re-read from the menu — menu prices change. |
 | `quantity` | int | ≥ 1 |
+
+### `package` (present only when `type == 'package'`)
+
+| Field | Type | Notes |
+|---|---|---|
+| `itemCategory` | string | What is being sent — `'Documents'`, `'Glassware'`, … Chosen from the Packages grid. |
+| `pickupAddress` | string | Duplicated into `merchantAddr` so existing driver and admin readers find it without a special case. |
+| `weightKg` | number | As declared by the customer. The band it fell into is priced at order time and never recomputed. |
+| `weightBand` | string | Human label of the band applied, e.g. `'2–5 kg'`. Stored so a historical charge stays explicable after the bands change — the same reasoning as `commissionRate`. |
+| `packingRequired` | bool | When true, `serviceFee` carries the packing surcharge. |
+| `instructions` | string | Free text. May be empty. |
+
+A package order carries `items: []` and `subtotal: 0`: there are no goods, only work.
+`deliveryFee` is the weight-band rate and `serviceFee` is the packing surcharge, so the standard
+invariant still holds and the order needs no special rule.
+
+### Cancellation
+
+A customer may cancel **only from `pending`**, and may write only
+`status`, `cancelledAt`, `cancelledBy`, `cancellationReason` — enforced by `customerCancelling()` in
+`firestore.rules`. Adding a field to that write without changing the rule makes the whole write
+fail. Once a driver has claimed the order they are already riding to the merchant, so cancelling
+from there is an admin action.
+
+**Refunds.** Orders are cash-on-delivery only, so cancelling costs nothing and there is nothing to
+return — cancellation is a no-op financially. **When card payments land, `cancelOrder` must issue a
+refund**, and this paragraph is the reminder that it does not today.
 
 ### Deletion
 
@@ -370,7 +398,10 @@ callable function (P3-03).
 | `fcmToken` | string \| null | — | customer | functions | Written on **sign-in** and **deleted on sign-out** (P4-03) — a shared or resold phone would otherwise keep delivering one customer's order updates to whoever signs in next. Also deleted by the fan-out functions when FCM reports it unregistered. |
 | `fcmTokenUpdatedAt` | Timestamp \| null | — | customer | — | When the token was last refreshed. Diagnostic only. |
 | `notificationsReadAt` | Timestamp \| null | — | customer | customer | Drives the unread badge. |
-| `disabled` | bool | — | admin | rules | Account suspension (P5-05). |
+| `disabled` | bool | — | **server** (`setUserDisabled`) | admin | Account suspension (P5-05). Rules permit an admin to write it directly as a backstop, but the panel does not: **this flag is not consulted by rules**, so on its own it stops nobody. The callable disables the Auth account and revokes refresh tokens, then records the flag — the two move together or the flag lies. |
+| `disabledReason` | string \| null | — | **server** | admin | Required when disabling; **cleared** on re-enable, so a cleared account does not keep carrying an accusation. |
+| `disabledAt` | Timestamp \| null | — | **server** | admin | Nulled on re-enable. |
+| `disabledBy` | string \| null | — | **server** | admin | Admin UID. Audit trail. |
 | `createdAt` | Timestamp | ✅ | customer | admin | |
 | `updatedAt` | Timestamp | — | customer | — | |
 
@@ -434,16 +465,50 @@ PII kept off the parent document, which **every signed-in user can read** (P4-05
 
 ---
 
+## `waitlist/{entryId}`
+
+Interest in a feature that does not exist yet (P5-02). Create-only for a signed-in customer; no
+client can read, edit or delete one. Admin read.
+
+Overseas ordering was a `WebView` pointed at two placeholder form URLs this project does not own,
+with **zero** Firestore writes. When both failed — which is what a placeholder URL does — the
+customer saw "Connection Error" and their interest went nowhere. This is where it goes now.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `feature` | string | ✅ | `'overseas'` today. |
+| `email` | string | ✅ | Max 320 chars, enforced in rules. Pre-filled from the Auth account. |
+| `userId` | string | ✅ | Pinned to the caller by rules, so the collection is not an anonymous write target. |
+| `createdAt` | Timestamp | ✅ | |
+
+Entries are immutable: a signup is a fact about a moment, and an admin reconciling the list needs
+it not to move underneath them.
+
+---
+
 ## `settings/pricing`
 
 Single document, admin-editable, introduced by P5-01 so package pricing is not hardcoded in the
 client.
 
+World-readable (the customer app shows the fee before sign-in), admin-write. Edited from the
+panel's **Pricing** page — not the Firebase console.
+
 | Field | Type | Notes |
 |---|---|---|
 | `serviceFee` | int | Flat service fee applied to orders. |
 | `driverCommissionRate` | double | Currently `0.10`, hardcoded at `driver_constants.dart:13`. **Server reads this** for the authoritative commission (P3-04); the client copy is display-only. |
-| `packageRates` | array\<{maxKg: int, price: int}\> | Weight-band pricing for package deliveries. |
+| `packageBands` | array\<{maxKg: number \| null, price: int}\> | Weight bands for package delivery (P5-01). Sorted ascending; **exactly one** entry may have `maxKg: null`, the open-ended final band. |
+| `packageOveragePerKg` | int | Charged per whole kilogram above the last bounded band. `0` means the open band is flat. |
+| `packingSurcharge` | int | Added to `serviceFee` when the customer asks for the parcel to be packed. |
+| `packageMaxWeightKg` | number | Heaviest parcel accepted. Above it the app declines rather than quoting. Defaults to `50` when absent. |
+
+**There is no fallback price list anywhere in the codebase.** If `packageBands` is missing or
+malformed, `PackagePricing.fromSettings` returns `null` and the customer app refuses to quote or to
+take a package request. That is deliberate: a price nobody chose is worse than an unavailable
+feature, and it is the same rule the migrations follow (never invent a business value). Contrast
+`DEFAULT_COMMISSION_RATE`, which *does* fall back — that value was already shipped, so falling back
+preserves existing behaviour rather than inventing new behaviour.
 
 ---
 

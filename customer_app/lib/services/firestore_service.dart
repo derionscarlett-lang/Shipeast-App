@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/order_status.dart';
+import '../models/package_pricing.dart';
 import '../models/promo_code.dart';
 
 class FirestoreService {
@@ -93,12 +94,163 @@ class FirestoreService {
       'total': total,
       'paymentMethod': paymentMethod,
       'status': OrderStatus.pending,
+      // P5-01. Every order now declares what kind it is. Without it a package
+      // job is indistinguishable from a food delivery in the driver's queue
+      // and in analytics, and the admin's type filter has nothing to filter on.
+      'type': OrderType.food,
       'deliveryAddress': deliveryAddress,
       'createdAt': FieldValue.serverTimestamp(),
       'driverId': null,
       'rated': false,
     });
     return ref.id;
+  }
+
+  // ─── Packages (P5-01) ────────────────────────────────────────────────────────
+
+  /// Reads the admin-editable pricing document.
+  ///
+  /// Returns `null` when it is missing or unreadable, which the caller must
+  /// treat as "packages are not priced" rather than as free delivery. The
+  /// document is world-readable (P2-01) because the customer app has to show
+  /// the fee before sign-in.
+  static Future<PackagePricing?> packagePricing() async {
+    try {
+      final snap = await _db.collection('settings').doc('pricing').get();
+      return PackagePricing.fromSettings(snap.data());
+    } catch (_) {
+      // A read failure is not a price of zero.
+      return null;
+    }
+  }
+
+  /// Places a package delivery as a real order.
+  ///
+  /// A package job has no merchant and no goods — only work — so `subtotal` is
+  /// 0, `deliveryFee` carries the weight-band rate and `serviceFee` carries the
+  /// packing surcharge. `merchantId` is null and the pickup address travels in
+  /// `merchantAddr`, which is the field the driver app already reads to reach a
+  /// collection point.
+  ///
+  /// It then runs the ordinary `pending → delivered` lifecycle, so drivers and
+  /// the admin handle it with the machinery that already exists rather than a
+  /// parallel one that would need its own rules, its own triggers and its own
+  /// bugs.
+  static Future<String> placePackageOrder({
+    required String itemCategory,
+    required String pickupAddress,
+    required String deliveryAddress,
+    required double weightKg,
+    required bool packingRequired,
+    required String instructions,
+    required PackageQuote quote,
+    required String paymentMethod,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    // Same guard as placeOrder: rules recompute this server-side, and a write
+    // that fails it disappears with the form still showing success — which is
+    // precisely the defect P5-01 exists to remove.
+    final expected = quote.subtotal + quote.deliveryFee + quote.serviceFee;
+    if (expected != quote.total) {
+      throw StateError(
+        'Package order does not reconcile: deliveryFee(${quote.deliveryFee}) '
+        '+ serviceFee(${quote.serviceFee}) = $expected, '
+        'but total is ${quote.total}.',
+      );
+    }
+
+    String customerName = '';
+    try {
+      final doc = await _db.collection('users').doc(user.uid).get();
+      customerName = doc.data()?['name'] as String? ?? '';
+    } catch (_) {}
+
+    final ref = await _db.collection('orders').add({
+      'customerId': user.uid,
+      'customerName': customerName,
+      'type': OrderType.package,
+      // There is no merchant. Writing a placeholder id would put a package job
+      // into that merchant's order count and its analytics.
+      'merchantId': null,
+      'merchantName': 'Package pickup',
+      'merchantAddr': pickupAddress,
+      'items': const <Map<String, dynamic>>[],
+      'subtotal': quote.subtotal,
+      'deliveryFee': quote.deliveryFee,
+      'serviceFee': quote.serviceFee,
+      'discount': 0,
+      'promoCode': null,
+      'total': quote.total,
+      'paymentMethod': paymentMethod,
+      'status': OrderStatus.pending,
+      'deliveryAddress': deliveryAddress,
+      'package': {
+        'itemCategory': itemCategory,
+        'pickupAddress': pickupAddress,
+        'weightKg': weightKg,
+        'weightBand': quote.bandLabel,
+        'packingRequired': packingRequired,
+        'instructions': instructions,
+      },
+      'createdAt': FieldValue.serverTimestamp(),
+      'driverId': null,
+      'rated': false,
+    });
+    return ref.id;
+  }
+
+  // ─── Cancellation (P5-03) ────────────────────────────────────────────────────
+
+  /// Cancels a pending order on the customer's behalf.
+  ///
+  /// The customer app has always rendered a "Cancelled" tab and a cancelled
+  /// badge that no customer action could ever produce (audit §15). This is that
+  /// action.
+  ///
+  /// The four fields written here are exactly the set rules permit a customer
+  /// to touch, and only from `pending` — see `customerCancelling()` in
+  /// firestore.rules. Anything else in this map makes the whole write fail, so
+  /// do not add a convenience field without changing the rule with it.
+  ///
+  /// Refunds: orders are cash-on-delivery only today, so cancelling costs
+  /// nothing and there is nothing to return. When card payments land, a refund
+  /// must be issued from here — see SCHEMA.md §orders.cancellation.
+  static Future<void> cancelOrder({
+    required String orderId,
+    required String reason,
+  }) async {
+    await _db.collection('orders').doc(orderId).update({
+      'status': OrderStatus.cancelled,
+      'cancelledAt': FieldValue.serverTimestamp(),
+      'cancelledBy': 'customer',
+      'cancellationReason': reason,
+    });
+  }
+
+  // ─── Waitlist (P5-02) ────────────────────────────────────────────────────────
+
+  /// Registers interest in a feature that does not exist yet.
+  ///
+  /// Overseas ordering was a WebView pointed at two placeholder form URLs. When
+  /// both failed — which is what a placeholder URL does — the customer got
+  /// "Connection Error" and their interest was lost. This records it instead.
+  static Future<void> joinWaitlist({
+    required String feature,
+    required String email,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    await _db.collection('waitlist').add({
+      'feature': feature,
+      'email': email.trim(),
+      // Rules pin this to the caller. Without it the collection would be an
+      // anonymous write target for anyone holding the (public, necessarily
+      // public) API key.
+      'userId': user.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   static Stream<List<Map<String, dynamic>>> orderHistoryStream(String uid) =>

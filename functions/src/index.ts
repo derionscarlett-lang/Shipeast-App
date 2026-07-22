@@ -25,6 +25,11 @@ export {
 } from './notifications';   // P4-04
 export { createDriverAccount } from './drivers';  // P4-05
 
+// Phase 5 — closing the gaps where the product claimed to do something it did
+// not. Disabling a customer is the only part of the Customers page that cannot
+// be done from the panel: the flag alone does not stop anybody.
+export { setUserDisabled } from './customers';   // P5-05
+
 /**
  * Proves the deploy pipeline works end to end (P2-03's acceptance criterion).
  * Deliberately trivial and unauthenticated — it reveals nothing.

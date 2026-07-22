@@ -8,6 +8,7 @@ import '../utils/money.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
+import '../models/package_pricing.dart';
 import '../services/firestore_service.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_chip.dart';
@@ -32,6 +33,14 @@ class _HomeScreenState extends State<HomeScreen> {
   final Set<String> _favourites = {};
 
   StreamSubscription<Map<String, dynamic>?>? _nameSub;
+
+  /// Weight-band pricing from `settings/pricing` (P5-01).
+  ///
+  /// Null means packages are not priced. The form then refuses to take a
+  /// request rather than quoting a number nobody configured — see
+  /// [PackagePricing.fromSettings].
+  PackagePricing? _packagePricing;
+  bool _packagePricingLoaded = false;
 
   // Firestore merchants by category index
   final Map<int, List<Map<String, dynamic>>> _firestoreMerchants = {};
@@ -65,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
       statusBarIconBrightness: Brightness.light,
     ));
     _loadUserName();
+    _loadPackagePricing();
     _subscribeMerchants(0);
     _subscribeMerchants(1);
     _subscribeMerchants(3);
@@ -158,13 +168,46 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _loadPackagePricing() async {
+    final pricing = await FirestoreService.packagePricing();
+    if (!mounted) return;
+    setState(() {
+      _packagePricing = pricing;
+      _packagePricingLoaded = true;
+    });
+  }
+
   // ── Package request sheet ─────────────────────────────────────────────────
+  //
+  // P5-01, audit §10 — the most serious honesty defect in the codebase. This
+  // form used to validate two addresses, pop the sheet, show "Package request
+  // submitted! We'll contact you shortly," and write NOTHING. No order, no
+  // record, no queue, nobody to call. It was reachable from one of four
+  // top-level home categories.
+  //
+  // It now quotes a price from the admin-configured weight bands and writes a
+  // real order that runs the ordinary pending → delivered lifecycle.
   void _showPackageForm(String category) {
+    // No price list, no quote. Taking the request anyway would re-create the
+    // original defect in a politer voice: the customer would still be left
+    // waiting for a call that has no queue behind it.
+    final pricing = _packagePricing;
+    if (pricing == null) {
+      SeToast.info(
+        context,
+        _packagePricingLoaded
+            ? 'Package delivery is not available yet.'
+            : 'Still loading package pricing — one moment.',
+      );
+      return;
+    }
+
     final pickupCtrl = TextEditingController();
     final deliveryCtrl = TextEditingController();
     final weightCtrl = TextEditingController();
     final instructionsCtrl = TextEditingController();
     bool packingRequired = false;
+    bool submitting = false;
 
     showSeBottomSheet(
       context: context,
@@ -236,6 +279,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: SeIcons.scales,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  // The price depends on this field, so the quote has to move
+                  // with it. A customer who only sees the figure after
+                  // submitting cannot decide whether to send the parcel.
+                  onChanged: (_) => setModalState(() {}),
                 ),
                 const SizedBox(height: 14),
                 Text('Packing Required',
@@ -264,6 +311,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             setModalState(() => packingRequired = v),
                         activeThumbColor: SeColors.red500,
                       ),
+                      if (pricing.packingSurcharge > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Text(
+                            '+${Money.format(pricing.packingSurcharge)}',
+                            style: SeType.bodyS
+                                .copyWith(color: SeColors.ink500),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -276,21 +332,63 @@ class _HomeScreenState extends State<HomeScreen> {
                   minLines: 2,
                   maxLines: 4,
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 18),
+                _quoteBlock(pricing, weightCtrl.text, packingRequired),
+                const SizedBox(height: 18),
                 SeButton(
-                  label: 'Submit Request',
+                  label: submitting ? 'Placing order…' : 'Place Package Order',
                   icon: SeIcons.check,
-                  onPressed: () {
-                    if (pickupCtrl.text.trim().isEmpty ||
-                        deliveryCtrl.text.trim().isEmpty) {
-                      SeToast.error(
-                          ctx, 'Please add pickup and delivery addresses');
-                      return;
-                    }
-                    Navigator.pop(ctx);
-                    SeToast.success(context,
-                        "Package request submitted! We'll contact you shortly.");
-                  },
+                  onPressed: submitting
+                      ? null
+                      : () async {
+                          if (pickupCtrl.text.trim().isEmpty ||
+                              deliveryCtrl.text.trim().isEmpty) {
+                            SeToast.error(ctx,
+                                'Please add pickup and delivery addresses');
+                            return;
+                          }
+                          final weight = parseWeightKg(weightCtrl.text);
+                          if (weight == null) {
+                            SeToast.error(
+                                ctx, 'Enter the weight in kilograms, e.g. 2.5');
+                            return;
+                          }
+                          final quote = pricing.quote(
+                              weightKg: weight, packing: packingRequired);
+                          if (quote == null) {
+                            SeToast.error(
+                                ctx,
+                                'We cannot carry a parcel that heavy — '
+                                'up to ${pricing.maxWeightKg.round()} kg.');
+                            return;
+                          }
+                          setModalState(() => submitting = true);
+                          try {
+                            final orderId =
+                                await FirestoreService.placePackageOrder(
+                              itemCategory: category,
+                              pickupAddress: pickupCtrl.text.trim(),
+                              deliveryAddress: deliveryCtrl.text.trim(),
+                              weightKg: weight,
+                              packingRequired: packingRequired,
+                              instructions: instructionsCtrl.text.trim(),
+                              quote: quote,
+                              paymentMethod: 'Cash on Delivery',
+                            );
+                            if (!ctx.mounted) return;
+                            Navigator.pop(ctx);
+                            if (!mounted) return;
+                            // The tracking screen, not a toast. The whole point
+                            // of P5-01 is that there is now something to track.
+                            Navigator.pushNamed(context, '/order-status',
+                                arguments: {'orderId': orderId});
+                          } catch (_) {
+                            if (!ctx.mounted) return;
+                            setModalState(() => submitting = false);
+                            SeToast.error(ctx,
+                                'Could not place the package order. Please try again.');
+                          }
+                        },
                 ),
               ],
             ),
@@ -299,6 +397,100 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  /// Live price for what the customer has typed so far.
+  ///
+  /// Three distinct states, deliberately not collapsed into one: nothing typed
+  /// yet, a weight we cannot carry, and a real quote. The middle one used to be
+  /// indistinguishable from the last, because there was no price at all.
+  Widget _quoteBlock(
+      PackagePricing pricing, String weightText, bool packingRequired) {
+    final weight = parseWeightKg(weightText);
+    final quote = weight == null
+        ? null
+        : pricing.quote(weightKg: weight, packing: packingRequired);
+
+    if (weight == null) {
+      return _quoteShell(
+        SeColors.oceanTint,
+        Row(
+          children: [
+            const Icon(SeIcons.info, size: 18, color: SeColors.ocean500),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Enter a weight to see the price.',
+                style: SeType.bodyS.copyWith(color: SeColors.ocean500),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (quote == null) {
+      return _quoteShell(
+        SeColors.dangerTint,
+        Row(
+          children: [
+            const Icon(SeIcons.warningCircle, size: 18, color: SeColors.danger),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'We carry parcels up to ${pricing.maxWeightKg.round()} kg. '
+                'Contact support for anything heavier.',
+                style: SeType.bodyS.copyWith(color: SeColors.danger),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget line(String label, String value, {bool strong = false}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(label,
+                    style: strong
+                        ? SeType.title
+                        : SeType.bodyS.copyWith(color: SeColors.ink500)),
+              ),
+              Text(value,
+                  style: SeType.tabular(strong ? SeType.title : SeType.bodyS)
+                      .copyWith(
+                          color: strong ? SeColors.ink900 : SeColors.ink700)),
+            ],
+          ),
+        );
+
+    return _quoteShell(
+      SeColors.surface50,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          line('Delivery (${quote.bandLabel})', Money.format(quote.deliveryFee)),
+          if (quote.serviceFee > 0)
+            line('Packing', Money.format(quote.serviceFee)),
+          const Divider(height: 14, color: SeColors.ink200),
+          line('Total', Money.format(quote.total), strong: true),
+          const SizedBox(height: 4),
+          Text('Cash on delivery. Nothing is charged now.',
+              style: SeType.bodyS.copyWith(color: SeColors.ink400)),
+        ],
+      ),
+    );
+  }
+
+  Widget _quoteShell(Color background, Widget child) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: SeRadius.all(SeRadius.md),
+        ),
+        child: child,
+      );
 
   @override
   Widget build(BuildContext context) {
