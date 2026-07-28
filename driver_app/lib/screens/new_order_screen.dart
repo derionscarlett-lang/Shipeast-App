@@ -21,7 +21,17 @@ import 'pickup_confirmation_screen.dart';
 /// interrupts the driver, with the countdown as the visual anchor.
 class NewOrderScreen extends StatefulWidget {
   final Map<String, dynamic> order;
-  const NewOrderScreen({super.key, required this.order});
+
+  /// Straight-line distance from the driver to the pickup, in metres, when the
+  /// dashboard could compute it. Null when the driver's location or the order's
+  /// pickup coordinates are unknown, in which case no distance is shown.
+  final double? pickupDistanceMeters;
+
+  const NewOrderScreen({
+    super.key,
+    required this.order,
+    this.pickupDistanceMeters,
+  });
 
   @override
   State<NewOrderScreen> createState() => _NewOrderScreenState();
@@ -55,6 +65,13 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
   String get _paymentMethod =>
       widget.order['paymentMethod'] as String? ?? 'COD';
   List _getItems() => widget.order['items'] as List? ?? [];
+
+  /// A short "how far to collect" label, or null when the distance is unknown.
+  String? get _pickupDistanceLabel {
+    final m = widget.pickupDistanceMeters;
+    if (m == null) return null;
+    return m < 950 ? '${m.round()} m away' : '${(m / 1000).toStringAsFixed(1)} km away';
+  }
 
   String get _shortId => _orderId.length > 8
       ? _orderId.substring(0, 8).toUpperCase()
@@ -404,6 +421,22 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
                     Text(_merchantAddress,
                         style:
                             SeType.bodyS.copyWith(color: SeColors.ink500)),
+                  if (_pickupDistanceLabel != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(SeIcons.navigation,
+                              size: 13, color: SeColors.ocean500),
+                          const SizedBox(width: 4),
+                          Text(_pickupDistanceLabel!,
+                              style: SeType.bodyS.copyWith(
+                                  color: SeColors.ocean500,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: SeSpacing.x4),
                   Text('DELIVER TO', style: SeType.eyebrow),
                   Text(_customerName, style: SeType.title),

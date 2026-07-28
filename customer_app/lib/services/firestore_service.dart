@@ -71,16 +71,46 @@ class FirestoreService {
     }
 
     String customerName = '';
+    String customerPhone = '';
     try {
       final doc = await _db.collection('users').doc(user.uid).get();
       customerName = doc.data()?['name'] as String? ?? '';
+      // The driver needs a number to reach the customer when a delivery
+      // address is ambiguous. Nothing wrote it before, so the driver app had
+      // no one to call — the customer could call the driver but never the
+      // reverse. Read from the same profile doc we already fetch for the name.
+      customerPhone = doc.data()?['phone'] as String? ?? '';
+    } catch (_) {}
+
+    // Denormalise the merchant's street address onto the order. A food order
+    // never carried a pickup address, so the driver's new-order and pickup
+    // screens showed '—' for where to collect — they only had the shop name.
+    // The address lives solely on the merchant document; copy it here into the
+    // same `merchantAddr` field a package order already uses, so the one driver
+    // reader works for both kinds of job.
+    String merchantAddr = '';
+    // Pickup coordinates, denormalised so the driver app can rank incoming
+    // offers by how near the pickup is (nearest-first dispatch). Null when the
+    // merchant has no coordinates, which the driver app treats as "distance
+    // unknown" and falls back to arrival order — never a gate.
+    double? pickupLat;
+    double? pickupLng;
+    try {
+      final m = await _db.collection('merchants').doc(merchantId).get();
+      merchantAddr = m.data()?['address'] as String? ?? '';
+      pickupLat = (m.data()?['lat'] as num?)?.toDouble();
+      pickupLng = (m.data()?['lng'] as num?)?.toDouble();
     } catch (_) {}
 
     final ref = await _db.collection('orders').add({
       'customerId': user.uid,
       'customerName': customerName,
+      'customerPhone': customerPhone,
       'merchantId': merchantId,
       'merchantName': merchantName,
+      'merchantAddr': merchantAddr,
+      'pickupLat': pickupLat,
+      'pickupLng': pickupLng,
       'items': items
           .map((i) => {
                 'name': i['name'],
@@ -164,14 +194,17 @@ class FirestoreService {
     }
 
     String customerName = '';
+    String customerPhone = '';
     try {
       final doc = await _db.collection('users').doc(user.uid).get();
       customerName = doc.data()?['name'] as String? ?? '';
+      customerPhone = doc.data()?['phone'] as String? ?? '';
     } catch (_) {}
 
     final ref = await _db.collection('orders').add({
       'customerId': user.uid,
       'customerName': customerName,
+      'customerPhone': customerPhone,
       'type': OrderType.package,
       // There is no merchant. Writing a placeholder id would put a package job
       // into that merchant's order count and its analytics.
@@ -517,8 +550,19 @@ class FirestoreService {
 
   // ─── Notifications ────────────────────────────────────────────────────────────
 
+  /// The notifications collection grows without bound, so every read here is
+  /// capped to the most recent [_notifLimit] — the same shape the admin panel
+  /// uses (orderBy createdAt desc, limit). Reading the whole collection on every
+  /// snapshot was O(all notifications) and got slower for every user forever.
+  static const int _notifLimit = 50;
+
   static Stream<List<Map<String, dynamic>>> notificationsStream({String? uid}) =>
-      _db.collection('notifications').snapshots().map((s) {
+      _db
+          .collection('notifications')
+          .orderBy('createdAt', descending: true)
+          .limit(_notifLimit)
+          .snapshots()
+          .map((s) {
         final docs = s.docs
             .where((d) {
               final t = d.data()['target'] as String? ?? 'all';
@@ -543,7 +587,14 @@ class FirestoreService {
   static Stream<int> unreadNotificationsCountStream(String uid) {
     return _db.collection('users').doc(uid).snapshots().asyncMap((snap) async {
       final readAt = (snap.data()?['notificationsReadAt'] as Timestamp?)?.toDate();
-      final notifSnap = await _db.collection('notifications').get();
+      // Bounded to the most recent [_notifLimit]: the badge only needs "how many
+      // recent ones are unread", not a full-collection scan on every profile
+      // change. A badge that would read past 50 unread is capped at 50 anyway.
+      final notifSnap = await _db
+          .collection('notifications')
+          .orderBy('createdAt', descending: true)
+          .limit(_notifLimit)
+          .get();
       final unread = notifSnap.docs.where((d) {
         final target = d.data()['target'] as String? ?? 'all';
         if (target != 'all' && target != 'customers' && target != uid) return false;

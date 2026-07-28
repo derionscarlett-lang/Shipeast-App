@@ -67,6 +67,7 @@ class SeIcons {
   static const IconData close = Icons.close_rounded;
   static const IconData check = Icons.check_rounded;
   static const IconData checkCircle = Icons.check_circle_rounded;
+  static const IconData refresh = Icons.refresh_rounded; // reorder / retry
 
   /// Unselected state for the cancellation reason picker (P5-03). Paired
   /// with [checkCircle] rather than a Material Radio so the row stays one

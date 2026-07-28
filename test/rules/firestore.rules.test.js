@@ -320,6 +320,29 @@ describe('orders — claiming and the lifecycle', () => {
     );
   });
 
+  test('the holding driver CAN stream their live driverLoc onto the order', async () => {
+    // The live position lives on the order (readable only by this order's
+    // customer, driver and an admin) rather than on the world-readable driver
+    // document. It must ride on the existing driver-update rule with no status
+    // change and no touch of a protected field.
+    await seed('orders/o1', order({ driverId: DRIVER, status: 'picked_up' }));
+    await assertSucceeds(
+      updateDoc(doc(asDriver(), 'orders/o1'), {
+        driverLoc: { lat: 18.0179, lng: -76.8099, accuracy: 12, updatedAt: new Date() }
+      })
+    );
+  });
+
+  test('a driver CANNOT write driverLoc onto an order they do not hold', async () => {
+    // The whole point: a driver could otherwise plant a position on any order.
+    await seed('orders/o1', order({ driverId: OTHER_DRIVER, status: 'picked_up' }));
+    await assertFails(
+      updateDoc(doc(asDriver(), 'orders/o1'), {
+        driverLoc: { lat: 18.0179, lng: -76.8099, accuracy: 12, updatedAt: new Date() }
+      })
+    );
+  });
+
   test('an admin CAN assign a driver and confirm in one write', async () => {
     // The P1-07 black-hole fix must be permitted by rules.
     await seed('orders/o1', order());

@@ -234,7 +234,13 @@ service cloud.firestore {
          from the order's own stored total. A driver who can write `delivered`
          directly can complete an order with no commission recorded, and the
          earnings screens then derive a figure from data that was never
-         written. */
+         written.
+
+         This same clause is what lets the holding driver stream their live
+         `driverLoc` onto the order (DriverLocationService): it is not a protected
+         field and the write leaves `status` unchanged, so it passes here. Keeping
+         the position on the order — readable only by this order's customer —
+         rather than on the world-readable driver document is deliberate. */
       function driverAdvancing() {
         return existing().driverId == uid()
                && incoming().status != 'delivered'

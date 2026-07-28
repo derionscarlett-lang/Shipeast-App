@@ -120,6 +120,10 @@ export const confirmDelivery = onCall(async (request) => {
       deliveredAt: admin.firestore.FieldValue.serverTimestamp(),
       driverCommission: commission,
       commissionRate: rate,
+      // Clear the live driver position: once delivered the driver app can no
+      // longer clear it itself (the update rule forbids writes to a delivered
+      // order), so a stale coordinate would otherwise linger on the record.
+      driverLoc: admin.firestore.FieldValue.delete(),
       ...(photoUrl ? { deliveryPhotoUrl: photoUrl } : {}),
       ...(note ? { deliveryNote: note } : {}),
     });

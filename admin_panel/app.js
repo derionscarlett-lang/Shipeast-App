@@ -4,26 +4,47 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import{getFirestore,collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{getStorage,ref,uploadBytesResumable,getDownloadURL,deleteObject,listAll}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
-import{getFunctions,httpsCallable}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
+import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,getIdTokenResult,connectAuthEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import{getFirestore,collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp,connectFirestoreEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{getStorage,ref,uploadBytesResumable,getDownloadURL,deleteObject,listAll,connectStorageEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+import{getFunctions,httpsCallable,connectFunctionsEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
 // ── Firebase Config ──
 // Lives in config.js so the panel can target staging during the Phase 1–3
 // migrations (P0-01). config.js also paints a banner on any non-prod
 // environment, so it is always visible which database is being mutated.
-import{firebaseConfig}from'./config.js';
+import{firebaseConfig,USE_EMULATORS,EMULATORS}from'./config.js';
 import*as OrderStatus from'./order-status.js';
 import{createUploader,merchantCoverPath,menuItemPath,storagePathFromUrl}from'./image-upload.js';
 import{parseBands,formatBands,describeBands,parseAmount}from'./pricing-form.js';
 import*as Overseas from'./overseas-status.js';
+import{parseLatLng,isValidLatLng,roundCoord,formatLatLng}from'./location-input.js';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
 const storage=getStorage(app);
 const fns=getFunctions(app);
+
+/* ── Local preview only ────────────────────────────────────────────────
+   Points every SDK at the emulator suite. Gated on SE_ENV==='local', which
+   only resolves for localhost/127.0.0.1, so a deployed panel can never take
+   this branch.
+
+   These calls must happen before any read or write. connectFirestoreEmulator
+   in particular throws once the instance has been used, which is why this
+   sits immediately after the getters rather than inside initApp().
+
+   Note connectFirestoreEmulator hardcodes plain HTTP (no ssl option in the
+   10.x SDK), so this only works over a localhost port forward — not over a
+   Codespaces *.app.github.dev URL. See tools/dev-up.sh.                  */
+if(USE_EMULATORS){
+  connectAuthEmulator(auth,'http://localhost:'+EMULATORS.auth,{disableWarnings:true});
+  connectFirestoreEmulator(db,'localhost',EMULATORS.firestore);
+  connectStorageEmulator(storage,'localhost',EMULATORS.storage);
+  connectFunctionsEmulator(fns,'localhost',EMULATORS.functions);
+  console.info('[ShipEast Admin] emulator suite: auth/firestore/storage/functions');
+}
 
 // ══════════════════════ LOCAL DATA MIRRORS ══════════════════════
 var orders=[],drivers=[],merchants=[],promoCodes=[],notifHistory=[],customers=[],inquiries=[];
@@ -36,6 +57,8 @@ var currentPeriod='Today',ordersFilter='All',driverMode='add',driverEditId=null,
 var panelMerchantId=null,menuItemsUnsub=null,menuItemEditId=null,panelMenuItems=[],menuItemUploader=null;
 var loadedOnce={orders:false,drivers:false,merchants:false,promos:false,notifs:false,customers:false,overseas:false};
 var customerSearch='',panelCustomerId=null;
+// The live customers listener mirrors at most this many docs (see startListeners).
+var CUSTOMERS_LIMIT=500;
 var overseasFilter='open',overseasSearch='',panelInquiryId=null;
 
 // ══════════════════════ PRIMITIVES ══════════════════════
@@ -469,6 +492,10 @@ function startListeners(){
             rating:o.averageRating||o.rating||0,
             ratingCount:Number(o.ratingCount)||0,
             open:isOpenVal,imageUrl:o.imageUrl||o.image||'',
+            // Pickup coordinates (P5-06). Kept as numbers or null so the form
+            // and the "has a location" indicator can tell "unset" from "0".
+            lat:(o.lat!=null&&isFinite(o.lat))?Number(o.lat):null,
+            lng:(o.lng!=null&&isFinite(o.lng))?Number(o.lng):null,
             emoji:o.emoji||'',_docId:d.id};
         });
         loadedOnce.merchants=true;
@@ -485,10 +512,17 @@ function startListeners(){
 
      The read is permitted by P2-01's `allow read: if uid() == userId ||
      isAdmin()`. There is no orderBy: `createdAt` is absent on every account
-     created before Phase 1, and ordering by it would silently hide them. */
+     created before Phase 1, and ordering by it would silently hide them.
+
+     Capped at CUSTOMERS_LIMIT. Every other listener here is on a collection that
+     stays operationally small (drivers, merchants, promos), but `users` grows
+     with the whole customer base, and a live mirror of all of it re-renders on
+     any change. The cap keeps the page bounded; renderCustomers shows a notice
+     when it is hit, and a server-side customer search is the follow-up for when
+     the base outgrows it. */
   try{
     unsubscribers.push(onSnapshot(
-      collection(db,'users'),
+      query(collection(db,'users'),limit(CUSTOMERS_LIMIT)),
       function(snap){
         customers=snap.docs.map(function(d){
           var o=d.data();
@@ -602,7 +636,8 @@ function startListeners(){
             :'—';
           var TARGETS={customers:'All Customers',drivers:'All Drivers',all:'Everyone'};
           var t=o.target||'all';
-          return {id:d.id,title:o.title||'—',msg:o.message||'—',target:TARGETS[t]||t,time:ts,_docId:d.id};
+          return {id:d.id,title:o.title||'—',msg:o.message||'—',target:TARGETS[t]||t,time:ts,
+            delivered:typeof o.deliveredCount==='number'?o.deliveredCount:null,_docId:d.id};
         });
         loadedOnce.notifs=true;
         renderNotifHist();
@@ -1326,6 +1361,17 @@ function renderCustomers(){
       statCard('close','Disabled',disabledCount,disabledCount?'blocked from signing in':'','gold');
   }
 
+  // Honest cap notice: the listener mirrors at most CUSTOMERS_LIMIT accounts, so
+  // once that many are loaded there may be more that this page — and its search,
+  // which filters the loaded set — cannot see.
+  var capEl=$('customers-cap');
+  if(capEl){
+    capEl.innerHTML=(customers.length>=CUSTOMERS_LIMIT)
+      ? '<div class="notice"><svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg>'
+        +'<div>Showing the first '+CUSTOMERS_LIMIT+' customers. Search filters only these — some accounts may not appear until a server-side customer search is added.</div></div>'
+      : '';
+  }
+
   if(!rows.length){
     tbody.innerHTML=customerSearch
       ? emptyRow(7,'search','No matching customers','Nothing matched “'+esc(customerSearch)+'”. Try a name, email or phone number.')
@@ -1778,6 +1824,42 @@ function pickEmoji(e){
   input.value=input.value===e?'':e;   // clicking the current one clears it
   syncEmojiSelection();
 }
+/* ── Merchant pickup location (P5-06) ─────────────────────────────────
+   The `#m-location` box is a convenience: paste a Google Maps link or a
+   "lat, lng" string and it fills the two number fields, which are the source
+   of truth `saveMerchant` reads. Parsing lives in location-input.js so it can
+   be unit-tested; here we only move values between fields and narrate state. */
+function applyLocationPaste(){
+  var raw=($('m-location')||{}).value||'';
+  if(!raw.trim()){ syncLocationHint(); return; }
+  var c=parseLatLng(raw);
+  if(c){
+    $('m-lat').value=String(roundCoord(c.lat));
+    $('m-lng').value=String(roundCoord(c.lng));
+    $('m-location').value='';   // consumed — the number fields now own it
+  }
+  syncLocationHint(c?null:'invalid');
+}
+function syncLocationHint(state){
+  var el=$('m-location-hint'); if(!el) return;
+  var lat=parseFloat(($('m-lat')||{}).value);
+  var lng=parseFloat(($('m-lng')||{}).value);
+  if(state==='invalid'){
+    // A shortened maps.app.goo.gl link carries no coordinates until a browser
+    // follows it, so say what to paste instead of failing silently.
+    el.hidden=false;
+    el.innerHTML=icon('close')+'Could not read coordinates from that. Paste a full Google Maps link or “lat, lng”.';
+    return;
+  }
+  if(isValidLatLng(lat,lng)){
+    el.hidden=false;
+    el.innerHTML=icon('check')+'Pickup set to '+esc(formatLatLng(lat,lng))+' — drivers will be dispatched nearest-first.';
+    return;
+  }
+  // No coordinates yet: this merchant's orders fall back to arrival order.
+  el.hidden=false;
+  el.innerHTML=icon('info')+'No location yet. Orders still work, but drivers won’t be ranked by distance to this merchant.';
+}
 function syncEmojiSelection(){
   var current=($('m-emoji')||{}).value||'';
   var host=$('m-emoji-picker'); if(!host) return;
@@ -1805,6 +1887,12 @@ function openMerchantModal(mode,id){
   $('m-status').value  =m?(m.open?'Open':'Closed'):'Open';
   $('m-imageurl').value=m?(m.imageUrl||''):'';
   $('m-emoji').value   =m?(m.emoji||''):'';
+  // Pickup coordinates (P5-06). The paste box is only an input aid, so it always
+  // starts empty; the lat/lng number fields below are the source of truth.
+  $('m-location').value='';
+  $('m-lat').value     =(m&&m.lat!=null)?String(m.lat):'';
+  $('m-lng').value     =(m&&m.lng!=null)?String(m.lng):'';
+  syncLocationHint();
   syncEmojiSelection();
 
   var up=mountMerchantUploader();
@@ -1832,6 +1920,26 @@ function saveMerchant(){
     toast('warning','Delivery fee cannot be negative.'); $('m-fee').focus(); return;
   }
 
+  /* Pickup coordinates (P5-06). Optional — a merchant with no location still
+     takes orders; they just miss nearest-first driver dispatch. But a
+     half-entered pair (one field filled, or an out-of-range value) is a typo
+     that would denormalise a broken pickup onto every future order, so refuse
+     it rather than store it. */
+  var latRaw=($('m-lat').value||'').trim(), lngRaw=($('m-lng').value||'').trim();
+  var hasLat=latRaw!=='', hasLng=lngRaw!=='';
+  var lat=null, lng=null;
+  if(hasLat||hasLng){
+    if(!hasLat||!hasLng){
+      toast('warning','A pickup location needs both latitude and longitude.');
+      $((hasLat?'m-lng':'m-lat')).focus(); return;
+    }
+    lat=roundCoord(Number(latRaw)); lng=roundCoord(Number(lngRaw));
+    if(!isValidLatLng(lat,lng)){
+      toast('warning','That pickup location is out of range. Latitude −90…90, longitude −180…180.');
+      $('m-lat').focus(); return;
+    }
+  }
+
   var obj={name:name,category:$('m-cat').value,owner:$('m-owner').value.trim()||'—',
     phone:$('m-phone').value.trim()||'—',email:$('m-email').value.trim()||'—',
     address:$('m-address').value.trim()||'—',
@@ -1844,6 +1952,10 @@ function saveMerchant(){
     // the panel had no input for it, so every admin-created merchant fell
     // back to a generic plate while seeded ones had bespoke icons.
     emoji:$('m-emoji').value.trim()||'',
+    // P5-06. Written as numbers (or null when cleared) so the customer app can
+    // denormalise them onto orders as pickupLat/pickupLng for nearest-first
+    // dispatch. Null is a valid "no location" — never 0, which reads as a place.
+    lat:lat,lng:lng,
     imageUrl:$('m-imageurl').value.trim()||'',updatedAt:serverTimestamp()};
   var btn=$('mer-save-btn'), isEdit=merchantMode==='edit';
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Saving…';
@@ -1880,6 +1992,9 @@ function saveMerchant(){
       $('m-hours').value=obj.openingHours; $('m-etatime').value=obj.deliveryTime;
       $('m-address').value=obj.address; $('m-status').value=isOpenState?'Open':'Closed';
       $('m-emoji').value=obj.emoji; syncEmojiSelection();
+      $('m-lat').value=obj.lat!=null?String(obj.lat):'';
+      $('m-lng').value=obj.lng!=null?String(obj.lng):'';
+      syncLocationHint();
     }
   }).catch(function(e){
     toast('error',e.message,'Could not save merchant');
@@ -1929,7 +2044,11 @@ function openMerchantPanel(id){
       row('Opening Hours','<span class="sp-val sm">'+esc(m.openingHours||'—')+'</span>',true)+
       row('Delivery ETA','<span class="sp-val sm">'+esc(m.deliveryTime||'—')+'</span>')+
       row('Delivery Fee','<span class="num">'+esc(m.deliveryFee===0?'Free':money(m.deliveryFee))+'</span>')+
-      row('Address','<span class="sp-val sm">'+esc(m.address)+'</span>',true)+'</div>'+
+      row('Address','<span class="sp-val sm">'+esc(m.address)+'</span>',true)+
+      // P5-06. Whether this merchant feeds nearest-first driver dispatch.
+      row('Pickup Location',(m.lat!=null&&m.lng!=null)
+        ?'<span class="sp-val sm num">'+esc(formatLatLng(m.lat,m.lng))+'</span>'
+        :'<span class="sp-val sm" style="color:var(--gold)">Not set — no distance ranking</span>',true)+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Contact</div>'+
       row('Phone','<span class="num">'+esc(m.phone)+'</span>')+
       row('Email','<span class="sp-val sm">'+esc(m.email)+'</span>',true)+'</div>'+
@@ -2115,40 +2234,59 @@ function renderNotifHist(){
     return;
   }
   if(!notifHistory.length){
-    el.innerHTML=emptyState('bell','Nothing sent yet','Notifications you compose will be logged here with their audience and timestamp.');
+    el.innerHTML=emptyState('bell','Nothing sent yet','Push notifications you send will appear here with their audience, timestamp, and delivery count.');
     return;
   }
   el.innerHTML=notifHistory.map(function(n){
+    // deliveredCount is written back by onNotificationCreated after the send;
+    // it is briefly null on a just-sent push, so it is only shown once present.
+    var delivered=n.delivered!=null
+      ? '<span style="font-size:11px;color:var(--text-mute)" class="num">Delivered to '+n.delivered+' device'+(n.delivered===1?'':'s')+'</span>'
+      : '';
     return '<div class="nh-item"><div class="nh-ico">'+icon('notifications')+'</div>'+
       '<div style="min-width:0">'+
         '<div class="nh-title">'+esc(n.title)+'</div>'+
         '<div class="nh-meta">'+esc(n.msg)+'</div>'+
-        '<div style="display:flex;gap:8px;align-items:center;margin-top:7px">'+
+        '<div style="display:flex;gap:8px;align-items:center;margin-top:7px;flex-wrap:wrap">'+
           '<span class="bdg bg-info plain">'+esc(n.target)+'</span>'+
           '<span style="font-size:11px;color:var(--text-mute)" class="num">'+esc(n.time)+'</span>'+
+          delivered+
         '</div>'+
       '</div></div>';
   }).join('');
 }
+/* Writing this document triggers the onNotificationCreated function, which sends
+   a REAL FCM push to every device in the target audience (functions/notifications.ts).
+   It is not a log. The confirm below exists because there is no undo on a push. */
+var NOTIF_AUDIENCE={customers:'all customers',drivers:'all drivers',all:'everyone (customers and drivers)'};
 function sendNotif(){
   var title=$('n-title').value.trim();
   var msg=$('n-msg').value.trim();
   var target=$('n-target').value;
   if(!title||!msg){ toast('warning','Enter both a title and a message.'); return; }
-  var btn=$('notif-send-btn');
-  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Saving…';
-  addDoc(collection(db,'notifications'),{
-    title:title,message:msg,target:target,
-    sentBy:auth.currentUser?auth.currentUser.email:'admin',
-    createdAt:serverTimestamp()
-  }).then(function(){
-    $('n-title').value=''; $('n-msg').value='';
-    updPhonePreview();
-    btn.disabled=false; btn.innerHTML=icon('send')+'Log Notification';
-    toast('success','Saved to the notification log.','Logged');
-  }).catch(function(e){
-    toast('error',e.message,'Could not save notification');
-    btn.disabled=false; btn.innerHTML=icon('send')+'Log Notification';
+  var audience=NOTIF_AUDIENCE[target]||target;
+  confirmDialog({
+    tone:'warning',
+    title:'Send this push?',
+    body:'This sends a real push notification to '+audience+'. It cannot be recalled once sent.',
+    confirmLabel:'Send Notification'
+  }).then(function(ok){
+    if(!ok) return;
+    var btn=$('notif-send-btn');
+    btn.disabled=true; btn.innerHTML='<span class="spin"></span>Sending…';
+    addDoc(collection(db,'notifications'),{
+      title:title,message:msg,target:target,
+      sentBy:auth.currentUser?auth.currentUser.email:'admin',
+      createdAt:serverTimestamp()
+    }).then(function(){
+      $('n-title').value=''; $('n-msg').value='';
+      updPhonePreview();
+      btn.disabled=false; btn.innerHTML=icon('send')+'Send Notification';
+      toast('success','Push sent to '+audience+'.','Sent');
+    }).catch(function(e){
+      toast('error',e.message,'Could not send notification');
+      btn.disabled=false; btn.innerHTML=icon('send')+'Send Notification';
+    });
   });
 }
 
@@ -2529,6 +2667,10 @@ document.addEventListener('input',function(e){
   if(e.target.id==='m-imageurl'&&merchantUploader) merchantUploader.setValue(e.target.value.trim());
   if(e.target.id==='mi-img'&&menuItemUploader) menuItemUploader.setValue(e.target.value.trim());
   if(e.target.id==='m-emoji') syncEmojiSelection();
+  // Paste a Maps link / "lat, lng" → fill the number fields (P5-06). Typing
+  // directly in the number fields just refreshes the "location set" hint.
+  if(e.target.id==='m-location') applyLocationPaste();
+  if(e.target.id==='m-lat'||e.target.id==='m-lng') syncLocationHint();
   if(['pc-code','pc-disc','pc-valid','pc-min','pc-maxdisc'].indexOf(e.target.id)>-1) updPromoPreview();
 });
 document.addEventListener('keydown',function(e){
@@ -2570,14 +2712,37 @@ function initApp(){
   startListeners();
 }
 
+/* The panel is gated on the `admin` custom claim, not merely on being signed in.
+   Firestore rules (isAdmin()) are the real trust boundary and already block every
+   write, but customers and drivers share this Auth project, so without this check
+   a non-admin who signs in would see the console shell and a wall of
+   permission-denied toasts. We reject them cleanly instead. The claim is the same
+   one the rules require, so any account that can actually administer already has
+   it. */
+function rejectNonAdmin(msg){
+  signOut(auth);
+  var errEl=$('l-err');
+  if(errEl){
+    errEl.innerHTML=icon('warning','ic-sm')+'<span>'+esc(msg)+'</span>';
+    errEl.classList.add('show');
+  }
+}
 onAuthStateChanged(auth,function(user){
   if(user){
-    $('login-page').style.display='none';
-    $('app').style.display='block';
-    var anEl=document.querySelector('.an'); if(anEl) anEl.textContent=user.displayName||user.email;
-    var avEl=document.querySelector('.av');
-    if(avEl) avEl.textContent=((user.displayName||user.email||'A')[0]||'A').toUpperCase();
-    initApp();
+    getIdTokenResult(user).then(function(res){
+      if(!res.claims||res.claims.admin!==true){
+        rejectNonAdmin('This account is not an administrator.');
+        return;
+      }
+      $('login-page').style.display='none';
+      $('app').style.display='block';
+      var anEl=document.querySelector('.an'); if(anEl) anEl.textContent=user.displayName||user.email;
+      var avEl=document.querySelector('.av');
+      if(avEl) avEl.textContent=((user.displayName||user.email||'A')[0]||'A').toUpperCase();
+      initApp();
+    }).catch(function(e){
+      rejectNonAdmin('Could not verify administrator access: '+e.message);
+    });
   }else{
     $('login-page').style.display='flex';
     $('app').style.display='none';

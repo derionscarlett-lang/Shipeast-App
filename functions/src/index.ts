@@ -20,6 +20,7 @@ export { submitRating } from './rating';       // P3-05
 export {
   onNotificationCreated,   // fixes the admin's "All Drivers" dead end
   onOrderCreated,          // a backgrounded driver finally hears about an order
+  reofferPendingOrders,    // re-notifies drivers about orders nobody accepted
   onOrderStatusChanged,
   onDriverStatusChanged
 } from './notifications';   // P4-04

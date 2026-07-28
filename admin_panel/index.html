@@ -274,6 +274,7 @@
           <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
           <input id="customers-search" placeholder="Search name, email, phone or user ID…" aria-label="Search customers"/>
         </div>
+        <div id="customers-cap"></div>
         <div class="card"><div class="tbl-wrap"><table>
           <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Orders</th><th class="right">Lifetime Value</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="customers-tbody"></tbody>
@@ -304,7 +305,7 @@
               <div class="card-title">Compose Notification</div>
               <div class="notice">
                 <svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg>
-                <div>This writes to the notification <b>log</b> only. Push delivery to devices is not wired up yet (FCM pending), so customers and drivers will not receive it on their phones.</div>
+                <div>This sends a <b>real push notification</b> to every device in the selected audience. You will be asked to confirm before it goes out.</div>
               </div>
               <div class="fr"><label for="n-target">Target Audience</label>
                 <select id="n-target">
@@ -316,7 +317,7 @@
               <div class="fr"><label for="n-title">Title</label><input id="n-title" placeholder="e.g. Flash Sale — 20% Off Deliveries!"/></div>
               <div class="fr"><label for="n-msg">Message</label><textarea id="n-msg" rows="4" placeholder="Write your notification message here…"></textarea></div>
               <button class="btn btn-primary btn-block" id="notif-send-btn" data-action="send-notif">
-                <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Log Notification
+                <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Send Notification
               </button>
             </div>
             <div class="card">
@@ -571,6 +572,19 @@
       </div>
     </div>
     <div class="fr"><label for="m-address">Address</label><input id="m-address" placeholder="Street address, Parish"/></div>
+
+    <!-- P5-06: pickup coordinates. A food order copies these onto itself as
+         pickupLat/pickupLng, and the driver dashboard ranks offers nearest-first
+         from them. Without an input here, admin-created merchants produced orders
+         with null coords that sorted to the back of every driver's queue. -->
+    <div class="fr"><label for="m-location">Pickup Location <small>(paste a Google Maps link or “lat, lng” — powers nearest-driver dispatch)</small></label>
+      <input id="m-location" placeholder="e.g. 18.0179, -76.8099 — or paste a Google Maps link"/>
+      <div id="m-location-hint" class="up-locked" hidden></div>
+    </div>
+    <div class="mg">
+      <div class="fr"><label for="m-lat">Latitude</label><input id="m-lat" type="number" step="any" inputmode="decimal" placeholder="18.0179"/></div>
+      <div class="fr"><label for="m-lng">Longitude</label><input id="m-lng" type="number" step="any" inputmode="decimal" placeholder="-76.8099"/></div>
+    </div>
 
     <!-- P4-02: `emoji` is customer-facing display data (home_screen.dart:672)
          that the panel had no input for, so admin-created merchants fell back

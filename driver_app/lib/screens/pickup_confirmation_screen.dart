@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../driver_constants.dart';
 import '../services/driver_firestore_service.dart';
+import '../services/phone_call.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
@@ -33,11 +34,18 @@ class _PickupConfirmationScreenState extends State<PickupConfirmationScreen> {
   String get _merchantName =>
       widget.order['merchantName'] as String? ?? 'Merchant';
   String get _merchantAddress =>
+      // SCHEMA.md §orders names this `merchantAddr`; this screen used to read
+      // only the longer spellings, so even an order that carried a pickup
+      // address showed '—' here. Read the canonical field first, mirroring
+      // new_order_screen.
+      widget.order['merchantAddr'] as String? ??
       widget.order['merchantAddress'] as String? ??
       widget.order['address'] as String? ??
       '—';
   String get _customerName =>
       widget.order['customerName'] as String? ?? 'Customer';
+  String get _customerPhone =>
+      widget.order['customerPhone'] as String? ?? '';
   String get _deliveryAddress =>
       widget.order['deliveryAddress'] as String? ?? '—';
   int get _total => (widget.order['total'] as num?)?.toInt() ?? 0;
@@ -114,6 +122,16 @@ class _PickupConfirmationScreenState extends State<PickupConfirmationScreen> {
               name: _customerName,
               detail: _deliveryAddress,
             ),
+            if (_customerPhone.isNotEmpty) ...[
+              const SizedBox(height: SeSpacing.x3),
+              SeButton(
+                label: 'Call customer',
+                icon: SeIcons.phone,
+                variant: SeButtonVariant.ghost,
+                onPressed: () =>
+                    callPhone(context, _customerPhone, label: 'Customer'),
+              ),
+            ],
             const SizedBox(height: SeSpacing.x3),
 
             // ── Itemised manifest ───────────────────────────────────────

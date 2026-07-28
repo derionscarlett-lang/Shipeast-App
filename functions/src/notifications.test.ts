@@ -5,10 +5,14 @@ import {
   dedupeTokens,
   targetCollections,
   orderCreatedContent,
+  orderReofferContent,
+  shouldReoffer,
   statusChangeContent,
   driverStatusContent,
   isDeadToken,
-  MULTICAST_LIMIT
+  MULTICAST_LIMIT,
+  REOFFER_MIN_AGE_MS,
+  REOFFER_MAX_AGE_MS
 } from './notifications';
 import * as OrderStatus from './orderStatus';
 
@@ -116,6 +120,47 @@ describe('orderCreatedContent', () => {
 
   test('always carries the orderId so the tap can deep-link', () => {
     assert.equal(orderCreatedContent('abc', {}).data?.orderId, 'abc');
+  });
+});
+
+describe('orderReofferContent', () => {
+  test('reads as a re-offer, not a second brand-new order', () => {
+    const c = orderReofferContent('o1', { merchantName: 'Juici', total: 1440 });
+    assert.equal(c.title, 'Order still needs a driver');
+    assert.equal(c.body, 'Juici · $1,440');
+  });
+
+  test('is distinguishable from the first alert by its data type', () => {
+    // The app routes on data.type; a re-offer must not look identical to the
+    // original push.
+    assert.equal(orderReofferContent('o1', {}).data?.type, 'order_reoffer');
+    assert.equal(orderCreatedContent('o1', {}).data?.type, 'order_created');
+  });
+
+  test('carries the orderId and applies the same money rules', () => {
+    assert.equal(orderReofferContent('abc', {}).data?.orderId, 'abc');
+    assert.equal(orderReofferContent('o1', { merchantName: 'Juici', total: 0 }).body, 'Juici');
+  });
+});
+
+describe('shouldReoffer', () => {
+  test('says no before the first push has had time to work', () => {
+    // onOrderCreated already covered the opening window; re-offering now would
+    // double-send.
+    assert.equal(shouldReoffer(0), false);
+    assert.equal(shouldReoffer(REOFFER_MIN_AGE_MS - 1), false);
+  });
+
+  test('says yes across the whole re-offer window, inclusive of both edges', () => {
+    assert.equal(shouldReoffer(REOFFER_MIN_AGE_MS), true);
+    assert.equal(shouldReoffer((REOFFER_MIN_AGE_MS + REOFFER_MAX_AGE_MS) / 2), true);
+    assert.equal(shouldReoffer(REOFFER_MAX_AGE_MS), true);
+  });
+
+  test('stops once an order is old enough to be a human dispatch problem', () => {
+    // Past the ceiling a stuck order should be surfaced to a person, not pinged
+    // forever.
+    assert.equal(shouldReoffer(REOFFER_MAX_AGE_MS + 1), false);
   });
 });
 

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../driver_constants.dart';
 import '../services/driver_firestore_service.dart';
+import '../services/phone_call.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_motion.dart';
@@ -41,6 +42,8 @@ class _DeliveryConfirmationScreenState
 
   String get _customerName =>
       widget.order['customerName'] as String? ?? 'Customer';
+  String get _customerPhone =>
+      widget.order['customerPhone'] as String? ?? '';
   String get _deliveryAddress =>
       widget.order['deliveryAddress'] as String? ?? '—';
   int get _total => (widget.order['total'] as num?)?.toInt() ?? 0;
@@ -219,6 +222,16 @@ class _DeliveryConfirmationScreenState
                   const SizedBox(height: 2),
                   Text(_deliveryAddress,
                       style: SeType.body.copyWith(color: SeColors.ink500)),
+                  if (_customerPhone.isNotEmpty) ...[
+                    const SizedBox(height: SeSpacing.x4),
+                    SeButton(
+                      label: 'Call customer',
+                      icon: SeIcons.phone,
+                      variant: SeButtonVariant.ghost,
+                      onPressed: () =>
+                          callPhone(context, _customerPhone, label: 'Customer'),
+                    ),
+                  ],
                   const Divider(color: SeColors.ink200, height: SeSpacing.x6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

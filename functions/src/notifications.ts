@@ -18,6 +18,7 @@
  */
 
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as OrderStatus from './orderStatus';
@@ -103,6 +104,52 @@ export function orderCreatedContent(
     body: `${merchant}${amount}`,
     data: { type: 'order_created', orderId }
   };
+}
+
+/**
+ * What a driver sees when an order they may already have been told about is
+ * *still* unclaimed and is being re-offered.
+ *
+ * Deliberately different wording from [orderCreatedContent] so a driver reads
+ * this as "a job is going begging", not as a second brand-new order. Same money
+ * rule: the figure is the order's stored `total`.
+ */
+export function orderReofferContent(
+  orderId: string,
+  order: Record<string, unknown>
+): PushContent {
+  const total = Number(order.total);
+  const merchant = typeof order.merchantName === 'string' && order.merchantName
+    ? order.merchantName
+    : 'A merchant';
+  const amount = Number.isFinite(total) && total > 0
+    ? ` · $${Math.round(total).toLocaleString('en-US')}`
+    : '';
+  return {
+    title: 'Order still needs a driver',
+    body: `${merchant}${amount}`,
+    data: { type: 'order_reoffer', orderId }
+  };
+}
+
+/**
+ * How long an unclaimed order waits before its first re-offer, and the age past
+ * which re-offering stops. `onOrderCreated` already covered the first two
+ * minutes, so re-offering before then would double-send; past an hour a stuck
+ * order is a dispatch problem for a human, not something to keep pinging.
+ */
+export const REOFFER_MIN_AGE_MS = 2 * 60 * 1000;
+export const REOFFER_MAX_AGE_MS = 60 * 60 * 1000;
+
+/**
+ * Whether an order this old should be re-offered now.
+ *
+ * Pure and tested because the window is exactly the off-by-one that stays
+ * invisible until an order is either spammed the instant it is created or never
+ * re-offered at all.
+ */
+export function shouldReoffer(ageMs: number): boolean {
+  return ageMs >= REOFFER_MIN_AGE_MS && ageMs <= REOFFER_MAX_AGE_MS;
 }
 
 /**
@@ -343,6 +390,60 @@ export const onOrderCreated = onDocumentCreated('orders/{orderId}', async (event
   if (!(await claim(`order_created_${orderId}`))) return;
 
   await sendTo(await onlineDriverTokens(), orderCreatedContent(orderId, order));
+});
+
+/**
+ * Re-offers orders that are still unclaimed after the initial push.
+ *
+ * `onOrderCreated` fires exactly once. If every online driver was mid-delivery,
+ * backgrounded, or simply ignored it, the order sits `pending` with no further
+ * signal ever sent — the largest hole in dispatch, and the counterpart to the
+ * driver app's client-side re-offer (which only helps a driver with the app
+ * open). This sweeps the pending pool on a schedule and re-notifies online
+ * drivers about jobs going begging, until one is claimed or the order ages past
+ * [REOFFER_MAX_AGE_MS] (beyond which it is a human dispatch problem, not an
+ * endless ping).
+ *
+ * The per-order, per-window [claim] keeps an at-least-once scheduler retry from
+ * double-sending within the same window. The query reuses the pendingOrders
+ * composite index (status + driverId); staleness is filtered in memory because
+ * the pending pool is small and a range on `createdAt` would need its own index.
+ */
+export const reofferPendingOrders = onSchedule('every 2 minutes', async () => {
+  const now = Date.now();
+
+  const snap = await db().collection('orders')
+    .where('status', '==', OrderStatus.PENDING)
+    .where('driverId', '==', null)
+    .get();
+
+  const stale = snap.docs.filter((d) => {
+    const created = d.data().createdAt as FirebaseFirestore.Timestamp | undefined;
+    if (!created) return false;
+    return shouldReoffer(now - created.toMillis());
+  });
+  if (stale.length === 0) return;
+
+  // One roster lookup: every stale order is offered to the same online drivers.
+  const recipients = await onlineDriverTokens();
+  if (recipients.length === 0) {
+    logger.info('reoffer: orders waiting but no driver online', {
+      waiting: stale.length
+    });
+    return;
+  }
+
+  // A window aligned to the schedule interval, so each run claims a fresh key
+  // per order (re-sending) while a retry inside the same run cannot.
+  const window = Math.floor(now / REOFFER_MIN_AGE_MS);
+  let reoffered = 0;
+  for (const doc of stale) {
+    if (!(await claim(`order_reoffer_${doc.id}_${window}`))) continue;
+    await sendTo(recipients, orderReofferContent(doc.id, doc.data()));
+    reoffered++;
+  }
+
+  logger.info('reoffer sweep', { waiting: stale.length, reoffered });
 });
 
 /**

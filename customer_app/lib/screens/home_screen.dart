@@ -18,6 +18,7 @@ import '../widgets/se_toast.dart';
 import '../widgets/se_skeleton.dart';
 import '../widgets/se_empty_state.dart';
 import '../widgets/se_bottom_sheet.dart';
+import 'all_merchants_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -773,7 +774,13 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text('Popular Near You', style: SeType.h3),
               GestureDetector(
-                onTap: () => SeToast.info(context, 'All merchants coming soon!'),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AllMerchantsScreen(
+                        category: _categoryLabels[_selectedCategory]),
+                  ),
+                ),
                 child: Row(
                   children: [
                     Text('See all',
