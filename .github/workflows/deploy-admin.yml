@@ -24,6 +24,9 @@ on:
     paths:
       - 'admin_panel/**'
       - '.github/workflows/deploy-admin.yml'
+  # Hand-trigger from the Actions tab (available once this file is on the
+  # default branch) — useful for a re-deploy without a code change.
+  workflow_dispatch:
 
 # A newer push to the same ref makes an in-flight deploy obsolete.
 concurrency:
