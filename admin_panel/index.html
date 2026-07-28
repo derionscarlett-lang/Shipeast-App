@@ -4,6 +4,20 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <meta name="theme-color" content="#C8102E"/>
+<!-- Canonical host. Firebase serves this panel on two permanent default domains
+     (…web.app / …firebaseapp.com) that cannot be removed. Bounce ONLY those two
+     exact hosts to the branded domain, preserving path/query/hash. Matched by
+     exact hostname so PR preview channels (shipeast-1a1f6--pr…​.web.app) and
+     localhost are left alone. Runs before any app script so the wrong-URL page
+     never renders. -->
+<script>
+(function () {
+  var defaults = ['shipeast-1a1f6.web.app', 'shipeast-1a1f6.firebaseapp.com'];
+  if (defaults.indexOf(location.hostname) !== -1) {
+    location.replace('https://admin.shipeastja.com' + location.pathname + location.search + location.hash);
+  }
+})();
+</script>
 <meta name="description" content="ShipEast Admin Portal — orders, drivers, merchants and analytics for ShipEast Couriers &amp; Bearer Services Ltd, Jamaica."/>
 <title>ShipEast Admin Portal</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml"/>
