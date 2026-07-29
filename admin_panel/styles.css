@@ -72,7 +72,10 @@
   --e2:0 4px 12px rgba(28,26,23,.08), 0 2px 4px rgba(28,26,23,.05);
   --e3:0 10px 28px rgba(28,26,23,.12);
   --e4:0 20px 48px rgba(28,26,23,.18);
-  --glow:0 8px 22px rgba(200,16,46,.30);
+  /* Signature red halo — softened (was 8px/22px/.30). The stacked glow was the
+     #1 "AI-coded" tell; this reads as a lift, not a neon flare. Cascades to
+     every primary button, avatar, and the online/settings toggles at once. */
+  --glow:0 6px 16px rgba(200,16,46,.20);
 
   /* motion */
   --d-instant:100ms; --d-fast:180ms; --d-base:240ms; --d-slow:360ms; --d-deliberate:520ms;
@@ -111,7 +114,7 @@
   --e2:0 4px 12px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.3);
   --e3:0 10px 28px rgba(0,0,0,.5);
   --e4:0 20px 48px rgba(0,0,0,.6);
-  --glow:0 8px 22px rgba(240,74,94,.28);
+  --glow:0 6px 16px rgba(240,74,94,.20);
 }
 
 /* ─────────────── BASE ─────────────── */
@@ -130,11 +133,12 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1;}
 
 /* type scale */
-.t-display{font-family:'Plus Jakarta Sans',sans-serif;font-size:32px;line-height:38px;font-weight:800;letter-spacing:-.5px;}
-.t-h1{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;line-height:32px;font-weight:700;letter-spacing:-.3px;}
-.t-h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;line-height:28px;font-weight:700;letter-spacing:-.2px;}
-.t-h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;line-height:24px;font-weight:700;}
-.t-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;line-height:22px;font-weight:600;}
+.t-display{font-family:'Plus Jakarta Sans',sans-serif;font-size:32px;line-height:38px;font-weight:800;letter-spacing:-.6px;}
+.t-h1{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;line-height:32px;font-weight:800;letter-spacing:-.5px;}
+.t-h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;line-height:28px;font-weight:800;letter-spacing:-.4px;}
+.t-h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;line-height:24px;font-weight:700;letter-spacing:-.2px;}
+.t-section{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;line-height:24px;font-weight:800;letter-spacing:-.35px;}
+.t-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;line-height:22px;font-weight:700;letter-spacing:-.1px;}
 .t-body{font-size:15px;line-height:22px;font-weight:400;}
 .t-bodys{font-size:13px;line-height:18px;font-weight:400;}
 .t-label{font-size:12px;line-height:16px;font-weight:600;letter-spacing:.4px;}
@@ -239,7 +243,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .tb-bc em{color:var(--brand);font-style:normal;}
 .tb-bc .ic{width:12px;height:12px;}
 .tb-pg-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;line-height:26px;
-  font-weight:700;letter-spacing:-.2px;color:var(--text-hi);}
+  font-weight:800;letter-spacing:-.3px;color:var(--text-hi);}
 .tb-r{display:flex;align-items:center;gap:var(--s3);flex-shrink:0;}
 .tb-date{font-size:12px;color:var(--text-mute);font-weight:500;}
 .ab{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);
@@ -266,7 +270,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   transition:box-shadow var(--d-base) var(--ease),border-color var(--d-base) var(--ease);
 }
 .card-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:700;
-  color:var(--text-hi);margin-bottom:var(--s4);display:flex;align-items:center;
+  letter-spacing:-.1px;color:var(--text-hi);margin-bottom:var(--s4);display:flex;align-items:center;
   justify-content:space-between;gap:var(--s3);}
 .card-note{font-size:11px;font-weight:600;color:var(--text-mute);
   display:inline-flex;align-items:center;gap:5px;}
@@ -369,8 +373,8 @@ tr.row-muted:hover td{opacity:1;}
 .btn:disabled{opacity:.6;cursor:not-allowed;}
 .btn .ic{width:18px;height:18px;}
 .btn-primary{background:var(--grad-ember);color:#fff;box-shadow:var(--glow);}
-.btn-primary:hover:not(:disabled){box-shadow:0 10px 26px rgba(200,16,46,.38);}
-.btn-primary:active:not(:disabled){box-shadow:0 3px 10px rgba(200,16,46,.28);}
+.btn-primary:hover:not(:disabled){box-shadow:0 8px 20px rgba(200,16,46,.26);}
+.btn-primary:active:not(:disabled){box-shadow:0 2px 8px rgba(200,16,46,.20);}
 .btn-outline{background:transparent;border-color:var(--border);color:var(--text-hi);}
 .btn-outline:hover:not(:disabled){border-color:var(--brand);color:var(--brand);background:var(--red-50);}
 .btn-ghost{background:transparent;color:var(--text-lo);}
@@ -441,12 +445,17 @@ tr.row-muted:hover td{opacity:1;}
 .tab.active b{background:var(--red-50);color:var(--brand-text);}
 [data-theme="dark"] .tab.active b{color:var(--brand);}
 
-.pbs{display:flex;gap:6px;}
-.pb{padding:9px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:600;cursor:pointer;
-  border:1px solid var(--border);background:var(--card);color:var(--text-lo);
-  transition:all var(--d-fast) var(--ease);}
-.pb:hover{color:var(--text-hi);border-color:var(--ink-300);}
-.pb.active{background:var(--grad-ember);color:#fff;border-color:transparent;box-shadow:var(--glow);}
+/* Period selector — a calm single-track segmented control (matches the customer
+   app's Earnings/History tabs). The old active state was gradient + red glow,
+   which flashed on every switch; now the selected pill is a flat brand fill with
+   no glow/gradient/shadow animation. */
+.pbs{display:flex;gap:2px;background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:4px;width:fit-content;max-width:100%;overflow-x:auto;}
+.pb{padding:8px 16px;border-radius:var(--r-xs);font-size:13px;font-weight:600;cursor:pointer;
+  border:1px solid transparent;background:transparent;color:var(--text-lo);white-space:nowrap;
+  transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease);}
+.pb:hover{color:var(--text-hi);}
+.pb.active{background:var(--brand);color:#fff;border-color:transparent;font-weight:700;}
 
 /* ─────────────── TOGGLE ─────────────── */
 .tgl{position:relative;width:44px;height:25px;cursor:pointer;display:inline-block;flex-shrink:0;}
@@ -469,8 +478,8 @@ tr.row-muted:hover td{opacity:1;}
   animation:rise var(--d-base) var(--ease-in);}
 .mbox.wide{width:620px;}
 .mbox.narrow{width:420px;}
-.m-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:700;
-  letter-spacing:-.2px;color:var(--text-hi);margin-bottom:var(--s5);}
+.m-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;
+  letter-spacing:-.3px;color:var(--text-hi);margin-bottom:var(--s5);}
 .m-body{font-size:14px;color:var(--text-lo);line-height:1.55;margin-bottom:var(--s5);}
 .m-actions{display:flex;gap:var(--s2);justify-content:flex-end;margin-top:var(--s5);
   padding-top:var(--s4);border-top:1px solid var(--border);}
@@ -491,8 +500,8 @@ tr.row-muted:hover td{opacity:1;}
   justify-content:space-between;align-items:center;gap:var(--s3);flex-shrink:0;}
 .sp-hd-sub{font-size:11px;color:var(--text-mute);font-weight:700;text-transform:uppercase;
   letter-spacing:.8px;margin-bottom:3px;}
-.sp-hd-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:700;
-  letter-spacing:-.2px;color:var(--text-hi);}
+.sp-hd-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:800;
+  letter-spacing:-.35px;color:var(--text-hi);}
 #sp-body{padding:var(--s5);overflow-y:auto;flex:1;}
 .sp-sec{margin-bottom:var(--s6);}
 .sp-sec-title{font-size:11px;font-weight:700;color:var(--text-mute);text-transform:uppercase;
@@ -516,7 +525,7 @@ tr.row-muted:hover td{opacity:1;}
 .sp-avatar{width:60px;height:60px;border-radius:50%;background:var(--grad-ember);color:#fff;
   display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;
   font-size:22px;font-weight:800;flex-shrink:0;box-shadow:var(--glow);}
-.sp-hero-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:700;color:var(--text-hi);}
+.sp-hero-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;letter-spacing:-.2px;color:var(--text-hi);}
 
 /* ─────────────── STATUS FLOW STEPPER ─────────────── */
 .sf{display:flex;align-items:flex-start;margin-bottom:var(--s4);}
@@ -578,7 +587,7 @@ tr.row-muted:hover td{opacity:1;}
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
   text-align:center;padding:var(--s10) var(--s5);gap:var(--s3);}
 .empty svg{width:150px;height:150px;margin-bottom:var(--s1);}
-.empty-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:700;color:var(--text-hi);}
+.empty-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;letter-spacing:-.1px;color:var(--text-hi);}
 .empty-copy{font-size:13.5px;color:var(--text-lo);max-width:320px;line-height:1.5;}
 td .empty{padding:var(--s6) var(--s5);}
 
