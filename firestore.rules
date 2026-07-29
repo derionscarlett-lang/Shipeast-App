@@ -343,14 +343,17 @@ service cloud.firestore {
     }
 
     // ── overseasInquiries ────────────────────────────────────────────────
-    // Requests for an overseas shipment quote. Overseas ordering was a WebView
-    // pointed at two placeholder form URLs; when both failed the customer saw
-    // "Connection Error" and their request went nowhere.
+    // Shop-and-deliver requests: a customer abroad asks us to buy from a local
+    // Jamaican store and deliver to their family. Not shipping — no carrier, no
+    // customs. The collection name is kept for continuity; "overseas" is the
+    // customer, not the goods. It was a WebView pointed at two placeholder form
+    // URLs; when both failed the customer saw "Connection Error" and their
+    // request went nowhere.
     //
-    // An enquiry is not an order: no money, no driver, no lifecycle. What it
+    // A request is not an order: no money, no driver, no lifecycle. What it
     // does carry is a household's name, phone number and street address in
-    // Jamaica, plus a description of what is being sent to them — which is why
-    // the read rule is the author or an admin, and nobody else.
+    // Jamaica, plus a shopping list for them — which is why the read rule is
+    // the author or an admin, and nobody else.
     //
     // The division of labour is the whole point of these rules: the customer
     // owns the request, the admin owns the handling. Neither can write the
@@ -389,9 +392,8 @@ service cloud.firestore {
                     && incoming().get('notes', '').size() <= 1000;
 
       // Handling is admin-only, and confined to the handling fields. The
-      // customer's own account of what they are sending is what customs and
-      // the carrier are quoted against, so nobody edits it after the fact —
-      // not even an admin. A wrong description is a new enquiry.
+      // customer's own shopping list is what we buy against, so nobody edits it
+      // after the fact — not even an admin. A wrong list is a new request.
       allow update: if isAdmin()
                     && changed().hasOnly(
                          ['status', 'adminNote', 'handledBy',

@@ -1,4 +1,11 @@
-/// Overseas shipping — a real request form, answered by a real person.
+/// Shop-and-deliver — a real request form, answered by a real person.
+///
+/// ## What this actually is
+///
+/// Not shipping. A person living abroad asks us to shop for their family
+/// **inside Jamaica** — we go to a local supermarket or hardware store, buy
+/// what they asked for, and deliver it to their relative's door. No carrier,
+/// no customs, no freight: a local errand paid for from overseas.
 ///
 /// ## What was here before
 ///
@@ -7,24 +14,20 @@
 /// The screen contained **zero** Firestore writes, so even in the best case —
 /// a form that loaded — nothing reached the system. In the actual case both
 /// URLs fail, the customer sees "Connection Error", and a person who wanted to
-/// send groceries home to family in Jamaica is told the internet is broken.
-///
-/// Then it was an email waitlist: honest, but it recorded only that somebody
-/// was interested, not what they wanted to send. Every one of those still
-/// needed a phone call before anything could be priced.
+/// buy groceries for family in Jamaica is told the internet is broken.
 ///
 /// ## What it is now
 ///
-/// A structured enquiry. The customer describes the shipment; it is written to
-/// `overseasInquiries`; the admin panel has a page for them where an operator
-/// works the queue and moves the status; the customer sees that status move
-/// here. No price is quoted and no payment is taken, because an overseas
-/// shipment is priced by carrier, route and customs classification and none of
-/// that lives in this system. Quoting one anyway would be the same defect in a
-/// more confident voice.
+/// A structured request. The customer describes what to buy and where to
+/// deliver it; it is written to `overseasInquiries`; the admin panel has a
+/// page for them where an operator works the queue and moves the status; the
+/// customer sees that status move here. No price is quoted and no payment is
+/// taken, because the total depends on the store and what the goods cost on
+/// the day. Quoting one up front anyway would be a promise the business cannot
+/// keep.
 ///
 /// So the promise on this screen is exactly the one the business can keep:
-/// tell us what you want to send, and a person will come back to you.
+/// tell us what to buy, and a person will come back to you with the total.
 library;
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -58,7 +61,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
   final _recipientPhone = TextEditingController();
   final _recipientAddress = TextEditingController();
   final _description = TextEditingController();
-  final _weight = TextEditingController();
+  final _budget = TextEditingController();
   final _notes = TextEditingController();
 
   String _parish = '';
@@ -89,7 +92,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
     // Pre-filled from the signed-in account. Most people want to be reached on
     // the details they already gave us, and retyping them is friction with no
     // purpose — but both stay editable, because the person paying is not
-    // always the person to call about a shipment.
+    // always the person to call about the request.
     final user = FirebaseAuth.instance.currentUser;
     if (user?.email != null) _email.text = user!.email!;
     if (user?.phoneNumber != null) _phone.text = user!.phoneNumber!;
@@ -105,7 +108,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
       _recipientPhone,
       _recipientAddress,
       _description,
-      _weight,
+      _budget,
       _notes,
     ]) {
       c.dispose();
@@ -123,7 +126,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
         recipientParish: _parish,
         itemCategory: _category,
         itemDescription: _description.text,
-        weightKgRaw: _weight.text,
+        budgetRaw: _budget.text,
         notes: _notes.text,
       );
 
@@ -164,7 +167,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
       _recipientPhone.clear();
       _recipientAddress.clear();
       _description.clear();
-      _weight.clear();
+      _budget.clear();
       _notes.clear();
       _parish = '';
       _category = '';
@@ -182,9 +185,9 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
         children: [
           const SeGradientHeader(
             title: 'Send to Family in Jamaica',
-            subtitle: 'Overseas shipping enquiry',
+            subtitle: 'We shop locally & deliver to them',
             gradient: _oceanGradient,
-            trailing: Icon(SeIcons.plane, size: 24, color: Colors.white),
+            trailing: Icon(SeIcons.packages, size: 24, color: Colors.white),
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -233,10 +236,11 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Overseas shipments are priced by the carrier, the route and what '
-              'is in the box, so we cannot quote one instantly. Send us the '
-              'details and a member of the team will come back to you with a '
-              'price. Nothing is charged until you agree to it.',
+              'Living abroad? Tell us what to buy and who to deliver it to in '
+              'Jamaica. We shop at a local supermarket or hardware store and '
+              'drop it to your family. The total depends on the store and the '
+              'day’s prices, so a member of the team will confirm it with you '
+              'first — nothing is charged until you agree to it.',
               style: SeType.bodyS.copyWith(color: const Color(0xFF0B6E66)),
             ),
           ],
@@ -248,10 +252,10 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Shipment details', style: SeType.h3),
+            Text('Your request', style: SeType.h3),
             const SizedBox(height: 4),
             Text(
-              'Everything here is something we need before we can price it.',
+              'Everything here is something we need before we can shop for you.',
               style: SeType.bodyS.copyWith(color: SeColors.ink500),
             ),
 
@@ -276,9 +280,9 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
             const SizedBox(height: 14),
             SeTextField(
               controller: _origin,
-              label: 'Sending from',
+              label: 'Where you’re based',
               hint: 'City and country, e.g. Brooklyn, USA',
-              icon: SeIcons.plane,
+              icon: SeIcons.location,
               errorText: _errors['originCountry'],
             ),
 
@@ -321,7 +325,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
               onPick: (v) => setState(() => _parish = v),
             ),
 
-            _sectionLabel('What you are sending'),
+            _sectionLabel('What to buy'),
             _pickerField(
               label: 'Category',
               value: _category,
@@ -334,8 +338,8 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
             const SizedBox(height: 14),
             SeTextField(
               controller: _description,
-              label: 'Contents',
-              hint: 'e.g. 3 tins of ackee, 2 packs of rice, one t-shirt',
+              label: 'Shopping list',
+              hint: 'e.g. 3 tins of ackee, 2 packs of rice, 1 box of milk',
               icon: SeIcons.note,
               minLines: 2,
               maxLines: 4,
@@ -343,12 +347,11 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
             ),
             const SizedBox(height: 14),
             SeTextField(
-              controller: _weight,
-              label: 'Approximate weight in kg (optional)',
-              hint: 'e.g. 4.5',
+              controller: _budget,
+              label: 'Approximate budget (optional)',
+              hint: 'e.g. J\$10,000 or US\$70',
               icon: SeIcons.scales,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              errorText: _errors['weightKgRaw'],
+              errorText: _errors['budgetRaw'],
             ),
             const SizedBox(height: 14),
             SeTextField(
@@ -362,19 +365,21 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
             ),
 
             const SizedBox(height: 12),
-            // Said before submitting, not after a shipment is refused at the
-            // airport. A customer who reads this and changes what they send has
-            // been served better than one we had to phone to say no to.
+            // Said before submitting, so a customer knows what to expect. We
+            // buy ordinary retail goods; alcohol, tobacco, prescription drugs
+            // and anything a store won't sell us are the exceptions, and it is
+            // kinder to say so here than on the phone afterwards.
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(SeIcons.warning, size: 16, color: SeColors.warning),
+                const Icon(SeIcons.info, size: 16, color: SeColors.ocean500),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Cash, weapons, perishables and anything a carrier or '
-                    'Jamaica Customs prohibits cannot be shipped. We will tell '
-                    'you if what you have described is a problem.',
+                    'We shop for everyday supermarket and hardware goods. '
+                    'Alcohol, tobacco, prescription medicine and anything a '
+                    'store cannot legally sell us are the exceptions — we’ll '
+                    'tell you if something on your list is a problem.',
                     style: SeType.bodyS.copyWith(color: SeColors.ink500),
                   ),
                 ),
@@ -419,7 +424,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
                     const SizedBox(height: 2),
                     Text(
                       'Reference #$ref. We will reply to '
-                      '${_email.text.trim()} with a price.',
+                      '${_email.text.trim()} with the total.',
                       style: SeType.bodyS.copyWith(color: SeColors.ink500),
                     ),
                   ],

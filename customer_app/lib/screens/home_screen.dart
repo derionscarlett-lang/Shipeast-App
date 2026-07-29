@@ -651,20 +651,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white.withValues(alpha: 0.18),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(SeIcons.plane, size: 24, color: Colors.white),
+                child: const Icon(SeIcons.packages, size: 24, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Not "Order for Family in Jamaica". Overseas shipping is
-                    // quoted by hand, so the banner promises what the screen
-                    // behind it actually does: a request, answered by a person.
+                    // The total is confirmed by hand, so the banner promises
+                    // what the screen behind it actually does: a request to
+                    // shop and deliver, answered by a person.
                     Text('Send to Family in Jamaica',
                         style: SeType.title.copyWith(color: Colors.white)),
                     const SizedBox(height: 2),
-                    Text('Living overseas? Ask us for a shipping quote',
+                    Text('Abroad? We’ll shop locally & deliver to them',
                         style: SeType.bodyS.copyWith(
                             color: Colors.white.withValues(alpha: 0.85))),
                   ],

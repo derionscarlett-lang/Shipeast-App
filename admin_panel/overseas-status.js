@@ -1,7 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════
-   Overseas enquiry handling — admin panel copy.
+   Shop-and-deliver request handling — admin panel copy.
    Source of truth: SCHEMA.md §overseasInquiries
    ═══════════════════════════════════════════════════════════════
+
+   A customer abroad asks us to buy from a local Jamaican store and deliver to
+   their family — not shipping. The collection is still `overseasInquiries` for
+   continuity; the "overseas" here means the customer, not the goods.
 
    Mirrors customer_app/lib/models/overseas_inquiry.dart. Edit both, or
    neither.

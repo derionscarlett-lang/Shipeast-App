@@ -1,25 +1,31 @@
-/// Overseas shipping enquiries — the vocabulary shared by the customer app and
+/// Shop-and-deliver requests — the vocabulary shared by the customer app and
 /// the admin panel.
 ///
-/// ## Why this is an enquiry and not an order
+/// ## What this service actually is
 ///
-/// An overseas shipment is priced by carrier, route, dimensional weight and
-/// customs classification. None of that is in this system, so nothing here can
-/// quote a price, and a screen that took payment for one would be making a
-/// promise the business cannot keep — the defect Phase 5 existed to remove.
+/// ShipEast is not a courier and nothing is shipped across a border. A person
+/// living abroad asks us to shop for their family **inside Jamaica**: we go to
+/// a local supermarket or hardware store, buy what they asked for, and deliver
+/// it to their relative's door. No carrier, no customs, no freight — a local
+/// errand paid for from overseas.
 ///
-/// What it *can* honestly do is take a complete, structured request and put it
-/// in front of a human who will price it and reply. That is what this is: a
-/// request for a quote, with a status the admin moves and the customer can see.
-/// The customer is told a person will come back to them, and now a person
-/// actually can, because the request lands somewhere with a queue behind it.
+/// ## Why it is a request and not an order
+///
+/// The total depends on which store we use and what the goods cost on the day,
+/// so nothing here can quote a price up front, and a screen that took payment
+/// for one would be making a promise the business cannot keep. What it *can*
+/// honestly do is take a complete, structured request and put it in front of a
+/// human who confirms the total and replies. That is what this is: a request
+/// for a quote, with a status the admin moves and the customer can see. The
+/// customer is told a person will come back to them, and now a person actually
+/// can, because the request lands somewhere with a queue behind it.
 ///
 /// Mirrored by `admin_panel/overseas-status.js`. Edit both, or neither.
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Where an enquiry is in the handling process. Only an admin moves it.
+/// Where a request is in the handling process. Only an admin moves it.
 class OverseasStatus {
   OverseasStatus._();
 
@@ -29,13 +35,13 @@ class OverseasStatus {
   /// An admin has reached out to the customer.
   static const String contacted = 'contacted';
 
-  /// A price has been given and we are waiting on the customer.
+  /// A total has been given and we are waiting on the customer.
   static const String quoted = 'quoted';
 
-  /// Handled and finished — shipped, or the customer went elsewhere.
+  /// Handled and finished — shopped and delivered, or the customer stepped away.
   static const String closed = 'closed';
 
-  /// We cannot ship it: prohibited item, unserviceable route, no carrier.
+  /// We cannot do it: item we won't buy, or somewhere we don't deliver.
   static const String declined = 'declined';
 
   static const List<String> all = <String>[
@@ -52,7 +58,7 @@ class OverseasStatus {
   static const List<String> terminal = <String>[closed, declined];
 
   /// Never lets an unrecognised value through to the UI as a raw slug.
-  /// An enquiry with no status is one that was just written — `new`.
+  /// A request with no status is one that was just written — `new`.
   static String of(Object? raw) {
     if (raw is String && all.contains(raw)) return raw;
     return submitted;
@@ -68,7 +74,7 @@ class OverseasStatus {
       case contacted:
         return 'We’ve been in touch';
       case quoted:
-        return 'Quote sent';
+        return 'Total sent';
       case closed:
         return 'Closed';
       case declined:
@@ -85,29 +91,30 @@ class OverseasStatus {
       case contacted:
         return 'Someone from ShipEast has reached out about this request.';
       case quoted:
-        return 'We have sent you a price. Reply to that message to go ahead.';
+        return 'We’ve sent you the total. Reply to that message to go ahead.';
       case closed:
         return 'This request has been handled and closed.';
       case declined:
-        return 'We could not ship this one. Check your email for the reason.';
+        return 'We couldn’t take this one on. Check your email for the reason.';
       default:
-        return 'We have your request and will get back to you with a price.';
+        return 'We have your request and will get back to you with the total.';
     }
   }
 }
 
-/// The kinds of thing people actually send home. `other` exists because the
+/// The kinds of thing people ask us to buy locally. `other` exists because the
 /// list is a shortcut, not a gate — a request we cannot categorise is still a
 /// request we want.
 class OverseasItemCategory {
   OverseasItemCategory._();
 
   static const List<String> all = <String>[
-    'Documents',
-    'Clothing & shoes',
-    'Food & groceries',
+    'Groceries & food',
+    'Household & cleaning',
+    'Hardware & building',
+    'Baby & childcare',
+    'Pharmacy & health',
     'Electronics',
-    'Medical supplies',
     'Gifts',
     'Other',
   ];
@@ -146,10 +153,6 @@ class OverseasLimits {
   static const int description = 1000;
   static const int notes = 1000;
   static const int email = 320;
-
-  /// Above this the request is freight, not a parcel, and belongs in a
-  /// conversation rather than a form.
-  static const double maxWeightKg = 100;
 }
 
 /// Accepts anything with a local part, an `@`, a dot-bearing domain and no
@@ -169,22 +172,6 @@ bool isPlausiblePhone(String input) {
   return digits.length >= 7 && digits.length <= 15;
 }
 
-/// Optional numeric field: blank is fine, junk is not.
-///
-/// Returns `null` for a blank input *and* for an invalid one, so the caller
-/// must ask [OverseasInquiryDraft.errors] rather than inferring from `null` —
-/// silently dropping a weight the customer typed is how a 40 kg barrel gets
-/// quoted as a letter.
-double? parseOptionalWeightKg(String input) {
-  final text = input.trim().replaceAll(',', '.');
-  if (text.isEmpty) return null;
-  final value = double.tryParse(text);
-  if (value == null || value <= 0 || value.isNaN || value.isInfinite) {
-    return null;
-  }
-  return value;
-}
-
 /// A filled-in form, before it becomes a document.
 ///
 /// Kept separate from the widget so validation is a pure function with a test
@@ -199,7 +186,12 @@ class OverseasInquiryDraft {
   final String recipientParish;
   final String itemCategory;
   final String itemDescription;
-  final String weightKgRaw;
+
+  /// What the customer is happy to spend, in their own words — "J$10,000",
+  /// "US$70", "up to 15k". Free text on purpose: the number is only a
+  /// guideline for the shopper, and forcing a single currency on a customer
+  /// abroad paying for goods priced locally would reject more than it helps.
+  final String budgetRaw;
   final String notes;
 
   const OverseasInquiryDraft({
@@ -212,7 +204,7 @@ class OverseasInquiryDraft {
     this.recipientParish = '',
     this.itemCategory = '',
     this.itemDescription = '',
-    this.weightKgRaw = '',
+    this.budgetRaw = '',
     this.notes = '',
   });
 
@@ -230,7 +222,7 @@ class OverseasInquiryDraft {
       e['contactPhone'] = 'Enter a phone number, including the country code';
     }
     if (originCountry.trim().isEmpty) {
-      e['originCountry'] = 'Where are you sending from?';
+      e['originCountry'] = 'Where are you based?';
     }
     if (recipientName.trim().isEmpty) {
       e['recipientName'] = 'Who is receiving this in Jamaica?';
@@ -251,27 +243,18 @@ class OverseasInquiryDraft {
       e['recipientParish'] = 'Choose the parish';
     }
     if (!OverseasItemCategory.all.contains(itemCategory)) {
-      e['itemCategory'] = 'Choose what you are sending';
+      e['itemCategory'] = 'Choose what you are buying';
     }
     if (itemDescription.trim().length < 3) {
-      // Customs needs to know what is in the box. "Stuff" is not a declaration.
-      e['itemDescription'] = 'Describe the contents — customs will ask';
-    }
-
-    final weightText = weightKgRaw.trim();
-    if (weightText.isNotEmpty) {
-      final kg = parseOptionalWeightKg(weightText);
-      if (kg == null) {
-        e['weightKgRaw'] = 'Enter a weight in kg, or leave it blank';
-      } else if (kg > OverseasLimits.maxWeightKg) {
-        e['weightKgRaw'] =
-            'Over ${OverseasLimits.maxWeightKg.toStringAsFixed(0)} kg is freight — '
-            'call us and we will quote it properly';
-      }
+      // The shopper needs to know exactly what to pick off the shelf.
+      e['itemDescription'] = 'List what you’d like us to buy';
     }
 
     if (itemDescription.trim().length > OverseasLimits.description) {
       e['itemDescription'] = 'Please shorten this a little';
+    }
+    if (budgetRaw.trim().length > OverseasLimits.shortField) {
+      e['budgetRaw'] = 'Please shorten this a little';
     }
     if (notes.trim().length > OverseasLimits.notes) {
       e['notes'] = 'Please shorten this a little';
@@ -284,13 +267,13 @@ class OverseasInquiryDraft {
 
   /// The document body. Admin-only fields (`adminNote`, `handledBy`,
   /// `handledAt`) are absent on purpose: firestore.rules rejects a create that
-  /// carries them, so a modified client cannot file an enquiry that already
+  /// carries them, so a modified client cannot file a request that already
   /// claims to have been handled.
   Map<String, dynamic> toFirestore({
     required String customerId,
     required String customerName,
   }) {
-    final weight = parseOptionalWeightKg(weightKgRaw);
+    final budget = budgetRaw.trim();
     return <String, dynamic>{
       'customerId': customerId,
       'customerName': customerName,
@@ -303,14 +286,16 @@ class OverseasInquiryDraft {
       'recipientParish': recipientParish,
       'itemCategory': itemCategory,
       'itemDescription': itemDescription.trim(),
-      'estimatedWeightKg': weight,
+      // Null, not '' — an omitted budget is "spend what it takes", which the
+      // panel shows as "—" rather than an empty string that reads as a blank.
+      'budget': budget.isEmpty ? null : budget,
       'notes': notes.trim(),
       'status': OverseasStatus.submitted,
     };
   }
 }
 
-/// An enquiry read back from Firestore, for the customer's own list.
+/// A request read back from Firestore, for the customer's own list.
 class OverseasInquiry {
   final String id;
   final String status;
@@ -337,7 +322,7 @@ class OverseasInquiry {
       recipientName: (data['recipientName'] as String?) ?? '—',
       recipientParish: (data['recipientParish'] as String?) ?? '',
       // serverTimestamp() resolves after the local write, so a just-submitted
-      // enquiry legitimately has no date for a moment.
+      // request legitimately has no date for a moment.
       createdAt: created is Timestamp ? created.toDate() : null,
     );
   }

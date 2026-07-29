@@ -1,15 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shipeast_customer/models/overseas_inquiry.dart';
 
-/// The overseas screen was a WebView pointed at two placeholder form URLs this
-/// project does not own; it contained zero Firestore writes, so even a form
-/// that loaded reached nothing. It is now a real enquiry that an admin works
-/// from a queue.
+/// The shop-and-deliver screen was a WebView pointed at two placeholder form
+/// URLs this project does not own; it contained zero Firestore writes, so even
+/// a form that loaded reached nothing. It is now a real request that an admin
+/// works from a queue: we shop at a local Jamaican store and deliver to the
+/// customer's family — no shipping, no customs.
 ///
 /// What is pinned here is the boundary between the two: which requests are
-/// complete enough for an operator to price, and what shape the document takes.
-/// A request that reaches the panel missing a phone number is a request nobody
-/// can answer — which is the defect all over again, one step further along.
+/// complete enough for an operator to shop against, and what shape the document
+/// takes. A request that reaches the panel missing a phone number is a request
+/// nobody can answer — which is the defect all over again, one step further
+/// along.
 
 /// A draft with everything filled in. Individual tests break one field at a
 /// time, so a new required field fails loudly here rather than silently
@@ -22,9 +24,9 @@ OverseasInquiryDraft valid({
   String recipientPhone = '876 555 0110',
   String recipientAddress = '14 Bay Street, Morant Bay',
   String recipientParish = 'St. Thomas',
-  String itemCategory = 'Food & groceries',
+  String itemCategory = 'Groceries & food',
   String itemDescription = '3 tins of ackee, 2 packs of rice',
-  String weightKgRaw = '',
+  String budgetRaw = '',
   String notes = '',
 }) =>
     OverseasInquiryDraft(
@@ -37,7 +39,7 @@ OverseasInquiryDraft valid({
       recipientParish: recipientParish,
       itemCategory: itemCategory,
       itemDescription: itemDescription,
-      weightKgRaw: weightKgRaw,
+      budgetRaw: budgetRaw,
       notes: notes,
     );
 
@@ -132,25 +134,6 @@ void main() {
     });
   });
 
-  group('parseOptionalWeightKg', () {
-    test('blank is a legitimate answer', () {
-      expect(parseOptionalWeightKg(''), isNull);
-      expect(parseOptionalWeightKg('   '), isNull);
-    });
-
-    test('accepts a comma decimal, as half the world writes it', () {
-      expect(parseOptionalWeightKg('4,5'), 4.5);
-      expect(parseOptionalWeightKg('4.5'), 4.5);
-      expect(parseOptionalWeightKg(' 12 '), 12);
-    });
-
-    test('rejects nonsense and impossible weights', () {
-      expect(parseOptionalWeightKg('heavy'), isNull);
-      expect(parseOptionalWeightKg('0'), isNull);
-      expect(parseOptionalWeightKg('-3'), isNull);
-    });
-  });
-
   group('OverseasInquiryDraft.errors', () {
     test('a complete draft submits', () {
       expect(valid().errors(), isEmpty);
@@ -188,22 +171,18 @@ void main() {
       expect(valid(itemCategory: 'Barrel').errors(), contains('itemCategory'));
     });
 
-    test('contents must actually be described', () {
-      // Customs asks what is in the box; "x" is not a declaration.
+    test('the shopping list must actually say something', () {
+      // The shopper needs to know what to pick off the shelf; "x" does not.
       expect(valid(itemDescription: 'x').errors(), contains('itemDescription'));
       expect(valid(itemDescription: '').errors(), contains('itemDescription'));
     });
 
-    test('weight is optional, but junk in it is not accepted silently', () {
-      expect(valid(weightKgRaw: '').errors(), isEmpty);
-      expect(valid(weightKgRaw: '4.5').errors(), isEmpty);
-      // Dropping an unparseable weight would quote a barrel as a letter.
-      expect(valid(weightKgRaw: 'heavyish').errors(), contains('weightKgRaw'));
-    });
-
-    test('a freight-sized shipment is sent to a human, not through the form', () {
-      expect(valid(weightKgRaw: '250').errors(), contains('weightKgRaw'));
-      expect(valid(weightKgRaw: '100').errors(), isEmpty);
+    test('budget is optional free text, capped only in length', () {
+      expect(valid(budgetRaw: '').errors(), isEmpty);
+      expect(valid(budgetRaw: r'J$10,000').errors(), isEmpty);
+      expect(valid(budgetRaw: 'up to US\$70').errors(), isEmpty);
+      // Only guard is the field cap, so a paragraph pasted here is rejected.
+      expect(valid(budgetRaw: 'x' * 121).errors(), contains('budgetRaw'));
     });
 
     test('reports every problem at once', () {
@@ -231,21 +210,22 @@ void main() {
       }
     });
 
-    test('trims what people paste, and stores weight as a number', () {
+    test('trims what people paste, and stores the budget as typed', () {
       final map = valid(
         contactEmail: '  marcia@example.com ',
         recipientName: ' Delroy Brown  ',
-        weightKgRaw: ' 4,5 ',
+        budgetRaw: r'  J$10,000  ',
       ).toFirestore(customerId: 'uid-1', customerName: 'M');
       expect(map['contactEmail'], 'marcia@example.com');
       expect(map['recipientName'], 'Delroy Brown');
-      expect(map['estimatedWeightKg'], 4.5);
+      expect(map['budget'], r'J$10,000');
     });
 
-    test('an omitted weight is null, not zero', () {
-      // Zero is a weight. It would read as "an empty box" on the panel.
+    test('an omitted budget is null, not an empty string', () {
+      // "" would read as a blank on the panel; null reads as "spend what it
+      // takes", which is what leaving it empty means.
       final map = valid().toFirestore(customerId: 'uid-1', customerName: 'M');
-      expect(map['estimatedWeightKg'], isNull);
+      expect(map['budget'], isNull);
     });
   });
 

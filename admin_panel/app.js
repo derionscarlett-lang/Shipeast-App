@@ -348,7 +348,7 @@ function doLogout(){ signOut(auth); }
 
 // ══════════════════════ NAVIGATION ══════════════════════
 var pageLabels={dashboard:'Dashboard',orders:'Orders',drivers:'Drivers',merchants:'Merchants',
-  customers:'Customers',overseas:'Overseas Enquiries',notifications:'Notifications',
+  customers:'Customers',overseas:'Shop & Deliver Requests',notifications:'Notifications',
   promos:'Promo Codes',analytics:'Analytics'};
 function navTo(page){
   document.querySelectorAll('.ni').forEach(function(n){ n.classList.remove('active'); });
@@ -401,7 +401,7 @@ function closeMobileSidebar(){
    gold / teal / green dot reads the same everywhere. */
 var ACT_SECTIONS={
   orders:{one:'order',many:'orders',tone:'brand'},
-  overseas:{one:'overseas enquiry',many:'overseas enquiries',tone:'gold'},
+  overseas:{one:'shop & deliver request',many:'shop & deliver requests',tone:'gold'},
   customers:{one:'customer',many:'customers',tone:'ocean'},
   drivers:{one:'driver',many:'drivers',tone:'success'}
 };
@@ -674,7 +674,7 @@ function startListeners(){
             recipientParish:o.recipientParish||'—',
             itemCategory:o.itemCategory||'—',
             itemDescription:o.itemDescription||'—',
-            weightKg:o.estimatedWeightKg!=null?Number(o.estimatedWeightKg):null,
+            budget:o.budget||'',
             notes:o.notes||'',
             status:Overseas.normalise(o.status),
             adminNote:o.adminNote||'',
@@ -687,7 +687,7 @@ function startListeners(){
         trackSection('overseas');
         renderOverseas();
       },
-      function(e){ loadedOnce.overseas=true; console.warn('overseasInquiries:',e.message); toast('error','Could not load overseas enquiries: '+e.message); renderOverseas(); }
+      function(e){ loadedOnce.overseas=true; console.warn('overseasInquiries:',e.message); toast('error','Could not load shop & deliver requests: '+e.message); renderOverseas(); }
     ));
   }catch(e){ console.warn('overseasInquiries init:',e.message); }
 
@@ -1618,9 +1618,9 @@ function applyCustomerDisabled(uid,disabled,reason){
 }
 
 // ══════════════════════ OVERSEAS ENQUIRIES ══════════════════════
-/* The other half of the customer app's overseas form. A status an operator
-   moves here is shown to the customer in the app, which is the only reason
-   moving it is worth anything: somebody is waiting to hear back.
+/* The other half of the customer app's shop-and-deliver form. A status an
+   operator moves here is shown to the customer in the app, which is the only
+   reason moving it is worth anything: somebody is waiting to hear back.
 
    Filtering, searching and sorting all live in overseas-status.js so they are
    testable in Node; this file does the painting. */
@@ -1629,10 +1629,10 @@ function inquiryBadge(s){
   var st=Overseas.normalise(s);
   return '<span class="bdg bg-'+Overseas.TONE[st]+'">'+esc(Overseas.LABEL[st])+'</span>';
 }
-function inquiryWeight(kg){
-  // Optional on the form — a customer who does not know what the box weighs
-  // should still be able to ask. Blank must not read as "0 kg".
-  return kg==null?'—':(Math.round(kg*10)/10)+' kg';
+function inquiryBudget(b){
+  // Optional free text on the form — "J$10,000", "US$70", or nothing at all.
+  // Blank means "spend what it takes" and must not render as an empty cell.
+  return b?String(b):'—';
 }
 function inquiryRef(id){ return String(id||'').slice(0,6).toUpperCase(); }
 
@@ -1666,7 +1666,7 @@ function renderOverseas(){
   if(!rows.length){
     tbody.innerHTML=overseasSearch
       ? emptyRow(9,'search','No matching enquiries','Nothing matched “'+esc(overseasSearch)+'”. Try a name, parish or phone number.')
-      : emptyRow(9,'box','Nothing here','Overseas requests from the customer app land in this queue.');
+      : emptyRow(9,'box','Nothing here','Shop-and-deliver requests from the customer app land in this queue.');
     return;
   }
   tbody.innerHTML=rows.map(function(i){
@@ -1677,7 +1677,7 @@ function renderOverseas(){
       '<td>'+esc(i.recipientName)+'</td>'+
       '<td class="cell-mute">'+esc(i.recipientParish)+'</td>'+
       '<td class="cell-mute">'+esc(i.itemCategory)+' · '+esc(contents)+'</td>'+
-      '<td class="right num">'+esc(inquiryWeight(i.weightKg))+'</td>'+
+      '<td class="right num">'+esc(inquiryBudget(i.budget))+'</td>'+
       '<td>'+inquiryBadge(i.status)+'</td>'+
       // A brand-new enquiry has no resolved timestamp yet, and "—" would read
       // as missing data rather than "seconds ago".
@@ -1690,13 +1690,13 @@ function renderOverseas(){
 function openInquiryPanel(id){
   var i=inquiries.find(function(x){ return x.id===id; }); if(!i) return;
   panelInquiryId=id;
-  $('sp-sub').textContent='Overseas Enquiry';
+  $('sp-sub').textContent='Shop & Deliver';
   $('sp-title').textContent='#'+inquiryRef(i.id);
 
   /* mailto: and tel: rather than a copy button. Replying is the entire job of
      this page, and the reply happens in the operator's mail client — the panel
      should hand them the draft, not the address to retype. */
-  var subject=encodeURIComponent('Your ShipEast overseas request #'+inquiryRef(i.id));
+  var subject=encodeURIComponent('Your ShipEast shopping request #'+inquiryRef(i.id));
   var contactHtml=
     row('Name',esc(i.customerName))+
     row('Email',i.contactEmail
@@ -1705,7 +1705,7 @@ function openInquiryPanel(id){
     row('Phone',i.contactPhone
       ?'<a class="sp-val num" href="tel:'+esc(i.contactPhone.replace(/[^0-9+]/g,''))+'">'+esc(i.contactPhone)+'</a>'
       :'—')+
-    row('Sending from',esc(i.originCountry));
+    row('Based in',esc(i.originCountry));
 
   var recipientHtml=
     row('Recipient',esc(i.recipientName))+
@@ -1715,10 +1715,10 @@ function openInquiryPanel(id){
     row('Address','<span class="sp-val sm">'+esc(i.recipientAddress)+'</span>',true)+
     row('Parish',esc(i.recipientParish));
 
-  var shipmentHtml=
+  var shoppingHtml=
     row('Category',esc(i.itemCategory))+
-    row('Weight','<span class="num">'+esc(inquiryWeight(i.weightKg))+'</span>')+
-    '<div class="sp-row"><span class="sp-lbl">Contents</span></div>'+
+    row('Budget','<span class="num">'+esc(inquiryBudget(i.budget))+'</span>')+
+    '<div class="sp-row"><span class="sp-lbl">Shopping list</span></div>'+
     '<div class="empty-copy" style="max-width:none">'+esc(i.itemDescription)+'</div>'+
     (i.notes?'<div class="sp-row"><span class="sp-lbl">Customer notes</span></div>'+
       '<div class="empty-copy" style="max-width:none">'+esc(i.notes)+'</div>':'');
@@ -1738,7 +1738,7 @@ function openInquiryPanel(id){
     '</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Customer</div>'+contactHtml+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Delivering To</div>'+recipientHtml+'</div>'+
-    '<div class="sp-sec"><div class="sp-sec-title">Shipment</div>'+shipmentHtml+'</div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Shopping</div>'+shoppingHtml+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Handling</div>'+handledHtml+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Update</div>'+
       '<div class="fr"><label for="sp-inq-status">Status</label>'+
@@ -1748,7 +1748,7 @@ function openInquiryPanel(id){
       // in here and nobody receives it.
       '<div class="fr"><label for="sp-inq-note">Internal note — not shown to the customer</label>'+
         '<textarea id="sp-inq-note" rows="4" maxlength="1000" '+
-        'placeholder="Carrier quoted, waiting on dimensions…">'+esc(i.adminNote)+'</textarea></div>'+
+        'placeholder="Store confirmed, waiting on the total…">'+esc(i.adminNote)+'</textarea></div>'+
       '<button class="btn btn-primary btn-block" data-action="save-inquiry" data-iid="'+esc(i.id)+'">'+
         icon('check')+'Save</button>'+
       '<div class="sc-sub" style="margin-top:8px">The customer sees the status change in '+
@@ -1764,10 +1764,9 @@ function saveInquiry(id){
   if(status===i.status&&note===i.adminNote){ toast('info','Nothing changed.'); return; }
 
   /* Exactly the five fields firestore.rules permits an admin to touch. The
-     customer's own account of what they are sending is deliberately not among
-     them: it is what the carrier and customs get quoted against, so a wrong
-     description is a new enquiry rather than an edit. Sending a sixth field
-     here would fail the whole write. */
+     customer's own shopping list is deliberately not among them: it is what we
+     shop against, so a wrong list is a new request rather than an edit.
+     Sending a sixth field here would fail the whole write. */
   updateDoc(doc(db,'overseasInquiries',id),{
     status:status,
     adminNote:note,
