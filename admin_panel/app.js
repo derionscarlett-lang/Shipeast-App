@@ -1782,18 +1782,18 @@ function renderMerchants(){
     '</tr>';
   }).join('');
 }
-/* ── Merchant cover uploader (P4-01) ──────────────────────────────────
-   Built once and re-pointed at whichever merchant is open. The single
-   source of truth for the value stays `#m-imageurl`, so `saveMerchant`
-   below is unchanged by this feature and the "or paste a URL" escape
-   hatch keeps working for merchants that already depend on it. */
+/* ── Merchant cover uploader (P4-01, upload-only) ─────────────────────
+   Built once and re-pointed at whichever merchant is open. `#m-imageurl` is
+   now a HIDDEN field the uploader writes to via onChange, so `saveMerchant`
+   below is unchanged. There is no "paste a URL" path any more — the admin
+   uploads the photo directly and any oversized image is auto-resized. */
 var merchantUploader=null;
 function mountMerchantUploader(){
   if(merchantUploader) return merchantUploader;
   merchantUploader=createUploader({
     inputId:'m-image-file',
-    title:'Drop the merchant photo here',
-    hint:'or click to browse · JPEG, PNG or WebP · resized to 1600×800 · max 5 MB',
+    title:'Drop the restaurant photo here',
+    hint:'or click to browse · JPEG, PNG or WebP · best 1600 × 800 px · under 5 MB (5120 KB) · larger photos are auto-resized',
     maxW:1600,maxH:800,minW:800,minH:400,
     // There is no merchantId until the document exists, so a new merchant is
     // saved first and the upload zone unlocks on the second step.
@@ -2086,8 +2086,8 @@ function loadMenuItemsTab(merchantId){
       '<div class="fr"><label for="mi-cat">Category</label>'+
         '<select id="mi-cat"><option value="mains">Mains</option><option value="sides">Sides</option>'+
         '<option value="drinks">Drinks</option><option value="popular">Popular</option></select></div>'+
-      '<div class="fr"><label>Item Photo</label><div id="mi-image-drop"></div></div>'+
-      '<div class="fr"><label for="mi-img">…or paste an image URL <small>(optional)</small></label><input id="mi-img" placeholder="https://…"/></div>'+
+      '<div class="fr"><label>Item Photo <small>(800 × 600 px recommended · JPEG/PNG/WebP · max 5 MB / 5120 KB)</small></label><div id="mi-image-drop"></div></div>'+
+      '<input id="mi-img" type="hidden"/>'+
       '<div style="display:flex;gap:8px;margin-top:12px">'+
         '<button class="btn btn-outline" id="mi-cancel-btn" data-action="cancel-menu-item" style="flex:1;display:none">Cancel</button>'+
         '<button class="btn btn-primary" data-action="save-menu-item" style="flex:1">'+icon('check')+'Save Item</button>'+
@@ -2109,7 +2109,7 @@ function loadMenuItemsTab(merchantId){
   menuItemUploader=createUploader({
     inputId:'mi-image-file',
     title:'Drop the item photo here',
-    hint:'or click to browse · resized to 800×600 · max 5 MB',
+    hint:'or click to browse · JPEG, PNG or WebP · best 800 × 600 px · under 5 MB (5120 KB) · larger photos are auto-resized',
     maxW:800,maxH:600,minW:400,minH:300,
     /* Unlike a merchant, a menu item can be photographed before it is saved:
        the merchant folder already exists, so there is somewhere to put the
@@ -2661,11 +2661,8 @@ document.addEventListener('input',function(e){
   if(e.target.id==='overseas-search'){ overseasSearch=e.target.value.trim(); renderOverseas(); }
   if(['pr-bands','pr-overage','pr-packing'].indexOf(e.target.id)>-1) renderPricingPreview();
   if(e.target.id==='n-title'||e.target.id==='n-msg') updPhonePreview();
-  // The paste field and the dropzone are two ways to set one value. Typing a
-  // URL updates the preview, so the form never shows one image and saves
-  // another. `setValue` only paints — it does not touch Storage.
-  if(e.target.id==='m-imageurl'&&merchantUploader) merchantUploader.setValue(e.target.value.trim());
-  if(e.target.id==='mi-img'&&menuItemUploader) menuItemUploader.setValue(e.target.value.trim());
+  // (image URL paste removed — both photo fields are upload-only hidden inputs
+  //  the dropzone writes to; nothing to sync on user input any more.)
   if(e.target.id==='m-emoji') syncEmojiSelection();
   // Paste a Maps link / "lat, lng" → fill the number fields (P5-06). Typing
   // directly in the number fields just refreshes the "location set" hint.

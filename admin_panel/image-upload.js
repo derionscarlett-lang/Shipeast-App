@@ -107,10 +107,10 @@ export function menuItemPath(merchantId, itemId, now) {
  * Object path inside a Firebase Storage download URL, or null.
  *
  * Used to decide whether a replaced or deleted image is one of OURS before
- * calling deleteObject on it. Merchants seeded with a pasted Imgur link must
- * be left alone — the panel keeps the "or paste a URL" field precisely
- * because existing merchants depend on it, and attempting to delete a URL we
- * do not own would throw on every save.
+ * calling deleteObject on it. The URL-paste field has been removed (uploads
+ * only), but merchants seeded earlier with a pasted third-party link still
+ * carry one in their data — those must be left alone, since attempting to
+ * delete a URL we do not own would throw on every save.
  */
 export function storagePathFromUrl(url) {
   if (typeof url !== 'string' || url.indexOf('firebasestorage.googleapis.com') === -1) {

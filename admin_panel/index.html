@@ -613,14 +613,14 @@
       </div>
     </div>
 
-    <!-- P4-01: was a bare text field expecting a pasted URL. The dropzone is
-         injected here by app.js; the paste field below stays as a secondary
-         path because merchants configured before this feature depend on it. -->
-    <div class="fr"><label for="m-image-file">Merchant Photo <small>(recommended 1600×800)</small></label>
+    <!-- P4-01 / upload-only: the admin uploads the photo directly — no URL
+         paste. `#m-imageurl` is kept as a HIDDEN field so it stays the single
+         source of truth the uploader writes to and saveMerchant reads. -->
+    <div class="fr"><label for="m-image-file">Restaurant Photo <small>(1600 × 800 px recommended · JPEG/PNG/WebP · max 5 MB / 5120 KB)</small></label>
       <div id="m-image-drop"></div>
       <div id="m-image-locked" class="up-locked" hidden>Save the merchant first — a photo needs somewhere to live.</div>
     </div>
-    <div class="fr"><label for="m-imageurl">…or paste an image URL <small>(optional)</small></label><input id="m-imageurl" placeholder="https://…"/></div>
+    <input id="m-imageurl" type="hidden"/>
     <div class="m-actions">
       <button class="btn btn-outline" data-close="modal-merchant">Cancel</button>
       <button class="btn btn-primary" id="mer-save-btn" data-action="save-merchant">Add Merchant</button>
