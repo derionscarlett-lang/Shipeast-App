@@ -120,6 +120,10 @@
 /* ─────────────── BASE ─────────────── */
 *{margin:0;padding:0;box-sizing:border-box;}
 html{-webkit-text-size-adjust:100%;}
+/* Hard guard against page-level horizontal scroll: nothing in-flow may push the
+   document sideways. `clip` (not `hidden`) avoids creating a scroll container,
+   so the sticky topbar and position:fixed sidebar/modals are unaffected. */
+html,body{overflow-x:clip;max-width:100%;}
 body{
   font-family:'Inter',system-ui,sans-serif;
   background:var(--bg);color:var(--text-hi);
@@ -176,13 +180,17 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 #l-err.show{display:flex;animation:shake var(--d-slow) var(--ease);}
 
 /* ─────────────── SHELL ─────────────── */
-#app{display:none;min-height:100vh;}
+#app{display:none;min-height:100vh;overflow-x:clip;}
 .sidebar{
   width:var(--sw);background:var(--sidebar-bg);position:fixed;inset:0 auto 0 0;
   height:100vh;display:flex;flex-direction:column;z-index:100;
   transition:width var(--d-base) var(--ease),transform var(--d-base) var(--ease);
 }
-.sidebar.collapsed{width:var(--swc);}
+/* Desktop hamburger fully hides the sidebar (slides it off-canvas) and lets the
+   content take the full width — a partial 72px icon rail read as a "half sidebar"
+   and looked broken. The rail-specific rules below now apply only to an
+   off-screen element, so they are harmless. */
+.sidebar.collapsed{transform:translateX(-100%);}
 .sb-logo{padding:var(--s6) var(--s5) var(--s5);border-bottom:1px solid rgba(255,255,255,.07);
   overflow:hidden;white-space:nowrap;display:flex;align-items:center;gap:var(--s3);min-height:70px;}
 .sb-mark{display:none;flex-shrink:0;width:40px;height:40px;border-radius:var(--r-sm);
@@ -228,8 +236,8 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .ndiv{height:1px;background:rgba(255,255,255,.07);margin:var(--s2) var(--s5);}
 .sidebar.collapsed .ndiv{margin:var(--s2) var(--s3);}
 .main{margin-left:var(--sw);display:flex;flex-direction:column;min-height:100vh;min-width:0;
-  transition:margin-left var(--d-base) var(--ease);}
-.main.expanded{margin-left:var(--swc);}
+  overflow-x:clip;transition:margin-left var(--d-base) var(--ease);}
+.main.expanded{margin-left:0;}
 
 /* ─────────────── TOPBAR ─────────────── */
 .topbar{
@@ -263,7 +271,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .ar{font-size:11px;color:var(--text-mute);}
 
 /* ─────────────── PAGES ─────────────── */
-.pw{padding:var(--s6) var(--gutter);flex:1;max-width:1560px;width:100%;}
+.pw{padding:var(--s6) var(--gutter);flex:1;max-width:1560px;width:100%;min-width:0;}
 .page{display:none;}
 .page.active{display:block;animation:fadeThrough var(--d-base) var(--ease-in);}
 .pg-hdr{display:flex;justify-content:space-between;align-items:center;gap:var(--s4);
@@ -274,7 +282,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 /* ─────────────── CARDS ─────────────── */
 .card{
   background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);
-  padding:var(--s5);box-shadow:var(--e1);margin-bottom:var(--s5);
+  padding:var(--s5);box-shadow:var(--e1);margin-bottom:var(--s5);min-width:0;
   transition:box-shadow var(--d-base) var(--ease),border-color var(--d-base) var(--ease);
 }
 .card-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:700;
@@ -323,9 +331,9 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 /* ─────────────── TABLES ─────────────── */
 /* The wrapper is the scrollport in both axes — that is what lets the header
    stick reliably (a sticky <th> can only stick within its own scroll container). */
-.tbl-wrap{overflow:auto;max-height:min(64vh,640px);
-  margin:0 calc(var(--s5) * -1) calc(var(--s5) * -1);
-  padding:0 var(--s5) var(--s1);}
+.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:min(64vh,640px);
+  max-width:100%;-webkit-overflow-scrolling:touch;
+  margin:0 0 calc(var(--s5) * -1);padding-bottom:var(--s1);}
 table{width:100%;border-collapse:collapse;}
 thead th{
   position:sticky;top:0;z-index:2;background:var(--card);
