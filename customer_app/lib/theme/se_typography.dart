@@ -47,15 +47,22 @@ class SeType {
 
   // ── Scale ──────────────────────────────────────────────────────────────
   static TextStyle get display =>
-      _jakarta(size: 32, height: 38, weight: FontWeight.w800);
+      _jakarta(size: 32, height: 38, weight: FontWeight.w800, spacing: -0.6);
   static TextStyle get h1 =>
-      _jakarta(size: 26, height: 32, weight: FontWeight.w700);
+      _jakarta(size: 26, height: 32, weight: FontWeight.w800, spacing: -0.5);
   static TextStyle get h2 =>
-      _jakarta(size: 22, height: 28, weight: FontWeight.w700);
+      _jakarta(size: 22, height: 28, weight: FontWeight.w800, spacing: -0.4);
   static TextStyle get h3 =>
-      _jakarta(size: 18, height: 24, weight: FontWeight.w700);
+      _jakarta(size: 18, height: 24, weight: FontWeight.w700, spacing: -0.2);
+
+  /// In-page section heading ("Categories", "Order History", …). Heavier and
+  /// tighter than [h3] so section titles read like a real storefront, not a
+  /// uniform-weight template. (SEDS §1.3)
+  static TextStyle get section =>
+      _jakarta(size: 19, height: 24, weight: FontWeight.w800, spacing: -0.35);
+
   static TextStyle get title =>
-      _jakarta(size: 16, height: 22, weight: FontWeight.w600);
+      _jakarta(size: 16, height: 22, weight: FontWeight.w700, spacing: -0.1);
 
   static TextStyle get body =>
       _inter(size: 15, height: 22, weight: FontWeight.w400, color: SeColors.ink700);
