@@ -6,7 +6,7 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,getIdTokenResult,connectAuthEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,deleteDoc,writeBatch,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp,connectFirestoreEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{getStorage,ref,uploadBytesResumable,getDownloadURL,deleteObject,listAll,connectStorageEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+import{getStorage,connectStorageEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 import{getFunctions,httpsCallable,connectFunctionsEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
 // ── Firebase Config ──
@@ -15,7 +15,7 @@ import{getFunctions,httpsCallable,connectFunctionsEmulator}from'https://www.gsta
 // environment, so it is always visible which database is being mutated.
 import{firebaseConfig,USE_EMULATORS,EMULATORS}from'./config.js';
 import*as OrderStatus from'./order-status.js';
-import{createUploader,merchantCoverPath,menuItemPath,storagePathFromUrl}from'./image-upload.js';
+import{createUploader}from'./image-upload.js';
 import{parseBands,formatBands,describeBands,parseAmount}from'./pricing-form.js';
 import*as Overseas from'./overseas-status.js';
 import{parseLatLng,isValidLatLng,roundCoord,formatLatLng}from'./location-input.js';
@@ -82,48 +82,11 @@ function parseAmt(a){ var n=parseFloat(String(a==null?'0':a).replace(/[^0-9.]/g,
 // rule here so the id an admin sees is the id the customer sees.
 function shortId(id){ var s=String(id||''); return '#'+(s.length>8?s.slice(0,8):s).toUpperCase(); }
 
-// ══════════════════════ STORAGE (P4-01/P4-02) ══════════════════════
-/* The only three Storage operations the panel performs. Injected into
-   createUploader so image-upload.js stays free of imports and testable. */
-
-/** Resumable so the progress bar reports real bytes, not a fake animation. */
-function storageUpload(blob,path,onProgress){
-  return new Promise(function(resolve,reject){
-    var task=uploadBytesResumable(ref(storage,path),blob,{contentType:'image/jpeg'});
-    task.on('state_changed',
-      function(snap){
-        if(onProgress&&snap.totalBytes) onProgress(Math.round((snap.bytesTransferred/snap.totalBytes)*100));
-      },
-      reject,
-      function(){ getDownloadURL(task.snapshot.ref).then(resolve,reject); }
-    );
-  });
-}
-
-/** Deletes an object only if the URL is one we uploaded. A merchant whose
-    imageUrl is a pasted third-party link must be left untouched — the paste
-    field still exists because existing merchants depend on it. */
-function storageRemove(url){
-  var path=storagePathFromUrl(url);
-  if(!path) return Promise.resolve();
-  return deleteObject(ref(storage,path)).catch(function(e){
-    // Already gone is the outcome we wanted. Anything else is logged, not
-    // surfaced: a failed cleanup must never block the admin's actual save.
-    if(e&&e.code!=='storage/object-not-found') console.warn('storage delete:',e.code||e.message);
-  });
-}
-
-/** Recursively empties a Storage folder. Used on merchant delete so the
-    bucket does not accumulate covers and menu photos for merchants that no
-    longer exist — nothing else would ever reference them again. */
-function storageRemoveFolder(path){
-  return listAll(ref(storage,path)).then(function(res){
-    return Promise.all(
-      res.items.map(function(item){ return deleteObject(item).catch(function(){}); })
-        .concat(res.prefixes.map(function(p){ return storageRemoveFolder(p.fullPath); }))
-    );
-  }).catch(function(e){ console.warn('storage list:',e.code||e.message); });
-}
+// ══════════════════════ STORAGE ══════════════════════
+// The panel no longer performs any Cloud Storage operations — photos are stored
+// inline in Firestore (this project is not on the Blaze plan). The `storage`
+// handle above stays initialised, and the emulator stays wired, only so a future
+// return to Storage does not have to reassemble that plumbing. See below.
 
 // ══════════════════════ INLINE IMAGES (no Cloud Storage) ══════════════════════
 /* This project is NOT on the Blaze plan, so Cloud Storage is unavailable. Instead
@@ -445,9 +408,9 @@ var ACT_SECTIONS={
 var ACT_ORDER=['orders','overseas','customers','drivers'];
 var SEEN_KEY='se_seen_v1';
 var seenStore={};
-try{ seenStore=JSON.parse(localStorage.getItem(SEEN_KEY)||'{}')||{}; }catch(e){ seenStore={}; }
+try{ seenStore=JSON.parse(localStorage.getItem(SEEN_KEY)||'{}')||{}; }catch{ seenStore={}; }
 var unseen={orders:[],overseas:[],customers:[],drivers:[]};
-function persistSeen(){ try{ localStorage.setItem(SEEN_KEY,JSON.stringify(seenStore)); }catch(e){} }
+function persistSeen(){ try{ localStorage.setItem(SEEN_KEY,JSON.stringify(seenStore)); }catch{} }
 function currentIdsFor(sec){
   var list=sec==='orders'?orders:sec==='overseas'?inquiries:sec==='customers'?customers:sec==='drivers'?drivers:[];
   return list.map(function(x){ return x.id; });

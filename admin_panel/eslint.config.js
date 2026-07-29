@@ -40,7 +40,8 @@ export default [
         Image: 'readonly',
         URL: 'readonly',
         CustomEvent: 'readonly',
-        Event: 'readonly'
+        Event: 'readonly',
+        MutationObserver: 'readonly'
       }
     },
     rules: {
