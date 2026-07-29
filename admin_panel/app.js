@@ -2704,11 +2704,46 @@ window.addEventListener('resize',function(){
 });
 
 // ══════════════════════ INIT ══════════════════════
+/* ── Mobile responsive tables ───────────────────────────────────────────────
+   On phones the tables do NOT scroll sideways. The ≤720px CSS block folds each
+   row into a stacked "COLUMN LABEL → value" card, which needs every <td> to
+   carry its column name in data-label. Rows are re-rendered on every Firestore
+   snapshot, so a MutationObserver re-stamps after each render. Setting an
+   attribute is not a childList change, so this never re-triggers itself. Rows
+   whose cell count ≠ header count (skeleton / colspan empty states) are skipped. */
+var _tblObservers=[];
+function stampTableLabels(table){
+  var ths=table.querySelectorAll('thead th');
+  if(!ths.length) return;
+  var labels=[]; for(var i=0;i<ths.length;i++){ labels.push(ths[i].textContent.trim()); }
+  var rows=table.querySelectorAll('tbody tr');
+  for(var r=0;r<rows.length;r++){
+    var tds=rows[r].children;
+    if(tds.length!==labels.length) continue;
+    for(var c=0;c<tds.length;c++){ tds[c].setAttribute('data-label',labels[c]); }
+  }
+}
+function setupTableLabels(){
+  if(_tblObservers.length) return; // wire up once
+  var tables=document.querySelectorAll('.tbl-wrap table');
+  for(var i=0;i<tables.length;i++){
+    (function(t){
+      var body=t.querySelector('tbody');
+      if(!body) return;
+      stampTableLabels(t);
+      var mo=new MutationObserver(function(){ stampTableLabels(t); });
+      mo.observe(body,{childList:true});
+      _tblObservers.push(mo);
+    })(tables[i]);
+  }
+}
+
 function initApp(){
   $('tb-date').textContent=new Date().toLocaleDateString('en-JM',{weekday:'long',month:'long',day:'numeric'});
   renderDashboard(); renderOrders(); renderDrivers(); renderMerchants();
   renderPromos(); renderNotifHist(); renderAnalytics(); renderOverseas();
   updPromoPreview(); updPhonePreview(); renderEmojiPicker();
+  setupTableLabels();
   startListeners();
 }
 

@@ -821,6 +821,57 @@ td .empty{padding:var(--s6) var(--s5);}
   .av{width:30px;height:30px;font-size:12px;}
 }
 
+/* ─────────────── MOBILE TABLES → STACKED CARDS ───────────────
+   Phones never scroll a table sideways. Each row folds into a
+   "COLUMN LABEL → value" block INSIDE the existing card (no card-in-card,
+   no horizontal scroll, nothing clipped). The column name comes from each
+   <td>'s data-label, stamped in app.js (setupTableLabels). Placed last so it
+   wins over the desktop table rules on small screens. */
+@media(max-width:720px){
+  /* The wrapper stops being a scrollport — the page scrolls naturally instead
+     and the inner max-height/overflow that created a nested scroll is removed. */
+  .tbl-wrap{
+    overflow:visible;max-height:none;margin:0;padding:0;
+    -webkit-overflow-scrolling:auto;
+  }
+  .tbl-wrap table,
+  .tbl-wrap thead,
+  .tbl-wrap tbody,
+  .tbl-wrap tr,
+  .tbl-wrap td{display:block;width:100%;}
+  /* The header row is folded into each cell's label — hide it visually but keep
+     it in the DOM (a11y / the data-label source). */
+  .tbl-wrap thead{
+    position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+  }
+  /* Each row is a divided list block within the card. */
+  .tbl-wrap tbody tr{
+    padding:14px 0;border-bottom:1px solid var(--border-strong);
+  }
+  .tbl-wrap tbody tr:first-child{padding-top:2px;}
+  .tbl-wrap tbody tr:last-child{border-bottom:none;padding-bottom:2px;}
+  .tbl-wrap tbody tr:hover td{background:none;}
+  /* Cell = column label on its own line, value beneath. Block flow means any
+     cell contents (plain text, spans, a badge next to an id, a flex .cell-media
+     or .cell-actions) lay out correctly — nothing overlaps or mis-aligns. */
+  .tbl-wrap td{
+    padding:5px 0;border:none;
+    text-align:left!important;font-size:14px;color:var(--text-hi);
+    white-space:normal;word-break:break-word;
+  }
+  .tbl-wrap td::before{
+    content:attr(data-label);display:block;margin-bottom:2px;
+    font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--text-mute);
+  }
+  /* Skeleton / empty-state rows use a single colspan cell — no label, block flow. */
+  .tbl-wrap td[colspan]{padding:6px 0;}
+  .tbl-wrap td[colspan]::before{display:none;}
+  .cell-actions{justify-content:flex-start;}
+  .cell-media{display:inline-flex;}
+}
+
 /* ─────────────── REDUCED MOTION ─────────────── */
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{
