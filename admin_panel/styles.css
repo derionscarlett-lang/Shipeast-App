@@ -235,6 +235,21 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .sidebar.collapsed .ni{justify-content:center;padding:12px 0;}
 .ndiv{height:1px;background:rgba(255,255,255,.07);margin:var(--s2) var(--s5);}
 .sidebar.collapsed .ndiv{margin:var(--s2) var(--s3);}
+/* Unseen-count badge on a nav item. Sits at the far right of the row; on the
+   collapsed rail it shrinks to a corner dot since the label is hidden. */
+.ni-badge{
+  margin-left:auto;min-width:19px;height:19px;padding:0 6px;border-radius:10px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;line-height:1;color:#fff;background:var(--brand);
+  font-variant-numeric:tabular-nums;box-shadow:0 0 0 3px rgba(240,74,94,.18);
+}
+.ni-badge[data-tone="gold"]{background:var(--gold-500);color:#3A2600;box-shadow:0 0 0 3px rgba(245,165,36,.18);}
+.ni-badge[data-tone="ocean"]{background:var(--ocean-500);box-shadow:0 0 0 3px rgba(14,148,136,.2);}
+.ni-badge[data-tone="success"]{background:var(--success);box-shadow:0 0 0 3px rgba(22,163,74,.2);}
+.sidebar.collapsed .ni-badge{
+  position:absolute;top:6px;right:9px;margin:0;min-width:9px;width:9px;height:9px;
+  padding:0;border-radius:50%;font-size:0;box-shadow:0 0 0 2px var(--sidebar-bg);
+}
 .main{margin-left:var(--sw);display:flex;flex-direction:column;min-height:100vh;min-width:0;
   overflow-x:clip;transition:margin-left var(--d-base) var(--ease);}
 .main.expanded{margin-left:0;}
@@ -269,6 +284,47 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   font-weight:800;font-size:14px;flex-shrink:0;box-shadow:var(--glow);}
 .an{font-size:13px;font-weight:600;color:var(--text-hi);line-height:1.2;}
 .ar{font-size:11px;color:var(--text-mute);}
+
+/* ─────────────── ACTIVITY BELL ─────────────── */
+.bell-wrap{position:relative;}
+#bell-btn{position:relative;overflow:visible;}
+.bell-badge{
+  position:absolute;top:1px;right:1px;min-width:16px;height:16px;padding:0 4px;
+  border-radius:8px;background:var(--brand);color:#fff;font-size:10px;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;line-height:1;
+  border:2px solid var(--card);font-variant-numeric:tabular-nums;pointer-events:none;
+}
+.bell-menu{
+  position:absolute;top:calc(100% + 8px);right:0;width:308px;max-width:calc(100vw - 32px);
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);
+  box-shadow:var(--e3);z-index:60;overflow:hidden;
+  opacity:0;visibility:hidden;transform:translateY(-6px);
+  transition:opacity var(--d-fast) var(--ease),transform var(--d-fast) var(--ease),visibility var(--d-fast) var(--ease);
+}
+.bell-menu.open{opacity:1;visibility:visible;transform:none;}
+.bell-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:12px 14px;border-bottom:1px solid var(--border);
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:14px;color:var(--text-hi);}
+.bell-clear{background:none;border:none;cursor:pointer;color:var(--brand);
+  font-size:12px;font-weight:600;padding:2px 4px;border-radius:var(--r-xs);}
+.bell-clear:hover{text-decoration:underline;}
+.bell-list{max-height:340px;overflow-y:auto;}
+.bell-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:12px 14px;background:none;border:none;border-bottom:1px solid var(--border);
+  cursor:pointer;color:var(--text-hi);transition:background var(--d-fast) var(--ease);}
+.bell-item:last-child{border-bottom:none;}
+.bell-item:hover{background:var(--hover);}
+.bell-dot{width:9px;height:9px;border-radius:50%;background:var(--brand);flex-shrink:0;}
+.bell-dot[data-tone="gold"]{background:var(--gold-500);}
+.bell-dot[data-tone="ocean"]{background:var(--ocean-500);}
+.bell-dot[data-tone="success"]{background:var(--success);}
+.bell-txt{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;}
+.bell-txt b{font-size:13px;font-weight:600;}
+.bell-sub{font-size:11px;color:var(--text-mute);}
+.bell-item>.ic{color:var(--text-mute);width:16px;height:16px;flex-shrink:0;}
+.bell-empty{display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:30px 14px;color:var(--text-mute);font-size:13px;text-align:center;}
+.bell-empty .ic{width:30px;height:30px;color:var(--success);}
 
 /* ─────────────── PAGES ─────────────── */
 .pw{padding:var(--s6) var(--gutter);flex:1;max-width:1560px;width:100%;min-width:0;}

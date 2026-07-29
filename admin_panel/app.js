@@ -75,6 +75,12 @@ function icon(name,cls){ return '<svg class="ic '+(cls||'')+'" aria-hidden="true
    for thousands grouping only; it is not what chooses the symbol. */
 function money(n){ return '$'+Math.round(Number(n)||0).toLocaleString('en-JM'); }
 function parseAmt(a){ var n=parseFloat(String(a==null?'0':a).replace(/[^0-9.]/g,'')); return isNaN(n)?0:n; }
+// The customer and driver apps show orders as #ABCD1234 — the first 8
+// characters of the Firestore id, upper-cased (order_history_screen.dart:347,
+// history_screen.dart:288). The console was printing the full 20-char id, which
+// nobody can read out over the phone or match against an app screenshot. Same
+// rule here so the id an admin sees is the id the customer sees.
+function shortId(id){ var s=String(id||''); return '#'+(s.length>8?s.slice(0,8):s).toUpperCase(); }
 
 // ══════════════════════ STORAGE (P4-01/P4-02) ══════════════════════
 /* The only three Storage operations the panel performs. Injected into
@@ -398,6 +404,8 @@ function navTo(page){
   // Loaded on first visit rather than streamed: pricing changes a few times a
   // year, and a live listener would fight the admin's own typing.
   if(page==='settings'&&!pricingLoaded){ loadPricing(); }
+  // Landing on a tracked page means the admin has now seen it — clear its dot.
+  acknowledgeSection(page);
   if(window.innerWidth<=900) closeMobileSidebar();
 }
 
@@ -417,6 +425,103 @@ function toggleSidebar(){
 function closeMobileSidebar(){
   $('sidebar').classList.remove('mob-open');
   $('mob-overlay').classList.remove('open');
+}
+
+// ══════════════════════ ACTIVITY / UNSEEN TRACKING ══════════════════════
+/* A live console shows a new order or overseas enquiry the moment it lands, but
+   an admin looking at another page had no way to know anything had happened.
+   For each tracked collection we remember which document ids the admin has
+   actually seen — persisted in localStorage so a refresh does not re-flag old
+   rows — and surface anything new two ways: a coloured count on that section's
+   sidebar item, and a matching entry under the topbar bell. Opening the page,
+   or "Mark all read", clears it. Colours are the dashboard accents so a red /
+   gold / teal / green dot reads the same everywhere. */
+var ACT_SECTIONS={
+  orders:{one:'order',many:'orders',tone:'brand'},
+  overseas:{one:'overseas enquiry',many:'overseas enquiries',tone:'gold'},
+  customers:{one:'customer',many:'customers',tone:'ocean'},
+  drivers:{one:'driver',many:'drivers',tone:'success'}
+};
+var ACT_ORDER=['orders','overseas','customers','drivers'];
+var SEEN_KEY='se_seen_v1';
+var seenStore={};
+try{ seenStore=JSON.parse(localStorage.getItem(SEEN_KEY)||'{}')||{}; }catch(e){ seenStore={}; }
+var unseen={orders:[],overseas:[],customers:[],drivers:[]};
+function persistSeen(){ try{ localStorage.setItem(SEEN_KEY,JSON.stringify(seenStore)); }catch(e){} }
+function currentIdsFor(sec){
+  var list=sec==='orders'?orders:sec==='overseas'?inquiries:sec==='customers'?customers:sec==='drivers'?drivers:[];
+  return list.map(function(x){ return x.id; });
+}
+function isPageActive(sec){ var p=$('page-'+sec); return !!(p&&p.classList.contains('active')); }
+// Recompute a section's unseen set after its snapshot. The first time we ever
+// see a section (no stored baseline) we adopt the whole backlog as already-seen
+// so a fresh login does not light up every dot with pre-existing rows.
+function trackSection(sec){
+  var ids=currentIdsFor(sec);
+  var exists={}; ids.forEach(function(id){ exists[id]=1; });
+  if(!seenStore[sec]){
+    seenStore[sec]=ids.slice(); persistSeen(); unseen[sec]=[];
+  }else{
+    var seen={}; seenStore[sec].forEach(function(id){ seen[id]=1; });
+    unseen[sec]=ids.filter(function(id){ return !seen[id]; });
+    // Drop ids that no longer exist so the store cannot grow without bound.
+    var pruned=seenStore[sec].filter(function(id){ return exists[id]; });
+    if(pruned.length!==seenStore[sec].length){ seenStore[sec]=pruned; persistSeen(); }
+  }
+  // If the admin is already on the page, they are looking at it — clear at once.
+  if(isPageActive(sec)&&unseen[sec].length){ seenStore[sec]=ids.slice(); persistSeen(); unseen[sec]=[]; }
+  renderActivity();
+}
+function acknowledgeSection(sec){
+  // Only acknowledge once the section has data. Baselining an empty section
+  // (navigated to before its first snapshot) would make trackSection later read
+  // the whole arriving collection as "new".
+  if(!ACT_SECTIONS[sec]||!loadedOnce[sec]) return;
+  seenStore[sec]=currentIdsFor(sec); persistSeen(); unseen[sec]=[]; renderActivity();
+}
+function acknowledgeAll(){ ACT_ORDER.forEach(function(sec){ seenStore[sec]=currentIdsFor(sec); unseen[sec]=[]; }); persistSeen(); renderActivity(); }
+function renderActivity(){
+  var total=0;
+  ACT_ORDER.forEach(function(sec){
+    var n=unseen[sec].length; total+=n;
+    var ni=document.querySelector('.ni[data-page="'+sec+'"]'); if(!ni) return;
+    var b=ni.querySelector('.ni-badge');
+    if(n>0){
+      if(!b){ b=document.createElement('span'); b.className='ni-badge'; ni.appendChild(b); }
+      b.textContent=n>99?'99+':String(n);
+      b.setAttribute('data-tone',ACT_SECTIONS[sec].tone);
+    }else if(b){ b.remove(); }
+  });
+  var badge=$('bell-badge');
+  if(badge){ if(total>0){ badge.textContent=total>99?'99+':String(total); badge.hidden=false; } else badge.hidden=true; }
+  renderBellMenu();
+}
+function renderBellMenu(){
+  var host=$('bell-list'); if(!host) return;
+  var items=[];
+  ACT_ORDER.forEach(function(sec){
+    var n=unseen[sec].length; if(!n) return;
+    var s=ACT_SECTIONS[sec];
+    items.push('<button class="bell-item" data-bell-page="'+sec+'" role="menuitem">'+
+      '<span class="bell-dot" data-tone="'+s.tone+'"></span>'+
+      '<span class="bell-txt"><b>'+n+' new '+(n===1?s.one:s.many)+'</b>'+
+      '<span class="bell-sub">Tap to review</span></span>'+
+      icon('caret-right')+'</button>');
+  });
+  var clr=$('bell-clear');
+  if(!items.length){
+    host.innerHTML='<div class="bell-empty">'+icon('check')+'<div>You’re all caught up</div></div>';
+    if(clr) clr.hidden=true;
+  }else{
+    host.innerHTML=items.join('');
+    if(clr) clr.hidden=false;
+  }
+}
+function toggleBell(force){
+  var menu=$('bell-menu'), btn=$('bell-btn'); if(!menu) return;
+  var open=force!=null?force:!menu.classList.contains('open');
+  menu.classList.toggle('open',open);
+  if(btn) btn.setAttribute('aria-expanded',open?'true':'false');
 }
 
 // ══════════════════════ FIRESTORE LISTENERS ══════════════════════
@@ -471,6 +576,7 @@ function startListeners(){
             _docId:d.id};
         });
         loadedOnce.orders=true;
+        trackSection('orders');
         renderDashboard();renderOrders();renderAnalytics();renderTopMerch();
       },
       function(e){ loadedOnce.orders=true; console.warn('orders:',e.message); toast('error','Could not load orders: '+e.message); renderOrders(); }
@@ -497,6 +603,7 @@ function startListeners(){
             isOnline:o.isOnline||false,onDelivery:o.onDelivery||false,_docId:d.id};
         });
         loadedOnce.drivers=true;
+        trackSection('drivers');
         renderDrivers();renderDashboard();renderOrders();
       },
       function(e){ loadedOnce.drivers=true; console.warn('drivers:',e.message); toast('error','Could not load drivers: '+e.message); renderDrivers(); }
@@ -572,6 +679,7 @@ function startListeners(){
             _docId:d.id};
         });
         loadedOnce.customers=true;
+        trackSection('customers');
         renderCustomers();
       },
       function(e){ loadedOnce.customers=true; console.warn('users:',e.message); toast('error','Could not load customers: '+e.message); renderCustomers(); }
@@ -613,6 +721,7 @@ function startListeners(){
             _docId:d.id};
         });
         loadedOnce.overseas=true;
+        trackSection('overseas');
         renderOverseas();
       },
       function(e){ loadedOnce.overseas=true; console.warn('overseasInquiries:',e.message); toast('error','Could not load overseas enquiries: '+e.message); renderOverseas(); }
@@ -737,7 +846,7 @@ function renderDashboard(){
     return '<tr>'+
       // Beside the id, not in its own column: a package job needs to be
       // obvious at a glance, and the orders table is already nine columns wide.
-      '<td><span class="cell-id">'+esc(o.id)+'</span>'+typeBadge(o.type)+'</td>'+
+      '<td><span class="cell-id">'+esc(shortId(o.id))+'</span>'+typeBadge(o.type)+'</td>'+
       '<td>'+esc(o.customer)+'</td>'+
       '<td>'+esc(o.merchant)+'</td>'+
       '<td class="cell-mute">'+esc(o.driver)+'</td>'+
@@ -776,7 +885,10 @@ function renderOrders(){
       (ordersFilter==='Active'&&isActiveStatus(o.status))||
       (ordersFilter==='Completed'&&isDeliveredStatus(o.status))||
       (ordersFilter==='Cancelled'&&isCancelledStatus(o.status));
-    var sm=!search||o.id.toLowerCase().includes(search)||o.customer.toLowerCase().includes(search)||o.merchant.toLowerCase().includes(search);
+    // Match the full id (an admin may paste it from the console) and the short
+    // #ABCD1234 form the tables now show, with or without the leading '#'.
+    var q=search.replace(/^#/,'');
+    var sm=!search||o.id.toLowerCase().includes(q)||shortId(o.id).toLowerCase().includes(search)||o.customer.toLowerCase().includes(search)||o.merchant.toLowerCase().includes(search);
     return tm&&sm;
   });
   if(!rows.length){
@@ -789,7 +901,7 @@ function renderOrders(){
     return '<tr>'+
       // Beside the id, not in its own column: a package job needs to be
       // obvious at a glance, and the orders table is already nine columns wide.
-      '<td><span class="cell-id">'+esc(o.id)+'</span>'+typeBadge(o.type)+'</td>'+
+      '<td><span class="cell-id">'+esc(shortId(o.id))+'</span>'+typeBadge(o.type)+'</td>'+
       '<td>'+esc(o.customer)+'</td>'+
       '<td>'+esc(o.merchant)+'</td>'+
       '<td class="cell-mute">'+esc(o.driver)+'</td>'+
@@ -819,7 +931,7 @@ function openOrderPanel(oid){
   var o=orders.find(function(x){ return x._docId===oid||x.id===oid; });
   if(!o) return;
   $('sp-sub').textContent='Order Details';
-  $('sp-title').textContent=o.id;
+  $('sp-title').textContent=shortId(o.id);
   var steps=['Placed','Confirmed','Picked Up','On the Way','Delivered'];
   var sfMap={pending:1,confirmed:2,picked_up:3,in_transit:4,delivered:5,
     Pending:1,Confirmed:2,'Picked Up':3,'On the Way':4,Delivered:5};
@@ -2620,6 +2732,12 @@ document.addEventListener('click',function(e){
   if(t.closest('#logout-btn')){ doLogout(); return; }
   if(t.closest('#hamburger')){ toggleSidebar(); return; }
   if(t.closest('#theme-btn')){ toggleTheme(); return; }
+  var bellPage=t.closest('[data-bell-page]');
+  if(bellPage){ toggleBell(false); navTo(bellPage.getAttribute('data-bell-page')); return; }
+  if(t.closest('#bell-clear')){ acknowledgeAll(); return; }
+  if(t.closest('#bell-btn')){ toggleBell(); return; }
+  // A click anywhere outside the open bell menu dismisses it.
+  if($('bell-menu')&&$('bell-menu').classList.contains('open')&&!t.closest('.bell-wrap')){ toggleBell(false); }
   if(t.closest('#login-btn')){ doLogin(); return; }
   if(t.id==='sp-overlay'||t.closest('#sp-close')){ closeSidePanel(); return; }
   if(t.id==='mob-overlay'){ closeMobileSidebar(); return; }
@@ -2697,6 +2815,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&(e.target.id==='l-email'||e.target.id==='l-pass')){ doLogin(); return; }
   if(e.key==='Enter'&&e.target.classList.contains('tab')){ e.target.click(); return; }
   if(e.key==='Escape'){
+    if($('bell-menu')&&$('bell-menu').classList.contains('open')){ toggleBell(false); return; }
     if($('modal-confirm').classList.contains('open')){ settleConfirm(false); return; }
     var open=document.querySelector('.mbg.open');
     if(open){ closeModal(open.id); return; }
@@ -2763,6 +2882,7 @@ function initApp(){
   renderDashboard(); renderOrders(); renderDrivers(); renderMerchants();
   renderPromos(); renderNotifHist(); renderAnalytics(); renderOverseas();
   updPromoPreview(); updPhonePreview(); renderEmojiPicker();
+  renderActivity();
   setupTableLabels();
   startListeners();
 }
