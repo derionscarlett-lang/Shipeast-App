@@ -48,8 +48,15 @@ class MainActivity : FlutterActivity() {
         registerPlugin(flutterEngine, "url_launcher_android") {
             flutterEngine.plugins.add(io.flutter.plugins.urllauncher.UrlLauncherPlugin())
         }
-        registerPlugin(flutterEngine, "webview_flutter_android") {
-            flutterEngine.plugins.add(io.flutter.plugins.webviewflutter.WebViewFlutterPlugin())
+        // Live delivery tracking reads the customer's own device location to show
+        // how far the driver's GPS is. Missing this registration silently disables it.
+        registerPlugin(flutterEngine, "geolocator_android") {
+            flutterEngine.plugins.add(com.baseflow.geolocator.GeolocatorPlugin())
+        }
+        // Transitive dependency (local key/value cache). Present in Flutter's
+        // generated registrant, so it must be registered here too.
+        registerPlugin(flutterEngine, "sqflite_android") {
+            flutterEngine.plugins.add(com.tekartik.sqflite.SqflitePlugin())
         }
     }
 
