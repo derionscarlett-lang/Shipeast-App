@@ -7,7 +7,7 @@ import {
   assertSucceeds
 } from '@firebase/rules-unit-testing';
 import {
-  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc
+  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, serverTimestamp
 } from 'firebase/firestore';
 
 /* Firestore security rules (P2-01).
@@ -234,10 +234,14 @@ describe('orders — money cannot be rewritten by a client', () => {
     );
   });
 
-  test('orders can never be deleted, by anyone', async () => {
+  test('an order is deletable only by an admin (the data wipe), never a client', async () => {
+    // A financial record: no lifecycle path deletes one, and no customer or
+    // driver ever can. The sole exception is an admin running the Settings →
+    // Danger Zone "Erase all data" wipe, which resets the whole system.
     await seed('orders/o1', order());
     await assertFails(deleteDoc(doc(asCustomer(), 'orders/o1')));
-    await assertFails(deleteDoc(doc(asAdmin(), 'orders/o1')));
+    await seed('orders/o2', order());
+    await assertSucceeds(deleteDoc(doc(asAdmin(), 'orders/o2')));
   });
 });
 
@@ -278,15 +282,76 @@ describe('orders — claiming and the lifecycle', () => {
     );
   });
 
-  test('a driver CANNOT mark an order delivered directly', async () => {
-    /* P3-04. Delivery is where the commission is decided, so it goes through
-       the confirmDelivery callable, which recomputes it from the order's own
-       stored total. A driver who can write `delivered` here completes the
-       order with no commission recorded, and every earnings screen then
-       derives a figure from data nobody wrote. */
+  /* Delivery finalisation used to be denied to the client entirely and handled
+     by the confirmDelivery callable (P3-04). That function needs the Blaze
+     plan and is not deployed, so the guarantee it enforced — a driver cannot
+     pay itself more than the order's own total warrants — now lives in the
+     rules (driverDelivering). The order's total is immutable, and the write is
+     accepted only with a bounded commission, so the anti-fraud property is
+     preserved without the backend. */
+  test('a driver CAN complete their own in_transit order with a correct commission', async () => {
+    // order() total is 1500; 10% is 150.
+    await seed('orders/o1', order({ driverId: DRIVER, status: 'in_transit' }));
+    await assertSucceeds(
+      updateDoc(doc(asDriver(), 'orders/o1'), {
+        status: 'delivered',
+        deliveredAt: serverTimestamp(),
+        driverCommission: 150,
+        commissionRate: 0.1,
+      })
+    );
+  });
+
+  test('a driver CANNOT overpay themselves on delivery', async () => {
+    // 10% of 1500 is 150; anything meaningfully above it is refused. This is
+    // the exact exploit P3-04 closed, now closed by rules instead of a function.
     await seed('orders/o1', order({ driverId: DRIVER, status: 'in_transit' }));
     await assertFails(
-      updateDoc(doc(asDriver(), 'orders/o1'), { status: 'delivered' })
+      updateDoc(doc(asDriver(), 'orders/o1'), {
+        status: 'delivered',
+        deliveredAt: serverTimestamp(),
+        driverCommission: 900,
+        commissionRate: 0.1,
+      })
+    );
+  });
+
+  test('a driver CANNOT forge the delivery time', async () => {
+    // deliveredAt must be the server clock, not a client-chosen instant.
+    await seed('orders/o1', order({ driverId: DRIVER, status: 'in_transit' }));
+    await assertFails(
+      updateDoc(doc(asDriver(), 'orders/o1'), {
+        status: 'delivered',
+        deliveredAt: new Date('2020-01-01'),
+        driverCommission: 150,
+        commissionRate: 0.1,
+      })
+    );
+  });
+
+  test('a driver CANNOT alter the total while completing the order', async () => {
+    // Bumping the total to lift the commission ceiling is blocked: total is not
+    // in the touchable set, so the whole write is rejected.
+    await seed('orders/o1', order({ driverId: DRIVER, status: 'in_transit' }));
+    await assertFails(
+      updateDoc(doc(asDriver(), 'orders/o1'), {
+        status: 'delivered',
+        deliveredAt: serverTimestamp(),
+        driverCommission: 150,
+        total: 100000,
+      })
+    );
+  });
+
+  test('a driver CANNOT complete an order they do not hold', async () => {
+    await seed('orders/o1', order({ driverId: DRIVER, status: 'in_transit' }));
+    await assertFails(
+      updateDoc(doc(asOtherDriver(), 'orders/o1'), {
+        status: 'delivered',
+        deliveredAt: serverTimestamp(),
+        driverCommission: 150,
+        commissionRate: 0.1,
+      })
     );
   });
 
@@ -480,6 +545,17 @@ describe('users — profile and address isolation', () => {
   test('an admin CAN read a customer profile (Customers page)', async () => {
     await seed(`users/${CUSTOMER}`, { name: 'C', email: 'c@x.com' });
     await assertSucceeds(getDoc(doc(asAdmin(), `users/${CUSTOMER}`)));
+  });
+
+  test('an admin CAN delete a customer and their addresses (the data wipe)', async () => {
+    // Delete exists for the Settings → Danger Zone "Erase all data" wipe. A
+    // saved address is a subcollection doc and must be swept explicitly — the
+    // parent delete does not cascade — so both need the admin-delete clause.
+    await seed(`users/${CUSTOMER}`, { name: 'C', email: 'c@x.com' });
+    await seed(`users/${CUSTOMER}/addresses/a1`, { label: 'Home', text: '15 Harbour St' });
+    await assertFails(deleteDoc(doc(asOtherCustomer(), `users/${CUSTOMER}`)));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), `users/${CUSTOMER}/addresses/a1`)));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), `users/${CUSTOMER}`)));
   });
 });
 
@@ -864,11 +940,13 @@ describe('Phase 5 — order types, cancellation and overseas enquiries', () => {
     );
   });
 
-  test('an enquiry is never deleted, by anyone', async () => {
+  test('an enquiry is deletable only by an admin (the data wipe), never a client', async () => {
     // It is the only record of what somebody asked us to ship, including the
-    // ones we refused and the reason we gave.
+    // ones we refused and the reason we gave — so no client ever deletes one.
+    // An admin may, but only as part of the Danger Zone "Erase all data" wipe.
     await seed('overseasInquiries/i6', inquiry());
     await assertFails(deleteDoc(doc(asCustomer(), 'overseasInquiries/i6')));
-    await assertFails(deleteDoc(doc(asAdmin(), 'overseasInquiries/i6')));
+    await seed('overseasInquiries/i7', inquiry());
+    await assertSucceeds(deleteDoc(doc(asAdmin(), 'overseasInquiries/i7')));
   });
 });

@@ -94,11 +94,19 @@ service cloud.firestore {
       allow update: if (uid() == userId && untouched(['disabled']))
                     || (isAdmin() && changed().hasOnly(['disabled']));
 
-      allow delete: if uid() == userId;
+      // The owner may delete their own account. Admin delete exists solely for
+      // the Settings → Danger Zone "Erase all data" wipe (a deliberate,
+      // double-confirmed operator action); the panel never deletes a single
+      // customer otherwise — it disables the account instead.
+      allow delete: if uid() == userId || isAdmin();
 
       match /addresses/{addressId} {
         allow read, write: if uid() == userId;
         allow read: if isAdmin();
+        // Admin delete for the data wipe. A saved address is a subcollection
+        // doc, so it does not vanish with the parent user and must be swept
+        // explicitly (see eraseAllData in app.js).
+        allow delete: if isAdmin();
       }
     }
 
@@ -252,6 +260,42 @@ service cloud.firestore {
                   ]);
       }
 
+      /* Delivering: the holding driver finalises their own in_transit order.
+         This is the one forward step driverAdvancing() deliberately refuses,
+         because delivery is the moment money is decided.
+
+         It used to run in the `confirmDelivery` callable, which recomputed the
+         commission from the order's own stored total so a modified client could
+         not pay itself an arbitrary amount (P3-04). That function requires the
+         Blaze plan and is not deployed, which left every delivery failing. The
+         SAME guarantee is enforced here instead: the driver may write
+         `delivered`, but only with a `driverCommission` that cannot exceed the
+         order's immutable `total` times the commission rate. The total is not
+         in the touchable set below, so it cannot be inflated first; the rate
+         ceiling is fixed here and mirrors DriverPay.commissionRate in the
+         driver app and DEFAULT_COMMISSION_RATE in functions/delivery.ts. The
+         `+ 1` absorbs the integer rounding of a percentage — one Jamaican
+         dollar of slack, not a payout hole. Earnings screens derive from this
+         `driverCommission`, so a correct figure here is a correct figure there.
+
+         `deliveredAt` must be the server's clock (request.time), which is what
+         a serverTimestamp sentinel resolves to, so the completion time cannot
+         be forged. `driverLoc` is cleared in the same write (the customer's
+         live-tracking coordinate has no meaning once delivered). */
+      function driverDelivering() {
+        return existing().driverId == uid()
+               && existing().status == 'in_transit'
+               && incoming().status == 'delivered'
+               && changed().hasOnly([
+                    'status', 'deliveredAt', 'driverCommission', 'commissionRate',
+                    'driverLoc', 'deliveryPhotoUrl', 'deliveryNote'
+                  ])
+               && incoming().deliveredAt == request.time
+               && incoming().driverCommission is int
+               && incoming().driverCommission >= 0
+               && incoming().driverCommission <= existing().total * 0.10 + 1;
+      }
+
       // Unassignment is an administrative REVERSAL, not a lifecycle
       // transition, and it is deliberately absent from legalTransition above:
       // that table describes the forward path a driver walks, and widening it
@@ -271,10 +315,14 @@ service cloud.firestore {
       allow update: if (isAdmin() && (statusUnchangedOrLegal() || adminUnassigning()))
                     || (signedIn() && (customerCancelling()
                                        || driverClaiming()
-                                       || driverAdvancing()));
+                                       || driverAdvancing()
+                                       || driverDelivering()));
 
-      // Cancel, never delete. An order is a financial record.
-      allow delete: if false;
+      // Cancel, never delete — with one exception. An order is a financial
+      // record, so no lifecycle path deletes one. The sole deleter is an admin
+      // running the Settings → Danger Zone "Erase all data" wipe, a deliberate
+      // and double-confirmed operator action that resets the whole system.
+      allow delete: if isAdmin();
     }
 
     // ── promoCodes ───────────────────────────────────────────────────────
@@ -350,10 +398,11 @@ service cloud.firestore {
                           'handledAt', 'updatedAt'])
                     && incoming().status in overseasStatus();
 
-      // Kept, never deleted. An enquiry is a record of what somebody asked us
-      // to ship; deleting one loses the only account of a request that may
-      // have been declined for a reason worth being able to point at later.
-      allow delete: if false;
+      // Kept, never deleted in normal operation — an enquiry is the only
+      // account of a request that may have been declined for a reason worth
+      // pointing at later. The lone exception is an admin running the
+      // Settings → Danger Zone "Erase all data" wipe.
+      allow delete: if isAdmin();
     }
 
     // ── pushLog ──────────────────────────────────────────────────────────

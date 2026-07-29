@@ -468,9 +468,9 @@
         </div>
       </section>
 
-      <!-- ── PRICING (P5-01) ── -->
+      <!-- ── SETTINGS (pricing P5-01 + danger zone) ── -->
       <section class="page" id="page-settings">
-        <div class="pg-hdr"><h1 class="pg-title">Pricing</h1></div>
+        <div class="pg-hdr"><h1 class="pg-title">Settings</h1></div>
         <div class="ag">
           <div class="card">
             <div class="card-title">Package Delivery
@@ -512,6 +512,23 @@
               <svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Save pricing
             </button>
           </div>
+
+          <!-- ── Danger Zone ── -->
+          <div class="card danger-zone">
+            <div class="card-title">
+              <span class="dz-label"><svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg>Danger Zone</span>
+            </div>
+            <p class="empty-copy" style="max-width:none;margin-bottom:14px">
+              <b>Erase all data</b> permanently deletes every customer, driver, order,
+              saved address, notification and overseas enquiry — across all three apps.
+              Restaurants, menus, promo codes and pricing settings are kept.
+              This cannot be undone, and there is no backup. It asks for two separate
+              confirmations before anything is touched.
+            </p>
+            <button class="btn btn-danger" data-action="erase-open">
+              <svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg>Erase all data…
+            </button>
+          </div>
         </div>
       </section>
 
@@ -546,6 +563,29 @@
     <div class="m-actions">
       <button class="btn btn-outline" id="cf-cancel">Cancel</button>
       <button class="btn btn-danger" id="cf-ok">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ERASE ALL DATA — second confirmation (type-to-confirm) ══ -->
+<div class="mbg" id="modal-wipe" role="alertdialog" aria-labelledby="wipe-title">
+  <div class="mbox narrow">
+    <div class="m-ico danger"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-warning"/></svg></div>
+    <div class="m-title" id="wipe-title">Final confirmation</div>
+    <div class="m-body">
+      This permanently deletes every customer, driver, order, saved address,
+      notification and overseas enquiry. Restaurants, menus, promo codes and
+      pricing settings are kept. <b>This cannot be undone.</b>
+      <div class="fr" style="margin-top:14px;text-align:left">
+        <label for="wipe-phrase">Type <code>ERASE ALL DATA</code> to enable the button.</label>
+        <input id="wipe-phrase" type="text" autocomplete="off" autocapitalize="characters"
+          spellcheck="false" placeholder="ERASE ALL DATA"/>
+      </div>
+      <div id="wipe-progress" class="empty-copy" style="max-width:none;margin-top:10px"></div>
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-outline" id="wipe-cancel" data-close="modal-wipe">Cancel</button>
+      <button class="btn btn-danger" id="wipe-go" data-action="erase-all" disabled>Permanently erase</button>
     </div>
   </div>
 </div>

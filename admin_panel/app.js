@@ -5,7 +5,7 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,getIdTokenResult,connectAuthEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import{getFirestore,collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp,connectFirestoreEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{getFirestore,collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,deleteDoc,writeBatch,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp,connectFirestoreEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getStorage,ref,uploadBytesResumable,getDownloadURL,deleteObject,listAll,connectStorageEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 import{getFunctions,httpsCallable,connectFunctionsEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
@@ -1891,6 +1891,142 @@ function savePricing(){
     .catch(function(e){ toast('error',e.message,'Could not save pricing'); });
 }
 
+// ══════════════════════ DANGER ZONE — ERASE ALL DATA ══════════════════════
+/* A total reset of the operational data, for handing the system to a new
+   operator or clearing a test population. It removes every customer, driver,
+   order, saved address, notification and overseas enquiry, and nothing else:
+   restaurants, menu items, promo codes and the pricing/commission settings
+   survive, so the three apps stay usable the moment new users arrive.
+
+   What it deliberately does NOT do: it cannot delete Firebase Auth login
+   accounts — that needs the Admin SDK, which this client-only panel has no
+   access to. A wiped customer's old email/password still signs in, into a
+   fresh empty account. Removing the logins too means deleting them in the
+   Firebase console, or deploying a callable on the Blaze plan.
+
+   Two gates guard it: a warning dialog (openWipeFlow) and a type-the-phrase
+   modal (this button). Both must be cleared before a single document is
+   touched. The corresponding delete permissions live in firestore.rules —
+   without them deployed, the users/orders/enquiries sweeps fail. */
+var WIPE_PHRASE='ERASE ALL DATA';
+var wiping=false;
+
+function openWipeFlow(){
+  confirmDialog({
+    title:'Danger Zone — erase all data?',
+    body:'This permanently deletes ALL customers, drivers, orders, saved addresses, '+
+         'notifications and overseas enquiries, across all three apps. Restaurants, '+
+         'menus, promo codes and pricing settings are kept. It is irreversible and '+
+         'there is no backup.',
+    confirmLabel:'I understand — continue'
+  }).then(function(ok){
+    if(!ok) return;
+    var inp=$('wipe-phrase'); if(inp){ inp.value=''; inp.disabled=false; }
+    var go=$('wipe-go'); if(go){ go.disabled=true; go.textContent='Permanently erase'; }
+    var cancel=$('wipe-cancel'); if(cancel) cancel.disabled=false;
+    var pr=$('wipe-progress'); if(pr) pr.textContent='';
+    openModal('modal-wipe');
+    setTimeout(function(){ if(inp) inp.focus(); },50);
+  });
+}
+
+// Delete an array of DocumentReferences in batches. Firestore caps a batch at
+// 500 writes; 400 leaves headroom and keeps each round trip small.
+function wipeCommitBatched(refs){
+  var i=0;
+  function next(){
+    if(i>=refs.length) return Promise.resolve();
+    var batch=writeBatch(db);
+    refs.slice(i,i+400).forEach(function(r){ batch.delete(r); });
+    i+=400;
+    return batch.commit().then(next);
+  }
+  return next();
+}
+
+function wipeFlat(coll){
+  return getDocs(collection(db,coll)).then(function(snap){
+    var refs=snap.docs.map(function(d){ return d.ref; });
+    return wipeCommitBatched(refs).then(function(){ return refs.length; });
+  });
+}
+
+// A parent collection whose docs each own one or more subcollections. Deleting
+// the parent does NOT remove them, so each subcollection is swept first, then
+// the parents. Runs one parent at a time to keep reads bounded on large sets.
+function wipeWithSub(coll,subs){
+  return getDocs(collection(db,coll)).then(function(snap){
+    var parents=snap.docs, count=0, pi=0;
+    function nextParent(){
+      if(pi>=parents.length){
+        return wipeCommitBatched(parents.map(function(d){ return d.ref; }))
+          .then(function(){ return count+parents.length; });
+      }
+      var d=parents[pi++], si=0;
+      function nextSub(){
+        if(si>=subs.length) return nextParent();
+        return getDocs(collection(db,coll,d.id,subs[si++])).then(function(ss){
+          var refs=ss.docs.map(function(x){ return x.ref; });
+          count+=refs.length;
+          return wipeCommitBatched(refs).then(nextSub);
+        });
+      }
+      return nextSub();
+    }
+    return nextParent();
+  });
+}
+
+function runWipe(status){
+  var total=0;
+  return wipeWithSub('users',['addresses']).then(function(n){
+    total+=n; status('Cleared customers and addresses ('+n+'). Clearing drivers…');
+    return wipeWithSub('drivers',['private']);
+  }).then(function(n){
+    total+=n; status('Cleared drivers ('+n+'). Clearing orders…');
+    return wipeFlat('orders');
+  }).then(function(n){
+    total+=n; status('Cleared orders ('+n+'). Clearing notifications…');
+    return wipeFlat('notifications');
+  }).then(function(n){
+    total+=n; status('Cleared notifications ('+n+'). Clearing overseas enquiries…');
+    return wipeFlat('overseasInquiries');
+  }).then(function(n){
+    total+=n; return total;
+  });
+}
+
+function eraseAllData(){
+  if(wiping) return;
+  var phrase=(($('wipe-phrase')||{}).value||'').trim();
+  if(phrase!==WIPE_PHRASE){ toast('error','Type '+WIPE_PHRASE+' exactly to confirm.'); return; }
+  wiping=true;
+  var go=$('wipe-go'), cancel=$('wipe-cancel'), inp=$('wipe-phrase'), pr=$('wipe-progress');
+  if(go){ go.disabled=true; go.textContent='Erasing…'; }
+  if(cancel) cancel.disabled=true;
+  if(inp) inp.disabled=true;
+  function status(msg){ if(pr) pr.textContent=msg; }
+  status('Erasing… do not close this window.');
+
+  runWipe(status).then(function(total){
+    closeModal('modal-wipe');
+    toast('success',total+' record'+(total===1?'':'s')+' deleted. Customers, drivers, orders, '+
+      'addresses, notifications and enquiries are gone.','All data erased');
+  }).catch(function(e){
+    // A permission-denied here almost always means firestore.rules with the
+    // admin-delete clauses has not been deployed yet.
+    var hint=/permission/i.test(e.message||'')
+      ? 'Permission denied — deploy the updated firestore.rules first.' : e.message;
+    status('Stopped: '+hint);
+    toast('error',hint,'Erase failed');
+  }).finally(function(){
+    wiping=false;
+    if(go){ go.disabled=false; go.textContent='Permanently erase'; }
+    if(cancel) cancel.disabled=false;
+    if(inp) inp.disabled=false;
+  });
+}
+
 // ══════════════════════ MERCHANTS ══════════════════════
 function renderMerchantStats(){
   var el=$('merchants-stats'); if(!el) return;
@@ -2787,6 +2923,8 @@ document.addEventListener('click',function(e){
     case 'save-driver':     saveDriver(); break;
     case 'save-merchant':   saveMerchant(); break;
     case 'save-pricing':    savePricing(); break;
+    case 'erase-open':      openWipeFlow(); break;
+    case 'erase-all':       eraseAllData(); break;
     case 'send-notif':      sendNotif(); break;
     case 'create-promo':    createPromo(); break;
   }
@@ -2801,6 +2939,7 @@ document.addEventListener('input',function(e){
   if(e.target.id==='customers-search'){ customerSearch=e.target.value.trim(); renderCustomers(); }
   if(e.target.id==='overseas-search'){ overseasSearch=e.target.value.trim(); renderOverseas(); }
   if(['pr-bands','pr-overage','pr-packing'].indexOf(e.target.id)>-1) renderPricingPreview();
+  if(e.target.id==='wipe-phrase'){ var g=$('wipe-go'); if(g) g.disabled=e.target.value.trim()!==WIPE_PHRASE; }
   if(e.target.id==='n-title'||e.target.id==='n-msg') updPhonePreview();
   // (image URL paste removed — both photo fields are upload-only hidden inputs
   //  the dropzone writes to; nothing to sync on user input any more.)
