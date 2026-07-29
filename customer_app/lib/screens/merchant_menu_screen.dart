@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/app_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -232,11 +232,10 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         fit: StackFit.expand,
         children: [
           if (_merchantImageUrl.isNotEmpty)
-            CachedNetworkImage(
-              imageUrl: _merchantImageUrl,
-              fit: BoxFit.cover,
-              placeholder: (ctx, url) => _heroFallback(),
-              errorWidget: (ctx, url, err) => _heroFallback(),
+            AppImage(
+              url: _merchantImageUrl,
+              placeholder: _heroFallback(),
+              errorWidget: _heroFallback(),
             )
           else
             _heroFallback(),
@@ -412,15 +411,12 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
             child: SizedBox(
               width: 72,
               height: 72,
-              child: imageUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (ctx, url) => const SeShimmer(
-                          child: SeSkeleton(width: 72, height: 72, radius: 12)),
-                      errorWidget: (ctx, url, err) => _itemFallback(),
-                    )
-                  : _itemFallback(),
+              child: AppImage(
+                url: imageUrl,
+                placeholder: const SeShimmer(
+                    child: SeSkeleton(width: 72, height: 72, radius: 12)),
+                errorWidget: _itemFallback(),
+              ),
             ),
           ),
           const SizedBox(width: 12),

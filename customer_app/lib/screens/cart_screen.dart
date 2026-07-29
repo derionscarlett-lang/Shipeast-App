@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/app_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -156,16 +156,12 @@ class _CartScreenState extends State<CartScreen> {
               child: SizedBox(
                 width: 56,
                 height: 56,
-                child: item.imageUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: item.imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (ctx, url) => const SeShimmer(
-                            child:
-                                SeSkeleton(width: 56, height: 56, radius: 12)),
-                        errorWidget: (ctx, url, err) => _fallback(),
-                      )
-                    : _fallback(),
+                child: AppImage(
+                  url: item.imageUrl,
+                  placeholder: const SeShimmer(
+                      child: SeSkeleton(width: 56, height: 56, radius: 12)),
+                  errorWidget: _fallback(),
+                ),
               ),
             ),
             const SizedBox(width: 12),

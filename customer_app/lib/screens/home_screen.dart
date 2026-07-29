@@ -10,6 +10,7 @@ import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../models/package_pricing.dart';
 import '../services/firestore_service.dart';
+import '../widgets/app_image.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_chip.dart';
 import '../widgets/se_button.dart';
@@ -597,20 +598,20 @@ class _HomeScreenState extends State<HomeScreen> {
               GestureDetector(
                 onTap: () => Navigator.pushNamed(context, '/search'),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  height: 46,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: SeRadius.all(SeRadius.md),
-                    boxShadow: SeElevation.e2,
+                    borderRadius: SeRadius.all(SeRadius.sm),
+                    boxShadow: SeElevation.e1,
                   ),
                   child: Row(
                     children: [
                       const Icon(SeIcons.search,
-                          size: 20, color: SeColors.ink400),
-                      const SizedBox(width: 10),
+                          size: 19, color: SeColors.ink400),
+                      const SizedBox(width: 9),
                       Text(
-                        'Search food, merchants, items...',
+                        'Search food, merchants, items…',
                         style:
                             SeType.body.copyWith(color: SeColors.ink400),
                       ),
@@ -685,8 +686,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Categories', style: SeType.h3),
-          const SizedBox(height: 14),
+          Text('Categories', style: SeType.section),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(_categories.length, (i) {
@@ -715,7 +716,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Select Package Type', style: SeType.h3),
+          Text('Select Package Type', style: SeType.section),
           const SizedBox(height: 4),
           Text('Choose what you need shipped and fill in the details.',
               style: SeType.body.copyWith(color: SeColors.ink500)),
@@ -772,7 +773,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Popular Near You', style: SeType.h3),
+              Text('Popular Near You', style: SeType.section),
               GestureDetector(
                 onTap: () => Navigator.push(
                   context,
@@ -890,12 +891,11 @@ class _HomeScreenState extends State<HomeScreen> {
               fit: StackFit.expand,
               children: [
                 if (imageUrl.isNotEmpty)
-                  CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (ctx, url) =>
+                  AppImage(
+                    url: imageUrl,
+                    placeholder:
                         const SeShimmer(child: SeSkeleton(height: 150)),
-                    errorWidget: (ctx, url, err) => _fallbackHero(hue),
+                    errorWidget: _fallbackHero(hue),
                   )
                 else
                   _fallbackHero(hue),

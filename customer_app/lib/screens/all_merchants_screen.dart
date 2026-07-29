@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/app_image.dart';
 import 'package:flutter/material.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
@@ -136,15 +136,12 @@ class _MerchantRow extends StatelessWidget {
             child: SizedBox(
               width: 60,
               height: 60,
-              child: imageUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (ctx, url) => const SeShimmer(
-                          child: SeSkeleton(width: 60, height: 60, radius: 12)),
-                      errorWidget: (ctx, url, err) => _iconFallback(category),
-                    )
-                  : _iconFallback(category),
+              child: AppImage(
+                url: imageUrl,
+                placeholder: const SeShimmer(
+                    child: SeSkeleton(width: 60, height: 60, radius: 12)),
+                errorWidget: _iconFallback(category),
+              ),
             ),
           ),
           const SizedBox(width: 14),

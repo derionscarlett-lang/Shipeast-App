@@ -119,6 +119,39 @@ function storageRemoveFolder(path){
   }).catch(function(e){ console.warn('storage list:',e.code||e.message); });
 }
 
+// ══════════════════════ INLINE IMAGES (no Cloud Storage) ══════════════════════
+/* This project is NOT on the Blaze plan, so Cloud Storage is unavailable. Instead
+   of uploading photo bytes to a bucket, the compressed image is stored directly
+   IN the Firestore document as a base64 `data:` URL. The customer app renders it
+   through widgets/app_image.dart (data: → Image.memory, http → network).
+
+   The compressor (image-upload.js) already shrinks a phone photo to modest
+   dimensions/quality, so a cover lands around ~40–120 KB — well inside Firestore's
+   1 MB-per-document limit. INLINE_MAX_CHARS is a safety net for a pathologically
+   busy photo: reject it with a clear message rather than fail the whole save. */
+var INLINE_MAX_CHARS=850*1024; // ~850 KB of base64, leaving headroom under 1 MB
+function blobToDataUrl(blob){
+  return new Promise(function(resolve,reject){
+    var r=new FileReader();
+    r.onload=function(){ resolve(r.result); };
+    r.onerror=function(){ reject(new Error('That image could not be read.')); };
+    r.readAsDataURL(blob);
+  });
+}
+/* Drop-in replacement for storageUpload, same (blob,path,onProgress)→Promise<url>
+   signature the uploader expects — but the "url" is the image itself. */
+function inlineUpload(blob,path,onProgress){
+  return blobToDataUrl(blob).then(function(dataUrl){
+    if(dataUrl.length>INLINE_MAX_CHARS){
+      throw new Error('This photo is too detailed to store — please use a simpler or smaller image.');
+    }
+    if(onProgress) onProgress(100);
+    return dataUrl;
+  });
+}
+/* Nothing to delete: an inline image lives and dies with its document. */
+function inlineRemove(){ return Promise.resolve(); }
+
 // ── Toasts (replaces every alert()) ──
 var TOAST_ICON={success:'success',error:'error',warning:'warning',info:'info'};
 function toast(type,msg,title){
@@ -1782,27 +1815,26 @@ function renderMerchants(){
     '</tr>';
   }).join('');
 }
-/* ── Merchant cover uploader (P4-01, upload-only) ─────────────────────
-   Built once and re-pointed at whichever merchant is open. `#m-imageurl` is
-   now a HIDDEN field the uploader writes to via onChange, so `saveMerchant`
-   below is unchanged. There is no "paste a URL" path any more — the admin
-   uploads the photo directly and any oversized image is auto-resized. */
+/* ── Merchant cover uploader (P4-01, upload-only, inline) ─────────────
+   Built once and re-pointed at whichever merchant is open. `#m-imageurl` is a
+   HIDDEN field the uploader writes to via onChange, so `saveMerchant` is
+   unchanged. No "paste a URL" path and no Cloud Storage: the photo is compressed
+   and stored INLINE in the merchant document as a data URL (see inlineUpload).
+   Because no bucket path is needed, the zone works even for a brand-new
+   merchant — the photo saves in one step with the rest of the form. */
 var merchantUploader=null;
 function mountMerchantUploader(){
   if(merchantUploader) return merchantUploader;
   merchantUploader=createUploader({
     inputId:'m-image-file',
     title:'Drop the restaurant photo here',
-    hint:'or click to browse · JPEG, PNG or WebP · best 1600 × 800 px · under 5 MB (5120 KB) · larger photos are auto-resized',
-    maxW:1600,maxH:800,minW:800,minH:400,
-    // There is no merchantId until the document exists, so a new merchant is
-    // saved first and the upload zone unlocks on the second step.
-    pathFor:function(){
-      if(!merchantEditId) throw new Error('Save the merchant first, then add a photo.');
-      return merchantCoverPath(merchantEditId);
-    },
-    upload:storageUpload,
-    removeObject:storageRemove,
+    hint:'or click to browse · JPEG, PNG or WebP · under 5 MB · automatically resized & optimised',
+    // Smaller than a bucket cover: the bytes live in the document and the
+    // customer home screen loads every merchant at once, so keep them light.
+    maxW:1000,maxH:500,minW:600,minH:300,quality:0.72,
+    pathFor:function(){ return 'inline'; }, // sentinel — no bucket path needed
+    upload:inlineUpload,
+    removeObject:inlineRemove,
     onChange:function(url){ $('m-imageurl').value=url; },
     toast:toast
   });
@@ -1897,8 +1929,10 @@ function openMerchantModal(mode,id){
 
   var up=mountMerchantUploader();
   up.setValue(m?(m.imageUrl||''):'');
-  up.setEnabled(isEdit);
-  $('m-image-locked').hidden=isEdit;
+  // Inline images need no bucket path, so the zone is usable even while adding a
+  // brand-new merchant — the photo is saved together with the form on submit.
+  up.setEnabled(true);
+  $('m-image-locked').hidden=true;
   openModal('modal-merchant');
 }
 function saveMerchant(){
@@ -2009,11 +2043,8 @@ function deleteMerchant(id){
       deleteDoc(doc(db,'merchants',id))
         .then(function(){
           toast('success','Merchant deleted.');
-          // Storage has no cascade. Without this the bucket keeps the cover
-          // and every menu photo for a merchant nothing references any more.
-          // Fire-and-forget: the document is already gone, and a failure to
-          // tidy up must not be reported as a failed delete.
-          storageRemoveFolder('merchants/'+id);
+          // Images are stored inline in the merchant/menu documents, so deleting
+          // the documents takes the photos with them — no bucket to sweep.
         })
         .catch(function(e){ toast('error',e.message,'Delete failed'); });
     });
@@ -2086,7 +2117,7 @@ function loadMenuItemsTab(merchantId){
       '<div class="fr"><label for="mi-cat">Category</label>'+
         '<select id="mi-cat"><option value="mains">Mains</option><option value="sides">Sides</option>'+
         '<option value="drinks">Drinks</option><option value="popular">Popular</option></select></div>'+
-      '<div class="fr"><label>Item Photo <small>(800 × 600 px recommended · JPEG/PNG/WebP · max 5 MB / 5120 KB)</small></label><div id="mi-image-drop"></div></div>'+
+      '<div class="fr"><label>Item Photo <small>(JPEG/PNG/WebP · under 5 MB · saved &amp; optimised automatically)</small></label><div id="mi-image-drop"></div></div>'+
       '<input id="mi-img" type="hidden"/>'+
       '<div style="display:flex;gap:8px;margin-top:12px">'+
         '<button class="btn btn-outline" id="mi-cancel-btn" data-action="cancel-menu-item" style="flex:1;display:none">Cancel</button>'+
@@ -2102,26 +2133,19 @@ function loadMenuItemsTab(merchantId){
       '<div class="sk sk-line" style="width:28%"></div></div></div>'+
     '</div>';
 
-  /* P4-02. Same component as the merchant cover, smaller bounds — these
-     render as ~72px thumbnails in merchant_menu_screen.dart, so 1600px wide
-     would be four times the bytes for no visible gain. The panel is rebuilt
-     every time the tab opens, so the uploader is rebuilt with it. */
+  /* P4-02. Same component as the merchant cover, smaller bounds — these render
+     as ~72px thumbnails in merchant_menu_screen.dart, so anything larger is
+     bytes for no visible gain, and here those bytes live inline in the item
+     document. The panel is rebuilt every time the tab opens, so the uploader is
+     rebuilt with it. */
   menuItemUploader=createUploader({
     inputId:'mi-image-file',
     title:'Drop the item photo here',
-    hint:'or click to browse · JPEG, PNG or WebP · best 800 × 600 px · under 5 MB (5120 KB) · larger photos are auto-resized',
-    maxW:800,maxH:600,minW:400,minH:300,
-    /* Unlike a merchant, a menu item can be photographed before it is saved:
-       the merchant folder already exists, so there is somewhere to put the
-       bytes. A not-yet-saved item has no id, hence the `draft` prefix; the
-       timestamp keeps two drafts apart, and anything abandoned is swept up
-       when the merchant is deleted. */
-    pathFor:function(){
-      if(!panelMerchantId) throw new Error('Open a merchant first.');
-      return menuItemPath(panelMerchantId,menuItemEditId||'draft');
-    },
-    upload:storageUpload,
-    removeObject:storageRemove,
+    hint:'or click to browse · JPEG, PNG or WebP · under 5 MB · automatically resized & optimised',
+    maxW:500,maxH:375,minW:300,minH:225,quality:0.72,
+    pathFor:function(){ return 'inline'; }, // sentinel — image stored in the doc
+    upload:inlineUpload,
+    removeObject:inlineRemove,
     onChange:function(url){ var f=$('mi-img'); if(f) f.value=url; },
     toast:toast
   });
@@ -2210,11 +2234,10 @@ function deleteMenuItemFn(id){
   confirmDialog({title:'Delete menu item?',body:item?'“'+item.name+'” will be removed from this merchant’s menu.':'This item will be removed.',confirmLabel:'Delete item'})
     .then(function(ok){
       if(!ok) return;
-      var removedImage=item?item.imageUrl:'';
       deleteDoc(doc(db,'merchants',panelMerchantId,'menuItems',id))
         .then(function(){
           toast('success','Menu item deleted.');
-          if(removedImage) storageRemove(removedImage);
+          // Inline image — removed with the document, nothing else to clean up.
         })
         .catch(function(e){ toast('error',e.message,'Delete failed'); });
     });
