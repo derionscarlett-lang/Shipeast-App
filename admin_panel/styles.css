@@ -184,13 +184,21 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 }
 .sidebar.collapsed{width:var(--swc);}
 .sb-logo{padding:var(--s6) var(--s5) var(--s5);border-bottom:1px solid rgba(255,255,255,.07);
-  overflow:hidden;white-space:nowrap;}
+  overflow:hidden;white-space:nowrap;display:flex;align-items:center;gap:var(--s3);min-height:70px;}
+.sb-mark{display:none;flex-shrink:0;width:40px;height:40px;border-radius:var(--r-sm);
+  background:var(--grad-ember);color:#fff;align-items:center;justify-content:center;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;letter-spacing:-.5px;
+  box-shadow:var(--glow);}
+.sb-word{min-width:0;}
 .sb-logo .slt{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;
   letter-spacing:-.6px;color:#F5F2EC;}
 .sb-logo .slt span{color:#F04A5E;}
 .sb-logo .sls{font-size:10px;color:rgba(245,242,236,.36);letter-spacing:.8px;
   text-transform:uppercase;font-weight:700;margin-top:3px;}
-.sidebar.collapsed .sls{opacity:0;}
+/* Collapsed rail: swap the clip-prone wordmark for a compact SE mark. */
+.sidebar.collapsed .sb-logo{justify-content:center;padding:var(--s5) 0;gap:0;}
+.sidebar.collapsed .sb-word{display:none;}
+.sidebar.collapsed .sb-mark{display:flex;}
 .sb-nav{flex:1;padding:var(--s3) 0;overflow-y:auto;overflow-x:hidden;}
 .sb-sec{padding:var(--s4) var(--s5) var(--s2);font-size:10px;font-weight:700;letter-spacing:.8px;
   text-transform:uppercase;color:rgba(245,242,236,.28);white-space:nowrap;}
@@ -761,25 +769,48 @@ td .empty{padding:var(--s6) var(--s5);}
   .nl,.pl{grid-template-columns:1fr;}
 }
 @media(max-width:900px){
-  .sidebar{z-index:500;transform:translateX(-100%);}
-  .sidebar.mob-open{transform:translateX(0);}
+  /* Sidebar becomes an off-canvas drawer; the desktop icon-collapse is disabled
+     here so the hamburger only ever slides the full sidebar in/out. */
+  .sidebar{z-index:500;transform:translateX(-100%);box-shadow:none;}
+  .sidebar.mob-open{transform:translateX(0);box-shadow:0 24px 60px rgba(0,0,0,.4);}
   .sidebar.collapsed{width:var(--sw);}
   .sidebar.collapsed .lbl,.sidebar.collapsed .sls,.sidebar.collapsed .sb-sec{opacity:1;}
   .sidebar.collapsed .ni{justify-content:flex-start;padding:12px var(--s5);}
+  .sidebar.collapsed .sb-logo{justify-content:flex-start;padding:var(--s6) var(--s5) var(--s5);gap:var(--s3);}
+  .sidebar.collapsed .sb-word{display:block;}
+  .sidebar.collapsed .sb-mark{display:none;}
   .main{margin-left:0!important;}
   .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .tbl-wrap{-webkit-overflow-scrolling:touch;}
   .tb-date,.ar{display:none;}
 }
 @media(max-width:600px){
   :root{--gutter:16px;}
   .mbg{align-items:flex-end;padding:0;}
   .mbox,.mbox.wide,.mbox.narrow{width:100%;border-radius:var(--r-xl) var(--r-xl) 0 0;max-height:88vh;}
-  .sg,.sg.g3{grid-template-columns:1fr;}
+  /* Stat cards stay two-up on phones — compact enough, and 1-col was a long
+     scroll before any real content. */
+  .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s3);}
   .mg{grid-template-columns:1fr;}
-  .pg-title{font-size:22px;}
+  /* Mobile type scale — dial the desktop headings down a notch. */
+  .pg-title{font-size:21px;line-height:27px;}
+  .tb-pg-title{font-size:17px;line-height:22px;}
+  .sc{padding:var(--s4) var(--s4) var(--s4) var(--s5);}
+  .sc-val{font-size:23px;}
+  .sc-val.sm{font-size:20px;}
+  .sc-chip{width:34px;height:34px;}
+  .card{padding:var(--s4);}
   .an,.ar,.tb-bc{display:none;}
-  .topbar{padding:0 var(--s4);}
+  .topbar{min-height:60px;padding:0 var(--s4);}
   .ab{padding:4px;}
+  .pg-hdr{margin-bottom:var(--s4);}
+  td{padding:12px var(--s3);}
+}
+@media(max-width:400px){
+  .sg,.sg.g3{grid-template-columns:1fr;}
+  .sc-val{font-size:26px;}
+  .sc-val.sm{font-size:22px;}
+  .av{width:30px;height:30px;font-size:12px;}
 }
 
 /* ─────────────── REDUCED MOTION ─────────────── */
