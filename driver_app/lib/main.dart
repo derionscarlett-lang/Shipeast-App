@@ -109,7 +109,19 @@ class ShipEastDriverApp extends StatelessWidget {
       title: 'ShipEast Driver',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      darkTheme: AppTheme.darkTheme,
+      // The SEDS driver UI is designed light-first — every screen hardcodes the
+      // warm light surfaces (surface50 background) while shared widgets like
+      // SeCard and the input fields pull their fill from the ACTIVE theme's
+      // colorScheme.surface / inputDecorationTheme. A device in dark mode was
+      // therefore rendering dark cards (#201E1A) and dark input fields
+      // (#2A2823) behind light scaffolds — the "black everywhere" the user saw.
+      //
+      // themeMode.light alone should prevent this, but to make a dark surface
+      // STRUCTURALLY IMPOSSIBLE (OEM quirks, a future regression, a stray
+      // Theme() override) we hand BOTH theme slots the light ThemeData. There
+      // is no dark design in this app, so there is nothing to lose.
+      darkTheme: AppTheme.theme,
+      themeMode: ThemeMode.light,
       home: home,
       routes: {
         '/login': (_) => const LoginScreen(),

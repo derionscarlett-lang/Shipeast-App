@@ -39,6 +39,7 @@ class SeStatTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: SeRadius.all(SeRadius.md),
+        border: Border.all(color: SeColors.ink200, width: 1),
         boxShadow: SeElevation.e1,
       ),
       child: Column(

@@ -157,9 +157,22 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                         const SizedBox(height: SeSpacing.x4),
-                        Text('Driver Portal',
-                            style: SeType.h2.copyWith(color: Colors.white)),
-                        const SizedBox(height: SeSpacing.x1),
+                        const SeWordmark(size: 28, onDark: true),
+                        const SizedBox(height: SeSpacing.x2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: SeRadius.pill,
+                          ),
+                          child: Text(
+                            'DRIVER PORTAL',
+                            style: SeType.eyebrow.copyWith(
+                                color: Colors.white, letterSpacing: 1.0),
+                          ),
+                        ),
+                        const SizedBox(height: SeSpacing.x3),
                         Text(
                           SeBrand.tagline,
                           style: SeType.bodyS.copyWith(
@@ -198,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: SeSpacing.x2),
-                          Text('Welcome back', style: SeType.h1),
+                          Text('Welcome back', style: SeType.display),
                           const SizedBox(height: SeSpacing.x1),
                           Text(
                             'Sign in to your driver account',

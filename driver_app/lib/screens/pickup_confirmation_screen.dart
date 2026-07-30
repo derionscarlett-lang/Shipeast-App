@@ -57,6 +57,13 @@ class _PickupConfirmationScreenState extends State<PickupConfirmationScreen> {
     setState(() => _confirming = true);
     try {
       await DriverFirestoreService.confirmPickup(widget.orderId);
+      // Immediately advance to `in_transit`. Delivery can ONLY be confirmed
+      // from in_transit — the confirmDelivery function rejects a
+      // picked_up → delivered jump (failed-precondition), so without this the
+      // order was stranded in picked_up and "Mark as Delivered" always failed.
+      // It is also what makes the customer's "On the Way" tracker step
+      // reachable: the driver now has the goods and is heading to them.
+      await DriverFirestoreService.startTransit(widget.orderId);
       if (mounted) {
         Navigator.pushReplacement(
           context,

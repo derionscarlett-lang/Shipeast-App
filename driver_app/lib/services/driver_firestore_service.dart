@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../driver_constants.dart';
 import '../models/order_status.dart';
 
 class DriverFirestoreService {
@@ -123,29 +123,68 @@ class DriverFirestoreService {
     return ref.getDownloadURL();
   }
 
-  /// Confirms delivery via the server and returns the authoritative commission.
+  /// Thrown by [confirmDelivery] when the order is not in a state this driver
+  /// can complete. The screen maps each code to a message.
+  static const String orderMissingCode = 'order-missing';
+  static const String notYourOrderCode = 'not-your-order';
+  static const String notInTransitCode = 'not-in-transit';
+
+  /// Marks the order delivered and records the commission, transactionally,
+  /// returning the amount credited.
   ///
-  /// P3-04. This used to be a client-side batch that computed the commission on
-  /// this device and wrote it straight into the driver's own earnings field —
-  /// a driver could pay themselves anything. Worse, it took `orderTotal` as a
-  /// parameter from the caller instead of reading it from the order, so even an
-  /// honest client paid the wrong amount whenever its cached total was stale.
+  /// P3-04 originally moved this into the `confirmDelivery` Cloud Function so a
+  /// modified client could not pay itself an arbitrary amount: the function
+  /// recomputed the commission from the order's *stored* total. That function
+  /// needs the Blaze plan and is not deployed on this project, which left every
+  /// delivery failing. The same guarantee now lives in the Firestore rules
+  /// (`driverDelivering`), which cap `driverCommission` at the order's own
+  /// `total` times the rate — the total being immutable. So this writes
+  /// directly, but keeps the two properties that mattered:
   ///
-  /// The function recomputes from the order's stored `total` using the server's
-  /// rate. [DriverPay.commissionOn] survives for on-screen estimates only.
+  ///   1. the commission is derived from the total read *inside the
+  ///      transaction*, never from a cached or caller-supplied figure, and
+  ///   2. the rules reject the write if that figure is inflated.
+  ///
+  /// Idempotent: a retry against an already-delivered order pays nothing extra
+  /// and returns what was credited, mirroring the old function's behaviour.
   static Future<int> confirmDelivery(
     String orderId, {
     String? photoUrl,
     String? note,
   }) async {
-    final callable =
-        FirebaseFunctions.instance.httpsCallable('confirmDelivery');
-    final result = await callable.call<Map<String, dynamic>>({
-      'orderId': orderId,
-      if (photoUrl != null && photoUrl.isNotEmpty) 'photoUrl': photoUrl,
-      if (note != null && note.isNotEmpty) 'note': note,
+    final ref = _db.collection('orders').doc(orderId);
+    final uid = currentUid;
+    return _db.runTransaction<int>((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) throw StateError(orderMissingCode);
+
+      final data = snap.data() ?? const <String, dynamic>{};
+      if (data['driverId'] != uid) throw StateError(notYourOrderCode);
+
+      final status = data['status'] as String? ?? '';
+      if (status == OrderStatus.delivered) {
+        // Already done — do not pay twice; report what was credited.
+        return (data['driverCommission'] as num?)?.toInt() ??
+            DriverPay.commissionOn((data['total'] as num?) ?? 0).round();
+      }
+      if (status != OrderStatus.inTransit) throw StateError(notInTransitCode);
+
+      final total = (data['total'] as num?)?.toInt() ?? 0;
+      final commission = DriverPay.commissionOn(total).round();
+
+      tx.update(ref, {
+        'status': OrderStatus.delivered,
+        'deliveredAt': FieldValue.serverTimestamp(),
+        'driverCommission': commission,
+        'commissionRate': DriverPay.commissionRate,
+        // Clear the live position: once delivered the driver app can no longer
+        // write this order, so a stale coordinate would otherwise linger.
+        'driverLoc': FieldValue.delete(),
+        if (photoUrl != null && photoUrl.isNotEmpty) 'deliveryPhotoUrl': photoUrl,
+        if (note != null && note.isNotEmpty) 'deliveryNote': note,
+      });
+      return commission;
     });
-    return (result.data['commission'] as num?)?.toInt() ?? 0;
   }
 
   static Future<String> uploadProfilePhoto(String uid, File file) async {

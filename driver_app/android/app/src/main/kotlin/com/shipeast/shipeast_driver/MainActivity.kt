@@ -33,6 +33,11 @@ class MainActivity : FlutterActivity() {
         registerPlugin(flutterEngine, "flutter_plugin_android_lifecycle") {
             flutterEngine.plugins.add(io.flutter.plugins.flutter_plugin_android_lifecycle.FlutterAndroidLifecyclePlugin())
         }
+        // Real GPS for live delivery tracking — without this the driver's location
+        // never streams and the customer's tracker shows no live distance.
+        registerPlugin(flutterEngine, "geolocator_android") {
+            flutterEngine.plugins.add(com.baseflow.geolocator.GeolocatorPlugin())
+        }
         registerPlugin(flutterEngine, "image_picker_android") {
             flutterEngine.plugins.add(io.flutter.plugins.imagepicker.ImagePickerPlugin())
         }
@@ -41,6 +46,11 @@ class MainActivity : FlutterActivity() {
         }
         registerPlugin(flutterEngine, "jni_flutter") {
             flutterEngine.plugins.add(com.github.dart_lang.jni_flutter.JniFlutterPlugin())
+        }
+        // Opens the device dialer so the driver can call the customer — without
+        // this the call button silently reports "could not start the call".
+        registerPlugin(flutterEngine, "url_launcher_android") {
+            flutterEngine.plugins.add(io.flutter.plugins.urllauncher.UrlLauncherPlugin())
         }
     }
 

@@ -134,7 +134,7 @@ class _SeOnlineToggleState extends State<SeOnlineToggle>
             borderRadius: SeRadius.all(SeRadius.lg),
             boxShadow: _down
                 ? SeElevation.e0
-                : SeElevation.glowColor(s.glow, opacity: 0.32),
+                : SeElevation.glowColor(s.glow, opacity: 0.24),
           ),
           child: Row(
             children: [

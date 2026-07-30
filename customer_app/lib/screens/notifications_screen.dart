@@ -93,8 +93,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildHeader() => Container(
         padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 16,
-          bottom: 16,
+          top: MediaQuery.of(context).padding.top + 14,
+          bottom: 14,
           left: SeSpacing.gutter,
           right: SeSpacing.gutter,
         ),
@@ -102,7 +102,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           color: SeColors.surface0,
           border: Border(bottom: BorderSide(color: SeColors.ink200)),
         ),
-        child: Text('Notifications', style: SeType.h1),
+        child: Row(
+          children: [
+            // When reached as a pushed route (from Profile) there was no way
+            // back — the bare title read as a broken, half-rendered header.
+            if (Navigator.canPop(context)) ...[
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                      color: SeColors.surface50, shape: BoxShape.circle),
+                  child: const Icon(SeIcons.arrowLeft,
+                      size: 20, color: SeColors.ink900),
+                ),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Text('Notifications', style: SeType.h1),
+          ],
+        ),
       );
 
   Widget _buildBody() {
@@ -166,8 +186,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       decoration: BoxDecoration(
         color: unread ? SeColors.red50 : SeColors.surface0,
         borderRadius: SeRadius.all(SeRadius.md),
-        border:
-            unread ? Border.all(color: SeColors.red100, width: 1.5) : null,
+        border: Border.all(
+            color: unread ? SeColors.red100 : SeColors.ink200,
+            width: unread ? 1.5 : 1),
         boxShadow: unread ? SeElevation.e0 : SeElevation.e1,
       ),
       child: Row(

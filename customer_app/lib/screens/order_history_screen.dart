@@ -230,40 +230,50 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         ),
       );
 
+  // A calm segmented control on a single tinted track. The selected segment is
+  // a solid red fill with no glow and no shadow animation — the old glowing
+  // gradient pill that lifted/dropped on every tap was the "annoying fast hover"
+  // and the loudest AI tell on this screen.
   Widget _buildTabs() => Container(
         color: SeColors.surface0,
-        padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, 0, SeSpacing.gutter, 14),
-        child: Row(
-          children: _tabs.asMap().entries.map((e) {
-            final selected = _activeTab == e.key;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _activeTab = e.key),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  margin:
-                      EdgeInsets.only(right: e.key < _tabs.length - 1 ? 8 : 0),
-                  padding: const EdgeInsets.symmetric(vertical: 9),
-                  decoration: BoxDecoration(
-                    gradient: selected ? SeColors.emberGradient : null,
-                    color: selected ? null : SeColors.surface50,
-                    borderRadius: SeRadius.pill,
-                    boxShadow:
-                        selected ? SeElevation.glow : SeElevation.e0,
-                  ),
-                  child: Center(
-                    child: Text(
-                      e.value,
-                      style: SeType.label.copyWith(
-                        color: selected ? Colors.white : SeColors.ink500,
-                        fontWeight: FontWeight.w700,
+        padding:
+            const EdgeInsets.fromLTRB(SeSpacing.gutter, 0, SeSpacing.gutter, 14),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: SeColors.surface50,
+            borderRadius: SeRadius.pill,
+            border: Border.all(color: SeColors.ink200, width: 1),
+          ),
+          child: Row(
+            children: _tabs.asMap().entries.map((e) {
+              final selected = _activeTab == e.key;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _activeTab = e.key),
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    curve: Curves.easeOut,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: selected ? SeColors.red500 : Colors.transparent,
+                      borderRadius: SeRadius.pill,
+                    ),
+                    child: Center(
+                      child: Text(
+                        e.value,
+                        style: SeType.label.copyWith(
+                          color: selected ? Colors.white : SeColors.ink500,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
       );
 
@@ -339,6 +349,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         : '#${orderId.toUpperCase()}';
 
     return SeCard(
+      shadow: SeElevation.e1,
+      border: Border.all(color: SeColors.ink200, width: 1),
       onTap: () => Navigator.pushNamed(context, '/order-status',
           arguments: {'orderId': orderId}),
       child: Column(
@@ -350,11 +362,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: SeColors.red50,
+                  color: colors.tint,
                   borderRadius: SeRadius.all(SeRadius.sm),
                 ),
-                child: const Icon(SeIcons.orders,
-                    size: 21, color: SeColors.red500),
+                child: Icon(SeIcons.orders, size: 21, color: colors.color),
               ),
               const SizedBox(width: 12),
               Expanded(

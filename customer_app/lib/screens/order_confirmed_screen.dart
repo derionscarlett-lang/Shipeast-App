@@ -145,7 +145,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
                           height: 96,
                           decoration: BoxDecoration(
                             gradient: SeColors.sunsetGradient,
-                            borderRadius: BorderRadius.circular(28),
+                            borderRadius: BorderRadius.circular(18),
                             boxShadow: SeElevation.glow,
                           ),
                           child: const Icon(SeIcons.check,

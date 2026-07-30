@@ -416,6 +416,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         decoration: BoxDecoration(
           color: SeColors.surface0,
           borderRadius: SeRadius.all(SeRadius.md),
+          border: Border.all(color: SeColors.ink200, width: 1),
           boxShadow: SeElevation.e1,
         ),
         child: Column(
@@ -483,6 +484,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return SeCard(
       padding: EdgeInsets.zero,
+      clip: true,
+      shadow: SeElevation.e1,
+      border: Border.all(color: SeColors.ink200, width: 1),
       child: Column(
         children: menuItems.asMap().entries.map((entry) {
           final i = entry.key;

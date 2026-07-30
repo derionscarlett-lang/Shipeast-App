@@ -65,7 +65,7 @@
   --gutter:20px;
 
   /* radius */
-  --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:28px; --r-full:999px;
+  --r-xs:5px; --r-sm:7px; --r-md:9px; --r-lg:12px; --r-xl:16px; --r-full:999px;
 
   /* elevation — layered, warm-tinted */
   --e1:0 1px 2px rgba(28,26,23,.04), 0 2px 6px rgba(28,26,23,.06);
@@ -238,7 +238,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 /* Unseen-count badge on a nav item. Sits at the far right of the row; on the
    collapsed rail it shrinks to a corner dot since the label is hidden. */
 .ni-badge{
-  margin-left:auto;min-width:19px;height:19px;padding:0 6px;border-radius:10px;
+  margin-left:auto;min-width:19px;height:19px;padding:0 6px;border-radius:6px;
   display:inline-flex;align-items:center;justify-content:center;
   font-size:11px;font-weight:700;line-height:1;color:#fff;background:var(--brand);
   font-variant-numeric:tabular-nums;box-shadow:0 0 0 3px rgba(240,74,94,.18);
@@ -290,7 +290,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 #bell-btn{position:relative;overflow:visible;}
 .bell-badge{
   position:absolute;top:1px;right:1px;min-width:16px;height:16px;padding:0 4px;
-  border-radius:8px;background:var(--brand);color:#fff;font-size:10px;font-weight:700;
+  border-radius:5px;background:var(--brand);color:#fff;font-size:10px;font-weight:700;
   display:inline-flex;align-items:center;justify-content:center;line-height:1;
   border:2px solid var(--card);font-variant-numeric:tabular-nums;pointer-events:none;
 }

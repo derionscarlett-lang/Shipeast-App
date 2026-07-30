@@ -488,6 +488,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: SeSpacing.x4),
 
           SeCard(
+            clip: true,
             padding: EdgeInsets.zero,
             child: Column(
               children: [
@@ -623,6 +624,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
   Widget _settingsCard() => SeCard(
+        clip: true,
         padding: EdgeInsets.zero,
         child: Column(
           children: [

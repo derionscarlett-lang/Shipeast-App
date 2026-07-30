@@ -79,6 +79,10 @@ class SeCategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Squircle tile, not a bare floating circle: an unselected tile carries a
+    // soft tint fill + hairline so it reads as a *surface* sitting on the page,
+    // and the selected tile fills with its hue and lifts a touch. This is the
+    // difference between "icons dropped on a blank page" and a real storefront.
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -86,19 +90,30 @@ class SeCategoryTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: 56,
-            height: 56,
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
-              color: selected ? hue : tint,
-              shape: BoxShape.circle,
+              gradient: selected
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color.lerp(hue, Colors.white, 0.18)!, hue],
+                    )
+                  : null,
+              color: selected ? null : tint,
+              borderRadius: BorderRadius.circular(12),
+              border: selected
+                  ? null
+                  : Border.all(color: hue.withValues(alpha: 0.14), width: 1),
               boxShadow: selected
-                  ? SeElevation.glowColor(hue, opacity: 0.28)
+                  ? SeElevation.glowColor(hue, opacity: 0.24)
                   : SeElevation.e0,
             ),
-            child: Icon(icon, size: 26, color: selected ? Colors.white : hue),
+            child: Icon(icon, size: 27, color: selected ? Colors.white : hue),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 8),
           Text(
             label,
             style: SeType.label.copyWith(

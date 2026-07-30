@@ -161,9 +161,47 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+              // Ember brand lockup — gives the sign-in the same branded presence
+              // as the home storefront rather than a bare form.
+              Container(
+                padding: const EdgeInsets.all(SeSpacing.x5),
+                decoration: BoxDecoration(
+                  gradient: SeColors.emberGradient,
+                  borderRadius: SeRadius.all(SeRadius.lg),
+                  boxShadow: SeElevation.glow,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: SeRadius.all(SeRadius.md),
+                      ),
+                      child: const Icon(SeIcons.packages,
+                          color: Colors.white, size: 26),
+                    ),
+                    const SizedBox(width: SeSpacing.x4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SeWordmark(size: 24, onDark: true),
+                          const SizedBox(height: 4),
+                          Text(
+                            SeBrand.tagline,
+                            style: SeType.bodyS.copyWith(
+                                color: Colors.white.withValues(alpha: 0.85)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 28),
-              const SeWordmark(size: 30),
-              const SizedBox(height: 18),
               Text('Welcome back', style: SeType.display),
               const SizedBox(height: 6),
               Text('Sign in to your ShipEast account',
@@ -358,7 +396,7 @@ class _GoogleButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          height: 54,
+          height: 50,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: SeColors.surface0,
