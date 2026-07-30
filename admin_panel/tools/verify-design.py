@@ -222,8 +222,10 @@ def gate_tokens_resolve() -> None:
 def gate_contrast() -> None:
     need = ['--n-0', '--n-25', '--n-50', '--n-100', '--n-300', '--n-400', '--n-500',
             '--n-600', '--n-800', '--red-50', '--red-400', '--red-500',
-            '--red-600', '--red-700', '--success', '--warning', '--danger', '--info',
-            '--shell', '--shell-hi', '--shell-mark']
+            '--red-600', '--red-700', '--red-900',
+            '--success', '--warning', '--danger', '--info',
+            '--brand-soft', '--success-soft', '--warning-soft', '--info-soft',
+            '--danger-soft', '--shell', '--shell-mark']
     L = {n: token(n) for n in need}
     missing = [n for n, v in L.items() if not v]
     if missing:
@@ -231,17 +233,20 @@ def gate_contrast() -> None:
         return
     dark_surface = token('--surface', '[data-theme="dark"]')
     dark_sunken = token('--sunken', '[data-theme="dark"]')
+    dark_field = token('--field', '[data-theme="dark"]')
     dark_shell = token('--shell', '[data-theme="dark"]')
-    dark_shell_hi = token('--shell-hi', '[data-theme="dark"]')
-    if not all((dark_surface, dark_sunken, dark_shell, dark_shell_hi)):
+    dark_soft = {n: token(f'--{n}-soft', '[data-theme="dark"]')
+                 for n in ('brand', 'success', 'warning', 'info', 'danger')}
+    if not all((dark_surface, dark_sunken, dark_field, dark_shell)) \
+            or not all(dark_soft.values()):
         fail('contrast', 'dark theme surfaces do not resolve to literals')
         return
 
-    # The rail's labels are white at partial opacity over a gradient, so they
-    # have to be composited before they can be measured. Both are worst-cased
-    # against --shell-hi, the PEAK of the bloom, because the lockup and the
-    # first section heading sit directly in it — measuring against the calmer
-    # --shell body would pass a rail whose top third fails.
+    # The rail's labels are white at partial opacity, so they have to be
+    # composited before they can be measured. The rail is ONE flat colour now,
+    # so --shell is both the body and the worst case; the --shell-hi peak these
+    # were previously measured against is what --shell was set to when the
+    # gradient came out, which is why no figure here moved.
     shell_ink = alpha('--shell-ink')
     shell_dim = alpha('--shell-ink-dim')
     d_shell_ink = alpha('--shell-ink', '[data-theme="dark"]')
@@ -286,30 +291,65 @@ def gate_contrast() -> None:
         ('dark ink / sidebar',   L['--n-50'],   dark_shell,      4.5, 99),
 
         # ── The red rail ──────────────────────────────────────────────────
-        # Nine checks, because the sidebar is the one surface in the panel
-        # that is both permanently on screen and painted in a saturated
-        # colour, and every one of them is worst-cased against --shell-hi.
-        # Whoever next reaches for a brighter highlight will be told by these
-        # exactly which label it breaks.
-        ('white / rail body',    '#FFFFFF',     L['--shell'],    4.5, 99),
-        ('white / rail bloom',   '#FFFFFF',     L['--shell-hi'], 4.5, 99),
-        ('lockup mark / bloom',  L['--shell-mark'], L['--shell-hi'], 4.5, 99),
-        ('nav label / bloom',
-         over(shell_ink[0], shell_ink[1], L['--shell-hi']), L['--shell-hi'], 4.5, 99),
-        ('section head / bloom',
-         over(shell_dim[0], shell_dim[1], L['--shell-hi']), L['--shell-hi'], 4.5, 99),
+        # The sidebar is the one surface in the panel that is both permanently
+        # on screen and painted in a saturated colour, so every piece of ink
+        # on it is gated. It is a FLAT fill now — the bloom/shade/wash stack
+        # was removed because it darkened the foot of the column off-brand —
+        # so there is one background to measure against per theme instead of
+        # three, and --shell was pinned to what the bloom's peak used to be so
+        # that none of these figures changed when it went.
+        ('white / rail',         '#FFFFFF',     L['--shell'],    4.5, 99),
+        ('lockup mark / rail',   L['--shell-mark'], L['--shell'], 4.5, 99),
+        ('nav label / rail',
+         over(shell_ink[0], shell_ink[1], L['--shell']), L['--shell'], 4.5, 99),
+        ('section head / rail',
+         over(shell_dim[0], shell_dim[1], L['--shell']), L['--shell'], 4.5, 99),
         # The selected pill inverts to white in BOTH themes, so its ink is
         # gated once, against white, rather than per-theme.
         ('active pill ink',      L['--red-700'], L['--n-0'],     4.5, 99),
-        ('dark white / rail bloom', '#FFFFFF',  dark_shell_hi,   4.5, 99),
-        ('dark nav label / bloom',
-         over(d_shell_ink[0], d_shell_ink[1], dark_shell_hi), dark_shell_hi, 4.5, 99),
-        ('dark section head / bloom',
-         over(d_shell_dim[0], d_shell_dim[1], dark_shell_hi), dark_shell_hi, 4.5, 99),
+        ('dark white / rail',    '#FFFFFF',     dark_shell,      4.5, 99),
+        ('dark nav label / rail',
+         over(d_shell_ink[0], d_shell_ink[1], dark_shell), dark_shell, 4.5, 99),
+        ('dark section head / rail',
+         over(d_shell_dim[0], d_shell_dim[1], dark_shell), dark_shell, 4.5, 99),
         # --shell-mark is deliberately NOT re-cut for dark, so it is checked
         # on both rails. This is the pair that catches anyone "tidying" it
         # into the --red-100/200 steps, which invert.
-        ('lockup mark / dark bloom', L['--shell-mark'], dark_shell_hi, 4.5, 99),
+        ('lockup mark / dark rail', L['--shell-mark'], dark_shell, 4.5, 99),
+        # The login canvas is a flat field of --red-900 with a white card on
+        # it; the only ink directly on the canvas is the card's shadow, but
+        # this pins the tone so nobody lightens it into the --shell family and
+        # leaves the screen reading as two disagreeing reds.
+        ('white / login canvas', '#FFFFFF',     L['--red-900'],  10.0, 99),
+
+        # ── Soft tones as SURFACES ────────────────────────────────────────
+        # The point of the soft step is that it is a surface you may set type
+        # on without thinking, which is only true if it is gated like one. Ten
+        # checks: primary ink and tertiary ink on each of the five, in both
+        # themes. A soft tone that fails these is a decoration, not a surface,
+        # and the stat cards / toasts / helper panels that use them would be
+        # quietly illegible.
+        ('ink / brand soft',     L['--n-800'], L['--brand-soft'],   12.5, 14.6),
+        ('ink / success soft',   L['--n-800'], L['--success-soft'], 12.5, 14.6),
+        ('ink / warning soft',   L['--n-800'], L['--warning-soft'], 12.5, 14.6),
+        ('ink / info soft',      L['--n-800'], L['--info-soft'],    12.5, 14.6),
+        ('ink / danger soft',    L['--n-800'], L['--danger-soft'],  12.5, 14.6),
+        ('tertiary ink / brand soft',   L['--n-500'], L['--brand-soft'],   4.5, 6.0),
+        ('tertiary ink / success soft', L['--n-500'], L['--success-soft'], 4.5, 6.0),
+        ('tertiary ink / warning soft', L['--n-500'], L['--warning-soft'], 4.5, 6.0),
+        ('tertiary ink / info soft',    L['--n-500'], L['--info-soft'],    4.5, 6.0),
+        ('tertiary ink / danger soft',  L['--n-500'], L['--danger-soft'],  4.5, 6.0),
+        ('dark ink / brand soft',   L['--n-50'], dark_soft['brand'],   4.5, 99),
+        ('dark ink / success soft', L['--n-50'], dark_soft['success'], 4.5, 99),
+        ('dark ink / warning soft', L['--n-50'], dark_soft['warning'], 4.5, 99),
+        ('dark ink / info soft',    L['--n-50'], dark_soft['info'],    4.5, 99),
+        ('dark ink / danger soft',  L['--n-50'], dark_soft['danger'],  4.5, 99),
+        # --field is where the panel's text is actually TYPED, so it is gated
+        # on both themes rather than assumed safe for being "nearly --sunken".
+        ('ink / field',          L['--n-800'],  L['--n-100'],   12.5, 14.6),
+        ('placeholder / field',  L['--n-400'],  L['--n-100'],    2.8,  4.0),
+        ('dark ink / field',     L['--n-50'],   dark_field,      4.5, 99),
+        ('dark placeholder / field', L['--n-500'], dark_field,   2.8, 99),
     ]
     for label, fg, bg, lo, hi in checks:
         v = contrast(fg, bg)

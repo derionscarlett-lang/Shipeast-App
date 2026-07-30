@@ -93,10 +93,15 @@
      twelve points of red over green instead of six. Deeper is not available:
      --ink-3 hits the 4.5:1 floor at about L=0.846. */
   --n-50:#F8ECF0;
-  /* A tint applied ON a card — tracks, segmented rails, table zebra. Lighter
-     than the ground on purpose: these are two different jobs, not one ramp.
-     Pinned near-white by the gate because it carries text (12.83:1 / 4.82:1). */
-  --n-100:#FDF2F6;
+  /* A tint applied ON a card — table headers, form fields, tracks, segmented
+     rails, grouped fieldsets. Still lighter than the ground, because these are
+     two different jobs and not one ramp, but this pass DEEPENS it: at #FDF2F6
+     it was 1.03× the card, so a "banded" table header was the same colour as
+     the card it sat on and every field read as a white hole. At #FBEFF4 the
+     step is roughly three times larger and the tone is unmistakably rose,
+     while the ink maths still clears the gate (12.52:1 / 4.71:1). Deeper is
+     not available: --n-800 hits the 12.5:1 floor at about L=0.885. */
+  --n-100:#FBEFF4;
   --n-200:#F0E4E9;
   --n-300:#D9CDD3;
   --n-400:#9C8B93;   /* disabled            3.22:1 */
@@ -123,11 +128,49 @@
   --info:#1F6BC1;         --info-tint:#E6F0FB;      --info-ink:#1A579E;
   --star:#E8A317;         /* ratings only — the one surviving gold */
 
+  /* ── SOFT TONES ────────────────────────────────────────────────
+     A second, much quieter step of each semantic hue. The *-tint values
+     above are sized for a BADGE — a 20px pill where the colour has to carry
+     across a table at a glance. Painting a whole stat card or a whole helper
+     panel in one turns the screen into a set of highlighter pens.
+
+     These are the same hues at roughly a third of the saturation, cut so
+     that primary ink still clears 12.5:1 and tertiary ink 4.7:1 on every one
+     of them — i.e. a soft tone is a legitimate SURFACE, not a decoration you
+     have to remember not to put text on. That is what lets the panel use the
+     whole palette without going loud: colour arrives as large calm fields
+     and stays out of the type.                                            */
+  --brand-soft:#FFF0F4;   --success-soft:#EFF8F2;   --warning-soft:#FDF4E7;
+  --info-soft:#EFF4FC;    --danger-soft:#FDEFF1;
+
+  /* Edge definition for a soft-toned surface. Translucent rather than a
+     literal, so one ring works on the card, on the ground and inside a modal
+     without a per-context value — and so the hue is FELT at the boundary
+     without a hard line being drawn. */
+  --ring-brand:0 0 0 1px rgba(227,13,59,.14);
+  --ring-success:0 0 0 1px rgba(28,130,82,.18);
+  --ring-warning:0 0 0 1px rgba(211,122,13,.20);
+  --ring-info:0 0 0 1px rgba(31,107,193,.18);
+  --ring-danger:0 0 0 1px rgba(165,29,47,.18);
+
 /* ═══ 4. THEMED ROLES (light) ═══════════════════════════════════ */
-  --surface:var(--n-25);         /* cards, fields, raised pills */
+  --surface:var(--n-25);         /* cards, sheets, raised pills */
   --surface-raised:var(--n-0);   /* something lifted OFF a card */
   --ground:var(--n-50);          /* page background */
   --sunken:var(--n-100);         /* bands, tracks, table headers */
+  /* FORM FIELDS. Split out of --surface-raised this pass. A white input on a
+     blush card is the single most repeated white rectangle in the panel —
+     eight of them in the driver modal alone — and collectively they were most
+     of what still read as "a white app". A field is a well you type INTO, so
+     it takes the sunken tone and lifts to --surface-raised on focus; the
+     movement is now a real change of surface rather than a border recolour. */
+  --field:var(--n-100);
+  /* Alternating table rows. Translucent, not a literal: rows sit on --surface
+     in a card, on --surface-raised in the mobile row-cards, and inside a
+     modal — one rgba composites correctly on all three, where a hex would
+     have to be re-declared per context. Kept below 4% so the stripe orders
+     the eye without turning the table into ruled paper. */
+  --zebra:rgba(137,11,40,.035);
   --line:var(--n-200);
   --line-strong:var(--n-300);
   --ink:var(--n-800);
@@ -152,33 +195,32 @@
    brand is what makes red the primary colour rather than an accent that
    turns up on buttons.
 
-   Three literal steps rather than one, because the rail is a lit object,
-   not a flat fill — --shell-hi is where the light lands (top-left),
-   --shell is the body, --shell-lo is the shade it curves away into.
+   ONE step, not three. The previous pass built the rail as a lit object —
+   a bloom of --shell-hi from the top-left, --shell-lo pooling into the
+   bottom-right, and a light-to-dark wash over both. It read as dimensional
+   and it also read as DIRTY: the foot of the column went to near-black, so
+   the bottom third of the nav sat on a colour that was no longer the brand,
+   and the rail disagreed with itself from top to bottom.
 
-   --shell-hi is the binding constraint on the entire rail: EVERY label on
-   it is worst-cased against the peak of the bloom, because the lockup and
-   the first section heading sit right in it. That is why the highlight is
-   not brighter than this. Depth is bought on the OTHER side instead —
-   --shell-lo goes deeper than the ramp's own --red-900, since darkening
-   the shade costs nothing in contrast while a brighter highlight costs
-   every piece of text on the column.                                    */
-  --shell:#A00C2C;       /* rail body        — white 8.13:1 */
-  --shell-hi:#B00D33;    /* lit edge / bloom — white 7.12:1 */
-  --shell-lo:#4A0818;    /* shaded edge      — white 15.68:1 */
+   So the rail is now a single flat brand red, and the value chosen is the
+   old bloom's — the BRIGHTEST point the gradient ever reached. That matters
+   for more than looks: every label was already worst-cased against that
+   value, so flattening to it changes no contrast figure anywhere on the
+   column while removing the dark end entirely. Depth is carried by the
+   three inset hairlines on .sidebar and by the cast shadow, which are edges
+   rather than fills and cost nothing in legibility.                       */
+  --shell:#B00D33;       /* rail — white 7.12:1 */
   /* The lockup's accent word. Authored once for BOTH themes on purpose: the
      --red-100/200 steps are re-cut dark further down, so anything on the rail
-     that used them would invert and disappear. 4.94:1 on the lit region,
-     5.64:1 on the body, 7.63:1 on the dark rail. */
+     that used them would invert and disappear. 4.94:1 on the light rail,
+     7.63:1 on the dark one. */
   --shell-mark:#FFC9D6;
   /* Resting nav label. Not pure white: at 100% every item shouts as loudly as
-     the selected one. 86% is the floor that still clears AA (5.52:1) against
-     the brightest point of the gradient. */
+     the selected one. 86% is the floor that still clears AA (5.52:1). */
   --shell-ink:rgba(255,255,255,.86);
-  /* Section headings and the lockup sub-label. These are 11px uppercase and
-     they sit IN the bloom, so "non-essential" is not a licence to drop them
-     under AA — .76 is 4.56:1 at the peak, and still a clear step below
-     --shell-ink at normal reading distance. */
+  /* Section headings and the lockup sub-label. These are 11px uppercase, so
+     "non-essential" is not a licence to drop them under AA — .76 is 4.56:1,
+     and still a clear step below --shell-ink at reading distance. */
   --shell-ink-dim:rgba(255,255,255,.76);
   --shell-line:rgba(255,255,255,.14);
   --shell-hover:rgba(255,255,255,.12);
@@ -304,34 +346,40 @@
   --e-shell:0 2px 6px rgba(92,10,31,.16), 0 16px 32px -8px rgba(92,10,31,.22),
             0 40px 72px -24px rgba(92,10,31,.28);
 
-/* ── PLATES: the dimensional icon tile ───────────────────────────
+/* ── PLATES: the icon tile ───────────────────────────────────────
    Every coloured square behind a glyph — stat chips, category icons, the
-   modal icon, the sidebar mark, the notification-history tile — was a flat
-   tint with a rounded corner. Three layers turn it into an object:
+   modal icon, the sidebar mark, the notification-history tile.
 
-     --plate-lit    a sheen laid OVER whatever tint the tile already has,
-                    lit from the upper left. Because it is white-on-alpha it
-                    works on brand, success, warning, info and danger tints
-                    alike, so no tile needs a second colour token.
+   These used to carry a diagonal white sheen (--plate-lit) on top of their
+   tint. It is gone, along with every other gradient in the panel: a sheen
+   is a light source, and once one surface has one, every surface that does
+   not have one looks unfinished — which is how the panel ended up with
+   gradients on the rail, the drawer head, the buttons, the avatars and the
+   coupon, all lit from slightly different directions.
+
+   What is left is EDGES, which is the honest way to make a flat tile read
+   as an object:
      --plate-bevel  a top-edge highlight and an inner shade rising from the
-                    bottom (that pair is what makes the face read as domed
-                    rather than tilted), plus a real cast shadow underneath.
-     --emboss       the glyph's own raised-relief pass — see .ic-3d.        */
-  --plate-lit:linear-gradient(157deg,rgba(255,255,255,.85) 0%,
-              rgba(255,255,255,.3) 44%,rgba(255,255,255,0) 74%);
+                    bottom (that pair is what curves the face), plus a real
+                    cast shadow underneath.
+     --emboss       the glyph's own raised-relief pass — see .ic-3d.
+
+   Both are box-shadow/filter, so they compose over ANY tint. That is what
+   lets a tile be brand, success, warning, info or danger without a single
+   extra token, and it is why the soft-tone palette above could be added
+   without touching this block.                                            */
   --plate-bevel:inset 0 1px 0 rgba(255,255,255,.92),
                 inset 0 -10px 14px -10px rgba(74,20,38,.2),
                 0 1px 2px rgba(110,26,48,.1),0 6px 12px -4px rgba(110,26,48,.16);
   --emboss:drop-shadow(0 1px 0 rgba(255,255,255,.55))
            drop-shadow(0 1px 2px rgba(74,20,38,.24));
-  /* --plate-lit's counterpart for a SOLID FILL THAT CARRIES TEXT — the primary
-     button, the avatar, the selected period. Those cannot take the sheen: a
-     white wash over --accent lifts it to 4.06:1 under white type, i.e. it
-     breaks AA on the single most-clicked control in the panel. So this only
-     ever DARKENS, which can never reduce contrast against white, and the
-     highlight is delivered as a 1px inset lip in the box-shadow instead — at
-     the very edge, where no glyph sits. */
-  --dome:linear-gradient(178deg,rgba(255,255,255,0) 44%,rgba(0,0,0,.15) 100%);
+  /* The same idea for a SOLID FILL THAT CARRIES TEXT — the primary button,
+     the avatar, the selected period. These previously took --dome, a
+     darkening wash, specifically because a LIGHTENING one would have dropped
+     white type on --accent to 4.06:1. With the wash gone the fill is simply
+     flat, and the one hairline of light sits in the box-shadow at the very
+     edge, where no glyph can be sitting on it. */
+  --fill-lip:inset 0 1px 0 rgba(255,255,255,.3);
 
 /* ═══ 10. MOTION ════════════════════════════════════════════════ */
   --d-instant:100ms; --d-fast:180ms; --d-base:240ms; --d-slow:360ms; --d-deliberate:520ms;
@@ -354,6 +402,12 @@
   --surface-raised:#2F272B;
   --ground:var(--n-950);
   --sunken:#2F272B;
+  /* On dark the relationship inverts: a well is DARKER than the card it is
+     cut into, not lighter, so --field cannot alias --sunken the way it does
+     on light. #1C1619 sits a step under --surface and keeps --ink at 15.49:1
+     with the placeholder tone at 5.54:1. */
+  --field:#1C1619;
+  --zebra:rgba(255,255,255,.03);
   --line:#3C3237;
   --line-strong:#4D4046;
   --ink:var(--n-50);        /* 15.5:1 */
@@ -364,15 +418,13 @@
   --accent-quiet:var(--red-500);
   --accent-ink:var(--red-400);
   --accent-wash:#38151D;
-  /* The same lit-object treatment as light, pitched three steps down the ramp
-     so the rail reads as deep brand red rather than as a light leak in a dark
-     room. White is 13.83:1 on the body and 10.99:1 on the lit edge. */
-  --shell:#5C0A1F;
-  --shell-hi:#7A0C28;
-  --shell-lo:#2A0710;
+  /* Flat, like light, and again pinned to what used to be the bloom's peak —
+     so the dark rail keeps the brightness the labels were already measured
+     against while losing the near-black foot. White is 10.99:1 on it. */
+  --shell:#7A0C28;
   --shell-ink:rgba(255,255,255,.84);
-  /* .58 landed at 4.46:1 on the dark bloom — a rounding error under AA, for
-     no visible gain over .66. */
+  /* .58 landed at 4.46:1 — a rounding error under AA, for no visible gain
+     over .66. */
   --shell-ink-dim:rgba(255,255,255,.66);
   --shell-line:rgba(255,255,255,.11);
   --shell-hover:rgba(255,255,255,.10);
@@ -395,6 +447,20 @@
   --danger-tint:#2E1418;   --danger-ink:#FA5775;
   --info-tint:#10243A;     --info-ink:#7FB4EE;
 
+  /* The soft tones, re-cut UP rather than down. On light a soft tone is a
+     pale wash below its badge tint; on dark it has to sit just ABOVE
+     --surface, or a "tinted" card is darker than the card beside it and
+     reads as a hole. Each keeps --ink above 13.7:1 and --ink-3 above 4.9:1. */
+  --brand-soft:#2A1A20;    --success-soft:#182521;   --warning-soft:#282016;
+  --info-soft:#18222E;     --danger-soft:#2A181C;
+  /* Doubled alpha: a 14%-opacity hue that reads as a coloured edge on a pale
+     card is invisible on a dark one. */
+  --ring-brand:0 0 0 1px rgba(250,87,117,.28);
+  --ring-success:0 0 0 1px rgba(74,222,128,.24);
+  --ring-warning:0 0 0 1px rgba(251,191,36,.24);
+  --ring-info:0 0 0 1px rgba(127,180,238,.24);
+  --ring-danger:0 0 0 1px rgba(250,87,117,.26);
+
   /* Dark surfaces cannot be lifted by shadow — there is nothing darker to cast
      onto. So the depth cue swaps: the shadow only anchors the contact edge and
      --lip above does the lifting. Pushing these any harder just paints black
@@ -406,12 +472,11 @@
   --e-shell:0 2px 6px rgba(0,0,0,.5), 0 16px 32px -8px rgba(0,0,0,.55),
             0 40px 72px -24px rgba(0,0,0,.6);
 
-  /* Same three layers, a fifth of the strength. A white sheen that reads as
-     "lit" on a pale tint reads as "blown out" on a dark one, and the cast
-     shadow has to go black rather than rose because there is no light in the
-     scene for a coloured bounce to come from. */
-  --plate-lit:linear-gradient(157deg,rgba(255,255,255,.15) 0%,
-              rgba(255,255,255,.05) 46%,rgba(255,255,255,0) 76%);
+  /* Same edges, a fifth of the strength. A white hairline that reads as "lit"
+     on a pale tint reads as blown out on a dark one, and the cast shadow has
+     to go black rather than rose because there is no light in the scene for a
+     coloured bounce to come from. */
+  --fill-lip:inset 0 1px 0 rgba(255,255,255,.16);
   --plate-bevel:inset 0 1px 0 rgba(255,255,255,.13),
                 inset 0 -10px 14px -10px rgba(0,0,0,.42),
                 0 1px 2px rgba(0,0,0,.4),0 6px 12px -4px rgba(0,0,0,.44);
@@ -511,8 +576,8 @@ code{
    ~40 opaque PNGs that cannot follow the theme, cannot take a semantic
    colour, and turn to mush at the 16–20px most of these are drawn at.
 
-   1. THE PLATE does the depth. See --plate-lit / --plate-bevel below: every
-      tile a glyph sits on becomes a domed, lit, cast-shadowed object.
+   1. THE PLATE does the depth. See --plate-bevel below: every tile a glyph
+      sits on becomes a bevelled, cast-shadowed object.
    2. THE GLYPH gets a bevel. --emboss is a white shadow one pixel BELOW the
       shape plus a soft dark one under that, which is the classic two-pass
       raised-relief trick; on a tinted plate it reads as carved rather than
@@ -528,7 +593,11 @@ code{
 .ic-3d{filter:var(--emboss);}
 
 /* ─────────────── ANIMATIONS ─────────────── */
-@keyframes shimmer{100%{transform:translateX(100%);}}
+/* The loading placeholder used to sweep a white gradient across itself. With
+   gradients out of the panel the same "this is not real content yet" signal is
+   carried by breathing the block's own opacity — cheaper to composite, and it
+   works on a tinted placeholder in either theme without a second rule. */
+@keyframes skpulse{0%,100%{opacity:1;}50%{opacity:.5;}}
 @keyframes fade{from{opacity:0;}to{opacity:1;}}
 @keyframes fadeThrough{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
 @keyframes rise{from{opacity:0;transform:translateY(16px) scale(.985);}to{opacity:1;transform:none;}}

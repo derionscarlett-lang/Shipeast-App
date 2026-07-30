@@ -32,28 +32,14 @@
   min-height:100vh;min-height:100svh;
   display:flex;align-items:center;justify-content:center;
   padding:var(--sp-6) var(--sp-5);position:relative;isolation:isolate;
-  /* A composed canvas, not a gradient wash: flat ink, one ember bloom sitting
-     behind the card, and a 44px hairline grid for material. The grid is what
-     stops the flat fill reading as an empty <body>. */
-  background-color:var(--n-950);
-  background-image:
-    linear-gradient(rgba(251,249,249,.04) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(251,249,249,.04) 1px,transparent 1px);
-  background-size:44px 44px,44px 44px;
-}
-/* Bloom + vignette — the one place in the panel a gradient still earns its
-   place, because this is atmosphere rather than a surface. On its own layer so
-   the grid above stays crisp and the bloom does not tint the card's shadow. The
-   pool is wider than the card on purpose: it has to read around the card, not
-   only behind it, or the canvas goes back to looking like an unstyled black
-   <body>. Restated on the new red — the old one was mixed from #E11D34/#C8102E
-   and pulled the whole screen toward wine. */
-#login-page::before{
-  content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
-  background:
-    radial-gradient(900px 660px at 50% 30%,rgba(247,43,84,.34) 0%,rgba(227,13,59,.15) 40%,rgba(137,11,40,.05) 62%,rgba(227,13,59,0) 78%),
-    radial-gradient(760px 460px at 6% 104%,rgba(250,87,117,.10) 0%,rgba(250,87,117,0) 62%),
-    radial-gradient(1400px 820px at 50% 118%,rgba(0,0,0,.62) 0%,rgba(0,0,0,0) 66%);
+  /* One flat deep brand red, and nothing else on it.
+     This canvas used to be near-black with a hairline grid and a three-layer
+     radial bloom behind the card — atmosphere, which is the usual argument
+     for keeping a gradient. It was also the first screen anyone sees, and it
+     announced a black product; the rail three seconds later announces a red
+     one. A single field of --red-900 says the same thing the rail does, in
+     the same voice, and the white card floating on it needs no help. */
+  background:var(--red-900);
 }
 
 .lc{
@@ -114,10 +100,14 @@
   font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:600;
   letter-spacing:var(--tr-micro);text-transform:uppercase;
 }
+/* The field is a tinted well, like every other field in the panel, and it
+   lifts to white on focus — so "which box am I in" is answered by a change of
+   surface rather than only by a border going red. */
 .lf-box{
-  display:flex;align-items:center;background:var(--surface);
+  display:flex;align-items:center;background:var(--field);
   border:1.5px solid var(--line-strong);border-radius:var(--r-md);
-  transition:border-color var(--d-fast) var(--ease),box-shadow var(--d-fast) var(--ease);
+  transition:border-color var(--d-fast) var(--ease),background var(--d-fast) var(--ease),
+             box-shadow var(--d-fast) var(--ease);
 }
 /* The border keeps its width on focus and changes colour instead, picking up the
    ring the rest of the panel's fields use. It used to grow 1.5px → 2px, which
@@ -125,7 +115,8 @@
    wrong: 14px → 12.5px against a border growing by only 0.5px left the icon a
    pixel out, so the glyph twitched left every time the field was focused. Not
    changing the width removes the shift and the two rules that chased it. */
-.lf-box:focus-within{border-color:var(--accent);box-shadow:var(--focus-ring);}
+.lf-box:focus-within{border-color:var(--accent);background:var(--surface-raised);
+  box-shadow:var(--focus-ring);}
 .lf-box:focus-within .lf-ic{color:var(--accent);}
 .lf-ic{
   width:20px;height:20px;margin:0 var(--sp-2) 0 var(--sp-3);color:var(--ink-3);flex-shrink:0;
@@ -143,7 +134,7 @@
    both its white field and its ink. */
 .lf-box input:-webkit-autofill{
   -webkit-text-fill-color:var(--ink);
-  -webkit-box-shadow:0 0 0 40px var(--surface) inset;
+  -webkit-box-shadow:0 0 0 40px var(--field) inset;
   caret-color:var(--ink);
 }
 .lf-eye{
@@ -222,30 +213,29 @@
    and the same move FoodPanda, Deliveroo and Bolt all make with their own
    brand colour.
 
-   "Dynamic, 3D" is four layers, not a flat fill:
-     · a bloom of --shell-hi from the top-left, where the light lands;
-     · --shell-lo pooling into the bottom-right, where it curves away;
-     · a vertical wash, light at the head and shaded at the foot, so the
-       rail has a top and a bottom rather than being uniformly bright;
-     · insets: a lit top edge, a lit left edge, a dark right edge. Those
-       three hairlines are what make it read as extruded rather than
-       painted, and they cost nothing.
-   The cast shadow is --e-shell, tinted in the rail's own red — a neutral
-   shadow under a saturated object is the tell that the colour was added
-   late.                                                                   */
+   The SHAPE of it is unchanged and deliberately so. What went is the four
+   layers of gradient that used to paint it: a bloom top-left, a pool of
+   near-black bottom-right, and a vertical light-to-dark wash over both.
+   They bought a dimensional read at the cost of the thing the rail is for
+   — by the foot of the column the colour had left the brand entirely and
+   gone to a soot red, so the nav's lower half sat on a different colour
+   from its upper half.
+
+   Flat --shell instead, pinned to the brightest value that stack ever
+   reached, so nothing on the column loses contrast. Depth is carried by
+   edges rather than fills: a lit top hairline, a lit left hairline, a
+   softened right one, and the cast shadow. --e-shell is tinted in the
+   rail's own red — a neutral shadow under a saturated object is the tell
+   that the colour was added late.                                        */
 .sidebar{
   width:var(--sidebar-w);
-  background-color:var(--shell);
-  background-image:
-    radial-gradient(126% 60% at 14% -6%,var(--shell-hi) 0%,transparent 58%),
-    radial-gradient(110% 56% at 104% 106%,var(--shell-lo) 0%,transparent 64%),
-    linear-gradient(180deg,rgba(255,255,255,.06) 0%,rgba(0,0,0,.16) 100%);
+  background:var(--shell);
   position:fixed;inset:var(--sidebar-gap) auto var(--sidebar-gap) var(--sidebar-gap);
   border-radius:var(--r-lg);
   box-shadow:var(--e-shell),
-    inset 0 1px 0 rgba(255,255,255,.24),
+    inset 0 1px 0 rgba(255,255,255,.22),
     inset 1px 0 0 rgba(255,255,255,.1),
-    inset -1px 0 0 rgba(0,0,0,.18);
+    inset -1px 0 0 rgba(46,5,16,.16);
   display:flex;flex-direction:column;z-index:100;overflow:hidden;
   transition:width var(--d-base) var(--ease),transform var(--d-base) var(--ease);
 }
@@ -264,7 +254,7 @@
    treatment (§9) so it reads as a tile sitting ON the rail rather than a hole
    cut out of it. */
 .sb-mark{display:flex;flex-shrink:0;width:42px;height:42px;border-radius:var(--r-md);
-  background-color:var(--n-0);background-image:var(--plate-lit);
+  background:var(--n-0);
   color:var(--red-700);align-items:center;justify-content:center;
   font-family:var(--ff-display);font-weight:800;font-size:var(--fs-body-lg);
   letter-spacing:var(--tr-display);
@@ -317,12 +307,12 @@
    is 6.8:1. It carries the plate treatment too, so the pill reads as lifted
    out of the rail rather than punched through it. */
 .ni.active{
-  background-color:var(--n-0);background-image:var(--plate-lit);
+  background:var(--n-0);
   color:var(--red-700);font-weight:700;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.9),
              0 2px 4px rgba(46,5,16,.24),0 8px 18px -6px rgba(46,5,16,.34);
 }
-.ni.active:hover{background-color:var(--n-0);}
+.ni.active:hover{background:var(--n-0);}
 .ni .ic{color:inherit;}
 /* Spelled out rather than var(--emboss): the pill is white in BOTH themes, so
    the glyph on it always wants the light-theme relief, not the dark one. */
@@ -423,13 +413,11 @@
   border-radius:var(--r-full);}
 /* Deliberately NOT brand red: the only red dot in this corner should be the
    unread-notification badge, or the eye stops trusting it. Teal used to carry
-   that job but the teal accent is retired, so this is now simply neutral — and
-   flat, since a gradient on a 32px circle is invisible anyway. */
-.av{width:32px;height:32px;
-  background-color:var(--n-700);background-image:var(--dome);
+   that job but the teal accent is retired, so this is now simply neutral. */
+.av{width:32px;height:32px;background:var(--n-700);
   border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
   font-family:var(--ff-display);font-weight:700;font-size:var(--fs-dense);flex-shrink:0;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 2px rgba(31,25,28,.3);}
+  box-shadow:var(--fill-lip),0 1px 2px rgba(31,25,28,.3);}
 .an{font-size:var(--fs-caption);font-weight:700;color:var(--ink);
   line-height:1.2;white-space:nowrap;}
 
@@ -458,8 +446,12 @@
              visibility var(--d-fast) var(--ease);
 }
 .bell-menu.open{opacity:1;visibility:visible;transform:none;}
+/* Banded, like a card's table header and for the same reason: the menu opens as
+   a floating white sheet, and without a tinted head the title line and the first
+   notification were the same surface. */
 .bell-hd{display:flex;align-items:center;justify-content:space-between;gap:var(--gap-inline);
-  padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--line);
+  padding:var(--sp-3) var(--sp-4);background:var(--sunken);
+  border-bottom:1px solid var(--line);
   font-family:var(--ff-display);font-weight:700;font-size:var(--fs-title);color:var(--ink);}
 .bell-clear{background:none;border:none;cursor:pointer;color:var(--accent);
   font-size:var(--fs-caption);font-weight:600;padding:var(--sp-half) var(--gap-tight);
@@ -541,8 +533,7 @@
    over it, and the bevel does the rest — so the two variants below only ever
    need to name a colour. */
 .m-ico{width:52px;height:52px;border-radius:var(--r-md);display:flex;align-items:center;
-  justify-content:center;margin-bottom:var(--sp-4);
-  background-image:var(--plate-lit);box-shadow:var(--plate-bevel);}
+  justify-content:center;margin-bottom:var(--sp-4);box-shadow:var(--plate-bevel);}
 .m-ico .ic{width:28px;height:28px;filter:var(--emboss);}
 .m-ico.danger{background-color:var(--danger-tint);color:var(--danger-ink);}
 .m-ico.warning{background-color:var(--warning-tint);color:var(--warning-ink);}
@@ -566,15 +557,14 @@
 /* The drawer's header is BRANDED, not another white band with a rule under it.
    This panel opens over the top of whatever you were reading, so it needs to
    announce itself; a red head on a light body does that in one glance and
-   ties the drawer to the rail on the opposite edge. Same lit-object build as
-   the sidebar, at a shallower angle because the block is wide and short. */
+   ties the drawer to the rail on the opposite edge. Flat --shell, exactly
+   like the rail — the two are the only branded chrome on screen and they
+   have to be the same red, which they were not while both were washed by
+   gradients of different sizes at different angles. */
 .sp-hd{
   padding:var(--sp-5);display:flex;flex-shrink:0;
   justify-content:space-between;align-items:center;gap:var(--sp-3);
-  background-color:var(--shell);
-  background-image:
-    radial-gradient(120% 180% at 6% -30%,var(--shell-hi) 0%,transparent 62%),
-    linear-gradient(180deg,rgba(255,255,255,.06) 0%,rgba(0,0,0,.14) 100%);
+  background:var(--shell);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 8px rgba(46,5,16,.2);
   position:relative;z-index:1;
 }
@@ -616,10 +606,10 @@
 .sp-val.money{font-family:var(--ff-display);font-size:var(--fs-h3);font-weight:800;
   letter-spacing:var(--tr-h3);color:var(--accent);font-variant-numeric:tabular-nums;}
 .sp-hero{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-5);}
-/* A sphere rather than a flat disc: the sheen sits top-left and the bevel's
-   inner bottom shade curves it away, which is the whole trick. */
+/* Flat brand fill; the curve comes from the inset pair — a lit top edge and
+   an inner shade rising from the bottom — not from a wash across the face. */
 .sp-avatar{width:60px;height:60px;border-radius:50%;
-  background-color:var(--accent);background-image:var(--dome);color:#fff;
+  background:var(--accent);color:#fff;
   display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);
   font-size:var(--fs-h3);font-weight:800;flex-shrink:0;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.45),
@@ -668,6 +658,15 @@
    thing distinguishing an error toast from a success one at a glance. */
 .toast::before{content:'';position:absolute;left:0;top:0;bottom:0;width:var(--sp-1);
   background:var(--ink-3);}
+/* The whole sheet takes the soft tone, not just the stripe. A toast is on
+   screen for four seconds and is read peripherally, so the faster the colour
+   arrives the better — and at soft-tone saturation the message text is still
+   sitting at 12.5:1 or better. The ring picks the hue up at the edge, which is
+   what keeps a pale sheet from dissolving into the page behind it. */
+.toast.t-success{background:var(--success-soft);box-shadow:var(--ring-success),var(--e3),var(--lip);}
+.toast.t-error{background:var(--danger-soft);box-shadow:var(--ring-danger),var(--e3),var(--lip);}
+.toast.t-warning{background:var(--warning-soft);box-shadow:var(--ring-warning),var(--e3),var(--lip);}
+.toast.t-info{background:var(--info-soft);box-shadow:var(--ring-info),var(--e3),var(--lip);}
 .toast.t-success::before{background:var(--success);}
 .toast.t-error::before{background:var(--danger);}
 .toast.t-warning::before{background:var(--warning);}

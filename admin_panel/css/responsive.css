@@ -41,7 +41,7 @@
   .sidebar{z-index:500;transform:translateX(calc(-100% - var(--sidebar-gap) * 2));
     box-shadow:inset 0 1px 0 rgba(255,255,255,.24),
       inset 1px 0 0 rgba(255,255,255,.1),
-      inset -1px 0 0 rgba(0,0,0,.18);}
+      inset -1px 0 0 rgba(46,5,16,.16);}
   /* Open, it is a lit red object floating over the page — the same shadow
      stack as the desktop rail, NOT the neutral --e4 the old drawer used. A
      grey shadow under a saturated red panel is the tell that the colour was
@@ -50,7 +50,7 @@
     box-shadow:var(--e-shell),
       inset 0 1px 0 rgba(255,255,255,.24),
       inset 1px 0 0 rgba(255,255,255,.1),
-      inset -1px 0 0 rgba(0,0,0,.18);}
+      inset -1px 0 0 rgba(46,5,16,.16);}
   .sidebar.collapsed{width:var(--sidebar-w);}
   .sidebar.collapsed .lbl,
   .sidebar.collapsed .sls,
@@ -110,7 +110,8 @@
   .sc-val{font-size:var(--fs-h1);}
   .sc-val.sm{font-size:var(--fs-h3);}
   /* Smaller plate, same treatment — only the box metrics are overridden, so
-     the sheen, bevel and cast shadow carry through from components.css. */
+     the tint, the bevel and the cast shadow carry through from
+     components.css, as does whichever tone the card is wearing. */
   .sc-chip{width:38px;height:38px;border-radius:var(--r-sm);}
   .sc-chip .ic{width:20px;height:20px;}
   .spark{height:20px;}
@@ -208,7 +209,13 @@
 
   /* The wrapper stops being a scrollport — the page scrolls naturally and the
      inner max-height that created a nested scroll is removed. */
-  .tbl-wrap{
+  /* The second selector is not redundant: components.css pulls a table that is
+     its card's first child up to the top edge with `.card>.tbl-wrap:first-child`,
+     which outranks a bare `.tbl-wrap` — a media query adds no specificity — so
+     without it that one table would keep a negative top margin here and hang
+     its first row-card out of the card above it. */
+  .tbl-wrap,
+  .card>.tbl-wrap:first-child{
     overflow:visible;max-height:none;margin:0;padding:0;max-width:100%;
     border-radius:0;-webkit-overflow-scrolling:auto;
   }
@@ -241,9 +248,12 @@
     background:var(--surface-raised);box-shadow:var(--ring),var(--e1),var(--lip);
   }
   .tbl-wrap tbody tr:last-child{margin-bottom:0;}
-  .tbl-wrap tbody tr:hover td{background:none;}
-  /* The desktop row tint would paint the whole card, so the hover cue is
-     dropped entirely — there is no hover on a touch screen anyway. */
+  /* The desktop row tints would paint the whole card rather than a row, so both
+     are dropped: the hover cue because there is no hover on a touch screen, and
+     the zebra because alternating whole cards is not striping — it is two
+     different card colours down the list. */
+  .tbl-wrap tbody tr:hover td,
+  .tbl-wrap tbody tr:nth-child(even) td{background:none;}
   /* Cell = column label on its own line, value beneath. Block flow means any
      cell contents — plain text, a badge beside an id, a flex .cell-media or
      .cell-actions — lay out correctly and nothing overlaps. */
@@ -300,9 +310,8 @@
   }
   .mc-exp:active{transform:scale(.92);}
   tr.mc-open .mc-exp{
-    background-color:var(--accent);background-image:var(--dome);color:#fff;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.3),
-               0 1px 2px rgba(137,11,40,.28);
+    background:var(--accent);color:#fff;
+    box-shadow:var(--fill-lip),0 1px 2px rgba(137,11,40,.28);
   }
   tr.mc-open .mc-exp .ic{transform:rotate(-90deg);}
 }
@@ -347,14 +356,15 @@
      Squaring it off costs the left inset hairline its job — there is no left
      edge on screen any more — so the lit/shaded pair is re-cut as top-and-
      right only, and the shadow is thrown sideways rather than all round. The
-     red gradient itself is untouched: it is declared on .sidebar as
-     percentages, so it simply re-fits the taller box. */
+     fill itself needs no attention any more: --shell is one flat colour, so it
+     cannot be stretched out of shape by a taller box the way the old bloom
+     could. */
   .sidebar{inset:0 auto 0 0;border-radius:0;}
   .sidebar.mob-open{border-radius:0;
     box-shadow:8px 0 24px -8px rgba(92,10,31,.3),
       24px 0 60px -20px rgba(92,10,31,.26),
       inset 0 1px 0 rgba(255,255,255,.2),
-      inset -1px 0 0 rgba(0,0,0,.18);}
+      inset -1px 0 0 rgba(46,5,16,.16);}
 }
 
 /* ─────────────── REDUCED MOTION ─────────────── */
@@ -363,6 +373,6 @@
     animation-duration:.01ms!important;animation-iteration-count:1!important;
     transition-duration:.01ms!important;scroll-behavior:auto!important;
   }
-  .sk::after{display:none;}
+  .sk{animation:none;}
   .btn:active,.aicon:active,.iconbtn:active{transform:none;}
 }

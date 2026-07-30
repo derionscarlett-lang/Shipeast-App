@@ -14,8 +14,7 @@
    that appear down every list on Merchants and Shop & Deliver, so they are the
    second most-repeated icon tile in the panel. Tint by class, depth by token. */
 .cat-ico{width:42px;height:42px;border-radius:var(--r-md);display:flex;align-items:center;
-  justify-content:center;flex-shrink:0;
-  background-image:var(--plate-lit);box-shadow:var(--plate-bevel);}
+  justify-content:center;flex-shrink:0;box-shadow:var(--plate-bevel);}
 .cat-ico .ic{width:20px;height:20px;filter:var(--emboss);}
 .cat-ico.lg{width:56px;height:56px;border-radius:var(--r-md);}
 .cat-ico.lg .ic{width:28px;height:28px;}
@@ -54,8 +53,8 @@
 .ph-bar span{color:#FBF9F9;font-size:var(--fs-micro);font-weight:600;}
 .ph-ni{padding:var(--sp-3) var(--sp-4);background:#FFFFFF;border-bottom:1px solid #EBE5E7;
   display:flex;gap:var(--gap-inline);align-items:flex-start;}
-.ph-badge{width:28px;height:28px;border-radius:var(--r-xs);background-color:#E30D3B;
-  background-image:var(--dome);color:#fff;display:flex;align-items:center;
+.ph-badge{width:28px;height:28px;border-radius:var(--r-xs);background:#E30D3B;
+  color:#fff;display:flex;align-items:center;
   justify-content:center;flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.3);}
 .ph-badge .ic{width:16px;height:16px;}
 .ph-app{font-size:var(--fs-micro);font-weight:700;color:#B60C31;
@@ -72,7 +71,7 @@
   border-bottom:1px solid var(--line);}
 .nh-item:last-child{border-bottom:none;}
 .nh-ico{width:42px;height:42px;border-radius:var(--r-md);
-  background-color:var(--accent-wash);background-image:var(--plate-lit);
+  background:var(--accent-wash);
   color:var(--accent-ink);display:flex;align-items:center;justify-content:center;
   flex-shrink:0;box-shadow:var(--plate-bevel);}
 .nh-ico .ic{filter:var(--emboss);}
@@ -86,22 +85,30 @@
 .notice{
   display:flex;gap:var(--gap-inline);align-items:flex-start;background:var(--warning-tint);
   border-radius:var(--r-sm);padding:var(--sp-3) var(--sp-4);
+  box-shadow:var(--ring-warning);
   font-size:var(--fs-caption);line-height:1.5;
   color:var(--warning-ink);margin-bottom:var(--gap-field);
 }
 .notice .ic{width:18px;height:18px;flex-shrink:0;color:var(--warning);margin-top:1px;}
 
 /* ─────────────── PROMO PREVIEW ─────────────── */
-/* The one surface in the panel that keeps a gradient, because it depicts a
-   marketing coupon rather than a piece of UI — a flat swatch here would read as
-   a settings panel, not as something a customer would be shown. Restated on the
-   new ramp: identity red into action red into the deep step. */
-.pc-prev{background:linear-gradient(135deg,#F72B54 0%,#E30D3B 55%,#B60C31 100%);
+/* This was the last gradient in the panel and it was defended on the grounds
+   that a coupon is artwork rather than UI. It still is — but a coupon that is
+   a different red from the rail, the buttons and the drawer head is artwork
+   for a different brand, and the three-stop ramp was doing exactly that.
+   Flat --accent, with the depth carried by the two translucent discs below:
+   a white one bleeding off the top-right corner and a darker one off the
+   bottom-left, which give the card the same lit-from-above read the gradient
+   was after without inventing a second brand colour. */
+.pc-prev{background:var(--accent);
   border-radius:var(--r-lg);padding:var(--sp-6);
   color:#fff;margin-bottom:var(--gap-field);box-shadow:var(--e3);
-  position:relative;overflow:hidden;}
-.pc-prev::after{content:'';position:absolute;right:-40px;top:-40px;width:150px;height:150px;
-  border-radius:50%;background:rgba(255,255,255,.10);}
+  position:relative;overflow:hidden;isolation:isolate;}
+.pc-prev::before,.pc-prev::after{content:'';position:absolute;border-radius:50%;z-index:-1;}
+.pc-prev::after{right:-40px;top:-40px;width:150px;height:150px;
+  background:rgba(255,255,255,.12);}
+.pc-prev::before{left:-48px;bottom:-64px;width:180px;height:180px;
+  background:rgba(92,10,31,.18);}
 /* Explicit rgba rather than a stack of `opacity` values — four different
    opacities on white text is four unnamed greys nobody can reason about. */
 .pc-brand{font-size:var(--fs-micro);font-weight:700;letter-spacing:.12em;
@@ -122,11 +129,16 @@
    what will actually be saved. */
 .pc-code-input{text-transform:uppercase;}
 
-.helper{background:var(--sunken);border-radius:var(--r-sm);box-shadow:var(--ring);
+/* Explanatory panels are INFORMATION, so they take the information hue. This
+   is the panel's quietest use of a semantic colour and one of the most useful:
+   a helper block used to be the same tone as a form field, a tab track and a
+   fieldset, so nothing on the page distinguished "type here" from "read this".
+   The tone is the soft step, not the badge tint — --ink-2 reads 7.19:1 on it. */
+.helper{background:var(--info-soft);border-radius:var(--r-sm);box-shadow:var(--ring-info);
   padding:var(--sp-3) var(--sp-4);font-size:var(--fs-caption);color:var(--ink-2);
   line-height:1.5;}
 .helper b{display:block;margin-bottom:var(--gap-tight);font-size:var(--fs-micro);
-  text-transform:uppercase;letter-spacing:var(--tr-micro);color:var(--ink-3);font-weight:700;}
+  text-transform:uppercase;letter-spacing:var(--tr-micro);color:var(--info-ink);font-weight:700;}
 
 /* ─────────────── CHARTS ─────────────── */
 .ag{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap-field);}
@@ -184,7 +196,9 @@
 /* Banded header, matching .card-title and .fset-title — the menu form sits in
    the side panel beside a Details tab with banded sections, and a bare bold line
    was the odd one out. */
-.mi-form{background:var(--sunken);border-radius:var(--r-md);box-shadow:var(--ring);
+/* --surface with a ring, matching .fset — the fields inside are painted in
+   --sunken now, so a --sunken container would swallow them. */
+.mi-form{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--ring-strong);
   padding:var(--sp-4);margin-bottom:var(--gap-field);}
 .mi-form-title{
   font-family:var(--ff-display);font-size:var(--fs-micro);font-weight:700;

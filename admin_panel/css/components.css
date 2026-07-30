@@ -72,12 +72,27 @@
    it carries a glyph that says WHICH metric rather than only that there is
    one. Losing the rail also lets the card go back to even padding.          */
 .sc{
-  position:relative;background:var(--surface);
+  position:relative;background:var(--brand-soft);
   border-radius:var(--r-lg);padding:var(--pad-card);
-  box-shadow:var(--ring),var(--e2),var(--lip);overflow:hidden;
+  box-shadow:var(--ring-brand),var(--e2),var(--lip);overflow:hidden;
   transition:box-shadow var(--d-base) var(--ease),transform var(--d-base) var(--ease);
 }
 .sc:hover{box-shadow:var(--ring-strong),var(--e3),var(--lip);transform:translateY(-3px);}
+/* THE TONED STAT CARD.
+   app.js has emitted `.ac-success` / `.ac-warning` / `.ac-info` alongside the
+   chip's tone class since the metric cards were written, and nothing in the
+   stylesheet has ever matched them — so the chip was tinted and the card it
+   sat in was the same white as the three beside it. Four cards across the top
+   of a page is the panel's most-repeated composition and it was carrying one
+   colour.
+
+   Each variant now names one soft tone and one ring; every other property is
+   inherited. The default (no accent) is brand, which is the right default —
+   an untoned metric is a ShipEast metric. Deliberately NOT the badge tints:
+   at that saturation four cards in a row read as a stack of highlighters. */
+.sc.ac-success{background:var(--success-soft);box-shadow:var(--ring-success),var(--e2),var(--lip);}
+.sc.ac-warning{background:var(--warning-soft);box-shadow:var(--ring-warning),var(--e2),var(--lip);}
+.sc.ac-info{background:var(--info-soft);box-shadow:var(--ring-info),var(--e2),var(--lip);}
 .sc-top{display:flex;align-items:flex-start;justify-content:space-between;
   gap:var(--sp-3);margin-bottom:var(--sp-2);}
 /* 46px, squircled, and now a PLATE rather than a flat tint square — see §9 in
@@ -90,7 +105,7 @@
   width:46px;height:46px;border-radius:var(--r-md);display:flex;align-items:center;
   justify-content:center;flex-shrink:0;
   background-color:var(--accent-wash);color:var(--accent-ink);
-  background-image:var(--plate-lit);box-shadow:var(--plate-bevel);
+  box-shadow:var(--plate-bevel);
   transition:transform var(--d-base) var(--ease);
 }
 .sc-chip .ic{filter:var(--emboss);}
@@ -147,23 +162,37 @@
      paints square into a 20px radius — invisible at the old 10px, obvious now.
      A scroll container clips to its own radius, so this needs nothing else. */
   border-radius:0 0 var(--r-lg) var(--r-lg);}
+/* On Orders, Drivers, Merchants, Customers and Shop & Deliver the table IS the
+   card — there is no .card-title above it. The wrapper pulls out to the left,
+   right and bottom edges but not the top, so the header band ran full width
+   with a strip of bare card surface floating above it, which looked like the
+   band had slipped down. Pull it to the top edge too and let it carry the
+   card's upper corners; where a title DOES sit above, the rule does not apply
+   and nothing moves. */
+.card>.tbl-wrap:first-child{
+  margin-top:calc(var(--card-pad) * -1);border-radius:var(--r-lg);}
 table{width:100%;border-collapse:collapse;}
 /* The column-name strip was --card on --card: white labels on a white card,
    which is the "no contrast, no professional layout" complaint on Drivers and
    every other table. It is a banded header now, and the labels sit at --ink-2
    (7.2:1 on the band) rather than whispering against it at 600 weight instead
    of 800. Sticky, so the background must stay fully opaque. */
-/* The column strip is no longer a grey band either. It is the card's own
-   surface with a firm rule under it, which is what a modern data table does —
-   the labels are legible because they are uppercase micro at --ink-3 with real
-   tracking and 20px of vertical room, not because someone painted a box behind
-   them. Sticky still requires a fully opaque background, hence --surface
-   spelled out rather than left transparent. */
+/* The column strip is a BAND again, and this time a coloured one.
+   It has now been both: a grey portlet strip (dated), then the card's own
+   surface with a rule under it (invisible — --surface on --surface is the
+   "white on white" reading, and the rule was doing all the work on its own).
+   --sunken was re-cut this pass specifically so a third option exists: a
+   rose tint that is a real step off the card at 0.888 against 0.940 luminance,
+   still carries the labels at 4.71:1, and belongs to the brand's hue rather
+   than to a neutral ramp borrowed from somewhere else.
+
+   Sticky still requires a fully opaque background, so this must stay a solid
+   token and never --zebra or another translucent value. */
 thead th{
-  position:sticky;top:0;z-index:2;background:var(--surface);
-  text-align:left;padding:var(--sp-2) var(--pad-cell-x) var(--sp-3);
+  position:sticky;top:0;z-index:2;background:var(--sunken);
+  text-align:left;padding:var(--sp-3) var(--pad-cell-x);
   font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:700;
-  color:var(--ink-3);text-transform:uppercase;letter-spacing:var(--tr-micro);
+  color:var(--ink-2);text-transform:uppercase;letter-spacing:var(--tr-micro);
   border-bottom:1px solid var(--line-strong);white-space:nowrap;
 }
 thead th:first-child,tbody td:first-child{padding-left:var(--card-pad);}
@@ -177,6 +206,15 @@ td{padding:var(--sp-4) var(--pad-cell-x);
 /* Scroll-margin keeps a row that JS jumps to clear of the sticky topbar. */
 tbody tr{transition:background var(--d-fast) var(--ease);scroll-margin-top:var(--h-topbar);}
 tbody tr:last-child td{border-bottom:none;}
+/* Zebra. A nine-column roster is the widest thing the panel draws and the eye
+   has to track across it without losing the line; hairlines alone stop working
+   somewhere around the sixth column. --zebra is translucent (see tokens.css)
+   so the same rule holds on a card, on the white mobile row-cards and inside a
+   modal without three values.
+   This MUST stay above the hover rule: the two selectors have identical
+   specificity, so source order is the only thing deciding which one paints a
+   hovered even row. */
+tbody tr:nth-child(even) td{background:var(--zebra);}
 /* The hover tint is the brand wash, not neutral grey. It is the cheapest place
    in the panel to make the brand felt during ordinary use, and a red-tinted
    row under the cursor reads as "this one" far faster than a grey one. */
@@ -237,22 +275,20 @@ tr.row-muted:hover td{opacity:1;}
 .btn:active:not(:disabled){transform:scale(.97);}
 .btn:disabled{opacity:.6;cursor:not-allowed;}
 .btn .ic{width:18px;height:18px;}
-/* A moulded object, not a flat swatch: --dome shades the lower half, a 1px
-   inset lip lights the top edge, and the drop shadow is mixed in the button's
-   own red so it looks like it belongs to the colour it is painted in.
-
-   Deliberately NOT a white sheen over the top — see --dome in tokens.css.
-   Lightening --accent by even 10% drops white type to 4.43:1, and this is the
-   most-clicked control in the panel. Darkening can only ever help. */
+/* A flat brand fill with a lit top edge and a shadow mixed in its own red, so
+   it reads as an object made of the colour rather than a swatch dropped on the
+   page. It used to carry --dome, a darkening wash down the lower half; the
+   wash is gone with every other gradient and the button loses nothing, because
+   what actually sold the shape was --fill-lip and the coloured cast shadow. */
 .btn-primary{
-  background-color:var(--accent);background-image:var(--dome);color:#fff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),
+  background:var(--accent);color:#fff;
+  box-shadow:var(--fill-lip),
              0 1px 2px rgba(137,11,40,.28),0 6px 14px -3px rgba(137,11,40,.34);}
-.btn-primary:hover:not(:disabled){background-color:var(--red-700);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),
+.btn-primary:hover:not(:disabled){background:var(--red-700);
+  box-shadow:var(--fill-lip),
              0 2px 5px rgba(137,11,40,.3),0 10px 22px -4px rgba(137,11,40,.4);
   transform:translateY(-1px);}
-.btn-primary:active:not(:disabled){background-color:var(--red-800);
+.btn-primary:active:not(:disabled){background:var(--red-800);
   box-shadow:inset 0 2px 4px rgba(46,5,16,.32);transform:translateY(0) scale(.97);}
 /* The outline button sits on cards AND on the page ground, so it takes a
    surface of its own rather than `transparent` — on the tinted ground a
@@ -267,12 +303,12 @@ tr.row-muted:hover td{opacity:1;}
 /* Destructive actions are a deep maroon, nineteen lightness points below the
    brand. In a panel whose brand IS red they cannot also be brand red, or "Erase
    all data" and "Save pricing" are the same button. */
-.btn-danger{background-color:var(--danger);background-image:var(--dome);color:#fff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.24),0 1px 2px rgba(74,10,20,.26),
+.btn-danger{background:var(--danger);color:#fff;
+  box-shadow:var(--fill-lip),0 1px 2px rgba(74,10,20,.26),
              0 6px 14px -3px rgba(74,10,20,.3);}
 .btn-danger:hover:not(:disabled){background:var(--danger-ink);}
-.btn-success{background-color:var(--success);background-image:var(--dome);color:#fff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.24),0 1px 2px rgba(10,60,36,.26),
+.btn-success{background:var(--success);color:#fff;
+  box-shadow:var(--fill-lip),0 1px 2px rgba(10,60,36,.26),
              0 6px 14px -3px rgba(10,60,36,.3);}
 .btn-success:hover:not(:disabled){background:var(--success-ink);}
 .btn-block{width:100%;min-height:var(--h-control-lg);font-size:var(--fs-body-lg);}
@@ -293,20 +329,26 @@ tr.row-muted:hover td{opacity:1;}
 /* Row actions. 32px, not the 40px control height: three of these sit in every
    table row, and at 40px they set the row height for the whole roster. The
    mobile card-fold bumps them to a proper touch target — see responsive.css. */
+/* Resting state stays neutral on purpose. Three of these sit in every row of
+   every table, so tinting them at rest would put nine coloured tiles in view
+   per screenful and drown the badges — which are the cells that genuinely
+   encode state. The tone arrives on hover, where it identifies the action you
+   are about to take, and the ring goes with it. */
 .aicon{
   width:32px;height:32px;border-radius:var(--r-md);display:inline-flex;align-items:center;
   justify-content:center;cursor:pointer;border:1px solid transparent;
-  background-color:var(--sunken);background-image:var(--plate-lit);
+  background:var(--sunken);
   box-shadow:var(--ring);color:var(--ink-2);flex-shrink:0;
   transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
+             box-shadow var(--d-fast) var(--ease),
              transform var(--d-instant) var(--ease);
 }
 .aicon .ic{width:18px;height:18px;}
-.aicon:hover{background-color:var(--line);color:var(--ink);}
+.aicon:hover{background:var(--line);color:var(--ink);}
 .aicon:active{transform:scale(.92);}
-.ai-v:hover{background-color:var(--info-tint);color:var(--info-ink);}
-.ai-e:hover{background-color:var(--success-tint);color:var(--success-ink);}
-.ai-d:hover{background-color:var(--danger-tint);color:var(--danger-ink);}
+.ai-v:hover{background:var(--info-tint);color:var(--info-ink);box-shadow:var(--ring-info);}
+.ai-e:hover{background:var(--success-tint);color:var(--success-ink);box-shadow:var(--ring-success);}
+.ai-d:hover{background:var(--danger-tint);color:var(--danger-ink);box-shadow:var(--ring-danger);}
 
 /* ─────────────── FORMS ─────────────── */
 .fg{margin-bottom:var(--gap-field);}
@@ -324,20 +366,35 @@ tr.row-muted:hover td{opacity:1;}
 /* A .fr used on its own inside a dialog rather than in a form flow — it supplies
    its own top gap and resets the dialog's centred text. */
 .fr-standalone{margin-top:var(--sp-4);text-align:left;}
+/* A WELL, not a white rectangle. Fields were --surface-raised, i.e. pure white,
+   and there are more of them than of anything else in the panel — the driver
+   modal alone stacks eight. Collectively they were the largest surviving block
+   of white on a screen whose whole point this pass is that white is not the
+   product's colour.
+
+   --field is the sunken tone (see tokens.css), so an input now reads as
+   something cut INTO the card. On focus it lifts to --surface-raised: the
+   white is not gone, it is earned, and "which field am I in" is answered by a
+   change of surface rather than by a 1px border going red. */
 .fg input,.fr input,.fr select,.fr textarea{
   width:100%;min-height:var(--h-control);
   padding:var(--pad-input-y) var(--pad-input-x);
-  background:var(--surface-raised);color:var(--ink);
+  background:var(--field);color:var(--ink);
   border:1px solid var(--line);border-radius:var(--r-md);
   font-size:var(--fs-body);line-height:1.3;outline:none;
   box-shadow:inset 0 1px 2px rgba(110,26,48,.05);
-  transition:border-color var(--d-fast) var(--ease),box-shadow var(--d-fast) var(--ease);
+  transition:border-color var(--d-fast) var(--ease),background var(--d-fast) var(--ease),
+             box-shadow var(--d-fast) var(--ease);
 }
 .fg input::placeholder,.fr input::placeholder,.fr textarea::placeholder{color:var(--ink-4);}
 /* The ring used to be painted with --red-50, a near-white tint on a near-white
    page — so a focused field showed a border change and nothing else. A real
    translucent red reads at any surface lightness. */
+/* background-COLOR, not the `background` shorthand: a <select> carries its
+   chevron as a background-image, and the shorthand would reset it to none —
+   so the arrow would vanish the moment the control was focused. */
 .fg input:focus,.fr input:focus,.fr select:focus,.fr textarea:focus{
+  background-color:var(--surface-raised);
   border-color:var(--accent);box-shadow:var(--focus-ring);
 }
 .fr textarea{resize:vertical;min-height:88px;line-height:1.5;}
@@ -353,7 +410,7 @@ tr.row-muted:hover td{opacity:1;}
 .fr select,.fg select,select{
   appearance:none;-webkit-appearance:none;-moz-appearance:none;
   padding-right:42px;cursor:pointer;font-weight:500;
-  background-color:var(--surface);
+  background-color:var(--field);
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235C4D54' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat;
   background-position:right 13px center;
@@ -368,7 +425,9 @@ tr.row-muted:hover td{opacity:1;}
    it honours, and without them a dark-theme list renders as black text on white
    while the closed control is light-on-dark. */
 select option{background:var(--surface);color:var(--ink);}
-select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--sunken);}
+/* --line, not --sunken: --sunken is what an ENABLED field is painted in now, so
+   a disabled one had to move a step further down or the two looked identical. */
+select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--line);}
 
 /* ── Date input ───────────────────────────────────────────────────────
    Chrome renders a bare, low-contrast calendar glyph flush against the border.
@@ -387,16 +446,24 @@ select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--sunken);}
 /* Radius matched to .tabs — the two sit stacked on Orders, Customers and
    Shop & Deliver, and two different corner radii one above the other was the
    most visible seam on those pages. */
+/* The search box sits on the page GROUND, not on a card, and it was painted
+   --surface — one step off the ground, with a 1px ring, which is why it read as
+   a faint outline rather than as a place to type. It takes the field tone like
+   every other input, its leading glyph takes the identity red so the control is
+   findable from the corner of the eye, and it lifts to white on focus. */
 .srch{
   display:flex;align-items:center;gap:var(--gap-inline);
   min-height:var(--h-control);
-  background:var(--surface);color:var(--ink-3);
+  background:var(--field);color:var(--accent-quiet);
   border:1px solid transparent;border-radius:var(--r-full);
   padding:var(--pad-input-y) var(--pad-input-x);
-  margin-bottom:var(--gap-field);width:min(420px,100%);box-shadow:var(--ring),var(--e1);
-  transition:border-color var(--d-fast) var(--ease),box-shadow var(--d-fast) var(--ease);
+  margin-bottom:var(--gap-field);width:min(420px,100%);
+  box-shadow:var(--ring-brand),var(--e1);
+  transition:border-color var(--d-fast) var(--ease),background var(--d-fast) var(--ease),
+             box-shadow var(--d-fast) var(--ease);
 }
-.srch:focus-within{border-color:var(--accent);box-shadow:var(--focus-ring);}
+.srch:focus-within{border-color:var(--accent);background:var(--surface-raised);
+  box-shadow:var(--focus-ring);}
 .srch input{border:none;outline:none;font-size:var(--fs-body);width:100%;
   background:transparent;color:var(--ink);}
 
@@ -458,10 +525,10 @@ select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--sunken);}
   transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease);}
 .pb:hover{color:var(--ink);background:rgba(51,41,46,.05);}
 [data-theme="dark"] .pb:hover{background:rgba(255,255,255,.05);}
-.pb.active{background-color:var(--accent);background-image:var(--dome);color:#fff;
+.pb.active{background:var(--accent);color:#fff;
   border-color:transparent;font-weight:700;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 2px 6px -1px rgba(137,11,40,.34);}
-.pb.active:hover{background-color:var(--accent);color:#fff;}
+  box-shadow:var(--fill-lip),0 2px 6px -1px rgba(137,11,40,.34);}
+.pb.active:hover{background:var(--accent);color:#fff;}
 
 /* ─────────────── TOGGLE ─────────────── */
 /* 44×24 with an 18px knob: even numbers, so the 3px inset is equal on all four
@@ -478,14 +545,11 @@ select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--sunken);}
 .tgl input:focus-visible+.ts{outline:2px solid var(--accent);outline-offset:2px;}
 
 /* ─────────────── SKELETONS ─────────────── */
-.sk{position:relative;overflow:hidden;border-radius:var(--r-xs);background:var(--line);}
-.sk::after{
-  content:'';position:absolute;inset:0;transform:translateX(-100%);
-  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.75) 50%,transparent 100%);
-  animation:shimmer 1200ms infinite;
-}
-[data-theme="dark"] .sk::after{
-  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.07) 50%,transparent 100%);}
+/* The sweeping highlight is gone with the rest of the gradients; the block
+   breathes its own opacity instead. Same signal, one layer instead of two, and
+   it needs no per-theme rule because it is not painting a colour at all. */
+.sk{position:relative;overflow:hidden;border-radius:var(--r-xs);background:var(--line);
+  animation:skpulse 1400ms var(--ease) infinite;}
 .sk-line{height:11px;}
 .sk-pill{height:20px;border-radius:var(--r-full);}
 .sk-sq{border-radius:var(--r-xs);}
@@ -573,9 +637,11 @@ label.up-drop{
 .up-drop .up-drop-title{ font-size:var(--fs-dense); font-weight:700; color:var(--ink); }
 .up-drop .up-drop-hint{ font-size:var(--fs-caption); font-weight:400; color:var(--ink-3); }
 
+/* --surface-raised: this row sits on a card that is itself --surface, so the
+   old value drew a bordered rectangle in exactly the colour behind it. */
 .up-preview{
   display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3);
-  border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface);
+  border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface-raised);
 }
 .up-thumb{
   width:72px; height:44px; object-fit:cover; border-radius:var(--r-xs);
@@ -611,13 +677,16 @@ label.up-drop{
 .emoji-picker{
   display:grid; grid-template-columns:repeat(auto-fill,minmax(40px,1fr));
   gap:var(--sp-1); margin-top:var(--sp-2); padding:var(--sp-3);
-  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-sm);
+  background:var(--sunken); border:1px solid var(--line); border-radius:var(--r-sm);
   box-shadow:var(--e1);
 }
+/* The tray is sunken and the tiles are raised out of it. Both were --surface,
+   which is also the colour of the card behind them, so a grid of 40px options
+   showed as a field of floating emoji with hairlines between them. */
 .emoji-opt{
   aspect-ratio:1; width:100%; font-size:var(--fs-h3); line-height:1; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
-  border:1px solid var(--line); border-radius:var(--r-xs); background:var(--surface);
+  border:1px solid var(--line); border-radius:var(--r-xs); background:var(--surface-raised);
   transition:border-color var(--d-fast) var(--ease), background var(--d-fast) var(--ease),
              transform var(--d-instant) var(--ease);
 }
@@ -633,16 +702,23 @@ label.up-drop{
    decide whether the person can log in at all. These split it into named groups
    so "Driver app sign-in" is visibly a different kind of information from
    "Vehicle Model". */
+/* The group is painted in --surface, not --sunken, because --sunken is now what
+   the FIELDS inside it are painted in — leaving both at the same tone would
+   have made every input inside a fieldset disappear into its own container.
+   The group is defined by its ring and its banded title instead, which is the
+   same two-part treatment a card gets, one size down. */
 .fset{
-  box-shadow:var(--ring); border-radius:var(--r-md);
-  padding:var(--sp-4); margin-bottom:var(--gap-field); background:var(--sunken);
+  box-shadow:var(--ring-strong); border-radius:var(--r-md);
+  padding:var(--sp-4); margin-bottom:var(--gap-field); background:var(--surface);
 }
 .fset>.fr:last-child,.fset>.mg:last-child>.fr{margin-bottom:0;}
 .fset-title{
   font-family:var(--ff-display); font-size:var(--fs-micro); font-weight:700;
-  text-transform:uppercase; letter-spacing:var(--tr-micro); color:var(--ink-3);
-  margin-bottom:var(--sp-3); padding-bottom:var(--sp-2);
-  border-bottom:1px solid var(--line);
+  text-transform:uppercase; letter-spacing:var(--tr-micro); color:var(--ink-2);
+  margin:calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) var(--sp-4);
+  padding:var(--sp-2) var(--sp-4);
+  background:var(--sunken); border-bottom:1px solid var(--line);
+  border-radius:calc(var(--r-md) - 1px) calc(var(--r-md) - 1px) 0 0;
 }
 /* Explanatory text under a field. Same role as .up-locked, which it supersedes
    for form hints; .up-locked stays for the uploader's own locked state. */
@@ -661,8 +737,8 @@ label.up-drop{
 /* Credentials handover — shown once, never retrievable. Monospaced because the
    admin is about to read a password out loud or copy it by eye. */
 .cred-box{
-  margin-top:var(--sp-3); border:1px solid var(--line); border-radius:var(--r-md);
-  background:var(--surface); overflow:hidden;
+  margin-top:var(--sp-3); border-radius:var(--r-md);
+  background:var(--brand-soft); box-shadow:var(--ring-brand); overflow:hidden;
 }
 .cred-row{
   display:flex; align-items:center; justify-content:space-between; gap:var(--sp-4);
