@@ -24,6 +24,17 @@
   --red-400:#E1495F; --red-500:#C8102E; --red-600:#A80D26; --red-700:#86091E;
   --red-800:#5F0615; --red-900:#3D0410;
 
+  /* Logo red. The printed lockup is exactly #FF0043 — a rose-leaning red, not
+     the deeper crimson --red-500 the rest of the ramp is built on. The two are
+     close enough in hue to look like a mistake side by side, so anything that
+     sits next to the artwork (the whole sidebar) is tuned to the logo instead of
+     to the ramp. Defined once, outside [data-theme], because the sidebar is dark
+     in both themes. #FF0043 on --sidebar-bg is ~4.9:1, so it is safe for the
+     accent glyphs and rails as well as for large shapes. */
+  --logo:#FF0043;
+  --logo-lift:#FF3364;      /* hover/idle-accent tint, one step brighter */
+  --grad-logo:linear-gradient(135deg,#FF2A5E 0%,#FF0043 55%,#D80038 100%);
+
   /* signature gradients */
   --grad-ember:linear-gradient(135deg,#E11D34 0%,#C8102E 52%,#9A0B22 100%);
   --grad-sunset:linear-gradient(135deg,#FF6A3D 0%,#E11D34 55%,#C8102E 100%);
@@ -188,9 +199,15 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   width:min(440px,100%);box-shadow:var(--e4);
   animation:rise var(--d-slow) var(--ease-in) both;
 }
-.lc-logo{font-family:'Plus Jakarta Sans',sans-serif;font-size:32px;line-height:1.1;font-weight:800;
-  letter-spacing:-1px;text-align:center;color:var(--text-hi);}
-.lc-logo span{background:var(--grad-ember);-webkit-background-clip:text;background-clip:text;color:transparent;}
+/* Same paper plate as the sidebar, for the same reason: the artwork is drawn for
+   white stock and --card is #201E1A in dark theme. In light theme --card is
+   already #FFFFFF, so all that shows is the ember hairline framing the mark. */
+.lc-plate{
+  margin:0 auto;padding:12px 18px;width:min(300px,100%);
+  border-radius:var(--r-md);background:#FFFFFF;
+  box-shadow:0 0 0 1px rgba(255,0,67,.16);
+}
+.lc-plate img{display:block;width:100%;height:auto;}
 .lc-sub{text-align:center;margin:var(--s2) 0 var(--s8);color:var(--text-mute);
   font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;}
 .l-foot{text-align:center;font-size:12px;color:var(--text-mute);margin-top:var(--s6);}
@@ -213,57 +230,136 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
    and looked broken. The rail-specific rules below now apply only to an
    off-screen element, so they are harmless. */
 .sidebar.collapsed{transform:translateX(-100%);}
-.sb-logo{padding:var(--s6) var(--s5) var(--s5);border-bottom:1px solid rgba(255,255,255,.07);
-  overflow:hidden;white-space:nowrap;display:flex;align-items:center;gap:var(--s3);min-height:70px;}
-.sb-mark{display:none;flex-shrink:0;width:40px;height:40px;border-radius:var(--r-sm);
-  background:var(--grad-ember);color:#fff;align-items:center;justify-content:center;
-  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;letter-spacing:-.5px;
-  box-shadow:var(--glow);}
-.sb-word{min-width:0;}
-.sb-logo .slt{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;
-  letter-spacing:-.6px;color:#F5F2EC;}
-.sb-logo .slt span{color:#F04A5E;}
-.sb-logo .sls{font-size:10px;color:rgba(245,242,236,.36);letter-spacing:.8px;
-  text-transform:uppercase;font-weight:700;margin-top:3px;}
-/* Collapsed rail: swap the clip-prone wordmark for a compact SE mark. */
-.sidebar.collapsed .sb-logo{justify-content:center;padding:var(--s5) 0;gap:0;}
-.sidebar.collapsed .sb-word{display:none;}
-.sidebar.collapsed .sb-mark{display:flex;}
-.sb-nav{flex:1;padding:var(--s3) 0;overflow-y:auto;overflow-x:hidden;}
-.sb-sec{padding:var(--s4) var(--s5) var(--s2);font-size:10px;font-weight:700;letter-spacing:.8px;
-  text-transform:uppercase;color:rgba(245,242,236,.28);white-space:nowrap;}
+/* ── Brand header ──
+   Paper plate holding the real lockup, an ember bloom behind it so the brand
+   colour reaches into the dark chrome, and a ruled "ADMIN PORTAL" eyebrow that
+   does the separating a border-bottom used to do. */
+.sb-brand{position:relative;padding:var(--s5) var(--s4) var(--s3);}
+/* Horizontally contained on purpose: a bloom that overhung the sidebar would
+   paint over the page content to its right, which #app's overflow-x:clip stops
+   only at the viewport edge, not at the sidebar edge. It does reach past the
+   header's bottom edge, so the glow falls away behind the first nav rows instead
+   of ending on a line — hence z-index:-1, without which an absolutely positioned
+   box would paint over the (non-positioned) nav rows and tint their labels.
+   .sidebar carries z-index:100, so it is the stacking context that -1 lands in:
+   above the sidebar's own background, below everything in flow. */
+.sb-bloom{
+  position:absolute;left:0;right:0;top:0;height:340px;z-index:-1;pointer-events:none;
+  background:radial-gradient(120% 68% at 50% 18%,rgba(255,0,67,.34) 0%,rgba(255,0,67,0) 72%);
+}
+.sb-plate{
+  position:relative;display:block;width:100%;padding:13px 15px;cursor:pointer;
+  border:0;border-radius:var(--r-md);
+  background:linear-gradient(180deg,#FFFFFF 0%,#FFF6F7 100%);
+  /* Ring in the logo's own red rather than a neutral: the plate then reads as
+     part of the mark instead of as a white box the mark was pasted into. */
+  box-shadow:0 10px 24px -10px rgba(0,0,0,.6),0 0 0 1px rgba(255,0,67,.2),
+             inset 0 1px 0 rgba(255,255,255,.9);
+  transition:transform var(--d-fast) var(--ease),box-shadow var(--d-fast) var(--ease);
+}
+.sb-plate img{display:block;width:100%;height:auto;}
+.sb-plate:hover{transform:translateY(-1px);
+  box-shadow:0 14px 30px -10px rgba(0,0,0,.66),0 0 0 1px rgba(255,0,67,.34),
+             inset 0 1px 0 rgba(255,255,255,.9);}
+.sb-plate:active{transform:translateY(0);}
+.sb-plate:focus-visible{outline:2px solid var(--logo);outline-offset:3px;}
+.sb-portal{
+  position:relative;display:flex;align-items:center;gap:10px;margin-top:14px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:9.5px;font-weight:800;
+  letter-spacing:1.7px;text-transform:uppercase;color:rgba(245,242,236,.6);
+  white-space:nowrap;
+}
+.sb-portal::before,.sb-portal::after{content:'';flex:1;height:1px;}
+.sb-portal::before{background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.16));}
+.sb-portal::after{background:linear-gradient(90deg,rgba(255,255,255,.16),rgba(255,255,255,0));}
+
+/* ── Nav ── */
+.sb-nav{flex:1;padding:var(--s2) 0 var(--s4);overflow-y:auto;overflow-x:hidden;}
+/* Was 10px/700 at .28 alpha, which is roughly 1.8:1 — legible only if you knew
+   it was there. Jakarta at 800 and .56 alpha (~4.3:1) makes these read as
+   deliberate section rules instead of as noise. */
+.sb-sec{
+  padding:var(--s5) calc(var(--s3) + 11px) var(--s2);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:9.5px;font-weight:800;
+  letter-spacing:1.6px;text-transform:uppercase;color:rgba(245,242,236,.56);
+  white-space:nowrap;
+}
+.sb-nav>.sb-sec:first-child{padding-top:var(--s3);}
 .sidebar.collapsed .sb-sec{opacity:0;height:var(--s6);padding:var(--s2) 0;}
+/* Inset rounded rows rather than full-bleed ones with an edge rail. The plate
+   above is a rounded card, so the rows echo it; the old edge rail read as an
+   unrelated stripe once the header stopped being a flat wordmark. Labels are
+   Jakarta (the display face) at 600/.74 alpha — the old Inter 500 at .56 was the
+   "dull" part of the complaint. */
 .ni{
-  position:relative;display:flex;align-items:center;gap:var(--s3);
-  padding:12px var(--s5);cursor:pointer;color:rgba(245,242,236,.56);
-  font-size:14px;font-weight:500;white-space:nowrap;user-select:none;
-  transition:color var(--d-fast) var(--ease),background var(--d-fast) var(--ease);
+  position:relative;display:flex;align-items:center;gap:10px;
+  margin:2px var(--s3);padding:7px 10px;border-radius:var(--r-sm);
+  cursor:pointer;color:rgba(245,242,236,.74);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:13.5px;font-weight:600;
+  /* Jakarta's space glyph is narrow, and at this size "Promo Codes" and
+     "Shop & Deliver" closed up into one word without the nudge. */
+  letter-spacing:0;word-spacing:.7px;white-space:nowrap;user-select:none;
+  transition:color var(--d-fast) var(--ease),background var(--d-fast) var(--ease),
+             box-shadow var(--d-fast) var(--ease);
 }
-.ni::before{ /* gradient left rail */
-  content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;
-  background:var(--grad-ember);transform:scaleY(0);transform-origin:center;
-  transition:transform var(--d-base) var(--ease);
+/* Icon tile. Padding on the inline <svg> shrinks its viewport to a 22px drawing
+   area inside a 30px box, so the tile needs no wrapper element and the row
+   geometry never shifts between states — the tile is simply transparent when
+   idle. This is what carries the active state for the three glyphs with no
+   filled twin (Customers, Settings, Logout). 22px and not less: Phosphor glyphs
+   are filled outlines, so their apparent stroke weight scales with the box, and
+   shrinking them to fit a tile would have made the icons *thinner* than the ones
+   being complained about. */
+.ni .ic{
+  width:30px;height:30px;padding:4px;box-sizing:border-box;border-radius:8px;
+  color:rgba(245,242,236,.7);
+  /* The tile is present even when idle, faintly. Loose glyphs floating beside
+     labels were the "basic" part of the complaint; a standing tile makes the icon
+     column read as one rail and turns the active state into that tile lighting up
+     rather than an icon changing colour on its own. */
+  background:rgba(255,255,255,.05);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.045);
+  transition:color var(--d-fast) var(--ease),background var(--d-fast) var(--ease),
+             box-shadow var(--d-fast) var(--ease);
 }
-.ni:hover{background:rgba(255,255,255,.05);color:#F5F2EC;}
-.ni.active{background:rgba(240,74,94,.13);color:#F5F2EC;}
-.ni.active::before{transform:scaleY(1);}
-.ni .ic{color:inherit;}
+.ni:hover{background:rgba(255,255,255,.055);color:#FFF8F6;}
+.ni:hover .ic{background:rgba(255,255,255,.1);color:#FFF8F6;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);}
+/* Tint fading to the right instead of a flat block: the flat fill plus the
+   clipped focus ring (below) was what made the active row look like a stray
+   outlined box. */
+.ni.active{
+  color:#fff;
+  background:linear-gradient(90deg,rgba(255,0,67,.2) 0%,rgba(255,0,67,.05) 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,0,67,.3);
+}
+.ni.active .lbl{font-weight:700;}
+.ni.active .ic{background:var(--grad-logo);color:#fff;
+  box-shadow:0 4px 12px -3px rgba(255,0,67,.65);}
 .ni .ni-fill{display:none;}
 .ni.active .ni-fill{display:block;}
 .ni.active .ni-line{display:none;}
-.ni.active .ic{color:#F04A5E;}
+/* The row is inside .sb-nav, which clips horizontally, so the global outlined
+   :focus-visible lost its left and right edges and left two red hairlines
+   spanning the sidebar above and below the row. An inset ring cannot be clipped. */
+.ni:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--logo);}
+.ni.active:focus-visible{box-shadow:inset 0 0 0 2px var(--logo);}
+/* Logout is the one destructive row; it warms to the brand red on hover so it
+   never reads as just another destination. */
+#logout-btn:hover{background:rgba(255,0,67,.13);color:#FF7D97;}
+#logout-btn:hover .ic{background:rgba(255,0,67,.18);color:var(--logo-lift);}
 .ni .lbl{transition:opacity var(--d-fast) var(--ease);}
-.sidebar.collapsed .lbl,.sidebar.collapsed .sls{opacity:0;pointer-events:none;}
-.sidebar.collapsed .ni{justify-content:center;padding:12px 0;}
-.ndiv{height:1px;background:rgba(255,255,255,.07);margin:var(--s2) var(--s5);}
+.sidebar.collapsed .lbl{opacity:0;pointer-events:none;}
+.sidebar.collapsed .ni{justify-content:center;padding:8px 0;}
+.ndiv{height:1px;background:rgba(255,255,255,.08);margin:var(--s3) calc(var(--s3) + 10px);}
 .sidebar.collapsed .ndiv{margin:var(--s2) var(--s3);}
 /* Unseen-count badge on a nav item. Sits at the far right of the row; on the
    collapsed rail it shrinks to a corner dot since the label is hidden. */
 .ni-badge{
   margin-left:auto;min-width:19px;height:19px;padding:0 6px;border-radius:6px;
   display:inline-flex;align-items:center;justify-content:center;
-  font-size:11px;font-weight:700;line-height:1;color:#fff;background:var(--brand);
-  font-variant-numeric:tabular-nums;box-shadow:0 0 0 3px rgba(240,74,94,.18);
+  font-size:11px;font-weight:700;line-height:1;color:#fff;background:var(--logo);
+  font-variant-numeric:tabular-nums;box-shadow:0 0 0 3px rgba(255,0,67,.2);
 }
 .ni-badge[data-tone="gold"]{background:var(--gold-500);color:#3A2600;box-shadow:0 0 0 3px rgba(245,165,36,.18);}
 .ni-badge[data-tone="ocean"]{background:var(--ocean-500);box-shadow:0 0 0 3px rgba(14,148,136,.2);}
@@ -1037,11 +1133,8 @@ td .empty{padding:var(--s6) var(--s5);}
   .sidebar{z-index:500;transform:translateX(-100%);box-shadow:none;}
   .sidebar.mob-open{transform:translateX(0);box-shadow:0 24px 60px rgba(0,0,0,.4);}
   .sidebar.collapsed{width:var(--sw);}
-  .sidebar.collapsed .lbl,.sidebar.collapsed .sls,.sidebar.collapsed .sb-sec{opacity:1;}
-  .sidebar.collapsed .ni{justify-content:flex-start;padding:12px var(--s5);}
-  .sidebar.collapsed .sb-logo{justify-content:flex-start;padding:var(--s6) var(--s5) var(--s5);gap:var(--s3);}
-  .sidebar.collapsed .sb-word{display:block;}
-  .sidebar.collapsed .sb-mark{display:none;}
+  .sidebar.collapsed .lbl,.sidebar.collapsed .sb-sec{opacity:1;}
+  .sidebar.collapsed .ni{justify-content:flex-start;padding:8px 10px;}
   .main{margin-left:0!important;}
   .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));}
   .tbl-wrap{-webkit-overflow-scrolling:touch;}
