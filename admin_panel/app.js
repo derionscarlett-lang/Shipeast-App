@@ -343,7 +343,7 @@ function doLogin(){
   function fail(msg){
     errEl.innerHTML=icon('warning','ic-sm')+'<span>'+esc(msg)+'</span>';
     errEl.classList.add('show');
-    btnEl.disabled=false; btnEl.innerHTML='Sign In'+icon('caret-right');
+    btnEl.disabled=false; btnEl.innerHTML='Sign In'+icon('arrow-right');
   }
   if(!e||!p){ fail('Please enter your email and password.'); return; }
   btnEl.disabled=true; btnEl.innerHTML='<span class="spin"></span>Signing in…';
@@ -353,6 +353,19 @@ function doLogin(){
   });
 }
 function doLogout(){ signOut(auth); }
+
+/* Password reveal on the login card, matching SeTextField in the customer and
+   driver apps. Toggling `type` rather than a CSS trick is what keeps the field
+   an autofillable password field for the browser's own manager. */
+function togglePassReveal(show){
+  var inp=$('l-pass'), btn=$('l-eye');
+  if(!inp||!btn) return;
+  var reveal=(typeof show==='boolean') ? show : (inp.type==='password');
+  inp.type=reveal?'text':'password';
+  btn.setAttribute('aria-pressed',reveal?'true':'false');
+  btn.setAttribute('aria-label',reveal?'Hide password':'Show password');
+  btn.innerHTML=icon(reveal?'view-off':'view');
+}
 
 // ══════════════════════ NAVIGATION ══════════════════════
 var pageLabels={dashboard:'Dashboard',orders:'Orders',drivers:'Drivers',merchants:'Merchants',
@@ -3118,6 +3131,7 @@ document.addEventListener('click',function(e){
   if(t.closest('#bell-btn')){ toggleBell(); return; }
   // A click anywhere outside the open bell menu dismisses it.
   if($('bell-menu')&&$('bell-menu').classList.contains('open')&&!t.closest('.bell-wrap')){ toggleBell(false); }
+  if(t.closest('#l-eye')){ togglePassReveal(); return; }
   if(t.closest('#login-btn')){ doLogin(); return; }
   if(t.id==='sp-overlay'||t.closest('#sp-close')){ closeSidePanel(); return; }
   if(t.id==='mob-overlay'){ closeMobileSidebar(); return; }
@@ -3386,7 +3400,11 @@ onAuthStateChanged(auth,function(user){
     loadedOnce={orders:false,drivers:false,merchants:false,promos:false,notifs:false,
       customers:false,overseas:false};
     var btn=$('login-btn');
-    if(btn){ btn.disabled=false; btn.innerHTML='Sign In'+icon('caret-right'); }
+    if(btn){ btn.disabled=false; btn.innerHTML='Sign In'+icon('arrow-right'); }
+    /* Signing out must not leave the next admin's password sitting on screen in
+       plain text — the reveal is per-session, not a preference. */
+    var pw=$('l-pass'); if(pw) pw.value='';
+    togglePassReveal(false);
   }
 });
 
