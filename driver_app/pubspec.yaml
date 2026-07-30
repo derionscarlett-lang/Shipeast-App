@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.1.0+2
+version: 1.1.6+8
 
 environment:
   sdk: ^3.11.5
@@ -37,11 +37,19 @@ dependencies:
   # Serves the two SEDS families: Plus Jakarta Sans (display/UI) + Inter (body/data).
   google_fonts: ^6.2.1
   image_picker: ^1.1.2
+  # Opens the device dialer so the driver can call the customer from the pickup
+  # and delivery screens — the counterpart to the customer app's "call driver".
+  url_launcher: ^6.3.0
   firebase_core: ^3.0.0
   firebase_auth: ^5.0.0
   cloud_firestore: ^5.0.0
+  cloud_functions: ^5.1.0
   firebase_storage: ^12.0.0
   firebase_messaging: ^15.0.0
+  # Real GPS for live delivery tracking. Web support is provided by the
+  # endorsed geolocator_web plugin (browser Geolocation API), so it works in
+  # the local web preview without any native key.
+  geolocator: ^13.0.1
 
 dev_dependencies:
   flutter_test:

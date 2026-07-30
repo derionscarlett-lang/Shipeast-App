@@ -4,6 +4,20 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <meta name="theme-color" content="#C8102E"/>
+<!-- Canonical host. Firebase serves this panel on two permanent default domains
+     (…web.app / …firebaseapp.com) that cannot be removed. Bounce ONLY those two
+     exact hosts to the branded domain, preserving path/query/hash. Matched by
+     exact hostname so PR preview channels (shipeast-1a1f6--pr…​.web.app) and
+     localhost are left alone. Runs before any app script so the wrong-URL page
+     never renders. -->
+<script>
+(function () {
+  var defaults = ['shipeast-1a1f6.web.app', 'shipeast-1a1f6.firebaseapp.com'];
+  if (defaults.indexOf(location.hostname) !== -1) {
+    location.replace('https://admin.shipeastja.com' + location.pathname + location.search + location.hash);
+  }
+})();
+</script>
 <meta name="description" content="ShipEast Admin Portal — orders, drivers, merchants and analytics for ShipEast Couriers &amp; Bearer Services Ltd, Jamaica."/>
 <title>ShipEast Admin Portal</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml"/>
@@ -39,6 +53,7 @@
 <symbol id="i-check" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></symbol>
 <symbol id="i-close" viewBox="0 0 256 256"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></symbol>
 <symbol id="i-revenue" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm40-68a28,28,0,0,1-28,28h-4v8a8,8,0,0,1-16,0v-8H104a8,8,0,0,1,0-16h36a12,12,0,0,0,0-24H116a28,28,0,0,1,0-56h4V72a8,8,0,0,1,16,0v8h16a8,8,0,0,1,0,16H116a12,12,0,0,0,0,24h24A28,28,0,0,1,168,148Z"/></symbol>
+<symbol id="i-settings" viewBox="0 0 256 256"><path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.48l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.48a73.93,73.93,0,0,1-8.68,0,8,8,0,0,0-5.48,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64L46.43,170.6a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.48,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.48L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69L85.4,46.43a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.48,1.74,73.93,73.93,0,0,1,8.68,0,8,8,0,0,0,5.48-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.9,123.66Z"/></symbol>
 <symbol id="i-clock" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></symbol>
 <symbol id="i-star" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65a8,8,0,0,0-8.38,0L69.09,215.94c-.15.09-.19.12-.38,0a.37.37,0,0,1-.17-.48l14.88-62.8a8,8,0,0,0-2.56-7.91l-48.7-42c-.12-.1-.23-.19-.13-.5s.18-.27.33-.29l63.92-5.16A8,8,0,0,0,103,91.86l24.62-59.61c.08-.17.11-.25.35-.25s.27.08.35.25L153,91.86a8,8,0,0,0,6.75,4.92l63.92,5.16c.15,0,.24,0,.33.29S224,102.63,223.84,102.73Z"/></symbol>
 <symbol id="i-star-f" viewBox="0 0 256 256"><path d="M234.29,114.85l-45,38.83L203,211.75a16.4,16.4,0,0,1-24.5,17.82L128,198.49,77.47,229.57A16.4,16.4,0,0,1,53,211.75l13.76-58.07-45-38.83A16.46,16.46,0,0,1,31.08,86l59-4.76,22.76-55.08a16.36,16.36,0,0,1,30.27,0l22.75,55.08,59,4.76a16.46,16.46,0,0,1,9.37,28.86Z"/></symbol>
@@ -80,8 +95,11 @@
 <div id="app">
   <aside class="sidebar" id="sidebar">
     <div class="sb-logo">
-      <div class="slt">Ship<span>East</span></div>
-      <div class="sls">Couriers &amp; Bearer Services</div>
+      <div class="sb-mark" aria-hidden="true">SE</div>
+      <div class="sb-word">
+        <div class="slt">Ship<span>East</span></div>
+        <div class="sls">Couriers &amp; Bearer Services</div>
+      </div>
     </div>
     <nav class="sb-nav" aria-label="Main">
       <div class="sb-sec">Operations</div>
@@ -105,6 +123,22 @@
         <svg class="ic ni-fill" aria-hidden="true"><use href="#i-merchants-f"/></svg>
         <span class="lbl">Merchants</span>
       </div>
+      <!-- P5-05: the users collection had no admin surface at all. -->
+      <div class="ni" data-page="customers" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-users"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-users"/></svg>
+        <span class="lbl">Customers</span>
+      </div>
+      <!-- Shop-and-deliver requests: a customer abroad asks us to buy from a
+           local Jamaican store and deliver to their family. Not shipping. The
+           customer app used to point a WebView at two placeholder form URLs and
+           write nothing anywhere; there was no queue for a request to land in,
+           so there was no page to build. -->
+      <div class="ni" data-page="overseas" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-send"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-send"/></svg>
+        <span class="lbl">Shop &amp; Deliver</span>
+      </div>
       <div class="sb-sec">Growth</div>
       <div class="ni" data-page="notifications" role="button" tabindex="0">
         <svg class="ic ni-line" aria-hidden="true"><use href="#i-notifications"/></svg>
@@ -121,6 +155,14 @@
         <svg class="ic ni-fill" aria-hidden="true"><use href="#i-analytics-f"/></svg>
         <span class="lbl">Analytics</span>
       </div>
+      <!-- P5-01: without this the package price list can only be edited in the
+           Firebase console, which is the undocumented-console-edit habit this
+           project exists to end. -->
+      <div class="ni" data-page="settings" role="button" tabindex="0">
+        <svg class="ic ni-line" aria-hidden="true"><use href="#i-settings"/></svg>
+        <svg class="ic ni-fill" aria-hidden="true"><use href="#i-settings"/></svg>
+        <span class="lbl">Settings</span>
+      </div>
       <div class="ndiv"></div>
       <div class="ni" id="logout-btn" role="button" tabindex="0">
         <svg class="ic ni-line" aria-hidden="true"><use href="#i-logout"/></svg>
@@ -135,22 +177,45 @@
         <button class="iconbtn" id="hamburger" title="Toggle sidebar" aria-label="Toggle sidebar">
           <svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg>
         </button>
-        <div>
-          <div class="tb-bc">ShipEast Admin
-            <svg class="ic" aria-hidden="true"><use href="#i-caret-right"/></svg>
-            <em id="tb-pg">Dashboard</em>
-          </div>
-          <div class="tb-pg-title" id="tb-title">Dashboard</div>
+        <!-- Breadcrumb only. The page name used to be repeated directly
+             underneath it as a second heading, and the page itself prints it a
+             third time in .pg-title — three copies of one word on every screen.
+             The crumb survives because it is the one that carries context
+             ("ShipEast Admin ▸ Orders"); it stays visible on phones too, where
+             it is the topbar's only label. -->
+        <div class="tb-bc" aria-label="Breadcrumb">
+          <span class="tb-bc-root">ShipEast Admin</span>
+          <svg class="ic" aria-hidden="true"><use href="#i-caret-right"/></svg>
+          <em id="tb-pg">Dashboard</em>
         </div>
       </div>
       <div class="tb-r">
         <div class="tb-date" id="tb-date"></div>
+        <!-- Activity bell. Lights up when new orders, overseas enquiries,
+             customers or drivers arrive while the admin is on another page.
+             The count and the coloured dots mirror the sidebar badges. -->
+        <div class="bell-wrap">
+          <button class="iconbtn" id="bell-btn" title="Notifications" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
+            <svg class="ic" aria-hidden="true"><use href="#i-notifications"/></svg>
+            <span class="bell-badge" id="bell-badge" hidden>0</span>
+          </button>
+          <div class="bell-menu" id="bell-menu" role="menu" aria-label="Recent activity">
+            <div class="bell-hd">Notifications
+              <button class="bell-clear" id="bell-clear" hidden>Mark all read</button>
+            </div>
+            <div class="bell-list" id="bell-list"></div>
+          </div>
+        </div>
         <button class="iconbtn" id="theme-btn" title="Switch to dark theme" aria-label="Switch to dark theme">
           <svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>
         </button>
+        <!-- Name only, never the email. An admin console is often on screen in
+             a shared office or a screenshare, and info@shipeastja.com is half a
+             credential. The avatar is deliberately NOT brand red: the only red
+             dot in this corner should be the unread-notification badge. -->
         <div class="ab">
           <div class="av">A</div>
-          <div><div class="an">Admin User</div><div class="ar">Super Admin</div></div>
+          <div class="an">Admin</div>
         </div>
       </div>
     </header>
@@ -159,6 +224,7 @@
 
       <!-- ── DASHBOARD ── -->
       <section class="page active" id="page-dashboard">
+        <div class="pg-hdr"><h1 class="pg-title">Dashboard</h1></div>
         <div class="sg stagger">
           <div class="sc">
             <div class="sc-top">
@@ -170,7 +236,7 @@
           </div>
           <div class="sc ac-gold">
             <div class="sc-top">
-              <div><div class="sc-lbl">Revenue Today</div><div class="sc-val sm num" id="stat-revenue">J$0</div></div>
+              <div><div class="sc-lbl">Revenue Today</div><div class="sc-val sm num" id="stat-revenue">$0</div></div>
               <div class="sc-chip c-gold"><svg class="ic" aria-hidden="true"><use href="#i-revenue"/></svg></div>
             </div>
             <div class="sc-sub">Delivered orders</div>
@@ -244,6 +310,36 @@
         </table></div></div>
       </section>
 
+      <!-- ── CUSTOMERS (P5-05) ── -->
+      <section class="page" id="page-customers">
+        <div class="pg-hdr"><h1 class="pg-title">Customers</h1></div>
+        <div class="sg g3" id="customers-stats"></div>
+        <div class="srch">
+          <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
+          <input id="customers-search" placeholder="Search name, email, phone or user ID…" aria-label="Search customers"/>
+        </div>
+        <div id="customers-cap"></div>
+        <div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Orders</th><th class="right">Lifetime Value</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="customers-tbody"></tbody>
+        </table></div></div>
+      </section>
+
+      <!-- ── SHOP & DELIVER REQUESTS ── -->
+      <section class="page" id="page-overseas">
+        <div class="pg-hdr"><h1 class="pg-title">Shop &amp; Deliver Requests</h1></div>
+        <div class="sg g3" id="overseas-stats"></div>
+        <div class="tabs" id="overseas-tabs" role="tablist"></div>
+        <div class="srch">
+          <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
+          <input id="overseas-search" placeholder="Search customer, recipient, parish, shopping list…" aria-label="Search shop-and-deliver requests"/>
+        </div>
+        <div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Ref</th><th>Customer</th><th>Deliver to</th><th>Parish</th><th>Shopping list</th><th class="right">Budget</th><th>Status</th><th>Received</th><th>Actions</th></tr></thead>
+          <tbody id="overseas-tbody"></tbody>
+        </table></div></div>
+      </section>
+
       <!-- ── NOTIFICATIONS ── -->
       <section class="page" id="page-notifications">
         <div class="pg-hdr"><h1 class="pg-title">Notifications</h1></div>
@@ -253,7 +349,7 @@
               <div class="card-title">Compose Notification</div>
               <div class="notice">
                 <svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg>
-                <div>This writes to the notification <b>log</b> only. Push delivery to devices is not wired up yet (FCM pending), so customers and drivers will not receive it on their phones.</div>
+                <div>This sends a <b>real push notification</b> to every device in the selected audience. You will be asked to confirm before it goes out.</div>
               </div>
               <div class="fr"><label for="n-target">Target Audience</label>
                 <select id="n-target">
@@ -264,9 +360,17 @@
               </div>
               <div class="fr"><label for="n-title">Title</label><input id="n-title" placeholder="e.g. Flash Sale — 20% Off Deliveries!"/></div>
               <div class="fr"><label for="n-msg">Message</label><textarea id="n-msg" rows="4" placeholder="Write your notification message here…"></textarea></div>
-              <button class="btn btn-primary btn-block" id="notif-send-btn" data-action="send-notif">
-                <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Log Notification
-              </button>
+              <!-- Was a full-width 15px btn-block: a single crimson slab most of
+                   the card wide, for an action that fires an irreversible push.
+                   Size is not how that gets its weight — the confirm dialog is.
+                   A normal right-aligned primary button reads as the end of the
+                   form instead of as a banner. It goes full-width on phones,
+                   where a right-aligned button next to nothing looks stranded. -->
+              <div class="form-actions">
+                <button class="btn btn-primary" id="notif-send-btn" data-action="send-notif">
+                  <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Send Notification
+                </button>
+              </div>
             </div>
             <div class="card">
               <div class="card-title">Recent Notifications</div>
@@ -307,15 +411,21 @@
               <div class="mg">
                 <div class="fr"><label for="pc-code">Code</label><input id="pc-code" placeholder="SUMMER25" style="text-transform:uppercase"/></div>
                 <div class="fr"><label for="pc-type">Type</label>
-                  <select id="pc-type"><option value="percent">Percentage (%)</option><option value="fixed">Fixed Amount (J$)</option></select>
+                  <select id="pc-type"><option value="percent">Percentage (%)</option><option value="fixed">Fixed Amount ($)</option></select>
                 </div>
                 <div class="fr"><label for="pc-disc">Discount Amount</label><input id="pc-disc" type="number" min="0" placeholder="25"/></div>
                 <div class="fr"><label for="pc-max">Max Uses</label><input id="pc-max" type="number" min="1" placeholder="100"/></div>
+                <!-- P3-03: neither of these existed, so no code could carry a
+                     minimum and no percentage code could be capped. -->
+                <div class="fr"><label for="pc-min">Minimum Order ($) <small>(0 for none)</small></label><input id="pc-min" type="number" min="0" step="1" placeholder="0"/></div>
+                <div class="fr"><label for="pc-maxdisc">Max Discount ($) <small>(required for %)</small></label><input id="pc-maxdisc" type="number" min="0" step="1" placeholder="500"/></div>
               </div>
-              <div class="fr"><label for="pc-valid">Valid Until</label><input id="pc-valid" type="date"/></div>
-              <button class="btn btn-primary btn-block" id="promo-create-btn" data-action="create-promo">
-                <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Create Promo Code
-              </button>
+              <div class="fr"><label for="pc-valid">Valid Until <small>(blank = never expires)</small></label><input id="pc-valid" type="date"/></div>
+              <div class="form-actions">
+                <button class="btn btn-primary" id="promo-create-btn" data-action="create-promo">
+                  <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Create Promo Code
+                </button>
+              </div>
             </div>
             <div class="card">
               <div class="card-title">Active Promo Codes</div>
@@ -374,8 +484,77 @@
             </table>
           </div>
           <div class="card">
-            <div class="card-title">Payment Split</div>
+            <!-- "Payment Split" read as a typo to the people using this page.
+                 It was not one, but a title nobody trusts is a broken title, and
+                 "Breakdown" says the same thing without the second reading. -->
+            <div class="card-title">Payment Breakdown</div>
             <div id="pay-split"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── SETTINGS (pricing P5-01 + danger zone) ── -->
+      <section class="page" id="page-settings">
+        <div class="pg-hdr"><h1 class="pg-title">Settings</h1></div>
+        <div class="ag">
+          <div class="card">
+            <div class="card-title">Package Delivery
+              <span class="card-note">Weight bands, in J$</span>
+            </div>
+            <p class="empty-copy" style="max-width:none;margin-bottom:12px">
+              Until this table is saved, the Packages category in the customer app
+              declines to quote and takes no requests. That is deliberate — a price
+              nobody chose is worse than an unavailable feature.
+            </p>
+            <div class="fr">
+              <label for="pr-bands">Weight bands — one per line, <code>kg = price</code>.
+                Use <code>+</code> for “anything heavier”.</label>
+              <textarea id="pr-bands" rows="6" spellcheck="false"
+                placeholder="2 = 600&#10;5 = 900&#10;10 = 1400&#10;+ = 2200"></textarea>
+            </div>
+            <div id="pr-preview" class="empty-copy" style="max-width:none"></div>
+            <div class="mg">
+              <div class="fr">
+                <label for="pr-overage">Per extra kg above the last band</label>
+                <input id="pr-overage" type="number" min="0" step="1" placeholder="100"/>
+              </div>
+              <div class="fr">
+                <label for="pr-packing">Packing surcharge</label>
+                <input id="pr-packing" type="number" min="0" step="1" placeholder="350"/>
+              </div>
+            </div>
+            <div class="mg">
+              <div class="fr">
+                <label for="pr-maxweight">Heaviest parcel we carry (kg)</label>
+                <input id="pr-maxweight" type="number" min="1" step="1" placeholder="50"/>
+              </div>
+              <div class="fr">
+                <label for="pr-commission">Driver commission rate</label>
+                <input id="pr-commission" type="number" min="0" max="1" step="0.01" placeholder="0.10"/>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" data-action="save-pricing">
+                <svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Save pricing
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Danger Zone ── -->
+          <div class="card danger-zone">
+            <div class="card-title">
+              <span class="dz-label"><svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg>Danger Zone</span>
+            </div>
+            <p class="empty-copy" style="max-width:none;margin-bottom:14px">
+              <b>Erase all data</b> permanently deletes every customer, driver, order,
+              saved address, notification and overseas enquiry — across all three apps.
+              Restaurants, menus, promo codes and pricing settings are kept.
+              This cannot be undone, and there is no backup. It asks for two separate
+              confirmations before anything is touched.
+            </p>
+            <button class="btn btn-danger" data-action="erase-open">
+              <svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg>Erase all data…
+            </button>
           </div>
         </div>
       </section>
@@ -415,26 +594,96 @@
   </div>
 </div>
 
+<!-- ══ ERASE ALL DATA — second confirmation (type-to-confirm) ══ -->
+<div class="mbg" id="modal-wipe" role="alertdialog" aria-labelledby="wipe-title">
+  <div class="mbox narrow">
+    <div class="m-ico danger"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-warning"/></svg></div>
+    <div class="m-title" id="wipe-title">Final confirmation</div>
+    <div class="m-body">
+      This permanently deletes every customer, driver, order, saved address,
+      notification and overseas enquiry. Restaurants, menus, promo codes and
+      pricing settings are kept. <b>This cannot be undone.</b>
+      <div class="fr" style="margin-top:14px;text-align:left">
+        <label for="wipe-phrase">Type <code>ERASE ALL DATA</code> to enable the button.</label>
+        <input id="wipe-phrase" type="text" autocomplete="off" autocapitalize="characters"
+          spellcheck="false" placeholder="ERASE ALL DATA"/>
+      </div>
+      <div id="wipe-progress" class="empty-copy" style="max-width:none;margin-top:10px"></div>
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-outline" id="wipe-cancel" data-close="modal-wipe">Cancel</button>
+      <button class="btn btn-danger" id="wipe-go" data-action="erase-all" disabled>Permanently erase</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ DRIVER MODAL ══ -->
 <div class="mbg" id="modal-driver" role="dialog" aria-labelledby="drv-modal-title">
   <div class="mbox wide">
     <div class="m-title" id="drv-modal-title">Add New Driver</div>
-    <div class="mg">
-      <div class="fr"><label for="d-name">Full Name *</label><input id="d-name" placeholder="Devon Campbell"/></div>
-      <div class="fr"><label for="d-phone">Phone Number</label><input id="d-phone" placeholder="876-xxx-xxxx"/></div>
-      <div class="fr"><label for="d-email">Email Address</label><input id="d-email" type="email" placeholder="driver@email.com"/></div>
-      <div class="fr"><label for="d-vtype">Vehicle Type</label>
-        <select id="d-vtype"><option>Car</option><option>Motorcycle</option><option>Van</option><option>Truck</option></select>
+
+    <div class="fset">
+      <div class="fset-title">Driver details</div>
+      <div class="mg">
+        <div class="fr"><label for="d-name">Full Name *</label><input id="d-name" placeholder="Devon Campbell"/></div>
+        <div class="fr"><label for="d-phone">Phone Number</label><input id="d-phone" placeholder="876-xxx-xxxx"/></div>
+        <div class="fr"><label for="d-vtype">Vehicle Type</label>
+          <select id="d-vtype"><option>Car</option><option>Motorcycle</option><option>Van</option><option>Truck</option></select>
+        </div>
+        <div class="fr"><label for="d-vehicle">Vehicle Model</label><input id="d-vehicle" placeholder="Toyota Axio"/></div>
+        <div class="fr"><label for="d-plate">Licence Plate Number</label><input id="d-plate" placeholder="PB 2341"/></div>
+        <!-- P4-05: stored in drivers/{uid}/private/identity, never on the parent
+             document, which every signed-in user can read. -->
+        <div class="fr"><label for="d-dlicence">Driver's Licence Number <small>(private)</small></label><input id="d-dlicence" placeholder="JA-DL-00000"/></div>
       </div>
-      <div class="fr"><label for="d-vehicle">Vehicle Model</label><input id="d-vehicle" placeholder="Toyota Axio"/></div>
-      <div class="fr"><label for="d-plate">Licence Plate Number</label><input id="d-plate" placeholder="PB 2341"/></div>
-      <div class="fr"><label for="d-dlicence">Driver's Licence Number</label><input id="d-dlicence" placeholder="JA-DL-00000"/></div>
+      <!-- The old options were "Active" and "Inactive", neither of which is a
+           status this system has. The roster, the badges and the driver app all
+           speak approved / pending / rejected, and the driver app gates sign-in
+           on exactly that value — so this dropdown now says the same words, and
+           choosing one here is honoured instead of silently ignored. -->
       <div class="fr"><label for="d-status">Status</label>
-        <select id="d-status"><option value="Active">Active</option><option value="Inactive">Inactive</option></select>
+        <select id="d-status">
+          <option value="approved">Approved — can sign in and take orders</option>
+          <option value="pending">Pending approval — sign-in shows the waiting screen</option>
+          <option value="rejected">Rejected — blocked from working</option>
+        </select>
+        <div id="d-status-note" class="fr-hint"></div>
       </div>
     </div>
+
+    <!-- ── Driver app credentials ──────────────────────────────────────────
+         The admin sets the password directly. The alternative — emailing an
+         invite link — needs an outbound mail path this project does not have,
+         and the practical case is an operator sitting beside a new rider with
+         the rider's phone in hand. -->
+    <div class="fset">
+      <div class="fset-title">Driver app sign-in</div>
+      <div class="fr"><label for="d-email">Email Address *</label>
+        <input id="d-email" type="email" autocomplete="off" placeholder="driver@email.com"/>
+        <div id="d-email-note" class="fr-hint">This is the driver's username in the ShipEast Driver app. It cannot be changed later — it is the account key.</div>
+      </div>
+      <div class="fr" id="drv-pass-row">
+        <label for="d-pass">Password * <small>(at least 6 characters)</small></label>
+        <div class="inline-field">
+          <input id="d-pass" type="text" autocomplete="off" spellcheck="false" placeholder="Set the driver's password"/>
+          <button type="button" class="btn btn-outline btn-sm" data-action="gen-driver-pass" title="Generate a strong password">Generate</button>
+        </div>
+        <div class="fr-hint">Write this down or send it to the driver — it is not stored anywhere readable and cannot be shown again.</div>
+      </div>
+      <div class="fr" id="drv-reset-row" hidden>
+        <label>Password</label>
+        <div class="fr-hint" style="margin-top:0">
+          A password can only be changed by the person who owns it. Send a reset
+          link and the driver sets a new one from their own inbox.
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" data-action="reset-driver-pass" style="margin-top:10px">
+          <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Send password reset link
+        </button>
+      </div>
+    </div>
+
     <div class="m-actions">
-      <button class="btn btn-outline" data-close="modal-driver">Cancel</button>
+      <button class="btn btn-outline" id="drv-cancel-btn" data-close="modal-driver">Cancel</button>
       <button class="btn btn-primary" id="drv-save-btn" data-action="save-driver">Add Driver</button>
     </div>
   </div>
@@ -444,24 +693,75 @@
 <div class="mbg" id="modal-merchant" role="dialog" aria-labelledby="mer-modal-title">
   <div class="mbox wide">
     <div class="m-title" id="mer-modal-title">Add New Merchant</div>
-    <div class="mg">
-      <div class="fr"><label for="m-name">Business Name *</label><input id="m-name" placeholder="Restaurant Name"/></div>
-      <div class="fr"><label for="m-cat">Category</label>
-        <select id="m-cat"><option>Food</option><option>Grocery</option><option>Pharmacy</option><option>Packages</option></select>
-      </div>
-      <div class="fr"><label for="m-owner">Owner Name</label><input id="m-owner" placeholder="Owner Full Name"/></div>
-      <div class="fr"><label for="m-phone">Phone Number</label><input id="m-phone" placeholder="876-xxx-xxxx"/></div>
-      <div class="fr"><label for="m-email">Email Address</label><input id="m-email" type="email" placeholder="business@email.com"/></div>
-      <div class="fr"><label for="m-fee">Delivery Fee (JMD)</label><input id="m-fee" placeholder="200"/></div>
-      <div class="fr"><label for="m-hours">Opening Hours</label><input id="m-hours" placeholder="8:00 AM – 10:00 PM"/></div>
-      <div class="fr"><label for="m-status">Status</label>
-        <select id="m-status"><option value="Open">Open</option><option value="Closed">Closed</option></select>
+
+    <div class="fset">
+      <div class="fset-title">Business details</div>
+      <div class="mg">
+        <div class="fr"><label for="m-name">Business Name *</label><input id="m-name" placeholder="Restaurant Name"/></div>
+        <div class="fr"><label for="m-cat">Category</label>
+          <select id="m-cat"><option>Food</option><option>Grocery</option><option>Pharmacy</option><option>Packages</option></select>
+        </div>
+        <div class="fr"><label for="m-owner">Owner Name</label><input id="m-owner" placeholder="Owner Full Name"/></div>
+        <div class="fr"><label for="m-phone">Phone Number</label><input id="m-phone" placeholder="876-xxx-xxxx"/></div>
+        <div class="fr"><label for="m-email">Email Address</label><input id="m-email" type="email" placeholder="business@email.com"/></div>
+        <div class="fr"><label for="m-fee">Delivery Fee ($) <small>(0 shows as “Free delivery”)</small></label><input id="m-fee" type="number" min="0" step="1" inputmode="numeric" placeholder="200"/></div>
+        <div class="fr"><label for="m-hours">Opening Hours <small>(business hours)</small></label><input id="m-hours" placeholder="8:00 AM – 10:00 PM"/></div>
+        <!-- P3-01: there was no input for this at all, which is why every merchant
+             showed the customer app's hardcoded "25–35 min" fallback. -->
+        <div class="fr"><label for="m-etatime">Delivery Time <small>(ETA shown to customers)</small></label><input id="m-etatime" placeholder="25–35 min"/></div>
+        <div class="fr"><label for="m-status">Status</label>
+          <select id="m-status"><option value="Open">Open</option><option value="Closed">Closed</option></select>
+        </div>
       </div>
     </div>
-    <div class="fr"><label for="m-address">Address</label><input id="m-address" placeholder="Street address, Parish"/></div>
-    <div class="fr"><label for="m-imageurl">Merchant Image URL <small>(recommended 800×400 — Firebase Storage, Imgur, etc.)</small></label><input id="m-imageurl" placeholder="https://… (optional)"/></div>
+
+    <div class="fset">
+      <div class="fset-title">Pickup location</div>
+      <div class="fr"><label for="m-address">Address</label><input id="m-address" placeholder="Street address, Parish"/></div>
+      <!-- P5-06: pickup coordinates. A food order copies these onto itself as
+           pickupLat/pickupLng, and the driver dashboard ranks offers nearest-first
+           from them. Without an input here, admin-created merchants produced orders
+           with null coords that sorted to the back of every driver's queue. -->
+      <div class="fr"><label for="m-location">Coordinates <small>(paste a Google Maps link or “lat, lng” — powers nearest-driver dispatch)</small></label>
+        <input id="m-location" placeholder="e.g. 18.0179, -76.8099 — or paste a Google Maps link"/>
+        <div id="m-location-hint" class="fr-hint" hidden></div>
+      </div>
+      <div class="mg">
+        <div class="fr"><label for="m-lat">Latitude</label><input id="m-lat" type="number" step="any" inputmode="decimal" placeholder="18.0179"/></div>
+        <div class="fr"><label for="m-lng">Longitude</label><input id="m-lng" type="number" step="any" inputmode="decimal" placeholder="-76.8099"/></div>
+      </div>
+    </div>
+
+    <div class="fset">
+      <div class="fset-title">Customer-facing appearance</div>
+      <!-- P4-02: `emoji` is customer-facing display data (home_screen.dart:672)
+           that the panel had no input for, so admin-created merchants fell back
+           to a generic plate while seeded ones had bespoke icons.
+
+           The grid of icons used to be permanently open, which pushed the photo
+           uploader below the fold on every merchant even though most merchants
+           keep whatever icon they already have. It is behind a button now. -->
+      <div class="fr"><label for="m-emoji">Display Icon <small>(shown on the customer home screen)</small></label>
+        <div class="inline-field">
+          <input id="m-emoji" class="emoji-field" maxlength="8" placeholder="🍔"/>
+          <button type="button" class="btn btn-outline btn-sm" id="m-emoji-toggle"
+            data-action="toggle-emoji" aria-expanded="false" aria-controls="m-emoji-picker">Choose icon</button>
+        </div>
+        <div id="m-emoji-picker" class="emoji-picker" role="group" aria-label="Common icons" hidden></div>
+      </div>
+
+      <!-- P4-01 / upload-only: the admin uploads the photo directly — no URL
+           paste. `#m-imageurl` is kept as a HIDDEN field so it stays the single
+           source of truth the uploader writes to and saveMerchant reads. -->
+      <div class="fr"><label for="m-image-file">Restaurant Photo <small>(optional)</small></label>
+        <div id="m-image-drop"></div>
+        <div id="m-image-locked" class="fr-hint" hidden>Save the merchant first — a photo needs somewhere to live.</div>
+      </div>
+    </div>
+
+    <input id="m-imageurl" type="hidden"/>
     <div class="m-actions">
-      <button class="btn btn-outline" data-close="modal-merchant">Cancel</button>
+      <button class="btn btn-outline" id="mer-cancel-btn" data-close="modal-merchant">Cancel</button>
       <button class="btn btn-primary" id="mer-save-btn" data-action="save-merchant">Add Merchant</button>
     </div>
   </div>

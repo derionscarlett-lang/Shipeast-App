@@ -82,15 +82,31 @@ service cloud.firestore {
                     && incoming().keys().hasAll(['name', 'email'])
                     && !incoming().keys().hasAny(['disabled', 'fcmToken2']);
 
-      // A customer may not disable or re-enable their own account.
+      /* A customer may not disable or re-enable their own account.
+
+         The admin clause is a backstop, NOT the path the panel uses. On its
+         own this flag is decoration: Firestore rules never consult it, so a
+         customer marked `disabled` keeps their session and keeps ordering.
+         Only disabling the Auth account stops them, and that is privileged —
+         so the panel calls `setUserDisabled` (P5-05), which changes the
+         account and the flag together. Writing the flag from a client leaves
+         it lying about an account that still works. */
       allow update: if (uid() == userId && untouched(['disabled']))
                     || (isAdmin() && changed().hasOnly(['disabled']));
 
-      allow delete: if uid() == userId;
+      // The owner may delete their own account. Admin delete exists solely for
+      // the Settings → Danger Zone "Erase all data" wipe (a deliberate,
+      // double-confirmed operator action); the panel never deletes a single
+      // customer otherwise — it disables the account instead.
+      allow delete: if uid() == userId || isAdmin();
 
       match /addresses/{addressId} {
         allow read, write: if uid() == userId;
         allow read: if isAdmin();
+        // Admin delete for the data wipe. A saved address is a subcollection
+        // doc, so it does not vanish with the parent user and must be swept
+        // explicitly (see eraseAllData in app.js).
+        allow delete: if isAdmin();
       }
     }
 
@@ -164,6 +180,15 @@ service cloud.firestore {
                     && incoming().customerId == uid()
                     && incoming().status == 'pending'
                     && incoming().driverId == null
+                    // P5-01. `type` distinguishes a courier job from a food
+                    // delivery. Defaulted rather than required, because every
+                    // order written before P5-01 legitimately has no type and
+                    // the migration backfills 'food'. 'overseas' is refused
+                    // here on purpose: overseas shipping is an enquiry an
+                    // admin prices by hand (see /overseasInquiries), never an
+                    // order, so an order of that type could only come from a
+                    // client that invented it.
+                    && incoming().get('type', 'food') in ['food', 'package']
                     && incoming().subtotal is int
                     && incoming().deliveryFee is int
                     && incoming().serviceFee is int
@@ -189,13 +214,13 @@ service cloud.firestore {
                   ]);
       }
 
-      function customerRating() {
-        return existing().customerId == uid()
-               && existing().status == 'delivered'
-               && changed().hasOnly([
-                    'rated', 'driverRating', 'merchantRating', 'comment', 'tags'
-                  ]);
-      }
+      /* Rating is NOT a client write (P3-05). It moved into the `submitRating`
+         callable, which rolls the stars up into the driver and merchant
+         aggregates in one transaction — fields a client must never touch.
+         Leaving the client path open would let a customer set `rated: true`
+         without the roll-up, permanently losing the rating, or re-rate the
+         same order and double-count it. The function runs with admin
+         credentials and so is unaffected by this. */
 
       // ── Driver updates ──
       // Claiming: only an unclaimed pending order, and only for themselves.
@@ -209,15 +234,66 @@ service cloud.firestore {
                   ]);
       }
 
-      // Advancing: only the holder, only forward, never the money.
+      /* Advancing: only the holder, only forward, never the money — and never
+         all the way to `delivered`.
+
+         Delivery is the moment money is decided, so it goes through the
+         `confirmDelivery` callable (P3-04), which recomputes the commission
+         from the order's own stored total. A driver who can write `delivered`
+         directly can complete an order with no commission recorded, and the
+         earnings screens then derive a figure from data that was never
+         written.
+
+         This same clause is what lets the holding driver stream their live
+         `driverLoc` onto the order (DriverLocationService): it is not a protected
+         field and the write leaves `status` unchanged, so it passes here. Keeping
+         the position on the order — readable only by this order's customer —
+         rather than on the world-readable driver document is deliberate. */
       function driverAdvancing() {
         return existing().driverId == uid()
+               && incoming().status != 'delivered'
                && statusUnchangedOrLegal()
                && untouched([
                     'total', 'subtotal', 'deliveryFee', 'serviceFee', 'discount',
                     'promoCode', 'items', 'customerId', 'customerName',
                     'merchantId', 'driverId'
                   ]);
+      }
+
+      /* Delivering: the holding driver finalises their own in_transit order.
+         This is the one forward step driverAdvancing() deliberately refuses,
+         because delivery is the moment money is decided.
+
+         It used to run in the `confirmDelivery` callable, which recomputed the
+         commission from the order's own stored total so a modified client could
+         not pay itself an arbitrary amount (P3-04). That function requires the
+         Blaze plan and is not deployed, which left every delivery failing. The
+         SAME guarantee is enforced here instead: the driver may write
+         `delivered`, but only with a `driverCommission` that cannot exceed the
+         order's immutable `total` times the commission rate. The total is not
+         in the touchable set below, so it cannot be inflated first; the rate
+         ceiling is fixed here and mirrors DriverPay.commissionRate in the
+         driver app and DEFAULT_COMMISSION_RATE in functions/delivery.ts. The
+         `+ 1` absorbs the integer rounding of a percentage — one Jamaican
+         dollar of slack, not a payout hole. Earnings screens derive from this
+         `driverCommission`, so a correct figure here is a correct figure there.
+
+         `deliveredAt` must be the server's clock (request.time), which is what
+         a serverTimestamp sentinel resolves to, so the completion time cannot
+         be forged. `driverLoc` is cleared in the same write (the customer's
+         live-tracking coordinate has no meaning once delivered). */
+      function driverDelivering() {
+        return existing().driverId == uid()
+               && existing().status == 'in_transit'
+               && incoming().status == 'delivered'
+               && changed().hasOnly([
+                    'status', 'deliveredAt', 'driverCommission', 'commissionRate',
+                    'driverLoc', 'deliveryPhotoUrl', 'deliveryNote'
+                  ])
+               && incoming().deliveredAt == request.time
+               && incoming().driverCommission is int
+               && incoming().driverCommission >= 0
+               && incoming().driverCommission <= existing().total * 0.10 + 1;
       }
 
       // Unassignment is an administrative REVERSAL, not a lifecycle
@@ -238,12 +314,15 @@ service cloud.firestore {
 
       allow update: if (isAdmin() && (statusUnchangedOrLegal() || adminUnassigning()))
                     || (signedIn() && (customerCancelling()
-                                       || customerRating()
                                        || driverClaiming()
-                                       || driverAdvancing()));
+                                       || driverAdvancing()
+                                       || driverDelivering()));
 
-      // Cancel, never delete. An order is a financial record.
-      allow delete: if false;
+      // Cancel, never delete — with one exception. An order is a financial
+      // record, so no lifecycle path deletes one. The sole deleter is an admin
+      // running the Settings → Danger Zone "Erase all data" wipe, a deliberate
+      // and double-confirmed operator action that resets the whole system.
+      allow delete: if isAdmin();
     }
 
     // ── promoCodes ───────────────────────────────────────────────────────
@@ -261,6 +340,83 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read: if signedIn();
       allow write: if isAdmin();
+    }
+
+    // ── overseasInquiries ────────────────────────────────────────────────
+    // Shop-and-deliver requests: a customer abroad asks us to buy from a local
+    // Jamaican store and deliver to their family. Not shipping — no carrier, no
+    // customs. The collection name is kept for continuity; "overseas" is the
+    // customer, not the goods. It was a WebView pointed at two placeholder form
+    // URLs; when both failed the customer saw "Connection Error" and their
+    // request went nowhere.
+    //
+    // A request is not an order: no money, no driver, no lifecycle. What it
+    // does carry is a household's name, phone number and street address in
+    // Jamaica, plus a shopping list for them — which is why the read rule is
+    // the author or an admin, and nobody else.
+    //
+    // The division of labour is the whole point of these rules: the customer
+    // owns the request, the admin owns the handling. Neither can write the
+    // other's half.
+
+    function overseasStatus() {
+      return ['new', 'contacted', 'quoted', 'closed', 'declined'];
+    }
+
+    match /overseasInquiries/{inquiryId} {
+
+      allow read: if isAdmin()
+                  || (signedIn() && existing().customerId == uid());
+
+      // Filed by the customer, always as 'new'. The handling fields are
+      // refused outright rather than ignored: a client that could create an
+      // enquiry already marked 'closed', or already carrying an internal note,
+      // could hide a request from the queue it exists to enter.
+      allow create: if signedIn()
+                    && incoming().customerId == uid()
+                    && incoming().status == 'new'
+                    && !incoming().keys().hasAny(
+                         ['adminNote', 'handledBy', 'handledAt'])
+                    && incoming().contactEmail is string
+                    && incoming().contactEmail.size() <= 320
+                    && incoming().contactPhone is string
+                    && incoming().contactPhone.size() <= 120
+                    && incoming().recipientName is string
+                    && incoming().recipientName.size() <= 120
+                    && incoming().recipientPhone is string
+                    && incoming().recipientPhone.size() <= 120
+                    && incoming().recipientAddress is string
+                    && incoming().recipientAddress.size() <= 400
+                    && incoming().itemDescription is string
+                    && incoming().itemDescription.size() <= 1000
+                    && incoming().get('notes', '').size() <= 1000;
+
+      // Handling is admin-only, and confined to the handling fields. The
+      // customer's own shopping list is what we buy against, so nobody edits it
+      // after the fact — not even an admin. A wrong list is a new request.
+      allow update: if isAdmin()
+                    && changed().hasOnly(
+                         ['status', 'adminNote', 'handledBy',
+                          'handledAt', 'updatedAt'])
+                    && incoming().status in overseasStatus();
+
+      // Kept, never deleted in normal operation — an enquiry is the only
+      // account of a request that may have been declined for a reason worth
+      // pointing at later. The lone exception is an admin running the
+      // Settings → Danger Zone "Erase all data" wipe.
+      allow delete: if isAdmin();
+    }
+
+    // ── pushLog ──────────────────────────────────────────────────────────
+    // Server-only bookkeeping (P4-04). Firestore triggers are at-least-once,
+    // so each fan-out claims an event key here before sending; a retry finds
+    // the document already present and stays quiet. Admin SDK writes bypass
+    // rules, so denying everything is exactly right: no client has any reason
+    // to read or forge one, and a forged key would silently suppress a real
+    // notification.
+
+    match /pushLog/{eventKey} {
+      allow read, write: if false;
     }
 
     // ── settings ─────────────────────────────────────────────────────────

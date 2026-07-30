@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/firestore_service.dart';
 import '../theme/se_colors.dart';
@@ -10,6 +12,7 @@ import '../theme/se_typography.dart';
 import '../models/order_status.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_button.dart';
+import '../widgets/se_bottom_sheet.dart';
 import '../widgets/se_toast.dart';
 
 class OrderStatusScreen extends StatefulWidget {
@@ -31,6 +34,31 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
   Map<String, dynamic>? _driver;
   String? _watchedDriverId;
 
+  // ── Live distance (P5-05, no map tiles) ──────────────────────────────────
+  // The driver streams real GPS to their doc while en route; we pair it with
+  // the customer's own device location to say, truthfully, how far the driver
+  // is from where the customer is right now.
+  StreamSubscription<Position>? _mySub;
+  Position? _myPos;
+  bool _locStarted = false;
+  bool _locDenied = false;
+  double? _distanceM;
+  double? _prevDistanceM;
+
+  /// The driver only carries goods toward the customer once the order is picked
+  /// up, so a "distance to you" is only meaningful from there on.
+  bool get _isEnRoute =>
+      _status == OrderStatus.pickedUp || _status == OrderStatus.inTransit;
+
+  /// The driver's live position rides on this order document (`driverLoc`), not
+  /// on the shared driver profile — the order is readable only by its own
+  /// customer, so no one else can see where this driver is. The driver app
+  /// writes it via DriverLocationService.
+  Map<String, dynamic>? get _driverLoc {
+    final loc = _order?['driverLoc'];
+    return loc is Map<String, dynamic> ? loc : null;
+  }
+
   String get _status => _order?['status'] as String? ?? OrderStatus.pending;
 
   int get _currentStep => OrderStatus.step(_status);
@@ -44,6 +72,27 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
   bool get _isCancelled => _status == OrderStatus.cancelled;
 
   String get _statusLabel => OrderStatus.label(_status);
+
+  /// P5-03, audit §15. The app has always rendered a "Cancelled" tab and a
+  /// cancelled badge that **no customer action could ever produce**.
+  ///
+  /// The window is `pending` only, and that is not a UI preference — it is the
+  /// only transition rules permit a customer to make (`customerCancelling()` in
+  /// firestore.rules). Once a driver has claimed the order they are already
+  /// riding to the merchant, and cancelling out from under them is an
+  /// operational decision, not a customer one. From there the customer is
+  /// routed to support.
+  bool get _canCancel => _order != null && _status == OrderStatus.pending;
+
+  bool _cancelling = false;
+
+  static const _cancelReasons = [
+    'Ordered by mistake',
+    'Taking too long',
+    'Changed my mind',
+    'Wrong delivery address',
+    'Found it cheaper elsewhere',
+  ];
 
   // The ETA pill is gone. It was hardcoded '~40 min' / '~25 min' / '~15 min' —
   // invented numbers presented to the customer as an estimate, derived from
@@ -120,6 +169,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
         _orderSub = FirestoreService.watchOrder(_orderId).listen((order) {
           if (!mounted) return;
           setState(() => _order = order);
+          if (_isEnRoute) _startMyLocation();
           final driverId = order?['driverId'] as String?;
           if (driverId != null &&
               driverId.isNotEmpty &&
@@ -128,7 +178,9 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
             _watchedDriverId = driverId;
             _driverSub =
                 FirestoreService.watchDriver(driverId).listen((driver) {
-              if (mounted) setState(() => _driver = driver);
+              if (!mounted) return;
+              setState(() => _driver = driver);
+              _recomputeDistance();
             });
           }
         });
@@ -141,7 +193,64 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     _pulseCtrl.dispose();
     _orderSub?.cancel();
     _driverSub?.cancel();
+    _mySub?.cancel();
     super.dispose();
+  }
+
+  /// Starts watching the customer's own location once the driver is en route.
+  /// Runs at most once per screen; a denied permission is remembered so the
+  /// card can fall back to a distance-less "live" state instead of nagging.
+  Future<void> _startMyLocation() async {
+    if (_locStarted) return;
+    _locStarted = true;
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (mounted) setState(() => _locDenied = true);
+        return;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted) setState(() => _locDenied = true);
+        return;
+      }
+      _mySub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 20,
+        ),
+      ).listen((pos) {
+        if (!mounted) return;
+        setState(() => _myPos = pos);
+        _recomputeDistance();
+      }, onError: (_) {
+        if (mounted) setState(() => _locDenied = true);
+      });
+    } catch (_) {
+      if (mounted) setState(() => _locDenied = true);
+    }
+  }
+
+  /// Recomputes the driver→customer straight-line distance from whichever of
+  /// the two live positions just changed. Straight-line, not road distance: no
+  /// routing engine is involved, and the copy says "away" rather than a fake
+  /// ETA so the number is never dressed up as more than it is.
+  void _recomputeDistance() {
+    final loc = _driverLoc;
+    final my = _myPos;
+    if (loc == null || my == null) return;
+    final dLat = (loc['lat'] as num?)?.toDouble();
+    final dLng = (loc['lng'] as num?)?.toDouble();
+    if (dLat == null || dLng == null) return;
+    final meters =
+        Geolocator.distanceBetween(my.latitude, my.longitude, dLat, dLng);
+    setState(() {
+      _prevDistanceM = _distanceM;
+      _distanceM = meters;
+    });
   }
 
   @override
@@ -166,6 +275,10 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                   const SizedBox(height: 16),
                   _buildDriverCard(),
                   const SizedBox(height: 12),
+                  if (_isEnRoute && _driverLoc != null) ...[
+                    _buildLiveDistanceCard(),
+                    const SizedBox(height: 12),
+                  ],
                   if (delivered && _order?['rated'] != true)
                     SeButton(
                       label: 'Rate Your Experience',
@@ -182,6 +295,15 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                       ),
                     ),
                   if (!delivered) _buildTrackingNote(),
+                  if (_canCancel) ...[
+                    const SizedBox(height: 12),
+                    SeButton(
+                      label: _cancelling ? 'Cancelling…' : 'Cancel Order',
+                      icon: SeIcons.close,
+                      variant: SeButtonVariant.destructive,
+                      onPressed: _cancelling ? null : _showCancelSheet,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -396,6 +518,133 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
         ],
       ),
     );
+  }
+
+  /// Confirmation sheet with a reason picker (P5-03).
+  ///
+  /// The reason is required, and it is not decoration: `cancellationReason` is
+  /// the only field the cancelled screen has to explain itself with, and it is
+  /// what tells operations whether cancellations are a pricing problem or a
+  /// speed problem.
+  void _showCancelSheet() {
+    String? selected;
+
+    showSeBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: SeSpacing.gutter,
+            right: SeSpacing.gutter,
+            top: 4,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SeSheetHandle(),
+              const SizedBox(height: 12),
+              Text('Cancel this order?', style: SeType.h2),
+              const SizedBox(height: 4),
+              Text(
+                'This cannot be undone. Nothing was charged — this order is '
+                'cash on delivery.',
+                style: SeType.bodyS.copyWith(color: SeColors.ink500),
+              ),
+              const SizedBox(height: 18),
+              Text('Why are you cancelling?',
+                  style: SeType.label.copyWith(color: SeColors.ink700)),
+              const SizedBox(height: 8),
+              ..._cancelReasons.map((reason) {
+                final isSelected = selected == reason;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: GestureDetector(
+                    onTap: () => setSheetState(() => selected = reason),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? SeColors.dangerTint
+                            : SeColors.surface50,
+                        borderRadius: SeRadius.inputRadius,
+                        border: Border.all(
+                          color: isSelected
+                              ? SeColors.danger
+                              : SeColors.ink200,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSelected
+                                ? SeIcons.checkCircle
+                                : SeIcons.radioOff,
+                            size: 20,
+                            color: isSelected
+                                ? SeColors.danger
+                                : SeColors.ink300,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(reason,
+                                style: SeType.body
+                                    .copyWith(color: SeColors.ink900)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 10),
+              SeButton(
+                label: 'Cancel Order',
+                icon: SeIcons.close,
+                variant: SeButtonVariant.destructive,
+                // Disabled until a reason is chosen. An optional reason is an
+                // empty reason: nobody fills in a field they can skip, and the
+                // cancelled screen then has nothing to say.
+                onPressed: selected == null
+                    ? null
+                    : () {
+                        Navigator.pop(ctx);
+                        _cancelOrder(selected!);
+                      },
+              ),
+              const SizedBox(height: 8),
+              SeButton(
+                label: 'Keep My Order',
+                icon: SeIcons.arrowLeft,
+                variant: SeButtonVariant.ghost,
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _cancelOrder(String reason) async {
+    setState(() => _cancelling = true);
+    try {
+      await FirestoreService.cancelOrder(orderId: _orderId, reason: reason);
+      // No success toast and no navigation: the order stream is already live,
+      // so the screen switches to its terminal cancelled presentation on its
+      // own. Pushing a route here would race that rebuild.
+      if (mounted) setState(() => _cancelling = false);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cancelling = false);
+      // The likeliest cause is that a driver claimed the order a moment ago,
+      // which rules reject. Say the true thing rather than "try again".
+      SeToast.error(
+          context, 'Could not cancel — a driver may have already accepted it.');
+    }
   }
 
   Widget _routeBar(bool delivered) {
@@ -676,6 +925,101 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                 borderRadius: SeRadius.all(SeRadius.sm),
               ),
               child: const Icon(SeIcons.phone, size: 18, color: SeColors.success),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDistance(double m) {
+    if (m >= 1000) return '${(m / 1000).toStringAsFixed(1)} km away';
+    return '${(m / 10).round() * 10} m away';
+  }
+
+  /// Whether the driver's last fix is recent enough to call "live". A driver
+  /// who parks and stops moving stops generating fixes (20 m filter), so beyond
+  /// two minutes we say "paused" rather than imply a stale dot is live.
+  bool _driverLocFresh() {
+    final ts = _driverLoc?['updatedAt'];
+    if (ts is! Timestamp) return true; // serverTimestamp not resolved yet
+    return DateTime.now().difference(ts.toDate()).inSeconds < 120;
+  }
+
+  /// Live distance from the driver to the customer — no map, no ETA. Shows a
+  /// real number when the customer has shared their location, and an honest
+  /// "live location active" state (with a prompt) when they have not.
+  Widget _buildLiveDistanceCard() {
+    final fresh = _driverLocFresh();
+    final accent = fresh ? SeColors.ocean500 : SeColors.ink400;
+
+    String headline;
+    String sub;
+    if (_locDenied) {
+      headline = 'Your driver is sharing live location';
+      sub = 'Turn on location to see how far away they are.';
+    } else if (_distanceM != null) {
+      headline = _fmtDistance(_distanceM!);
+      if (_distanceM! < 120) {
+        sub = 'Your driver is nearby — keep an eye out.';
+      } else if (_prevDistanceM != null &&
+          _distanceM! < _prevDistanceM! - 15) {
+        sub = 'Getting closer to you.';
+      } else {
+        sub = 'Straight-line distance from your location.';
+      }
+    } else {
+      headline = 'Locating your driver…';
+      sub = 'Getting a live position from your driver.';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: SeColors.oceanTint,
+        borderRadius: SeRadius.all(SeRadius.md),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: SeColors.surface0,
+              borderRadius: SeRadius.all(SeRadius.sm),
+            ),
+            child: Icon(SeIcons.bike, size: 22, color: accent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(fresh ? 'LIVE' : 'PAUSED',
+                        style: SeType.label.copyWith(
+                            color: accent,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5)),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(headline,
+                    style: SeType.title.copyWith(color: SeColors.ink900)),
+                const SizedBox(height: 1),
+                Text(sub,
+                    style: SeType.bodyS.copyWith(color: SeColors.ink500)),
+              ],
             ),
           ),
         ],

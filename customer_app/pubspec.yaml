@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.2+3
+version: 1.0.9+10
 
 environment:
   sdk: ^3.11.5
@@ -34,16 +34,24 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
   shared_preferences: ^2.3.2
-  webview_flutter: ^4.10.0
+  # webview_flutter removed in P5-02. Its only use was the overseas screen,
+  # which loaded two third-party form URLs this project does not own. Keeping
+  # an unused WebView engine in the app costs binary size and an attack
+  # surface for a screen that no longer renders remote content.
   image_picker: ^1.1.2
   url_launcher: ^6.3.0
   firebase_core: ^3.0.0
   firebase_auth: ^5.0.0
   cloud_firestore: ^5.0.0
+  cloud_functions: ^5.1.0
   firebase_storage: ^12.0.0
   firebase_messaging: ^15.0.0
   provider: ^6.1.2
   cached_network_image: ^3.4.1
+  # Reads the customer's own device location to show, honestly, how far the
+  # driver's live GPS is from where the customer is standing — no map tiles and
+  # no API key. Web support comes from the endorsed geolocator_web plugin.
+  geolocator: ^13.0.1
 
 dev_dependencies:
   flutter_test:

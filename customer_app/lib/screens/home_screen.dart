@@ -4,10 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/se_colors.dart';
+import '../utils/money.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
+import '../models/package_pricing.dart';
 import '../services/firestore_service.dart';
+import '../widgets/app_image.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_chip.dart';
 import '../widgets/se_button.dart';
@@ -16,6 +19,7 @@ import '../widgets/se_toast.dart';
 import '../widgets/se_skeleton.dart';
 import '../widgets/se_empty_state.dart';
 import '../widgets/se_bottom_sheet.dart';
+import 'all_merchants_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,6 +35,14 @@ class _HomeScreenState extends State<HomeScreen> {
   final Set<String> _favourites = {};
 
   StreamSubscription<Map<String, dynamic>?>? _nameSub;
+
+  /// Weight-band pricing from `settings/pricing` (P5-01).
+  ///
+  /// Null means packages are not priced. The form then refuses to take a
+  /// request rather than quoting a number nobody configured — see
+  /// [PackagePricing.fromSettings].
+  PackagePricing? _packagePricing;
+  bool _packagePricingLoaded = false;
 
   // Firestore merchants by category index
   final Map<int, List<Map<String, dynamic>>> _firestoreMerchants = {};
@@ -64,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
       statusBarIconBrightness: Brightness.light,
     ));
     _loadUserName();
+    _loadPackagePricing();
     _subscribeMerchants(0);
     _subscribeMerchants(1);
     _subscribeMerchants(3);
@@ -144,12 +157,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return _firestoreMerchants[catIndex] ?? [];
   }
 
-  static int _parseDeliveryFee(String s) {
-    if (s.toLowerCase().contains('free')) return 0;
-    final match = RegExp(r'\d+').firstMatch(s);
-    return match != null ? int.tryParse(match.group(0)!) ?? 100 : 100;
-  }
-
   void _toggleFavourite(String id) {
     HapticFeedback.lightImpact();
     setState(() {
@@ -163,13 +170,46 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _loadPackagePricing() async {
+    final pricing = await FirestoreService.packagePricing();
+    if (!mounted) return;
+    setState(() {
+      _packagePricing = pricing;
+      _packagePricingLoaded = true;
+    });
+  }
+
   // ── Package request sheet ─────────────────────────────────────────────────
+  //
+  // P5-01, audit §10 — the most serious honesty defect in the codebase. This
+  // form used to validate two addresses, pop the sheet, show "Package request
+  // submitted! We'll contact you shortly," and write NOTHING. No order, no
+  // record, no queue, nobody to call. It was reachable from one of four
+  // top-level home categories.
+  //
+  // It now quotes a price from the admin-configured weight bands and writes a
+  // real order that runs the ordinary pending → delivered lifecycle.
   void _showPackageForm(String category) {
+    // No price list, no quote. Taking the request anyway would re-create the
+    // original defect in a politer voice: the customer would still be left
+    // waiting for a call that has no queue behind it.
+    final pricing = _packagePricing;
+    if (pricing == null) {
+      SeToast.info(
+        context,
+        _packagePricingLoaded
+            ? 'Package delivery is not available yet.'
+            : 'Still loading package pricing — one moment.',
+      );
+      return;
+    }
+
     final pickupCtrl = TextEditingController();
     final deliveryCtrl = TextEditingController();
     final weightCtrl = TextEditingController();
     final instructionsCtrl = TextEditingController();
     bool packingRequired = false;
+    bool submitting = false;
 
     showSeBottomSheet(
       context: context,
@@ -241,6 +281,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: SeIcons.scales,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  // The price depends on this field, so the quote has to move
+                  // with it. A customer who only sees the figure after
+                  // submitting cannot decide whether to send the parcel.
+                  onChanged: (_) => setModalState(() {}),
                 ),
                 const SizedBox(height: 14),
                 Text('Packing Required',
@@ -269,6 +313,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             setModalState(() => packingRequired = v),
                         activeThumbColor: SeColors.red500,
                       ),
+                      if (pricing.packingSurcharge > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Text(
+                            '+${Money.format(pricing.packingSurcharge)}',
+                            style: SeType.bodyS
+                                .copyWith(color: SeColors.ink500),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -281,21 +334,63 @@ class _HomeScreenState extends State<HomeScreen> {
                   minLines: 2,
                   maxLines: 4,
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 18),
+                _quoteBlock(pricing, weightCtrl.text, packingRequired),
+                const SizedBox(height: 18),
                 SeButton(
-                  label: 'Submit Request',
+                  label: submitting ? 'Placing order…' : 'Place Package Order',
                   icon: SeIcons.check,
-                  onPressed: () {
-                    if (pickupCtrl.text.trim().isEmpty ||
-                        deliveryCtrl.text.trim().isEmpty) {
-                      SeToast.error(
-                          ctx, 'Please add pickup and delivery addresses');
-                      return;
-                    }
-                    Navigator.pop(ctx);
-                    SeToast.success(context,
-                        "Package request submitted! We'll contact you shortly.");
-                  },
+                  onPressed: submitting
+                      ? null
+                      : () async {
+                          if (pickupCtrl.text.trim().isEmpty ||
+                              deliveryCtrl.text.trim().isEmpty) {
+                            SeToast.error(ctx,
+                                'Please add pickup and delivery addresses');
+                            return;
+                          }
+                          final weight = parseWeightKg(weightCtrl.text);
+                          if (weight == null) {
+                            SeToast.error(
+                                ctx, 'Enter the weight in kilograms, e.g. 2.5');
+                            return;
+                          }
+                          final quote = pricing.quote(
+                              weightKg: weight, packing: packingRequired);
+                          if (quote == null) {
+                            SeToast.error(
+                                ctx,
+                                'We cannot carry a parcel that heavy — '
+                                'up to ${pricing.maxWeightKg.round()} kg.');
+                            return;
+                          }
+                          setModalState(() => submitting = true);
+                          try {
+                            final orderId =
+                                await FirestoreService.placePackageOrder(
+                              itemCategory: category,
+                              pickupAddress: pickupCtrl.text.trim(),
+                              deliveryAddress: deliveryCtrl.text.trim(),
+                              weightKg: weight,
+                              packingRequired: packingRequired,
+                              instructions: instructionsCtrl.text.trim(),
+                              quote: quote,
+                              paymentMethod: 'Cash on Delivery',
+                            );
+                            if (!ctx.mounted) return;
+                            Navigator.pop(ctx);
+                            if (!mounted) return;
+                            // The tracking screen, not a toast. The whole point
+                            // of P5-01 is that there is now something to track.
+                            Navigator.pushNamed(context, '/order-status',
+                                arguments: {'orderId': orderId});
+                          } catch (_) {
+                            if (!ctx.mounted) return;
+                            setModalState(() => submitting = false);
+                            SeToast.error(ctx,
+                                'Could not place the package order. Please try again.');
+                          }
+                        },
                 ),
               ],
             ),
@@ -304,6 +399,100 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  /// Live price for what the customer has typed so far.
+  ///
+  /// Three distinct states, deliberately not collapsed into one: nothing typed
+  /// yet, a weight we cannot carry, and a real quote. The middle one used to be
+  /// indistinguishable from the last, because there was no price at all.
+  Widget _quoteBlock(
+      PackagePricing pricing, String weightText, bool packingRequired) {
+    final weight = parseWeightKg(weightText);
+    final quote = weight == null
+        ? null
+        : pricing.quote(weightKg: weight, packing: packingRequired);
+
+    if (weight == null) {
+      return _quoteShell(
+        SeColors.oceanTint,
+        Row(
+          children: [
+            const Icon(SeIcons.info, size: 18, color: SeColors.ocean500),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Enter a weight to see the price.',
+                style: SeType.bodyS.copyWith(color: SeColors.ocean500),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (quote == null) {
+      return _quoteShell(
+        SeColors.dangerTint,
+        Row(
+          children: [
+            const Icon(SeIcons.warningCircle, size: 18, color: SeColors.danger),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'We carry parcels up to ${pricing.maxWeightKg.round()} kg. '
+                'Contact support for anything heavier.',
+                style: SeType.bodyS.copyWith(color: SeColors.danger),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget line(String label, String value, {bool strong = false}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(label,
+                    style: strong
+                        ? SeType.title
+                        : SeType.bodyS.copyWith(color: SeColors.ink500)),
+              ),
+              Text(value,
+                  style: SeType.tabular(strong ? SeType.title : SeType.bodyS)
+                      .copyWith(
+                          color: strong ? SeColors.ink900 : SeColors.ink700)),
+            ],
+          ),
+        );
+
+    return _quoteShell(
+      SeColors.surface50,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          line('Delivery (${quote.bandLabel})', Money.format(quote.deliveryFee)),
+          if (quote.serviceFee > 0)
+            line('Packing', Money.format(quote.serviceFee)),
+          const Divider(height: 14, color: SeColors.ink200),
+          line('Total', Money.format(quote.total), strong: true),
+          const SizedBox(height: 4),
+          Text('Cash on delivery. Nothing is charged now.',
+              style: SeType.bodyS.copyWith(color: SeColors.ink400)),
+        ],
+      ),
+    );
+  }
+
+  Widget _quoteShell(Color background, Widget child) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: SeRadius.all(SeRadius.md),
+        ),
+        child: child,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -409,20 +598,20 @@ class _HomeScreenState extends State<HomeScreen> {
               GestureDetector(
                 onTap: () => Navigator.pushNamed(context, '/search'),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  height: 46,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: SeRadius.all(SeRadius.md),
-                    boxShadow: SeElevation.e2,
+                    borderRadius: SeRadius.all(SeRadius.sm),
+                    boxShadow: SeElevation.e1,
                   ),
                   child: Row(
                     children: [
                       const Icon(SeIcons.search,
-                          size: 20, color: SeColors.ink400),
-                      const SizedBox(width: 10),
+                          size: 19, color: SeColors.ink400),
+                      const SizedBox(width: 9),
                       Text(
-                        'Search food, merchants, items...',
+                        'Search food, merchants, items…',
                         style:
                             SeType.body.copyWith(color: SeColors.ink400),
                       ),
@@ -462,17 +651,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white.withValues(alpha: 0.18),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(SeIcons.plane, size: 24, color: Colors.white),
+                child: const Icon(SeIcons.packages, size: 24, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Order for Family in Jamaica',
+                    // The total is confirmed by hand, so the banner promises
+                    // what the screen behind it actually does: a request to
+                    // shop and deliver, answered by a person.
+                    Text('Send to Family in Jamaica',
                         style: SeType.title.copyWith(color: Colors.white)),
                     const SizedBox(height: 2),
-                    Text('Living overseas? Send groceries & gifts home',
+                    Text('Abroad? We’ll shop locally & deliver to them',
                         style: SeType.bodyS.copyWith(
                             color: Colors.white.withValues(alpha: 0.85))),
                   ],
@@ -494,8 +686,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Categories', style: SeType.h3),
-          const SizedBox(height: 14),
+          Text('Categories', style: SeType.section),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(_categories.length, (i) {
@@ -524,7 +716,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Select Package Type', style: SeType.h3),
+          Text('Select Package Type', style: SeType.section),
           const SizedBox(height: 4),
           Text('Choose what you need shipped and fill in the details.',
               style: SeType.body.copyWith(color: SeColors.ink500)),
@@ -581,9 +773,15 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Popular Near You', style: SeType.h3),
+              Text('Popular Near You', style: SeType.section),
               GestureDetector(
-                onTap: () => SeToast.info(context, 'All merchants coming soon!'),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AllMerchantsScreen(
+                        category: _categoryLabels[_selectedCategory]),
+                  ),
+                ),
                 child: Row(
                   children: [
                     Text('See all',
@@ -656,6 +854,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ? rating.toStringAsFixed(1)
         : rating?.toString() ?? '4.5';
     final isOpen = m['isOpen'] as bool? ?? true;
+    // P3-01: read the integer directly. This used to regex-scrape a number out
+    // of a display string and fall back to a hardcoded 100 when that failed —
+    // the source of the J$100 phantom charge.
+    final deliveryFee = (m['deliveryFee'] as num?)?.toInt() ?? 0;
     final promo = m['promo'] as String?;
     final imageUrl = m['imageUrl'] as String? ?? '';
     final id = (m['id'] ?? '').toString();
@@ -675,9 +877,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'category': _categoryLabels[_selectedCategory],
           'rating': ratingStr,
           'deliveryTime': m['deliveryTime'] ?? '25–35 min',
-          'deliveryFee': m['deliveryFee'] ?? 'Free delivery',
-          'deliveryFeeAmount':
-              _parseDeliveryFee(m['deliveryFee'] as String? ?? ''),
+          'deliveryFee': deliveryFee,
           'isOpen': isOpen,
         });
       },
@@ -691,12 +891,11 @@ class _HomeScreenState extends State<HomeScreen> {
               fit: StackFit.expand,
               children: [
                 if (imageUrl.isNotEmpty)
-                  CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (ctx, url) =>
+                  AppImage(
+                    url: imageUrl,
+                    placeholder:
                         const SeShimmer(child: SeSkeleton(height: 150)),
-                    errorWidget: (ctx, url, err) => _fallbackHero(hue),
+                    errorWidget: _fallbackHero(hue),
                   )
                 else
                   _fallbackHero(hue),
@@ -768,7 +967,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _infoBit(SeIcons.clock, m['deliveryTime'] as String? ?? ''),
-                    _infoBit(SeIcons.bike, m['deliveryFee'] as String? ?? ''),
+                    _infoBit(SeIcons.bike, Money.deliveryFee(deliveryFee)),
                     SeChip.status(
                       label: isOpen ? 'Open' : 'Closed',
                       color: isOpen ? SeColors.success : SeColors.danger,

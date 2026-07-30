@@ -40,7 +40,13 @@ export default [
         Image: 'readonly',
         URL: 'readonly',
         CustomEvent: 'readonly',
-        Event: 'readonly'
+        Event: 'readonly',
+        MutationObserver: 'readonly',
+        // Web Crypto. Used to generate a driver's initial app password
+        // (generatePassword in app.js) — Math.random is not acceptable for
+        // anything that becomes a credential.
+        crypto: 'readonly',
+        Uint32Array: 'readonly'
       }
     },
     rules: {

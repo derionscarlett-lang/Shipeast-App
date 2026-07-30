@@ -1,10 +1,11 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../driver_constants.dart';
 import '../services/driver_firestore_service.dart';
+import '../services/phone_call.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_motion.dart';
@@ -42,6 +43,8 @@ class _DeliveryConfirmationScreenState
 
   String get _customerName =>
       widget.order['customerName'] as String? ?? 'Customer';
+  String get _customerPhone =>
+      widget.order['customerPhone'] as String? ?? '';
   String get _deliveryAddress =>
       widget.order['deliveryAddress'] as String? ?? '—';
   int get _total => (widget.order['total'] as num?)?.toInt() ?? 0;
@@ -123,7 +126,6 @@ class _DeliveryConfirmationScreenState
 
   Future<void> _markAsDelivered() async {
     setState(() => _isLoading = true);
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     try {
       String? photoUrl;
       if (_photo != null) {
@@ -139,18 +141,51 @@ class _DeliveryConfirmationScreenState
           }
         }
       }
-      await DriverFirestoreService.confirmDelivery(
+      // The commission is derived from the order's own stored total inside the
+      // write transaction and returned here, so the celebration figure and the
+      // earnings total can never disagree (P3-04).
+      final commission = await DriverFirestoreService.confirmDelivery(
         widget.orderId,
-        uid,
-        _total,
-        photoUrl,
-        _noteController.text.trim().isEmpty
+        photoUrl: photoUrl,
+        note: _noteController.text.trim().isEmpty
             ? null
             : _noteController.text.trim(),
       );
       if (mounted) {
         HapticFeedback.mediumImpact();
-        _showSuccessSheet();
+        _showSuccessSheet(commission);
+      }
+    } on StateError catch (e) {
+      // The order is not in a state this driver can complete. Name the reason
+      // rather than showing a blanket "try again" that reads as an app bug.
+      if (mounted) {
+        setState(() => _isLoading = false);
+        final String message;
+        switch (e.message) {
+          case DriverFirestoreService.notInTransitCode:
+            message = 'This order is not ready to be marked delivered yet.';
+            break;
+          case DriverFirestoreService.notYourOrderCode:
+            message = 'This order is no longer assigned to you.';
+            break;
+          case DriverFirestoreService.orderMissingCode:
+            message = 'This order no longer exists.';
+            break;
+          default:
+            message = 'Failed to confirm delivery. Try again.';
+        }
+        SeToast.error(context, message);
+      }
+    } on FirebaseException catch (e) {
+      // A Firestore-level failure (rules rejection, or offline).
+      if (mounted) {
+        setState(() => _isLoading = false);
+        SeToast.error(
+          context,
+          e.code == 'unavailable'
+              ? 'You appear to be offline. Reconnect and try again.'
+              : 'Failed to confirm delivery. Try again.',
+        );
       }
     } catch (_) {
       if (mounted) {
@@ -161,7 +196,7 @@ class _DeliveryConfirmationScreenState
   }
 
   /// The payoff moment — Sunset gradient with the driver's earnings counting up.
-  void _showSuccessSheet() {
+  void _showSuccessSheet(int commission) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -170,7 +205,7 @@ class _DeliveryConfirmationScreenState
       backgroundColor: Colors.transparent,
       builder: (ctx) => _DeliverySuccessSheet(
         customerName: _customerName,
-        commission: DriverPay.commissionOn(_total),
+        commission: commission.toDouble(),
         orderTotal: _total,
         collectCash: _isCod,
         onDone: () {
@@ -220,6 +255,16 @@ class _DeliveryConfirmationScreenState
                   const SizedBox(height: 2),
                   Text(_deliveryAddress,
                       style: SeType.body.copyWith(color: SeColors.ink500)),
+                  if (_customerPhone.isNotEmpty) ...[
+                    const SizedBox(height: SeSpacing.x4),
+                    SeButton(
+                      label: 'Call customer',
+                      icon: SeIcons.phone,
+                      variant: SeButtonVariant.ghost,
+                      onPressed: () =>
+                          callPhone(context, _customerPhone, label: 'Customer'),
+                    ),
+                  ],
                   const Divider(color: SeColors.ink200, height: SeSpacing.x6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

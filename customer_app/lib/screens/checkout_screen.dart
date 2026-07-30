@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/firestore_service.dart';
+import '../utils/money.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
@@ -78,13 +79,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String get selectedAddressText {
     if (_addresses.isEmpty || _selectedAddress >= _addresses.length) return '';
     return _addresses[_selectedAddress]['text'] as String? ?? '';
-  }
-
-  String _formatPrice(int price) {
-    if (price >= 1000) {
-      return '${price ~/ 1000},${(price % 1000).toString().padLeft(3, '0')}';
-    }
-    return '$price';
   }
 
   @override
@@ -288,15 +282,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   final qty = item['quantity'] as int? ?? 1;
                   final price = item['price'] as int? ?? 0;
                   return _summaryLine(
-                      '$name × $qty', '\$${_formatPrice(price * qty)}');
+                      '$name × $qty', Money.format(price * qty));
                 }),
+                _summaryLine('Delivery fee', Money.deliveryFee(deliveryFee)),
                 _summaryLine(
-                    'Delivery fee',
-                    deliveryFee == 0
-                        ? 'Free'
-                        : '\$${_formatPrice(deliveryFee)}'),
-                _summaryLine(
-                    'Service fee (10%)', '\$${_formatPrice(serviceFee)}'),
+                    'Service fee (10%)', Money.format(serviceFee)),
                 const SizedBox(height: 4),
                 const Divider(height: 1, color: SeColors.ink100),
                 const SizedBox(height: 12),
@@ -304,7 +294,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Total', style: SeType.h3),
-                    Text('\$${_formatPrice(total)}',
+                    Text(Money.format(total),
                         style: SeType.tabular(SeType.h3)
                             .copyWith(color: SeColors.red600)),
                   ],

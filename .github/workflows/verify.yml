@@ -61,6 +61,28 @@ jobs:
       - name: Test the data migrations
         run: node --test tools/migrate/migrations.test.mjs
 
+      # The panel's image pipeline (P4-01/P4-02). `image-upload.js` is
+      # deliberately import-free so it loads in plain Node: what we refuse to
+      # upload, what we resize to, and whether a stored image is ours before we
+      # delete it are all decidable here rather than in a browser.
+      - name: Test the admin image pipeline
+        run: node --test tools/test-image-upload.mjs
+
+      # The package price list (P5-01). The customer app refuses to quote a
+      # package price unless this table parses, so a table that parses WRONGLY
+      # is worse than one that fails — every case pinned here is a way the
+      # admin's intent and the saved table could quietly disagree.
+      - name: Test the package pricing editor
+        run: node --test tools/test-pricing-form.mjs
+
+      # The overseas enquiry queue. An enquiry is a person waiting to hear back
+      # about sending something to their family, so the failure that matters is
+      # not a crash — it is an enquiry that quietly never appears in the queue
+      # an operator works from. Filtering, sorting and search live in an
+      # import-free module precisely so those cases can be pinned here.
+      - name: Test the overseas enquiry queue
+        run: node --test tools/test-overseas-status.mjs
+
   flutter:
     name: Flutter (${{ matrix.app }})
     runs-on: ubuntu-latest
@@ -174,6 +196,26 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The pure logic — promo evaluation (P3-03) and the commission arithmetic
+      # (P3-04) — is deliberately free of firebase-admin so it can be pinned
+      # here with no credentials and no emulator. Both decide what money
+      # changes hands.
+      #
+      # The count guard is not decoration. The first version of this step used
+      # `lib/**/*.test.js`, which expands only when bash has `globstar` set —
+      # it does locally and does not here. A later variant found no files and
+      # exited 0, so the job would have reported PASS while running nothing.
+      # A suite that silently runs zero tests is worse than no suite at all.
+      - name: Test
+        run: |
+          count=$(ls lib/*.test.js 2>/dev/null | wc -l)
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No compiled test files in functions/lib — the suite would have passed by running nothing."
+            exit 1
+          fi
+          echo "Running $count test file(s)"
+          npm test
+
   admin:
     name: Admin panel
     runs-on: ubuntu-latest
@@ -198,7 +240,7 @@ jobs:
       # syntax error blanks the page in production with no build step to catch
       # it. These two steps are that missing build step.
       - name: Syntax check
-        run: node --check app.js
+        run: node --check app.js && node --check image-upload.js && node --check pricing-form.js
 
       - name: Lint
-        run: npx eslint app.js
+        run: npx eslint app.js image-upload.js pricing-form.js

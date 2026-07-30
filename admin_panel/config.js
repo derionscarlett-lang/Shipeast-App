@@ -34,6 +34,22 @@ const CONFIGS = {
     projectId:         'shipeast-1a1f6',
     storageBucket:     'shipeast-1a1f6.firebasestorage.app',
     messagingSenderId: '783428944628'
+  },
+
+  /* The local preview harness (tools/dev-up.sh). Every value here is a
+     placeholder, and that is the safety property, not an oversight.
+
+     `demo-` is a reserved prefix in the Firebase tooling: the emulator suite
+     serves a `demo-*` project happily, and the SDKs refuse to fall back to
+     real Google endpoints for one. So if the emulator is not running, the
+     panel fails to connect — it cannot quietly find production instead, which
+     is the accident this whole file exists to prevent. */
+  local: {
+    apiKey:            'local-emulator-unused',
+    authDomain:        'localhost',
+    projectId:         'demo-shipeast',
+    storageBucket:     'demo-shipeast.appspot.com',
+    messagingSenderId: '000000000000'
   }
 
   // staging: filled in by P0-01 once `shipeast-staging` exists. Generate with
@@ -46,8 +62,8 @@ const CONFIGS = {
 const HOSTS = {
   'shipeast-staging.web.app':      'staging',
   'shipeast-staging.firebaseapp.com': 'staging',
-  localhost:                       'staging',
-  '127.0.0.1':                     'staging'
+  localhost:                       'local',
+  '127.0.0.1':                     'local'
 };
 
 /* An explicit `?env=` overrides the hostname map.
@@ -95,6 +111,22 @@ if (!CONFIGS[requested]) {
 
 export const SE_ENV = requested;
 export const firebaseConfig = CONFIGS[requested];
+
+/** Ports the emulator suite binds, mirroring the `emulators` block in the
+    repo-root firebase.json. Read by app.js; exported here so there is one
+    place to change them. */
+export const EMULATORS = {
+  auth:      9099,
+  firestore: 8080,
+  storage:   9199,
+  functions: 5001
+};
+
+/* True only for the local preview harness. app.js redirects every SDK at the
+   emulator suite when this is set — a redirect that must never be reachable
+   from a deployed panel, hence keying it off SE_ENV rather than sniffing the
+   hostname a second time. */
+export const USE_EMULATORS = SE_ENV === 'local';
 
 /* ── Non-production banner ──────────────────────────────────────
    Self-contained: inline styles, injected at runtime, and rendered only when

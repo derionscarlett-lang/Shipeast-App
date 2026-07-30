@@ -16,6 +16,17 @@ class DriverPay {
   static double commissionOn(num orderTotal) =>
       orderTotal.toDouble() * commissionRate;
 
+  /// What the driver was actually paid for [order].
+  ///
+  /// Prefers `driverCommission`, written by the server at delivery (P3-04),
+  /// and falls back to the local estimate only for orders delivered before
+  /// that field existed. Use this anywhere a *completed* delivery is shown;
+  /// [commissionOn] is for estimating a job not yet taken.
+  static double creditedOn(Map<String, dynamic> order) {
+    final credited = (order['driverCommission'] as num?)?.toDouble();
+    return credited ?? commissionOn((order['total'] as num?) ?? 0);
+  }
+
   /// Commission expressed for UI copy, e.g. "10%".
   static String get commissionLabel =>
       '${(commissionRate * 100).toStringAsFixed(0)}%';
@@ -27,9 +38,11 @@ class DriverPay {
 class Money {
   Money._();
 
-  static const String symbol = 'J\$';
+  /// The single place the currency glyph is defined for this app. Must match
+  /// `customer_app/lib/utils/money.dart` — the two apps show the same order.
+  static const String symbol = '\$';
 
-  /// `12345.6` → `J$12,346`
+  /// `12345.6` → `$12,346`
   static String format(num? value) => '$symbol${plain(value)}';
 
   /// `12345.6` → `12,346` (no symbol, for when the unit is shown separately).

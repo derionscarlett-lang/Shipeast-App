@@ -1,8 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/app_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
+import '../utils/money.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
@@ -35,15 +36,6 @@ class _CartScreenState extends State<CartScreen> {
   void dispose() {
     _instructionsController.dispose();
     super.dispose();
-  }
-
-  String _formatPrice(int price) {
-    if (price >= 1000) {
-      final thousands = price ~/ 1000;
-      final hundreds = price % 1000;
-      return '$thousands,${hundreds.toString().padLeft(3, '0')}';
-    }
-    return '$price';
   }
 
   @override
@@ -164,16 +156,12 @@ class _CartScreenState extends State<CartScreen> {
               child: SizedBox(
                 width: 56,
                 height: 56,
-                child: item.imageUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: item.imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (ctx, url) => const SeShimmer(
-                            child:
-                                SeSkeleton(width: 56, height: 56, radius: 12)),
-                        errorWidget: (ctx, url, err) => _fallback(),
-                      )
-                    : _fallback(),
+                child: AppImage(
+                  url: item.imageUrl,
+                  placeholder: const SeShimmer(
+                      child: SeSkeleton(width: 56, height: 56, radius: 12)),
+                  errorWidget: _fallback(),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -186,7 +174,7 @@ class _CartScreenState extends State<CartScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
-                  Text('\$${_formatPrice(item.price)}',
+                  Text(Money.format(item.price),
                       style: SeType.tabular(SeType.title)
                           .copyWith(color: SeColors.red600)),
                 ],
@@ -262,10 +250,9 @@ class _CartScreenState extends State<CartScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _summaryRow('Subtotal', '\$${_formatPrice(subtotal)}'),
-            _summaryRow('Delivery fee',
-                deliveryFee == 0 ? 'Free' : '\$${_formatPrice(deliveryFee)}'),
-            _summaryRow('Service fee', '\$${_formatPrice(serviceFee)}'),
+            _summaryRow('Subtotal', Money.format(subtotal)),
+            _summaryRow('Delivery fee', Money.deliveryFee(deliveryFee)),
+            _summaryRow('Service fee', Money.format(serviceFee)),
             const SizedBox(height: 6),
             const Divider(height: 1, color: SeColors.ink100),
             const SizedBox(height: 12),
@@ -273,7 +260,7 @@ class _CartScreenState extends State<CartScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Total', style: SeType.h3),
-                Text('\$${_formatPrice(total)}',
+                Text(Money.format(total),
                     style: SeType.tabular(SeType.h3)
                         .copyWith(color: SeColors.red600)),
               ],
@@ -298,7 +285,7 @@ class _CartScreenState extends State<CartScreen> {
   Widget _buildCheckoutButton(CartProvider cart, int subtotal, int deliveryFee,
           int serviceFee, int total) =>
       SeButton(
-        label: 'Proceed to Checkout · \$${_formatPrice(total)}',
+        label: 'Proceed to Checkout · ${Money.format(total)}',
         icon: SeIcons.arrowRight,
         onPressed: () => Navigator.pushNamed(context, '/checkout', arguments: {
           'merchantId': cart.merchantId,

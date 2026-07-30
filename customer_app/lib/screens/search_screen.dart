@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/app_image.dart';
 import 'package:flutter/material.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../services/firestore_service.dart';
+import '../utils/money.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_chip.dart';
 import '../widgets/se_skeleton.dart';
@@ -51,12 +52,6 @@ class _SearchScreenState extends State<SearchScreen> {
         .toList();
   }
 
-  static int _parseDeliveryFee(String s) {
-    if (s.toLowerCase().contains('free')) return 0;
-    final match = RegExp(r'\d+').firstMatch(s);
-    return match != null ? int.tryParse(match.group(0)!) ?? 100 : 100;
-  }
-
   @override
   Widget build(BuildContext context) {
     final results = _filtered;
@@ -67,7 +62,7 @@ class _SearchScreenState extends State<SearchScreen> {
           _buildHeader(context),
           Expanded(
             child: _query.trim().isEmpty
-                ? _buildEmptyState()
+                ? _buildBrowse()
                 : results.isEmpty
                     ? _buildNoResults()
                     : _buildResults(results),
@@ -155,13 +150,76 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       );
 
-  Widget _buildEmptyState() => Center(
+  static const List<(String, IconData, Color)> _quickCats = [
+    ('Food', SeIcons.food, SeColors.red500),
+    ('Grocery', SeIcons.grocery, SeColors.success),
+    ('Pharmacy', SeIcons.pharmacy, SeColors.ocean500),
+  ];
+
+  void _setQuery(String q) {
+    _ctrl.text = q;
+    setState(() => _query = q);
+  }
+
+  /// An idle search screen shouldn't be a blank page with one icon. Show quick
+  /// category filters and the full merchant list so there's always something to
+  /// browse — the search box narrows it down, it doesn't gate the whole page.
+  Widget _buildBrowse() {
+    if (_allMerchants.isEmpty) {
+      return Center(
         child: SeEmptyState(
           icon: SeIcons.search,
           title: 'Search merchants',
           message: 'Food, grocery, pharmacy & more',
         ),
       );
+    }
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                SeSpacing.gutter, SeSpacing.gutter, SeSpacing.gutter, 4),
+            child: Row(
+              children: [
+                Text('Browse by category', style: SeType.section),
+              ],
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, 10, SeSpacing.gutter, 0),
+              itemCount: _quickCats.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final (label, icon, hue) = _quickCats[i];
+                return SeChip(
+                  label: label,
+                  icon: icon,
+                  fg: hue,
+                  bg: SeColors.surface0,
+                  onTap: () => _setQuery(label),
+                );
+              },
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                SeSpacing.gutter, 22, SeSpacing.gutter, 4),
+            child: Text('All merchants', style: SeType.section),
+          ),
+        ),
+        _buildResultsSliver(_allMerchants),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+      ],
+    );
+  }
 
   Widget _buildNoResults() => Center(
         child: SeEmptyState(
@@ -178,19 +236,35 @@ class _SearchScreenState extends State<SearchScreen> {
         padding: const EdgeInsets.all(SeSpacing.gutter),
         itemCount: results.length,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, i) {
-          final m = results[i];
+        itemBuilder: (context, i) => _merchantTile(results[i]),
+      );
+
+  Widget _buildResultsSliver(List<Map<String, dynamic>> results) =>
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(
+            SeSpacing.gutter, 12, SeSpacing.gutter, 0),
+        sliver: SliverList.separated(
+          itemCount: results.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, i) => _merchantTile(results[i]),
+        ),
+      );
+
+  Widget _merchantTile(Map<String, dynamic> m) {
           final imageUrl = m['imageUrl'] as String? ?? '';
           final isOpen = m['isOpen'] as bool? ?? true;
           final rating = m['rating'];
           final ratingStr = rating is double
               ? rating.toStringAsFixed(1)
               : rating?.toString() ?? '4.5';
-          final deliveryFee = m['deliveryFee'] as String? ?? 'Free delivery';
+          // Integer JMD (P3-01) — displayed and charged from one field.
+          final deliveryFee = (m['deliveryFee'] as num?)?.toInt() ?? 0;
           final deliveryTime = m['deliveryTime'] as String? ?? '25–35 min';
           final category = m['category'] as String? ?? '';
 
           return SeCard(
+            shadow: SeElevation.e1,
+            border: Border.all(color: SeColors.ink200, width: 1),
             onTap: () => Navigator.pushNamed(context, '/merchant', arguments: {
               'id': m['id'] ?? '',
               'name': m['name'] ?? '',
@@ -200,7 +274,6 @@ class _SearchScreenState extends State<SearchScreen> {
               'rating': ratingStr,
               'deliveryTime': deliveryTime,
               'deliveryFee': deliveryFee,
-              'deliveryFeeAmount': _parseDeliveryFee(deliveryFee),
               'isOpen': isOpen,
             }),
             child: Row(
@@ -210,17 +283,13 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: SizedBox(
                     width: 60,
                     height: 60,
-                    child: imageUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl,
-                            fit: BoxFit.cover,
-                            placeholder: (ctx, url) => const SeShimmer(
-                                child: SeSkeleton(
-                                    width: 60, height: 60, radius: 12)),
-                            errorWidget: (ctx, url, err) =>
-                                _iconFallback(category),
-                          )
-                        : _iconFallback(category),
+                    child: AppImage(
+                      url: imageUrl,
+                      placeholder: const SeShimmer(
+                          child:
+                              SeSkeleton(width: 60, height: 60, radius: 12)),
+                      errorWidget: _iconFallback(category),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -250,7 +319,8 @@ class _SearchScreenState extends State<SearchScreen> {
                               const Icon(SeIcons.star,
                                   size: 13, color: SeColors.gold500),
                               const SizedBox(width: 3),
-                              Text('$ratingStr · $deliveryTime',
+                              Text(
+                                  '$ratingStr · $deliveryTime · ${Money.deliveryFee(deliveryFee)}',
                                   style: SeType.bodyS
                                       .copyWith(color: SeColors.ink500)),
                             ],
@@ -265,8 +335,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           );
-        },
-      );
+  }
 
   Widget _iconFallback(String category) => Container(
         color: SeColors.surface50,

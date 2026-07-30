@@ -38,11 +38,16 @@ class _SeCardState extends State<SeCard> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Neutral surface cards get a hairline edge by default so they read as a
+    // crafted surface, not a floating shadow blob (the "AI" look). Cards that
+    // pass an explicit colour (coloured hero/status cards) are left alone.
+    final border =
+        widget.border ?? (widget.color == null ? SeElevation.hairline : null);
     final deco = BoxDecoration(
       color: widget.color ?? scheme.surface,
       borderRadius: SeRadius.all(widget.radius),
       boxShadow: _down ? SeElevation.e0 : widget.shadow,
-      border: widget.border,
+      border: border,
     );
 
     Widget card = AnimatedContainer(

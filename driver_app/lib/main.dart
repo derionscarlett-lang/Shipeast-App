@@ -2,8 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dev/dev_emulators.dart';
 import 'theme/app_theme.dart';
 import 'theme/se_colors.dart';
 import 'theme/se_icons.dart';
@@ -80,11 +82,19 @@ Future<Widget> _resolveHome() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _initFirebase();
+  // No-op unless compiled with --dart-define=USE_EMULATORS=true. Must run
+  // before the first Firestore read — useFirestoreEmulator throws once the
+  // instance has been used.
+  await connectToEmulators();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
-  await _initFCM();
+  // Skipped on web: FCM there needs a service worker and a VAPID key that
+  // this project has never registered, so requestPermission/getToken would
+  // throw and take the whole launch down. The local preview is for looking at
+  // screens; push is not one of the things it can honestly show.
+  if (!kIsWeb) await _initFCM();
   final home = await _resolveHome();
   runApp(ShipEastDriverApp(home: home));
 }
@@ -99,7 +109,19 @@ class ShipEastDriverApp extends StatelessWidget {
       title: 'ShipEast Driver',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      darkTheme: AppTheme.darkTheme,
+      // The SEDS driver UI is designed light-first — every screen hardcodes the
+      // warm light surfaces (surface50 background) while shared widgets like
+      // SeCard and the input fields pull their fill from the ACTIVE theme's
+      // colorScheme.surface / inputDecorationTheme. A device in dark mode was
+      // therefore rendering dark cards (#201E1A) and dark input fields
+      // (#2A2823) behind light scaffolds — the "black everywhere" the user saw.
+      //
+      // themeMode.light alone should prevent this, but to make a dark surface
+      // STRUCTURALLY IMPOSSIBLE (OEM quirks, a future regression, a stray
+      // Theme() override) we hand BOTH theme slots the light ThemeData. There
+      // is no dark design in this app, so there is nothing to lose.
+      darkTheme: AppTheme.theme,
+      themeMode: ThemeMode.light,
       home: home,
       routes: {
         '/login': (_) => const LoginScreen(),

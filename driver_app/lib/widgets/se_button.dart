@@ -46,9 +46,9 @@ class _SeButtonState extends State<SeButton> {
   bool get _enabled => widget.onPressed != null && !widget.loading;
 
   double get _height => switch (widget.size) {
-        SeButtonSize.large => 54,
-        SeButtonSize.medium => 46,
-        SeButtonSize.small => 38,
+        SeButtonSize.large => 50,
+        SeButtonSize.medium => 44,
+        SeButtonSize.small => 36,
       };
 
   double get _fontSize => switch (widget.size) {

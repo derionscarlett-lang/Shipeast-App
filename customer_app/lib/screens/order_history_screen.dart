@@ -3,16 +3,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../models/order_status.dart';
+import '../providers/cart_provider.dart';
 import '../services/firestore_service.dart';
+import '../utils/money.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_chip.dart';
 import '../widgets/se_skeleton.dart';
 import '../widgets/se_empty_state.dart';
+import '../widgets/se_toast.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -133,12 +137,56 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         .join(', ');
   }
 
-  String _formatTotal(dynamic total) {
-    final t = (total as num?)?.toInt() ?? 0;
-    if (t >= 1000) {
-      return '\$${t ~/ 1000},${(t % 1000).toString().padLeft(3, '0')}';
+  String _formatTotal(dynamic total) => Money.format((total as num?) ?? 0);
+
+  /// An order can be reordered only if it came from a merchant and still has
+  /// its line items. Package and overseas jobs carry neither, so "Reorder"
+  /// would have nothing to put in the cart.
+  bool _canReorder(Map<String, dynamic> order) {
+    final merchantId = order['merchantId'] as String? ?? '';
+    final items = order['items'] as List? ?? const [];
+    return merchantId.isNotEmpty && items.isNotEmpty;
+  }
+
+  /// Rebuilds the cart from a past order and drops the customer into it to
+  /// review before checkout. Prices come from the historical order; the cart
+  /// and checkout screens recompute fees and totals from there, so a stale
+  /// price is corrected the moment they proceed rather than silently charged.
+  void _reorder(Map<String, dynamic> order) {
+    final rawItems = order['items'] as List? ?? const [];
+    final merchantId = order['merchantId'] as String? ?? '';
+    if (merchantId.isEmpty || rawItems.isEmpty) {
+      SeToast.info(context, "This order can't be reordered.");
+      return;
     }
-    return '\$$t';
+    final cart = context.read<CartProvider>();
+    cart.clearCart();
+    cart.setMerchant(
+      merchantId,
+      order['merchantName'] as String? ?? 'Merchant',
+      (order['deliveryFee'] as num?)?.toInt() ?? 0,
+    );
+    for (final raw in rawItems) {
+      if (raw is! Map) continue;
+      final i = Map<String, dynamic>.from(raw);
+      final name = i['name'] as String? ?? '';
+      if (name.isEmpty) continue;
+      // Stored order items keep only name/price/quantity (see placeOrder), so
+      // fall back to the name as a stable cart key when no id was persisted.
+      final id = (i['id'] as String?)?.isNotEmpty == true
+          ? i['id'] as String
+          : name;
+      cart.addItem(CartItem(
+        id: id,
+        name: name,
+        description: i['description'] as String? ?? '',
+        price: (i['price'] as num?)?.toInt() ?? 0,
+        imageUrl: i['imageUrl'] as String? ?? '',
+        quantity: (i['quantity'] as num?)?.toInt() ?? 1,
+      ));
+    }
+    Navigator.pushNamed(context, '/cart');
+    SeToast.success(context, 'Added to your cart — review and check out.');
   }
 
   @override
@@ -182,40 +230,50 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         ),
       );
 
+  // A calm segmented control on a single tinted track. The selected segment is
+  // a solid red fill with no glow and no shadow animation — the old glowing
+  // gradient pill that lifted/dropped on every tap was the "annoying fast hover"
+  // and the loudest AI tell on this screen.
   Widget _buildTabs() => Container(
         color: SeColors.surface0,
-        padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, 0, SeSpacing.gutter, 14),
-        child: Row(
-          children: _tabs.asMap().entries.map((e) {
-            final selected = _activeTab == e.key;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _activeTab = e.key),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  margin:
-                      EdgeInsets.only(right: e.key < _tabs.length - 1 ? 8 : 0),
-                  padding: const EdgeInsets.symmetric(vertical: 9),
-                  decoration: BoxDecoration(
-                    gradient: selected ? SeColors.emberGradient : null,
-                    color: selected ? null : SeColors.surface50,
-                    borderRadius: SeRadius.pill,
-                    boxShadow:
-                        selected ? SeElevation.glow : SeElevation.e0,
-                  ),
-                  child: Center(
-                    child: Text(
-                      e.value,
-                      style: SeType.label.copyWith(
-                        color: selected ? Colors.white : SeColors.ink500,
-                        fontWeight: FontWeight.w700,
+        padding:
+            const EdgeInsets.fromLTRB(SeSpacing.gutter, 0, SeSpacing.gutter, 14),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: SeColors.surface50,
+            borderRadius: SeRadius.pill,
+            border: Border.all(color: SeColors.ink200, width: 1),
+          ),
+          child: Row(
+            children: _tabs.asMap().entries.map((e) {
+              final selected = _activeTab == e.key;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _activeTab = e.key),
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    curve: Curves.easeOut,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: selected ? SeColors.red500 : Colors.transparent,
+                      borderRadius: SeRadius.pill,
+                    ),
+                    child: Center(
+                      child: Text(
+                        e.value,
+                        style: SeType.label.copyWith(
+                          color: selected ? Colors.white : SeColors.ink500,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
       );
 
@@ -291,6 +349,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         : '#${orderId.toUpperCase()}';
 
     return SeCard(
+      shadow: SeElevation.e1,
+      border: Border.all(color: SeColors.ink200, width: 1),
       onTap: () => Navigator.pushNamed(context, '/order-status',
           arguments: {'orderId': orderId}),
       child: Column(
@@ -302,11 +362,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: SeColors.red50,
+                  color: colors.tint,
                   borderRadius: SeRadius.all(SeRadius.sm),
                 ),
-                child: const Icon(SeIcons.orders,
-                    size: 21, color: SeColors.red500),
+                child: Icon(SeIcons.orders, size: 21, color: colors.color),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -355,24 +414,56 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                   style: SeType.tabular(SeType.title)
                       .copyWith(color: SeColors.ink900)),
               const SizedBox(width: 10),
-              GestureDetector(
-                onTap: () => Navigator.pushNamed(context, '/order-status',
-                    arguments: {'orderId': orderId}),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    gradient: SeColors.emberGradient,
-                    borderRadius: SeRadius.pill,
-                  ),
-                  child: Text('Track',
-                      style: SeType.label.copyWith(
-                          color: Colors.white, fontWeight: FontWeight.w700)),
-                ),
-              ),
+              _cardAction(order, status, orderId),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// The trailing pill on an order card. An order still in flight gets "Track";
+  /// a finished (delivered/cancelled) order that has line items gets "Reorder"
+  /// instead, since tracking a completed delivery has nothing left to show.
+  Widget _cardAction(
+      Map<String, dynamic> order, String status, String orderId) {
+    final finished =
+        status == OrderStatus.delivered || status == OrderStatus.cancelled;
+    if (finished && _canReorder(order)) {
+      return GestureDetector(
+        onTap: () => _reorder(order),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: SeColors.red50,
+            borderRadius: SeRadius.pill,
+            border: Border.all(color: SeColors.red100, width: 1.5),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(SeIcons.refresh, size: 14, color: SeColors.red500),
+              const SizedBox(width: 5),
+              Text('Reorder',
+                  style: SeType.label.copyWith(
+                      color: SeColors.red600, fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      );
+    }
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/order-status',
+          arguments: {'orderId': orderId}),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          gradient: SeColors.emberGradient,
+          borderRadius: SeRadius.pill,
+        ),
+        child: Text('Track',
+            style: SeType.label
+                .copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
       ),
     );
   }

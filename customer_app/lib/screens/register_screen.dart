@@ -2,10 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/notification_service.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
+import '../theme/se_brand.dart';
 import '../widgets/se_text_field.dart';
 import '../widgets/se_button.dart';
 import '../widgets/se_toast.dart';
@@ -72,6 +74,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'email': email,
         'createdAt': FieldValue.serverTimestamp(),
       });
+      await NotificationService.onSignedIn(cred.user!.uid);
       if (mounted) Navigator.pushReplacementNamed(context, '/home');
     } on FirebaseAuthException catch (e) {
       if (mounted) {
@@ -108,12 +111,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              // Ember brand lockup — matches the sign-in screen so the whole
+              // onboarding flow feels like one branded product.
+              Container(
+                padding: const EdgeInsets.all(SeSpacing.x5),
+                decoration: BoxDecoration(
+                  gradient: SeColors.emberGradient,
+                  borderRadius: SeRadius.all(SeRadius.lg),
+                  boxShadow: SeElevation.glow,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: SeRadius.all(SeRadius.md),
+                      ),
+                      child: const Icon(SeIcons.packages,
+                          color: Colors.white, size: 26),
+                    ),
+                    const SizedBox(width: SeSpacing.x4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SeWordmark(size: 24, onDark: true),
+                          const SizedBox(height: 4),
+                          Text(
+                            SeBrand.tagline,
+                            style: SeType.bodyS.copyWith(
+                                color: Colors.white.withValues(alpha: 0.85)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 26),
               Text('Create account', style: SeType.display),
               const SizedBox(height: 6),
               Text('Join ShipEast in a few quick steps',
                   style: SeType.body.copyWith(color: SeColors.ink500)),
-              const SizedBox(height: 26),
+              const SizedBox(height: 22),
               SeTextField(
                 controller: _nameController,
                 label: 'FULL NAME',

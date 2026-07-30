@@ -33,17 +33,41 @@ const problems = [];
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
 
 // ── 1. The Dart copies must be byte-identical ──────────────────────────────
+// Every model file the two apps share by copy is checked here. A file added to
+// one app and forgotten in the other is the exact failure mode this catches —
+// it compiles in both, and the two apps then disagree at runtime.
+const SHARED_DART = [
+  ['order_status.dart', CUSTOMER, DRIVER],
+  [
+    'order_type.dart',
+    'customer_app/lib/models/order_type.dart',
+    'driver_app/lib/models/order_type.dart',
+  ],
+];
+
 const customerSrc = read(CUSTOMER);
 const driverSrc = read(DRIVER);
 
-if (customerSrc !== driverSrc) {
-  problems.push(
-    `order_status.dart has diverged between apps.\n` +
-    `  ${CUSTOMER}\n  ${DRIVER}\n` +
-    `  These must be byte-identical. Edit both, or neither.`
-  );
-} else {
-  console.log(`ok   Dart copies are byte-identical (${customerSrc.length} bytes)`);
+for (const [name, customerPath, driverPath] of SHARED_DART) {
+  let a, b;
+  try {
+    a = read(customerPath);
+    b = read(driverPath);
+  } catch (e) {
+    // A missing copy is a divergence too, and a bare ENOENT stack does not say
+    // which app forgot the file.
+    problems.push(`${name} could not be read in both apps: ${e.message}`);
+    continue;
+  }
+  if (a !== b) {
+    problems.push(
+      `${name} has diverged between apps.\n` +
+      `  ${customerPath}\n  ${driverPath}\n` +
+      `  These must be byte-identical. Edit both, or neither.`
+    );
+  } else {
+    console.log(`ok   ${name} copies are byte-identical (${a.length} bytes)`);
+  }
 }
 
 // ── 2. The admin JS must declare the same lifecycle ────────────────────────

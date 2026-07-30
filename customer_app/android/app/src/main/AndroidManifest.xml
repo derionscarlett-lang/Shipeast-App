@@ -2,6 +2,12 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- Live delivery tracking: the customer app reads this device's own location
+         to show, honestly, how far the driver's live GPS is from where the
+         customer is standing. Foreground use only (while the tracker is open),
+         so no background-location permission is requested. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="ShipEast"
         android:name="${applicationName}"
@@ -53,6 +59,12 @@
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>
+        </intent>
+        <!-- Lets url_launcher place a `tel:` call to the driver. On Android 11+
+             canLaunchUrl returns false without a matching query. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="tel"/>
         </intent>
         <intent>
             <action android:name="android.intent.action.SENDTO"/>

@@ -8,7 +8,7 @@ import '../theme/se_typography.dart';
 /// Design-grade earnings chart (PLAN §3.2 — Earnings).
 ///
 /// Rebuilds the old flat `_BarChartPainter`: bars grow in on a staggered
-/// decelerate curve, sit on a faint gridline scale with real J$ axis labels,
+/// decelerate curve, sit on a faint gridline scale with real currency axis labels,
 /// and the peak bar is emphasised with the Ember gradient plus a gold cap so
 /// the best earning window is readable without a legend.
 ///
@@ -72,7 +72,7 @@ class _SeEarningsChartState extends State<SeEarningsChart>
           height: widget.height,
           child: Stack(
             children: [
-              // Faint 4-line grid with J$ scale labels.
+              // Faint 4-line grid with currency scale labels.
               Positioned.fill(
                 bottom: 22,
                 child: _Grid(maxVal: hasData ? maxVal : 0),
@@ -206,7 +206,7 @@ class _Bar extends StatelessWidget {
   }
 }
 
-/// Four faint horizontal rules with J$ values on the right edge.
+/// Four faint horizontal rules with currency values on the right edge.
 class _Grid extends StatelessWidget {
   final double maxVal;
   const _Grid({required this.maxVal});

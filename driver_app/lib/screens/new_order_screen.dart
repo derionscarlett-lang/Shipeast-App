@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../driver_constants.dart';
+import '../models/order_type.dart';
 import '../services/driver_firestore_service.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
@@ -20,7 +21,17 @@ import 'pickup_confirmation_screen.dart';
 /// interrupts the driver, with the countdown as the visual anchor.
 class NewOrderScreen extends StatefulWidget {
   final Map<String, dynamic> order;
-  const NewOrderScreen({super.key, required this.order});
+
+  /// Straight-line distance from the driver to the pickup, in metres, when the
+  /// dashboard could compute it. Null when the driver's location or the order's
+  /// pickup coordinates are unknown, in which case no distance is shown.
+  final double? pickupDistanceMeters;
+
+  const NewOrderScreen({
+    super.key,
+    required this.order,
+    this.pickupDistanceMeters,
+  });
 
   @override
   State<NewOrderScreen> createState() => _NewOrderScreenState();
@@ -35,6 +46,7 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
   bool _accepting = false;
 
   String get _orderId => widget.order['id'] as String? ?? '';
+  bool get _isPackage => OrderType.isPackage(widget.order['type']);
   String get _merchantName =>
       widget.order['merchantName'] as String? ?? 'Merchant';
   String get _customerName =>
@@ -42,6 +54,10 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
   String get _deliveryAddress =>
       widget.order['deliveryAddress'] as String? ?? '—';
   String get _merchantAddress =>
+      // SCHEMA.md §orders names this `merchantAddr`; only this reader used the
+      // longer spelling, so a pickup address written by the customer app
+      // resolved to '—' and the driver had no address to navigate to.
+      widget.order['merchantAddr'] as String? ??
       widget.order['merchantAddress'] as String? ??
       widget.order['address'] as String? ??
       '—';
@@ -49,6 +65,13 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
   String get _paymentMethod =>
       widget.order['paymentMethod'] as String? ?? 'COD';
   List _getItems() => widget.order['items'] as List? ?? [];
+
+  /// A short "how far to collect" label, or null when the distance is unknown.
+  String? get _pickupDistanceLabel {
+    final m = widget.pickupDistanceMeters;
+    if (m == null) return null;
+    return m < 950 ? '${m.round()} m away' : '${(m / 1000).toStringAsFixed(1)} km away';
+  }
 
   String get _shortId => _orderId.length > 8
       ? _orderId.substring(0, 8).toUpperCase()
@@ -371,12 +394,49 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('PICKUP', style: SeType.eyebrow),
+                  Row(
+                    children: [
+                      Text(_isPackage ? 'COLLECT FROM' : 'PICKUP',
+                          style: SeType.eyebrow),
+                      // A package job is collected from an address, not a
+                      // shop, and there is no menu to check the order against.
+                      if (_isPackage) ...[
+                        const SizedBox(width: SeSpacing.x2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: SeColors.ink100,
+                            borderRadius: SeRadius.all(SeRadius.xs),
+                          ),
+                          child: Text(OrderType.label(widget.order['type']),
+                              style: SeType.eyebrow
+                                  .copyWith(color: SeColors.ink700)),
+                        ),
+                      ],
+                    ],
+                  ),
                   Text(_merchantName, style: SeType.title),
                   if (_merchantAddress != '—')
                     Text(_merchantAddress,
                         style:
                             SeType.bodyS.copyWith(color: SeColors.ink500)),
+                  if (_pickupDistanceLabel != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(SeIcons.navigation,
+                              size: 13, color: SeColors.ocean500),
+                          const SizedBox(width: 4),
+                          Text(_pickupDistanceLabel!,
+                              style: SeType.bodyS.copyWith(
+                                  color: SeColors.ocean500,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: SeSpacing.x4),
                   Text('DELIVER TO', style: SeType.eyebrow),
                   Text(_customerName, style: SeType.title),
@@ -389,7 +449,27 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
         ),
       );
 
+  /// Describes what the driver is actually carrying.
+  ///
+  /// A package order has an empty `items` array by design — there are no line
+  /// items, only a parcel — so summarising it the food way would tell the
+  /// driver "No items listed" about a job that is entirely about the item.
+  String _packageSummary() {
+    final pkg = widget.order['package'];
+    if (pkg is! Map) return 'Package';
+    final parts = <String>[
+      if ((pkg['itemCategory'] as String?)?.isNotEmpty ?? false)
+        pkg['itemCategory'] as String,
+      if (pkg['weightKg'] != null) '${pkg['weightKg']} kg',
+      if (pkg['packingRequired'] == true) 'packing required',
+    ];
+    final instructions = (pkg['instructions'] as String?)?.trim() ?? '';
+    final head = parts.isEmpty ? 'Package' : parts.join(' · ');
+    return instructions.isEmpty ? head : '$head\n$instructions';
+  }
+
   Widget _itemsBlock() {
+    if (_isPackage) return _summaryTile(_packageSummary());
     final items = _getItems();
     final summary = items.isNotEmpty
         ? items
@@ -402,6 +482,10 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
             .join(', ')
         : 'No items listed';
 
+    return _summaryTile(summary);
+  }
+
+  Widget _summaryTile(String summary) {
     return Container(
       padding: const EdgeInsets.all(SeSpacing.x4),
       decoration: BoxDecoration(

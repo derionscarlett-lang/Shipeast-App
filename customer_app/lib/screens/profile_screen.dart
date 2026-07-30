@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/firestore_service.dart';
+import '../services/notification_service.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
@@ -135,6 +136,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       destructive: true,
     );
     if (!confirmed) return;
+    // Before signOut, while the uid is still valid: leaving the token behind
+    // means the next person to sign in on this phone receives the previous
+    // customer's order notifications (P4-03).
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) await NotificationService.onSignedOut(uid);
     await FirebaseAuth.instance.signOut();
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
@@ -410,6 +416,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         decoration: BoxDecoration(
           color: SeColors.surface0,
           borderRadius: SeRadius.all(SeRadius.md),
+          border: Border.all(color: SeColors.ink200, width: 1),
           boxShadow: SeElevation.e1,
         ),
         child: Column(
@@ -477,6 +484,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return SeCard(
       padding: EdgeInsets.zero,
+      clip: true,
+      shadow: SeElevation.e1,
+      border: Border.all(color: SeColors.ink200, width: 1),
       child: Column(
         children: menuItems.asMap().entries.map((entry) {
           final i = entry.key;

@@ -6,7 +6,6 @@ import '../driver_constants.dart';
 import '../services/driver_firestore_service.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
-import '../theme/se_motion.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../widgets/se_card.dart';
@@ -162,41 +161,49 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       );
 
+  // A calm segmented control on a single track — no glow, no gradient, no
+  // shadow animation. Switching tabs slides a solid fill, so it never does the
+  // "fast flashing hover" that a glowing gradient pill does on every tap.
   Widget _tabsBar() => Container(
         color: SeColors.surface0,
         padding: const EdgeInsets.symmetric(
             horizontal: SeSpacing.gutter, vertical: SeSpacing.x3),
-        child: Row(
-          children: List.generate(_tabs.length, (i) {
-            final selected = _activeTab == i;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _activeTab = i),
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: SeMotion.fast,
-                  curve: SeMotion.emphasized,
-                  margin: EdgeInsets.only(
-                      right: i < _tabs.length - 1 ? SeSpacing.x2 : 0),
-                  padding: const EdgeInsets.symmetric(vertical: SeSpacing.x3),
-                  decoration: BoxDecoration(
-                    gradient: selected ? SeColors.emberGradient : null,
-                    color: selected ? null : SeColors.surface50,
-                    borderRadius: SeRadius.all(SeRadius.sm),
-                    boxShadow: selected ? SeElevation.glow : null,
-                  ),
-                  child: Center(
-                    child: Text(
-                      _tabs[i],
-                      style: SeType.label.copyWith(
-                        color: selected ? Colors.white : SeColors.ink500,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: SeColors.surface50,
+            borderRadius: SeRadius.all(SeRadius.full),
+            border: Border.all(color: SeColors.ink200, width: 1),
+          ),
+          child: Row(
+            children: List.generate(_tabs.length, (i) {
+              final selected = _activeTab == i;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _activeTab = i),
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    curve: Curves.easeOut,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: selected ? SeColors.red500 : Colors.transparent,
+                      borderRadius: SeRadius.all(SeRadius.full),
+                    ),
+                    child: Center(
+                      child: Text(
+                        _tabs[i],
+                        style: SeType.label.copyWith(
+                          color: selected ? Colors.white : SeColors.ink500,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }),
+              );
+            }),
+          ),
         ),
       );
 
@@ -284,7 +291,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         '—';
     final deliverAddr = order['deliveryAddress'] as String? ?? '—';
     final total = (order['total'] as num?)?.toInt() ?? 0;
-    final commission = DriverPay.commissionOn(total);
+    final commission = DriverPay.creditedOn(order);
     final dateStr = _formatDate(
         order['deliveredAt'] ?? order['createdAt'] ?? order['acceptedAt']);
 

@@ -22,15 +22,17 @@ class SeSpacing {
   static const double cardPad = 16;
 }
 
-/// Corner radii — standardises the old 11–14 chaos.
+/// Corner radii — a deliberately tight scale. Kept crisp rather than bubbly so
+/// the UI reads as a sharp, modern product; `full` stays for genuine circles
+/// (avatars, dots, FAB) and pill chips.
 class SeRadius {
   SeRadius._();
 
-  static const double xs = 8; // small chips
-  static const double sm = 12; // inputs, list rows
-  static const double md = 16; // cards
-  static const double lg = 20; // large cards, sheets
-  static const double xl = 28; // hero, bottom-sheet top
+  static const double xs = 5; // small chips, tiny controls
+  static const double sm = 7; // inputs, list rows
+  static const double md = 9; // cards, buttons
+  static const double lg = 12; // large cards, sheets
+  static const double xl = 16; // hero, bottom-sheet top
   static const double full = 999; // pills, avatars, FAB
 
   static BorderRadius all(double r) => BorderRadius.circular(r);
@@ -68,16 +70,19 @@ class SeElevation {
     BoxShadow(color: Color(0x2E1C1A17), blurRadius: 48, offset: Offset(0, 20)),
   ];
 
-  /// The signature red glow that makes the primary CTA/FAB float.
+  /// The signature red glow that makes the primary CTA/FAB float. Kept for the
+  /// one hero action per screen — a softer, tighter drop than before so it reads
+  /// as a lift, not a neon halo (the old 0x4D/22px halo was the biggest "AI"
+  /// tell when stacked under buttons, tabs and chips at once).
   static const List<BoxShadow> glow = [
-    BoxShadow(color: Color(0x4DC8102E), blurRadius: 22, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x33C8102E), blurRadius: 16, offset: Offset(0, 6)),
   ];
 
-  static List<BoxShadow> glowColor(Color c, {double opacity = 0.30}) => [
+  static List<BoxShadow> glowColor(Color c, {double opacity = 0.22}) => [
         BoxShadow(
           color: c.withValues(alpha: opacity),
-          blurRadius: 22,
-          offset: const Offset(0, 8),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
         ),
       ];
 

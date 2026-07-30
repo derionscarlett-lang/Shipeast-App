@@ -1,9 +1,23 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
+}
+
+// Load the release signing config from android/key.properties if it exists.
+// The file (and the keystore it points to) are git-ignored — see android/.gitignore.
+// When absent (e.g. a fresh clone or CI without the secret), we fall back to debug
+// signing so the project still builds.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasReleaseSigning = keystorePropertiesFile.exists()
+if (hasReleaseSigning) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -28,10 +42,27 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Signed with debug keys for now; replace with release keystore before Play Store upload
-            signingConfig = signingConfigs.getByName("debug")
+            // Sign with the ShipEast release keystore (android/key.properties) when present,
+            // so installed builds are self-consistent and update cleanly. Falls back to the
+            // debug key only if key.properties is missing (fresh clone / CI without the secret).
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             // Disable R8 minification to prevent stripping of plugin classes
             isMinifyEnabled = false
             isShrinkResources = false
