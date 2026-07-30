@@ -109,7 +109,12 @@ DEAD_HEX = ['#C8102E', '#E1495F', '#86091E', '#F04A5E', '#A80D26', '#5F0615',
 DEAD_TOKEN = ['--grad-ember', '--grad-sunset', '--glow', '--gold-500', '--gold-tint',
               '--ocean-500', '--ocean-tint', '--brand', '--brand-text', '--text-hi',
               '--text-lo', '--text-mute', '--card-raised', '--sidebar-bg', '--scrim',
-              '--track-pill', '--gutter']
+              '--track-pill', '--gutter',
+              # The two-family split. --ff-display / --ff-ui existed to switch
+              # between Figtree and Inter Tight; there is one face now, so a
+              # var(--ff-display) left anywhere is a rule that silently falls
+              # back to the browser default.
+              '--ff-display', '--ff-ui']
 
 
 def gate_dead_values() -> None:
@@ -140,11 +145,20 @@ ALLOWED_FS = {'11px', '12px', '13px', '14px', '15px', '17px', '20px', '24px',
 
 # Weight 800 is BACK. The old rule banned it outright because Jakarta's
 # variable axis stopped at 700 and anything above it was synthesised — a faux
-# bold, which smears the stems and is exactly why the panel read as limp. The
-# faces are Figtree and Inter Tight now; both carry a real 800 master, so the
-# ban is replaced by a whitelist. 900 stays out: it exists in both files, but
-# at the sizes this panel uses it closes the counters on 'a' and 'e'.
+# bold, which smears the stems and is exactly why the panel read as limp.
+# Figtree carries a real master at every step of its 300–900 axis, so the ban
+# is replaced by a whitelist. 900 stays out: it exists in the file, but at the
+# sizes this panel uses it closes the counters on 'a' and 'e'.
 ALLOWED_FW = {'400', '500', '600', '700', '800', 'inherit', 'normal', 'bold'}
+
+# ONE FACE. The panel is set entirely in Figtree; the only other family it may
+# name is the mono stack, on inline <code> and a handed-over password. This is
+# the check that keeps "one typography system" true in the code rather than
+# only in the screenshots — a second family cannot be introduced by adding a
+# font-family somewhere, it can only be introduced by editing this list.
+#   'Figtree'  — the @font-face declarations in tokens.css
+#   inherit    — button/input/select/textarea, which do not inherit by default
+ALLOWED_FF = {"var(--ff)", 'var(--ff-mono)', "'Figtree'", 'inherit'}
 
 
 def gate_type() -> None:
@@ -172,6 +186,35 @@ def gate_type() -> None:
                 continue
             line = src[:m.start()].count('\n') + 1
             fail('off-scale-size', f'{rel}:{line} — font-size:{v} is not in the ten-step scale')
+        for m in re.finditer(r'font-family\s*:\s*([^;}\n]+)', src):
+            # Only the first family in the stack is checked — the fallbacks
+            # after it are system faces by definition.
+            v = m.group(1).split(',')[0].strip()
+            if v in ALLOWED_FF:
+                continue
+            line = src[:m.start()].count('\n') + 1
+            fail('second-face', f'{rel}:{line} — font-family:{v} introduces a second '
+                                f'typeface; the panel is set in one face (var(--ff))')
+        # Tracking belongs to the token layer. Nine --tr-* values cover every
+        # role in the panel, and a raw letter-spacing is how a tenth gets in
+        # without anyone deciding it should exist — which is how the coupon
+        # ended up on 2px and .12em while everything else was on em-relative
+        # tokens that scale with the type.
+        #
+        # config.js is exempt and stays exempt: its one letter-spacing is on
+        # the "you are pointed at PRODUCTION" banner, which is deliberately
+        # built out of hardcoded values and system-ui so that it still paints
+        # when the stylesheet or the font has failed to load. A safety warning
+        # that depends on the design system is a safety warning that can
+        # disappear with it.
+        if f != TOKENS and f.name != 'config.js':
+            for m in re.finditer(r'letter-spacing\s*:\s*([^;}\n]+)', src):
+                v = m.group(1).strip()
+                if v.startswith('var('):
+                    continue
+                line = src[:m.start()].count('\n') + 1
+                fail('raw-tracking', f'{rel}:{line} — letter-spacing:{v} is not a '
+                                     f'--tr-* token')
 
 
 # ─── gate 3: spacing discipline ────────────────────────────────────────────
@@ -225,7 +268,7 @@ def gate_contrast() -> None:
             '--red-600', '--red-700', '--red-900',
             '--success', '--warning', '--danger', '--info',
             '--brand-soft', '--success-soft', '--warning-soft', '--info-soft',
-            '--danger-soft', '--shell', '--shell-mark']
+            '--danger-soft', '--shell', '--shell-mark', '--shell-ink-hi']
     L = {n: token(n) for n in need}
     missing = [n for n, v in L.items() if not v]
     if missing:
@@ -300,6 +343,14 @@ def gate_contrast() -> None:
         # that none of these figures changed when it went.
         ('white / rail',         '#FFFFFF',     L['--shell'],    4.5, 99),
         ('lockup mark / rail',   L['--shell-mark'], L['--shell'], 4.5, 99),
+        # The rail's ink is a WARM white (#FFF4F7) rather than #FFF — see
+        # --shell-ink-hi. Softening chrome by hue is only defensible if it
+        # costs nothing in legibility, so the full tone is gated on both
+        # rails exactly as pure white was, and the two composited steps
+        # below it are measured against what the cold stack reached
+        # (5.52 / 4.56 light, 8.04 / 5.40 dark). All four figures went UP.
+        ('lockup white / rail',  L['--shell-ink-hi'], L['--shell'],  4.5, 99),
+        ('lockup white / dark rail', L['--shell-ink-hi'], dark_shell, 4.5, 99),
         ('nav label / rail',
          over(shell_ink[0], shell_ink[1], L['--shell']), L['--shell'], 4.5, 99),
         ('section head / rail',

@@ -57,11 +57,12 @@
   color:#fff;display:flex;align-items:center;
   justify-content:center;flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.3);}
 .ph-badge .ic{width:16px;height:16px;}
-.ph-app{font-size:var(--fs-micro);font-weight:700;color:#B60C31;
+.ph-app{font-size:var(--fs-micro);font-weight:600;color:#B60C31;
   text-transform:uppercase;letter-spacing:var(--tr-micro);}
-.ph-title{font-family:var(--ff-display);font-size:var(--fs-dense);font-weight:700;
+.ph-title{font-size:var(--fs-dense);font-weight:600;
   color:#33292E;margin-top:var(--sp-half);}
-.ph-msg{font-size:var(--fs-caption);color:#5C4D54;margin-top:var(--sp-half);line-height:1.4;}
+.ph-msg{font-size:var(--fs-caption);color:#5C4D54;margin-top:var(--sp-half);
+  line-height:var(--lh-dense);}
 .ph-filler{padding:var(--sp-3);border-bottom:1px solid #EBE5E7;}
 .ph-filler div{height:9px;background:#EBE5E7;border-radius:4px;margin-bottom:var(--gap-tight);}
 .ph-filler div:last-child{margin-bottom:0;}
@@ -75,7 +76,7 @@
   color:var(--accent-ink);display:flex;align-items:center;justify-content:center;
   flex-shrink:0;box-shadow:var(--plate-bevel);}
 .nh-ico .ic{filter:var(--emboss);}
-.nh-title{font-size:var(--fs-dense);font-weight:700;color:var(--ink);}
+.nh-title{font-size:var(--fs-dense);font-weight:600;color:var(--ink);}
 .nh-meta{font-size:var(--fs-caption);color:var(--ink-3);margin-top:var(--sp-half);}
 .nh-stamp{font-size:var(--fs-micro);line-height:var(--lh-micro);color:var(--ink-3);}
 
@@ -86,7 +87,7 @@
   display:flex;gap:var(--gap-inline);align-items:flex-start;background:var(--warning-tint);
   border-radius:var(--r-sm);padding:var(--sp-3) var(--sp-4);
   box-shadow:var(--ring-warning);
-  font-size:var(--fs-caption);line-height:1.5;
+  font-size:var(--fs-caption);line-height:var(--lh-body);
   color:var(--warning-ink);margin-bottom:var(--gap-field);
 }
 .notice .ic{width:18px;height:18px;flex-shrink:0;color:var(--warning);margin-top:1px;}
@@ -111,20 +112,20 @@
   background:rgba(92,10,31,.18);}
 /* Explicit rgba rather than a stack of `opacity` values — four different
    opacities on white text is four unnamed greys nobody can reason about. */
-.pc-brand{font-size:var(--fs-micro);font-weight:700;letter-spacing:.12em;
+.pc-brand{font-size:var(--fs-micro);font-weight:600;letter-spacing:var(--tr-wide);
   color:rgba(255,255,255,.78);text-transform:uppercase;}
 /* The preview column is ~200px of usable width, and at 30px/4px tracking an
    ordinary eight-character code (SUMMER25) overflowed it — `overflow-wrap`
    then split it across two lines mid-word, which is the one thing a coupon
    code must never do. 24px at 2px tracking carries codes up to ~11 characters
    on one line; `anywhere` stays as the last resort for longer ones. */
-.pc-code{font-family:var(--ff-display);font-size:var(--fs-h2);font-weight:800;
-  letter-spacing:2px;margin:var(--sp-2) 0 var(--gap-tight);overflow-wrap:anywhere;}
-.pc-disc{font-size:var(--fs-body-lg);font-weight:700;color:rgba(255,255,255,.95);}
+.pc-code{font-size:var(--fs-h2);font-weight:800;
+  letter-spacing:var(--tr-code);margin:var(--sp-2) 0 var(--gap-tight);overflow-wrap:anywhere;}
+.pc-disc{font-size:var(--fs-body-lg);font-weight:600;color:rgba(255,255,255,.95);}
 .pc-valid{font-size:var(--fs-micro);color:rgba(255,255,255,.72);
   margin-top:var(--sp-3);font-variant-numeric:tabular-nums;}
 .pc-foot{margin-top:var(--sp-4);font-size:var(--fs-micro);
-  color:rgba(255,255,255,.56);letter-spacing:.12em;}
+  color:rgba(255,255,255,.56);letter-spacing:var(--tr-wide);}
 /* The promo code is typed in lowercase and stored uppercase, so the field shows
    what will actually be saved. */
 .pc-code-input{text-transform:uppercase;}
@@ -136,9 +137,9 @@
    The tone is the soft step, not the badge tint — --ink-2 reads 7.19:1 on it. */
 .helper{background:var(--info-soft);border-radius:var(--r-sm);box-shadow:var(--ring-info);
   padding:var(--sp-3) var(--sp-4);font-size:var(--fs-caption);color:var(--ink-2);
-  line-height:1.5;}
+  line-height:var(--lh-body);}
 .helper b{display:block;margin-bottom:var(--gap-tight);font-size:var(--fs-micro);
-  text-transform:uppercase;letter-spacing:var(--tr-micro);color:var(--info-ink);font-weight:700;}
+  text-transform:uppercase;letter-spacing:var(--tr-micro);color:var(--info-ink);font-weight:600;}
 
 /* ─────────────── CHARTS ─────────────── */
 .ag{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap-field);}
@@ -157,7 +158,7 @@
 .chart .bar.zero+.bar-val{fill:var(--ink-3);font-weight:400;}
 .chart .bar-hit{fill:transparent;cursor:pointer;}
 .chart .bar-lbl{font-size:var(--fs-micro);fill:var(--ink-3);text-anchor:middle;}
-.chart .bar-val{font-size:var(--fs-micro);font-weight:700;fill:var(--ink);text-anchor:middle;
+.chart .bar-val{font-size:var(--fs-micro);font-weight:600;fill:var(--ink);text-anchor:middle;
   font-variant-numeric:tabular-nums;}
 /* Hovering the chart dims every bar and the hovered group restores itself, so a
    single bar is isolated without needing a legend or a crosshair. */
@@ -177,7 +178,7 @@
 .zt{flex:1;height:10px;background:var(--line);border-radius:var(--r-full);overflow:hidden;}
 .zf{height:100%;border-radius:var(--r-full);background:var(--accent-quiet);width:0;
   transition:width var(--d-deliberate) var(--ease);}
-.zv{font-size:var(--fs-dense);font-weight:700;width:40px;text-align:right;flex-shrink:0;
+.zv{font-size:var(--fs-dense);font-weight:600;width:40px;text-align:right;flex-shrink:0;
   font-variant-numeric:tabular-nums;color:var(--ink);}
 
 /* Payment breakdown. */
@@ -189,7 +190,7 @@
   transition:width var(--d-deliberate) var(--ease);}
 .pfill.brand{background:var(--accent-quiet);}
 .pfill.gold{background:var(--warning);}
-.prow-pct{font-size:var(--fs-dense);font-weight:700;width:40px;text-align:right;
+.prow-pct{font-size:var(--fs-dense);font-weight:600;width:40px;text-align:right;
   font-variant-numeric:tabular-nums;color:var(--ink);}
 
 /* ─────────────── MENU ITEM CARDS (side panel) ─────────────── */
@@ -201,7 +202,7 @@
 .mi-form{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--ring-strong);
   padding:var(--sp-4);margin-bottom:var(--gap-field);}
 .mi-form-title{
-  font-family:var(--ff-display);font-size:var(--fs-micro);font-weight:700;
+  font-size:var(--fs-micro);font-weight:600;
   text-transform:uppercase;letter-spacing:var(--tr-micro);color:var(--ink-3);
   margin:calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) var(--sp-4);
   padding:var(--sp-2) var(--sp-4);
@@ -213,10 +214,13 @@
   display:flex;align-items:center;gap:var(--gap-inline);
   transition:box-shadow var(--d-fast) var(--ease);}
 .mi-card:hover{box-shadow:var(--e2);}
-.mi-name{font-family:var(--ff-display);font-weight:700;font-size:var(--fs-dense);color:var(--ink);}
+.mi-name{font-weight:600;font-size:var(--fs-dense);color:var(--ink);}
 .mi-desc{font-size:var(--fs-caption);color:var(--ink-3);margin:var(--sp-half) 0;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mi-price{font-family:var(--ff-display);font-size:var(--fs-dense);font-weight:800;
+/* 700, not 800. This is a 13px figure — at 800 Figtree closes the counters
+   on the digits and "J$1,850" turns into a smear. 800 belongs to the sizes
+   that can carry it (see §5). */
+.mi-price{font-size:var(--fs-dense);font-weight:700;
   color:var(--accent);font-variant-numeric:tabular-nums;}
 
 /* ── Promo usage bar (P3-03) ──

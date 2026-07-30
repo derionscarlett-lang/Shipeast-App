@@ -74,13 +74,12 @@
 .lc-eyebrow{
   display:flex;align-items:center;gap:var(--sp-3);
   color:var(--ink-3);
-  font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:700;
+  font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:600;
   letter-spacing:var(--tr-micro);text-transform:uppercase;
 }
 .lc-eyebrow::before,.lc-eyebrow::after{content:'';flex:1;height:1px;background:var(--line);}
 
 .lc-title{
-  font-family:var(--ff-display);
   font-size:var(--fs-h2);line-height:var(--lh-h2);font-weight:800;
   letter-spacing:var(--tr-display);
   color:var(--ink);text-align:center;margin-top:var(--sp-5);
@@ -157,7 +156,6 @@
   width:100%;min-height:var(--h-control-lg);
   margin-top:var(--sp-5);padding:0 var(--sp-5);
   border-radius:var(--r-full);
-  font-family:var(--ff-display);
   font-size:var(--fs-title);font-weight:700;letter-spacing:var(--tr-title);
   gap:var(--gap-inline);
 }
@@ -256,14 +254,17 @@
 .sb-mark{display:flex;flex-shrink:0;width:42px;height:42px;border-radius:var(--r-md);
   background:var(--n-0);
   color:var(--red-700);align-items:center;justify-content:center;
-  font-family:var(--ff-display);font-weight:800;font-size:var(--fs-body-lg);
+  font-weight:800;font-size:var(--fs-body-lg);
   letter-spacing:var(--tr-display);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.9),
              inset 0 -8px 12px -8px rgba(74,20,38,.18),
              0 2px 4px rgba(46,5,16,.28),0 8px 16px -6px rgba(46,5,16,.36);}
 .sb-word{min-width:0;}
-.sb-logo .slt{font-family:var(--ff-display);font-size:var(--fs-title);font-weight:800;
-  letter-spacing:var(--tr-display);color:#fff;}
+/* --shell-ink-hi rather than #fff: the warm white the whole rail is set in.
+   The lockup is the one piece of rail text that stays at 800, because it is
+   a wordmark rather than a label. */
+.sb-logo .slt{font-size:var(--fs-title);font-weight:800;
+  letter-spacing:var(--tr-display);color:var(--shell-ink-hi);}
 /* The second word of the lockup on a red rail. Not --accent-ink any more —
    that is --red-700, which on brand-red chrome is 1.3:1 and simply disappears.
    --shell-mark is a pale step of the same ramp that is deliberately NOT
@@ -272,15 +273,19 @@
    the dark one, and unmistakably still the brand. */
 .sb-logo .slt span{color:var(--shell-mark);}
 .sb-logo .sls{font-size:var(--fs-micro);color:var(--shell-ink-dim);
-  letter-spacing:var(--tr-micro);text-transform:uppercase;font-weight:700;
+  letter-spacing:var(--tr-micro);text-transform:uppercase;font-weight:600;
   margin-top:var(--sp-half);}
 /* Collapsed rail: drop the wordmark, keep the mark centred. */
 .sidebar.collapsed .sb-logo{justify-content:center;padding:var(--sp-5) 0;gap:0;}
 .sidebar.collapsed .sb-word{display:none;}
 
 .sb-nav{flex:1;padding:0 var(--sp-3) var(--sp-3);overflow-y:auto;overflow-x:hidden;}
+/* 600, not 700. An 11px uppercase word in a heavy weight on a saturated
+   ground is a solid bar of colour before it is a word — and there are four
+   of these down the rail, so at 700 they competed with the nav items they
+   are supposed to be quietly organising. */
 .sb-sec{padding:var(--sp-4) var(--sp-3) var(--sp-2);
-  font-size:var(--fs-micro);font-weight:700;letter-spacing:var(--tr-micro);
+  font-size:var(--fs-micro);font-weight:600;letter-spacing:var(--tr-micro);
   text-transform:uppercase;color:var(--shell-ink-dim);white-space:nowrap;}
 .sidebar.collapsed .sb-sec{opacity:0;height:var(--sp-6);padding:var(--sp-2) 0;}
 
@@ -290,25 +295,44 @@
    stat cards and the toast as well. "You are here" is now carried by the pill
    itself: a filled brand wash, the label at full ink weight, and the icon
    switching to its solid variant. Three signals, no furniture. */
+/* THE WEIGHT. These fourteen labels are the most-looked-at text in the panel
+   and they were set at 600 — the same weight as a button, on a saturated red
+   ground. Light type on a dark ground gains apparent weight (irradiation:
+   the bright shape bleeds into the dark one, thickening every stem), so 600
+   white on red is optically what 700 black on white would be. Fourteen of
+   those stacked in one column is the "harsh" the rail was accused of.
+
+   500 with a hair of positive tracking is the correction. It measures as the
+   same darkness a 600 label does on a light card, and it leaves 600 free to
+   mean something again on the selected item — which is the whole point of a
+   nav: exactly one row should look heavier than the rest. */
 .ni{
   position:relative;display:flex;align-items:center;gap:var(--sp-3);
   padding:var(--sp-3);margin-bottom:var(--sp-half);
   border-radius:var(--r-md);
   cursor:pointer;color:var(--shell-ink);
-  font-size:var(--fs-body);font-weight:600;white-space:nowrap;user-select:none;
+  font-size:var(--fs-body);font-weight:500;letter-spacing:var(--tr-rail);
+  white-space:nowrap;user-select:none;
   transition:color var(--d-fast) var(--ease),background var(--d-fast) var(--ease),
              box-shadow var(--d-fast) var(--ease);
 }
-.ni:hover{background:var(--shell-hover);color:#fff;}
+/* Hover brightens to the full tone rather than to #fff — pure white here
+   would put a cold highlight on a warm-white column. */
+.ni:hover{background:var(--shell-hover);color:var(--shell-ink-hi);}
 /* THE white pill. On red chrome, the selected item inverts completely rather
    than taking a slightly different shade of red — that is what makes it
    unmissable from the corner of the eye, and it is the one place the panel
    gets to use its brand red as INK instead of as a fill. --red-700 on white
    is 6.8:1. It carries the plate treatment too, so the pill reads as lifted
    out of the rail rather than punched through it. */
+/* 600 against the rail's 500 — one step, which is all a weight change needs
+   to be when a full colour inversion is carrying the state alongside it. At
+   700 against 600 the pill was making the same point twice. The tracking
+   goes back to normal because this label is now dark-on-light, so the
+   irradiation correction --tr-rail exists for does not apply. */
 .ni.active{
   background:var(--n-0);
-  color:var(--red-700);font-weight:700;
+  color:var(--red-700);font-weight:600;letter-spacing:var(--tr-body);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.9),
              0 2px 4px rgba(46,5,16,.24),0 8px 18px -6px rgba(46,5,16,.34);
 }
@@ -395,7 +419,7 @@
    underneath as a second heading, and a third time in .pg-title. It must not
    wrap, or a two-line crumb pushes the bar out of shape on "Shop & Deliver
    Requests". */
-.tb-bc{font-size:var(--fs-micro);font-weight:700;letter-spacing:var(--tr-micro);
+.tb-bc{font-size:var(--fs-micro);font-weight:600;letter-spacing:var(--tr-micro);
   text-transform:uppercase;color:var(--ink-3);
   display:flex;align-items:center;gap:var(--gap-tight);min-width:0;}
 .tb-bc em{color:var(--accent);font-style:normal;overflow:hidden;
@@ -416,9 +440,9 @@
    that job but the teal accent is retired, so this is now simply neutral. */
 .av{width:32px;height:32px;background:var(--n-700);
   border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
-  font-family:var(--ff-display);font-weight:700;font-size:var(--fs-dense);flex-shrink:0;
+  font-weight:700;font-size:var(--fs-dense);flex-shrink:0;
   box-shadow:var(--fill-lip),0 1px 2px rgba(31,25,28,.3);}
-.an{font-size:var(--fs-caption);font-weight:700;color:var(--ink);
+.an{font-size:var(--fs-caption);font-weight:600;color:var(--ink);
   line-height:1.2;white-space:nowrap;}
 
 /* ─────────────── ACTIVITY BELL ─────────────── */
@@ -432,7 +456,7 @@
   position:absolute;top:0;right:0;
   min-width:18px;height:18px;padding:0 var(--gap-tight);
   border-radius:var(--r-full);background:var(--accent);color:#fff;
-  font-size:var(--fs-micro);font-weight:600;line-height:1;letter-spacing:0;
+  font-size:var(--fs-micro);font-weight:600;line-height:1;letter-spacing:var(--tr-body);
   display:inline-flex;align-items:center;justify-content:center;
   box-sizing:border-box;box-shadow:0 0 0 2px var(--surface);
   font-variant-numeric:tabular-nums;pointer-events:none;
@@ -452,7 +476,7 @@
 .bell-hd{display:flex;align-items:center;justify-content:space-between;gap:var(--gap-inline);
   padding:var(--sp-3) var(--sp-4);background:var(--sunken);
   border-bottom:1px solid var(--line);
-  font-family:var(--ff-display);font-weight:700;font-size:var(--fs-title);color:var(--ink);}
+  font-weight:700;font-size:var(--fs-title);color:var(--ink);}
 .bell-clear{background:none;border:none;cursor:pointer;color:var(--accent);
   font-size:var(--fs-caption);font-weight:600;padding:var(--sp-half) var(--gap-tight);
   border-radius:var(--r-xs);}
@@ -505,7 +529,6 @@
    Requests" into three cramped lines on a phone; the 24px floor keeps that
    title on two lines at 360pt. */
 .pg-title{
-  font-family:var(--ff-display);
   font-size:clamp(24px,1.1rem + 1.9vw,38px);
   line-height:var(--lh-hero);font-weight:800;letter-spacing:var(--tr-hero);
   color:var(--ink);min-width:0;text-wrap:balance;
@@ -522,9 +545,9 @@
   animation:rise var(--d-base) var(--ease-in);}
 .mbox.wide{width:620px;}
 .mbox.narrow{width:420px;}
-.m-title{font-family:var(--ff-display);font-size:var(--fs-h3);line-height:var(--lh-h3);
-  font-weight:800;letter-spacing:var(--tr-h3);color:var(--ink);margin-bottom:var(--sp-5);}
-.m-body{font-size:var(--fs-body);color:var(--ink-2);line-height:1.55;
+.m-title{font-size:var(--fs-h3);line-height:var(--lh-h3);
+  font-weight:700;letter-spacing:var(--tr-h3);color:var(--ink);margin-bottom:var(--sp-5);}
+.m-body{font-size:var(--fs-body);color:var(--ink-2);line-height:var(--lh-prose);
   margin-bottom:var(--sp-5);}
 .m-actions{display:flex;gap:var(--gap-inline);justify-content:flex-end;
   margin-top:var(--sp-5);padding-top:var(--sp-4);border-top:1px solid var(--line);}
@@ -568,20 +591,24 @@
   box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 8px rgba(46,5,16,.2);
   position:relative;z-index:1;
 }
-.sp-hd-sub{font-size:var(--fs-micro);color:var(--shell-ink-dim);font-weight:700;
+.sp-hd-sub{font-size:var(--fs-micro);color:var(--shell-ink-dim);font-weight:600;
   text-transform:uppercase;letter-spacing:var(--tr-micro);margin-bottom:var(--sp-half);}
-.sp-hd-title{font-family:var(--ff-display);font-size:var(--fs-h3);line-height:var(--lh-h3);
-  font-weight:800;letter-spacing:var(--tr-h3);color:#fff;}
+/* 700, matching .card-title and .m-title — this is a title, and 800 is
+   reserved for the four things allowed to be loud (see §5). White on red
+   already gains apparent weight, so 800 here was the heaviest text in the
+   panel after the page title. */
+.sp-hd-title{font-size:var(--fs-h3);line-height:var(--lh-h3);
+  font-weight:700;letter-spacing:var(--tr-h3);color:var(--shell-ink-hi);}
 /* The close button sits on the red head, so it cannot use the topbar's
    surface-and-ring treatment — it would read as a white tile floating on the
    brand. Glass instead: a translucent white wash that deepens on hover. */
 .sp-hd .iconbtn{
-  background:rgba(255,255,255,.16);color:#fff;box-shadow:none;
+  background:rgba(255,255,255,.16);color:var(--shell-ink-hi);box-shadow:none;
 }
-.sp-hd .iconbtn:hover{background:rgba(255,255,255,.28);color:#fff;box-shadow:none;}
+.sp-hd .iconbtn:hover{background:rgba(255,255,255,.28);color:var(--shell-ink-hi);box-shadow:none;}
 #sp-body{padding:var(--sp-5);overflow-y:auto;flex:1;}
 .sp-sec{margin-bottom:var(--sp-6);}
-.sp-sec-title{font-size:var(--fs-micro);font-weight:700;color:var(--ink-2);
+.sp-sec-title{font-size:var(--fs-micro);font-weight:600;color:var(--ink-2);
   text-transform:uppercase;letter-spacing:var(--tr-micro);
   margin-bottom:var(--sp-3);padding-bottom:var(--gap-tight);
   border-bottom:1px solid var(--line);}
@@ -603,19 +630,19 @@
 /* A value that is missing rather than merely empty — e.g. a merchant with no
    pickup coordinates, which silently drops it out of nearest-first dispatch. */
 .sp-val.sp-warn{color:var(--warning-ink);font-weight:500;}
-.sp-val.money{font-family:var(--ff-display);font-size:var(--fs-h3);font-weight:800;
+.sp-val.money{font-size:var(--fs-h3);font-weight:800;
   letter-spacing:var(--tr-h3);color:var(--accent);font-variant-numeric:tabular-nums;}
 .sp-hero{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-5);}
 /* Flat brand fill; the curve comes from the inset pair — a lit top edge and
    an inner shade rising from the bottom — not from a wash across the face. */
 .sp-avatar{width:60px;height:60px;border-radius:50%;
   background:var(--accent);color:#fff;
-  display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);
+  display:flex;align-items:center;justify-content:center;
   font-size:var(--fs-h3);font-weight:800;flex-shrink:0;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.45),
              inset 0 -10px 14px -8px rgba(74,20,38,.45),
              0 2px 4px rgba(110,26,48,.2),0 8px 18px -6px rgba(110,26,48,.3);}
-.sp-hero-name{font-family:var(--ff-display);font-size:var(--fs-title);font-weight:700;
+.sp-hero-name{font-size:var(--fs-title);font-weight:700;
   letter-spacing:var(--tr-title);color:var(--ink);}
 
 /* ─────────────── STATUS FLOW STEPPER ─────────────── */
@@ -677,8 +704,8 @@
 .toast.t-warning .ic{color:var(--warning);}
 .toast.t-info .ic{color:var(--info);}
 .toast-msg{font-size:var(--fs-dense);font-weight:400;color:var(--ink);
-  line-height:1.45;flex:1;min-width:0;}
-.toast-msg b{font-weight:700;display:block;margin-bottom:var(--sp-half);}
+  line-height:var(--lh-dense);flex:1;min-width:0;}
+.toast-msg b{font-weight:600;display:block;margin-bottom:var(--sp-half);}
 
 /* ─────────────── MOBILE OVERLAY ─────────────── */
 #mob-overlay{position:fixed;inset:0;background:var(--veil);z-index:99;opacity:0;

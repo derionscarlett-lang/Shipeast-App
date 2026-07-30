@@ -2851,7 +2851,7 @@ function renderPromos(){
   }
   tbody.innerHTML=promoCodes.map(function(p){
     return '<tr>'+
-      '<td><b class="cell-id" style="letter-spacing:1.2px">'+esc(p.code)+'</b></td>'+
+      '<td><b class="cell-id cell-code">'+esc(p.code)+'</b></td>'+
       '<td class="cell-strong">'+esc(p.discount)+'</td>'+
       '<td class="right num">'+usageBar(p.usedCount,p.maxUses)+'</td>'+
       '<td class="right num">'+(p.maxUses||'∞')+'</td>'+

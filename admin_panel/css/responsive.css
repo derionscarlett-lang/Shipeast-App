@@ -101,7 +101,7 @@
   /* --fs-micro is the floor of the scale, so the label keeps its size and
      gives up tracking instead. "ORDERS TODAY" measures ~90px at 11px/600,
      inside the ~150px a half-width card has at 390pt. */
-  .sc-lbl{letter-spacing:0;margin-bottom:var(--sp-half);}
+  .sc-lbl{letter-spacing:var(--tr-body);margin-bottom:var(--sp-half);}
   /* Still the loudest thing in the card at half width. One step down from the
      desktop 34px rather than two: at 800 weight a five-character count
      ("1,234") measures ~88px at 30px, and a half-width card on a 390pt phone
@@ -165,7 +165,7 @@
   .nl,.pl{gap:var(--sp-4);}
   .m-title{margin-bottom:var(--sp-4);}
   .fset{padding:var(--sp-3);}
-  .notice{padding:var(--sp-3);line-height:1.45;}
+  .notice{padding:var(--sp-3);line-height:var(--lh-dense);}
   .fr textarea{min-height:80px;}
   .spanel{width:100%;}
 
@@ -179,12 +179,12 @@
      overflow-wrap stopped it clipping but broke the code mid-word, which is
      unreadable for something meant to be typed in by hand. */
   .pc-prev{padding:var(--sp-5);}
-  .pc-code{font-size:var(--fs-h3);letter-spacing:2px;}
+  .pc-code{font-size:var(--fs-h3);letter-spacing:var(--tr-code);}
   .pc-disc{font-size:var(--fs-body);}
 
   /* The weight-band list is typed by hand, so it keeps a comfortable size
      rather than shrinking with everything around it. */
-  #pr-bands{font-size:var(--fs-dense);line-height:1.6;}
+  #pr-bands{font-size:var(--fs-dense);line-height:var(--lh-prose);}
 
   /* Analytics: the row labels reserved desktop widths, leaving the bars too
      short to compare at a glance. */
