@@ -275,9 +275,10 @@ concurrently. Split it — a pure mechanical move, **zero visual change**:
 css/tokens.css       fonts, :root, [data-theme=dark], reset, type utilities, .ic
 css/shell.css        login, sidebar, topbar, bell, .pw, side panel, modals, toasts, overlays
 css/components.css   cards, stat cards, tables, badges, buttons, forms, selects, tabs,
-                     toggle, skeletons, empty states, uploader, fieldsets, chips, stars, creds
+                     toggle, skeletons, empty states, uploader, emoji picker, fieldsets,
+                     stars, credential box
 css/pages.css        charts, zone/payment bars, phone mock, promo preview, notices,
-                     helper, menu-item cards, category icons, usage bars, emoji picker
+                     helper, menu-item cards, category icons, usage bars
 css/responsive.css   every media query + prefers-reduced-motion
 ```
 

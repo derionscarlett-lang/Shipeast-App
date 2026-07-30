@@ -4,11 +4,10 @@
 
    Tokens, fonts, reset & type scale. Loaded first — everything below
    resolves against these custom properties.
-   ═══════════════════════════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════════════════════════
-   ShipEast Design System (SEDS) — Admin Panel
-   Token-driven. Every value in this file comes from PLAN.md §1.
+   Values come from DESIGN-SPEC.md §2 and are measured, not chosen by eye.
+   Every contrast figure in the comments is computed; the verifier lives in
+   DESIGN-SPEC.md §9. Do not adjust a value here without re-running it.
    ═══════════════════════════════════════════════════════════════ */
 
 /* ─────────────── FONTS (self-hosted, variable) ─────────────── */
@@ -25,115 +24,254 @@
   src:url('assets/fonts/inter-latin-ext.woff2') format('woff2');
   unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
 
-/* ─────────────── TOKENS ─────────────── */
 :root{
-  /* red ramp */
-  --red-50:#FFF1F3;  --red-100:#FFE0E5; --red-200:#F7B9C2; --red-300:#EE8492;
-  --red-400:#E1495F; --red-500:#C8102E; --red-600:#A80D26; --red-700:#86091E;
-  --red-800:#5F0615; --red-900:#3D0410;
 
-  /* signature gradients */
-  --grad-ember:linear-gradient(135deg,#E11D34 0%,#C8102E 52%,#9A0B22 100%);
-  --grad-sunset:linear-gradient(135deg,#FF6A3D 0%,#E11D34 55%,#C8102E 100%);
-  --grad-scrim:linear-gradient(180deg,rgba(20,18,15,0) 0%,rgba(20,18,15,.72) 100%);
+/* ═══ 1. RED RAMP ═══════════════════════════════════════════════
+   Anchored to the real brand artwork, not to a value someone liked.
+   --red-500 is the app-icon red (hsl 349,94%,57%) to within one HSL point;
+   the logo lockup is hsl(344,100%,50%).
 
-  /* supporting hues */
-  --gold-500:#F5A524; --gold-tint:#FEF3E2;
-  --ocean-500:#0E9488; --ocean-tint:#E5F6F4;
+   THE TWO-TIER RULE. Neither true brand red carries white text at AA —
+   #FF0043 is 3.94:1 and #F82C53 is 3.83:1. Darkening until it passes is
+   what lost the brand last time (the panel shipped #C8102E, fifteen
+   lightness points adrift). So the identity red and the action red are
+   two different steps of one ramp:
 
-  /* semantic */
-  --success:#16A34A; --success-tint:#E6F6EC;
-  --warning:#F59E0B; --warning-tint:#FEF3E2;
-  --danger:#D92D20;  --danger-tint:#FDECEA;
-  --info:#0E9488;    --info-tint:#E5F6F4;
+     --red-500  IDENTITY. Large fills, icon plates, accent rails, focus
+                rings, chart fills, the sidebar mark. Never small white text.
+     --red-600  ACTION. Primary buttons, links, active states — anything
+                with white on it. 4.79:1.
+     --red-700  Red TEXT sitting on a red tint. 6.16:1 on --red-50.       */
+  --red-50:#FFF0F3;
+  --red-100:#FFE0E7;
+  --red-200:#FEC3CF;
+  --red-300:#FC92A6;
+  --red-400:#FA5775;   /* dark-theme brand text — 5.37:1 on --card */
+  --red-500:#F72B54;   /* identity */
+  --red-600:#E30D3B;   /* action — white 4.79:1 */
+  --red-700:#B60C31;   /* text on tint */
+  --red-800:#890B28;
+  --red-900:#5C0A1F;
 
-  /* warm neutrals */
-  --ink-900:#1C1A17; --ink-700:#3A362F; --ink-500:#6B6459; --ink-400:#938C7F;
-  --ink-300:#C7C0B4; --ink-200:#E4E0D9; --ink-100:#ECEAE6;
+/* ═══ 2. NEUTRALS ═══════════════════════════════════════════════
+   Rose-tinted slate. The old ramp was warm khaki (hue 36–42): a yellow
+   undertone under a rose brand, so the two cancelled and the panel read
+   muddy. Hue here slides 340→325 as it darkens and saturation stays at
+   8–24%, so these read as grey while sharing the brand's undertone —
+   red sits IN them rather than on top of them.                          */
+  --n-0:#FFFFFF;
+  --n-50:#FBF9F9;
+  --n-100:#F7F3F4;
+  --n-200:#EBE5E7;
+  --n-300:#D6CCD0;
+  --n-400:#9C8B93;   /* disabled            3.22:1 */
+  --n-500:#79676F;   /* tertiary ink        5.27:1 card · 4.79:1 band */
+  --n-600:#5C4D54;   /* secondary ink       7.94:1 card · 7.22:1 band */
+  --n-700:#463940;
+  --n-800:#33292E;   /* primary ink        14.02:1 card · 12.74:1 band */
+  --n-900:#1F191C;
+  --n-950:#140F12;
 
-  /* themed roles (light) */
-  --bg:#FAF9F7;
-  --card:#FFFFFF;
-  --card-raised:#FFFFFF;
-  /* Sunken/tinted surfaces. The page background and the card background are
-     both near-white, so a segmented control or a table header tinted with
-     either had no visible edge — that is the "no contrast" complaint. These
-     three give one, and are overridden per theme below rather than hardcoded
-     at each use site. */
-  --track:#EDEAE3;          /* segmented-control / filter-bar track */
-  --track-pill:#FFFFFF;     /* the selected segment sitting on that track */
-  --band:#F4F1EB;           /* table header + card title bands */
-  --text-hi:#1C1A17;
-  --text-lo:#6B6459;
-  --text-mute:#938C7F;
-  --border:#E4E0D9;
-  --border-strong:#ECEAE6;
-  --brand:#C8102E;
-  --brand-text:#86091E;   /* red on light tint — AA safe */
-  --field:#FFFFFF;
-  --hover:#FAF9F7;
-  --sidebar-bg:#1C1A17;
-  --scrim:rgba(28,26,23,.48);
+/* ═══ 3. SEMANTICS ══════════════════════════════════════════════
+   --danger is deliberately a deep desaturated maroon, 19 lightness points
+   below --red-500. In a panel whose brand IS red, a destructive action
+   cannot also be brand red — the shipped #D92D20 sat only ~17° away, so
+   "Erase all data" and "Save" were the same colour. Separation is by
+   lightness, not hue: this reads grave, not primary.
 
-  /* spacing — 4pt grid */
-  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
-  --s8:32px; --s10:40px; --s12:48px; --s16:64px;
-  --gutter:20px;
+   WARNING NEVER TAKES WHITE TEXT. No usable amber reaches 4.5:1 against
+   white. Use tint + --warning-ink, or a solid fill with --warning-on.   */
+  --success:#1C8252;      --success-tint:#ECF9F2;   --success-ink:#196B45;
+  --warning:#D37A0D;      --warning-tint:#FDF3E2;   --warning-ink:#AD640B;
+  --warning-on:#3D2A05;   /* dark ink for a solid --warning fill — 4.28:1 */
+  --danger:#A51D2F;       --danger-tint:#FDEDEF;    --danger-ink:#821725;
+  --info:#1F6BC1;         --info-tint:#EDF5FD;      --info-ink:#1A579E;
+  --star:#E8A317;         /* ratings only — the one surviving gold */
 
-  /* radius */
-  --r-xs:5px; --r-sm:7px; --r-md:9px; --r-lg:12px; --r-xl:16px; --r-full:999px;
+/* ═══ 4. THEMED ROLES (light) ═══════════════════════════════════ */
+  --surface:var(--n-0);          /* cards, fields, raised pills */
+  --surface-raised:var(--n-0);
+  --ground:var(--n-50);          /* page background */
+  --sunken:var(--n-100);         /* bands, tracks, table headers */
+  --line:var(--n-200);
+  --line-strong:var(--n-300);
+  --ink:var(--n-800);
+  --ink-2:var(--n-600);
+  --ink-3:var(--n-500);
+  --ink-4:var(--n-400);
+  --accent:var(--red-600);       /* action red, themed */
+  --accent-quiet:var(--red-500); /* identity red, themed */
+  --accent-ink:var(--red-700);   /* red text on a red tint, themed */
+  --accent-wash:var(--red-50);   /* red tint surface, themed */
+  --shell:var(--n-900);          /* sidebar */
+  --veil:rgba(31,25,28,.48);     /* modal/drawer scrim */
+  --focus-ring:0 0 0 3px rgba(227,13,59,.16);
 
-  /* elevation — layered, warm-tinted */
-  --e1:0 1px 2px rgba(28,26,23,.04), 0 2px 6px rgba(28,26,23,.06);
-  --e2:0 4px 12px rgba(28,26,23,.08), 0 2px 4px rgba(28,26,23,.05);
-  --e3:0 10px 28px rgba(28,26,23,.12);
-  --e4:0 20px 48px rgba(28,26,23,.18);
-  /* Signature red halo — softened (was 8px/22px/.30). The stacked glow was the
-     #1 "AI-coded" tell; this reads as a lift, not a neon flare. Cascades to
-     every primary button, avatar, and the online/settings toggles at once. */
-  --glow:0 6px 16px rgba(200,16,46,.20);
+/* ═══ 5. TYPE ═══════════════════════════════════════════════════
+   Ten steps, down from 24 ad-hoc sizes (five of which were half-pixel
+   nudges). Jakarta is display-only and caps at 700 — weight 800 is
+   RETIRED, because 54 of the old 89 weight declarations were 700+ and
+   that, not absolute size, is what made the panel shout.               */
+  --ff-display:'Plus Jakarta Sans','Inter',system-ui,sans-serif;
+  --ff-ui:'Inter',system-ui,sans-serif;
+  --ff-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
 
-  /* motion */
+  --fs-micro:11px;     --lh-micro:1.27;     /* uppercase labels, badges */
+  --fs-caption:12px;   --lh-caption:1.33;   /* meta, hints */
+  --fs-dense:13px;     --lh-dense:1.45;     /* table cells, panel rows */
+  --fs-body:14px;      --lh-body:1.5;       /* base */
+  --fs-body-lg:15px;   --lh-body-lg:1.5;
+  --fs-title:17px;     --lh-title:1.3;      /* card titles */
+  --fs-h3:20px;        --lh-h3:1.25;        /* section heads, modal titles */
+  --fs-h2:24px;        --lh-h2:1.2;         /* page titles */
+  --fs-h1:30px;        --lh-h1:1.15;        /* display */
+  --fs-stat:26px;      --lh-stat:1.05;      /* stat values */
+
+  /* The only five tracking values in the system. */
+  --tr-display:-.02em; --tr-h3:-.015em; --tr-title:-.01em;
+  --tr-body:0;         --tr-micro:.05em;
+
+/* ═══ 6. SPACING ════════════════════════════════════════════════
+   Strict 4pt. The old file declared a 4pt grid and then broke it about a
+   hundred times (10px×16, 5px×15, 14px×15, 13px×11, plus stray 3/7/9/11/
+   15/18px), which is why spacing felt arbitrary.
+
+   Prefer the SEMANTIC tokens below the scale — they are what keeps five
+   parallel authors consistent without anyone picking a number.          */
+  --sp-half:2px;   /* hairline optical nudges ONLY */
+  --sp-1:4px;  --sp-2:8px;  --sp-3:12px; --sp-4:16px; --sp-5:20px;
+  --sp-6:24px; --sp-7:32px; --sp-8:40px; --sp-9:48px; --sp-10:64px;
+
+  --pad-page-y:var(--sp-6);
+  --pad-page-x:var(--sp-5);
+  --pad-card:var(--sp-5);
+  --pad-card-head-y:14px;      /* 14 is deliberate: centres a 17px title in 46px */
+  --pad-cell-y:var(--sp-3);
+  --pad-cell-x:var(--sp-3);
+  --pad-btn-y:10px;            /* with --fs-body/1.5 this lands --h-control exactly */
+  --pad-btn-x:18px;
+  --pad-input-y:11px;
+  --pad-input-x:14px;
+
+  --gap-section:var(--sp-6);   /* between cards / major blocks */
+  --gap-field:var(--sp-4);     /* between form rows */
+  --gap-inline:var(--sp-2);    /* icon ↔ label, button clusters */
+  --gap-tight:var(--sp-1);
+
+/* ═══ 7. SIZING ═════════════════════════════════════════════════ */
+  --h-control:40px;
+  --h-control-lg:48px;
+  --h-topbar:64px;
+  --sidebar-w:248px;
+  --page-max:1440px;
+
+/* ═══ 8. RADIUS ═════════════════════════════════════════════════
+   Even 2px rhythm, nudged up from the odd 5/7/9/12/16 to echo the app
+   icon's squircle without returning to pill-everything.                */
+  --r-xs:6px; --r-sm:8px; --r-md:10px; --r-lg:14px; --r-xl:18px; --r-full:999px;
+
+/* ═══ 9. ELEVATION ══════════════════════════════════════════════
+   Flat and neutral. The coloured red halo (--glow) is gone: it was on
+   every primary button, avatar and toggle, and a saturated shadow is the
+   loudest machine-generated tell in the file.                          */
+  --e1:0 1px 2px rgba(31,25,28,.05);
+  --e2:0 2px 4px rgba(31,25,28,.06), 0 4px 12px rgba(31,25,28,.05);
+  --e3:0 8px 24px rgba(31,25,28,.10);
+  --e4:0 16px 40px rgba(31,25,28,.16);
+
+/* ═══ 10. MOTION ════════════════════════════════════════════════ */
   --d-instant:100ms; --d-fast:180ms; --d-base:240ms; --d-slow:360ms; --d-deliberate:520ms;
   --ease:cubic-bezier(.2,0,0,1);
   --ease-in:cubic-bezier(0,0,0,1);
   --ease-out:cubic-bezier(.4,0,1,1);
 
-  /* layout */
-  --sw:248px; --swc:72px;
+/* ═══ 11. COMPATIBILITY ALIASES ═════════════════════════════════
+   TEMPORARY — deleted in Phase 4 of the restyle.
+
+   Every token name the old stylesheet exposed, repointed at its new
+   value. This is what lets the panel keep rendering correctly while the
+   component files migrate their use sites one at a time, and it lands the
+   bulk of the colour correction across all ten pages on its own.
+
+   DO NOT write new rules against these names. Use §1–§10 above.        */
+  --brand:var(--accent);
+  --brand-text:var(--accent-ink);
+  --bg:var(--ground);
+  --card:var(--surface);
+  --card-raised:var(--surface-raised);
+  --field:var(--surface);
+  --hover:var(--ground);
+  --track:var(--sunken);
+  --track-pill:var(--surface);
+  --band:var(--sunken);
+  --text-hi:var(--ink);
+  --text-lo:var(--ink-2);
+  --text-mute:var(--ink-3);
+  --border:var(--line);
+  --border-strong:var(--line-strong);
+  --sidebar-bg:var(--shell);
+  --scrim:var(--veil);
+
+  --ink-900:var(--n-800); --ink-700:var(--n-700); --ink-500:var(--n-600);
+  --ink-400:var(--n-500); --ink-300:var(--n-300); --ink-200:var(--n-200);
+  --ink-100:var(--n-100);
+
+  --s1:var(--sp-1);  --s2:var(--sp-2);  --s3:var(--sp-3);  --s4:var(--sp-4);
+  --s5:var(--sp-5);  --s6:var(--sp-6);  --s8:var(--sp-7);  --s10:var(--sp-8);
+  --s12:var(--sp-9); --s16:var(--sp-10);
+  --gutter:var(--pad-page-x);
+  --sw:var(--sidebar-w);
+  --swc:72px;
+
+  /* Flattened via alias, so every gradient use site goes solid at once
+     without touching four other files. Both are deleted in Phase 4. */
+  --grad-ember:var(--accent);
+  --grad-sunset:var(--accent);
+  --grad-scrim:linear-gradient(180deg,rgba(20,15,18,0) 0%,rgba(20,15,18,.72) 100%);
+  --glow:var(--e1);
+
+  /* Retired accents, folded into the semantic set. */
+  --gold-500:var(--warning);  --gold-tint:var(--warning-tint);
+  --gold:var(--warning);      /* app.js:2584 referenced this; it never existed */
+  --ocean-500:var(--info);    --ocean-tint:var(--info-tint);
 }
 
+/* ═══ DARK THEME ════════════════════════════════════════════════
+   The brand LIFTS on dark, it does not darken. --red-500 reaches only
+   4.36:1 on the dark card, so red TEXT uses --red-400 (5.37:1) while
+   red FILLS stay --red-600, which keeps white at 4.79:1 either way.    */
 [data-theme="dark"]{
-  --bg:#141310;
-  --card:#201E1A;
-  --card-raised:#2A2823;
-  --text-hi:#F5F2EC;
-  --text-lo:#A49E92;
-  --text-mute:#7C766B;
-  --border:#33302A;
-  --border-strong:#3D3A33;
-  --brand:#F04A5E;
-  --brand-text:#F04A5E;
-  --field:#2A2823;
-  --hover:#2A2823;
-  --track:#1B1916;
-  --track-pill:#35312B;
-  --band:#26241F;
-  --sidebar-bg:#100F0D;
-  --scrim:rgba(0,0,0,.62);
-  --red-50:#2A1116;
-  --red-100:#38151C;
-  --success-tint:#122A1B;
-  --warning-tint:#2E2314;
-  --danger-tint:#2E1613;
-  --info-tint:#0F2422;
-  --gold-tint:#2E2314;
-  --ocean-tint:#0F2422;
-  --e1:0 1px 2px rgba(0,0,0,.3), 0 2px 6px rgba(0,0,0,.28);
-  --e2:0 4px 12px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.3);
-  --e3:0 10px 28px rgba(0,0,0,.5);
-  --e4:0 20px 48px rgba(0,0,0,.6);
-  --glow:0 6px 16px rgba(240,74,94,.20);
+  --surface:#221B1F;
+  --surface-raised:#2D2529;
+  --ground:var(--n-950);
+  --sunken:#2D2529;
+  --line:#3A3035;
+  --line-strong:#4A3E44;
+  --ink:var(--n-50);        /* 16.09:1 */
+  --ink-2:var(--n-300);     /* 10.77:1 */
+  --ink-3:var(--n-400);     /*  5.25:1 */
+  --ink-4:var(--n-500);
+  --accent:var(--red-600);
+  --accent-quiet:var(--red-500);
+  --accent-ink:var(--red-400);
+  --accent-wash:#2E1218;
+  --shell:#0E0A0C;
+  --veil:rgba(0,0,0,.62);
+  --focus-ring:0 0 0 3px rgba(250,87,117,.22);
+
+  --red-50:#2E1218;
+  --red-100:#3D1620;
+  --red-200:#5C0A1F;
+
+  --success-tint:#10281C;  --success-ink:#4ADE80;
+  --warning-tint:#2C2010;  --warning-ink:#FBBF24;
+  --danger-tint:#2E1418;   --danger-ink:#FA5775;
+  --info-tint:#10243A;     --info-ink:#7FB4EE;
+
+  --e1:0 1px 2px rgba(0,0,0,.4);
+  --e2:0 2px 4px rgba(0,0,0,.45), 0 4px 12px rgba(0,0,0,.35);
+  --e3:0 8px 24px rgba(0,0,0,.5);
+  --e4:0 16px 40px rgba(0,0,0,.6);
 }
 
 /* ─────────────── BASE ─────────────── */
@@ -154,31 +292,54 @@ html{-webkit-text-size-adjust:100%;}
    document sideways. `clip` (not `hidden`) avoids creating a scroll container,
    so the sticky topbar and position:fixed sidebar/modals are unaffected. */
 html,body{overflow-x:clip;max-width:100%;}
+/* 14px base, down from 15px. Table cells were already 13px, so a 15px body was
+   an unowned mismatch; 14/13 is the standard admin density. */
 body{
-  font-family:'Inter',system-ui,sans-serif;
-  background:var(--bg);color:var(--text-hi);
-  font-size:15px;line-height:1.47;min-height:100vh;
+  font-family:var(--ff-ui);
+  background:var(--ground);color:var(--ink);
+  font-size:var(--fs-body);line-height:var(--lh-body);
+  font-weight:400;min-height:100vh;
   -webkit-font-smoothing:antialiased;
   transition:background var(--d-base) var(--ease),color var(--d-base) var(--ease);
 }
-h1,h2,h3,.font-display{font-family:'Plus Jakarta Sans','Inter',sans-serif;text-wrap:balance;}
+h1,h2,h3,.font-display{font-family:var(--ff-display);text-wrap:balance;}
 button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit;}
-:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:var(--r-xs);}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--r-xs);}
 .num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1;}
 
-/* type scale */
-.t-display{font-family:'Plus Jakarta Sans',sans-serif;font-size:32px;line-height:38px;font-weight:800;letter-spacing:-.6px;}
-.t-h1{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;line-height:32px;font-weight:800;letter-spacing:-.5px;}
-.t-h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;line-height:28px;font-weight:800;letter-spacing:-.4px;}
-.t-h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;line-height:24px;font-weight:700;letter-spacing:-.2px;}
-.t-section{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;line-height:24px;font-weight:800;letter-spacing:-.35px;}
-.t-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;line-height:22px;font-weight:700;letter-spacing:-.1px;}
-.t-body{font-size:15px;line-height:22px;font-weight:400;}
-.t-bodys{font-size:13px;line-height:18px;font-weight:400;}
-.t-label{font-size:12px;line-height:16px;font-weight:600;letter-spacing:.4px;}
-.t-eyebrow{font-size:11px;line-height:14px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;}
+/* Inline code — previously unstyled entirely, so the `kg = price` and
+   `ERASE ALL DATA` literals in Settings rendered as plain body text. */
+code{
+  font-family:var(--ff-mono);font-size:.86em;
+  background:var(--sunken);color:var(--ink-2);
+  padding:var(--sp-half) 6px;border-radius:var(--r-xs);
+}
 
-/* icons */
+/* Long-form explanatory copy inside a card. Replaces four inline
+   `style="max-width:none"` overrides on Settings and the wipe dialog. */
+.prose{font-size:var(--fs-body);line-height:1.55;color:var(--ink-2);max-width:none;}
+.prose b{font-weight:600;color:var(--ink);}
+
+/* ─────────────── TYPE UTILITIES ───────────────
+   Mapped onto the ten-step scale. The old names survive because markup and
+   app.js reference them; the values are all new. */
+.t-display{font-family:var(--ff-display);font-size:var(--fs-h1);line-height:var(--lh-h1);
+  font-weight:700;letter-spacing:var(--tr-display);}
+.t-h1{font-family:var(--ff-display);font-size:var(--fs-h2);line-height:var(--lh-h2);
+  font-weight:700;letter-spacing:var(--tr-display);}
+.t-h2{font-family:var(--ff-display);font-size:var(--fs-h3);line-height:var(--lh-h3);
+  font-weight:700;letter-spacing:var(--tr-h3);}
+.t-h3,.t-section{font-family:var(--ff-display);font-size:var(--fs-title);
+  line-height:var(--lh-title);font-weight:600;letter-spacing:var(--tr-title);}
+.t-title{font-family:var(--ff-display);font-size:var(--fs-title);line-height:var(--lh-title);
+  font-weight:600;letter-spacing:var(--tr-title);}
+.t-body{font-size:var(--fs-body);line-height:var(--lh-body);font-weight:400;}
+.t-bodys{font-size:var(--fs-dense);line-height:var(--lh-dense);font-weight:400;}
+.t-label{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;}
+.t-eyebrow{font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:600;
+  letter-spacing:var(--tr-micro);text-transform:uppercase;}
+
+/* ─────────────── ICONS ─────────────── */
 .ic{width:24px;height:24px;flex-shrink:0;fill:currentColor;display:block;}
 .ic-sm{width:20px;height:20px;}
 .ic-xs{width:16px;height:16px;}
@@ -192,8 +353,9 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 @keyframes toastIn{from{opacity:0;transform:translateY(-16px);}to{opacity:1;transform:none;}}
 @keyframes toastOut{to{opacity:0;transform:translateY(-10px);}}
 @keyframes shake{10%,90%{transform:translateX(-2px);}30%,70%{transform:translateX(3px);}50%{transform:translateX(-3px);}}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 1px var(--ocean-500),0 0 0 0 rgba(14,148,136,.42);}
-  50%{box-shadow:0 0 0 1px var(--ocean-500),0 0 0 7px rgba(14,148,136,0);}}
+/* Teal was retired, so the status-flow pulse rides on --success now. */
+@keyframes pulse{0%,100%{box-shadow:0 0 0 1px var(--success),0 0 0 0 rgba(28,130,82,.42);}
+  50%{box-shadow:0 0 0 1px var(--success),0 0 0 7px rgba(28,130,82,0);}}
 @keyframes spin{to{transform:rotate(360deg);}}
 .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);
   border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
