@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<meta name="theme-color" content="#C8102E"/>
+<meta name="theme-color" content="#E30D3B"/>
 <!-- Canonical host. Firebase serves this panel on two permanent default domains
      (…web.app / …firebaseapp.com) that cannot be removed. Bounce ONLY those two
      exact hosts to the branded domain, preserving path/query/hash. Matched by
@@ -291,18 +291,18 @@
             <div class="sc-sub">Placed today</div>
             <div id="spark-orders"></div>
           </div>
-          <div class="sc ac-gold">
+          <div class="sc ac-warning">
             <div class="sc-top">
               <div><div class="sc-lbl">Revenue Today</div><div class="sc-val sm num" id="stat-revenue">$0</div></div>
-              <div class="sc-chip c-gold"><svg class="ic" aria-hidden="true"><use href="#i-revenue"/></svg></div>
+              <div class="sc-chip c-warning"><svg class="ic" aria-hidden="true"><use href="#i-revenue"/></svg></div>
             </div>
             <div class="sc-sub">Delivered orders</div>
             <div id="spark-revenue"></div>
           </div>
-          <div class="sc ac-ocean">
+          <div class="sc ac-info">
             <div class="sc-top">
               <div><div class="sc-lbl">Pending Orders</div><div class="sc-val num" id="stat-pending">0</div></div>
-              <div class="sc-chip c-ocean"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg></div>
+              <div class="sc-chip c-info"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg></div>
             </div>
             <div class="sc-sub">Awaiting a driver</div>
           </div>
@@ -466,7 +466,7 @@
             <div class="card">
               <div class="card-title">Create Promo Code</div>
               <div class="mg">
-                <div class="fr"><label for="pc-code">Code</label><input id="pc-code" placeholder="SUMMER25" style="text-transform:uppercase"/></div>
+                <div class="fr"><label for="pc-code">Code</label><input id="pc-code" placeholder="SUMMER25" class="pc-code-input"/></div>
                 <div class="fr"><label for="pc-type">Type</label>
                   <select id="pc-type"><option value="percent">Percentage (%)</option><option value="fixed">Fixed Amount ($)</option></select>
                 </div>
@@ -535,10 +535,10 @@
           </div>
           <div class="card">
             <div class="card-title">Top Merchants</div>
-            <table>
+            <div class="tbl-wrap"><table>
               <thead><tr><th>Merchant</th><th class="right">Orders</th><th class="right">Revenue</th></tr></thead>
               <tbody id="top-merch"></tbody>
-            </table>
+            </table></div>
           </div>
           <div class="card">
             <!-- "Payment Split" read as a typo to the people using this page.
@@ -558,7 +558,7 @@
             <div class="card-title">Package Delivery
               <span class="card-note">Weight bands, in J$</span>
             </div>
-            <p class="empty-copy" style="max-width:none;margin-bottom:12px">
+            <p class="prose">
               Until this table is saved, the Packages category in the customer app
               declines to quote and takes no requests. That is deliberate — a price
               nobody chose is worse than an unavailable feature.
@@ -569,7 +569,7 @@
               <textarea id="pr-bands" rows="6" spellcheck="false"
                 placeholder="2 = 600&#10;5 = 900&#10;10 = 1400&#10;+ = 2200"></textarea>
             </div>
-            <div id="pr-preview" class="empty-copy" style="max-width:none"></div>
+            <div id="pr-preview" class="prose"></div>
             <div class="mg">
               <div class="fr">
                 <label for="pr-overage">Per extra kg above the last band</label>
@@ -602,7 +602,7 @@
             <div class="card-title">
               <span class="dz-label"><svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg>Danger Zone</span>
             </div>
-            <p class="empty-copy" style="max-width:none;margin-bottom:14px">
+            <p class="prose">
               <b>Erase all data</b> permanently deletes every customer, driver, order,
               saved address, notification and overseas enquiry — across all three apps.
               Restaurants, menus, promo codes and pricing settings are kept.
@@ -660,12 +660,12 @@
       This permanently deletes every customer, driver, order, saved address,
       notification and overseas enquiry. Restaurants, menus, promo codes and
       pricing settings are kept. <b>This cannot be undone.</b>
-      <div class="fr" style="margin-top:14px;text-align:left">
+      <div class="fr fr-standalone">
         <label for="wipe-phrase">Type <code>ERASE ALL DATA</code> to enable the button.</label>
         <input id="wipe-phrase" type="text" autocomplete="off" autocapitalize="characters"
           spellcheck="false" placeholder="ERASE ALL DATA"/>
       </div>
-      <div id="wipe-progress" class="empty-copy" style="max-width:none;margin-top:10px"></div>
+      <div id="wipe-progress" class="prose"></div>
     </div>
     <div class="m-actions">
       <button class="btn btn-outline" id="wipe-cancel" data-close="modal-wipe">Cancel</button>
@@ -729,11 +729,11 @@
       </div>
       <div class="fr" id="drv-reset-row" hidden>
         <label>Password</label>
-        <div class="fr-hint" style="margin-top:0">
+        <div class="fr-hint fr-hint-tight">
           A password can only be changed by the person who owns it. Send a reset
           link and the driver sets a new one from their own inbox.
         </div>
-        <button type="button" class="btn btn-outline btn-sm" data-action="reset-driver-pass" style="margin-top:10px">
+        <button type="button" class="btn btn-outline btn-sm drv-reset-btn" data-action="reset-driver-pass">
           <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Send password reset link
         </button>
       </div>

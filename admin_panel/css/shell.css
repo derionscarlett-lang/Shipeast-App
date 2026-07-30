@@ -4,461 +4,533 @@
 
    Application chrome: login, sidebar, topbar, activity bell, page
    wrapper, side panel, modals, toasts, overlays.
+
+   Values come from DESIGN-SPEC.md §2. Nothing here invents a colour, a
+   size or a spacing value.
    ═══════════════════════════════════════════════════════════════ */
 
 /* ─────────────── LOGIN ─────────────── */
 /* Pre-auth brand chrome, authored once for both themes — like the sidebar, and
    for the same reason. The card carries the real lockup, which is single-colour
-   #FF0043 artwork drawn for white stock; on the dark theme's --card (#201E1A)
-   its hairlines (scooter spokes, the "Ship East" swash, the compass ring) drop
-   to ~4.9:1 and read muddy. The theme toggle also lives in the topbar, so it is
-   not even reachable from this screen — nobody can be looking at a dark login
-   card on purpose. Rather than hardcode a hex at every use site, the themed
-   role tokens are pinned to their light values on the scope, so `.btn-primary`,
-   `#l-err` and the fields all keep working through the same variables they use
-   everywhere else. */
+   #FF0043 artwork drawn for white stock; on a dark card its hairlines (scooter
+   spokes, the "Ship East" swash, the compass ring) drop to ~4.9:1 and read
+   muddy. The theme toggle also lives in the topbar, so it is not even reachable
+   from this screen — nobody can be looking at a dark login card on purpose.
+
+   Rather than hardcode a hex at every use site, the themed role tokens are
+   pinned to their light values on this scope, so `.btn-primary`, `#l-err` and
+   the fields all keep working through the same variables they use everywhere
+   else. */
 #login-page{
-  --card:#FFFFFF; --field:#FFFFFF; --bg:#FAF9F7; --hover:#FAF9F7;
-  --text-hi:#1C1A17; --text-lo:#3A362F; --text-mute:#938C7F;
-  --border:#E4E0D9; --brand:#C8102E; --red-50:#FFF1F3;
-  --danger:#D92D20; --danger-tint:#FDECEA;
+  --surface:var(--n-0); --ground:var(--n-50); --sunken:var(--n-100);
+  --line:var(--n-200); --line-strong:var(--n-300);
+  --ink:var(--n-800); --ink-2:var(--n-600); --ink-3:var(--n-500); --ink-4:var(--n-400);
+  --accent:var(--red-600); --accent-quiet:var(--red-500);
+  --accent-ink:var(--red-700); --accent-wash:var(--red-50);
+  --danger:#A51D2F; --danger-tint:#FDEDEF; --danger-ink:#821725;
 
   min-height:100vh;min-height:100svh;
   display:flex;align-items:center;justify-content:center;
-  padding:var(--s6) var(--s5);position:relative;isolation:isolate;
-  /* A composed canvas, not a gradient wash: flat warm ink, one ember bloom
-     sitting behind the card, and a 44px hairline grid for material. The grid is
-     what stops the flat fill reading as an empty <body>. */
-  background-color:#131110;
+  padding:var(--sp-6) var(--sp-5);position:relative;isolation:isolate;
+  /* A composed canvas, not a gradient wash: flat ink, one ember bloom sitting
+     behind the card, and a 44px hairline grid for material. The grid is what
+     stops the flat fill reading as an empty <body>. */
+  background-color:var(--n-950);
   background-image:
-    linear-gradient(rgba(245,242,236,.038) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(245,242,236,.038) 1px,transparent 1px);
+    linear-gradient(rgba(251,249,249,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(251,249,249,.04) 1px,transparent 1px);
   background-size:44px 44px,44px 44px;
 }
-/* Bloom + vignette. On its own layer so the grid above stays crisp and the
-   bloom does not tint the card's shadow. The ember pool is wider than the card
-   on purpose — it has to read around the card, not only behind it, or the
-   canvas goes back to looking like an unstyled black <body>. */
+/* Bloom + vignette — the one place in the panel a gradient still earns its
+   place, because this is atmosphere rather than a surface. On its own layer so
+   the grid above stays crisp and the bloom does not tint the card's shadow. The
+   pool is wider than the card on purpose: it has to read around the card, not
+   only behind it, or the canvas goes back to looking like an unstyled black
+   <body>. Restated on the new red — the old one was mixed from #E11D34/#C8102E
+   and pulled the whole screen toward wine. */
 #login-page::before{
   content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
   background:
-    radial-gradient(900px 660px at 50% 30%,rgba(225,29,52,.42) 0%,rgba(200,16,46,.17) 40%,rgba(154,11,34,.05) 62%,rgba(200,16,46,0) 78%),
-    radial-gradient(760px 460px at 6% 104%,rgba(255,106,61,.12) 0%,rgba(255,106,61,0) 62%),
+    radial-gradient(900px 660px at 50% 30%,rgba(247,43,84,.34) 0%,rgba(227,13,59,.15) 40%,rgba(137,11,40,.05) 62%,rgba(227,13,59,0) 78%),
+    radial-gradient(760px 460px at 6% 104%,rgba(250,87,117,.10) 0%,rgba(250,87,117,0) 62%),
     radial-gradient(1400px 820px at 50% 118%,rgba(0,0,0,.62) 0%,rgba(0,0,0,0) 66%);
 }
 
 .lc{
   position:relative;
-  background:var(--card);
-  /* --r-lg is the card radius in the tightened SEDS scale; --r-xl (16px) is
-     reserved for heroes and sheet tops, which is why this read rounder than
-     every other surface in the three apps. */
+  background:var(--surface);
   border-radius:var(--r-lg);
-  padding:var(--s8) var(--s8) var(--s6);
+  padding:var(--sp-7) var(--sp-7) var(--sp-6);
   width:min(444px,100%);
-  box-shadow:var(--e4),0 0 0 1px rgba(28,26,23,.06);
+  box-shadow:var(--e4),0 0 0 1px rgba(31,25,28,.06);
   animation:rise var(--d-slow) var(--ease-in) both;
+  /* Clips the hairline below to the card's own corners. A 2px-tall box cannot
+     hold an 18px radius — the browser scales the corner down to fit, so the
+     bar's ends stayed square and poked out past the card's curve. */
+  overflow:hidden;
 }
 /* Ember hairline along the top edge — ties the white card to the brand without
-   putting red behind the artwork. */
+   putting red behind the artwork. Flat --accent-quiet: at 2px tall a gradient
+   only made the colour ambiguous. */
 .lc::before{
-  content:'';position:absolute;inset:0 0 auto 0;height:3px;
-  border-radius:var(--r-lg) var(--r-lg) 0 0;
-  background:var(--grad-sunset);
+  content:'';position:absolute;inset:0 0 auto 0;height:var(--sp-half);
+  background:var(--accent-quiet);
 }
 
 .lc-mark{
-  display:block;width:min(224px,72%);height:auto;margin:var(--s2) auto var(--s5);
+  display:block;width:min(224px,72%);height:auto;
+  margin:var(--sp-2) auto var(--sp-5);
 }
 
 /* Ruled eyebrow — says which of the three apps this is. Rules are drawn with
    flex siblings rather than a border on the text so they always meet the label
    symmetrically, whatever its length. */
 .lc-eyebrow{
-  display:flex;align-items:center;gap:var(--s3);
-  color:var(--text-mute);
-  font-size:11px;line-height:14px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  display:flex;align-items:center;gap:var(--sp-3);
+  color:var(--ink-3);
+  font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:600;
+  letter-spacing:var(--tr-micro);text-transform:uppercase;
 }
-.lc-eyebrow::before,.lc-eyebrow::after{content:'';flex:1;height:1px;background:var(--border);}
+.lc-eyebrow::before,.lc-eyebrow::after{content:'';flex:1;height:1px;background:var(--line);}
 
 .lc-title{
-  font-family:'Plus Jakarta Sans','Inter',sans-serif;
-  font-size:26px;line-height:32px;font-weight:800;letter-spacing:-.5px;
-  color:var(--text-hi);text-align:center;margin-top:var(--s5);
+  font-family:var(--ff-display);
+  font-size:var(--fs-h2);line-height:var(--lh-h2);font-weight:700;
+  letter-spacing:var(--tr-display);
+  color:var(--ink);text-align:center;margin-top:var(--sp-5);
 }
 .lc-lede{
-  font-size:15px;line-height:22px;color:var(--ink-500);
-  text-align:center;margin:6px 0 var(--s6);
+  font-size:var(--fs-body-lg);line-height:var(--lh-body-lg);color:var(--ink-2);
+  text-align:center;margin:var(--sp-half) 0 var(--sp-6);
 }
 
 /* ── Login fields ──────────────────────────────────────────────────────
    Deliberately not `.fg`: this matches SeTextField in the customer and driver
-   apps — uppercase 12px label, leading glyph that lights up on focus, 1.5px
-   resting border going 2px + a 3px ring on focus, and the reveal toggle. */
-.lf{margin-bottom:var(--s4);}
+   apps — uppercase label, leading glyph that lights up on focus, 1.5px resting
+   border going 2px plus a ring on focus, and the reveal toggle. */
+.lf{margin-bottom:var(--gap-field);}
 .lf label{
-  display:block;margin-bottom:7px;color:var(--ink-700);
-  font-size:12px;line-height:16px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+  display:block;margin-bottom:var(--gap-tight);color:var(--ink-2);
+  font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:600;
+  letter-spacing:var(--tr-micro);text-transform:uppercase;
 }
 .lf-box{
-  display:flex;align-items:center;background:var(--field);
-  border:1.5px solid var(--border);border-radius:var(--r-sm);
+  display:flex;align-items:center;background:var(--surface);
+  border:1.5px solid var(--line-strong);border-radius:var(--r-sm);
   transition:border-color var(--d-fast) var(--ease),box-shadow var(--d-fast) var(--ease);
 }
-.lf-box:focus-within{border-color:var(--brand);border-width:2px;box-shadow:0 0 0 3px var(--red-50);}
-/* The border going 1.5px → 2px on focus would shift the input 0.5px; take it
-   out of the padding instead so nothing inside moves. */
-.lf-box:focus-within .lf-ic{margin-left:12.5px;color:var(--brand);}
-.lf-box:focus-within input{padding-top:12.5px;padding-bottom:12.5px;}
+/* The border keeps its width on focus and changes colour instead, picking up the
+   ring the rest of the panel's fields use. It used to grow 1.5px → 2px, which
+   moved everything inside it, so two rules existed to compensate — and they were
+   wrong: 14px → 12.5px against a border growing by only 0.5px left the icon a
+   pixel out, so the glyph twitched left every time the field was focused. Not
+   changing the width removes the shift and the two rules that chased it. */
+.lf-box:focus-within{border-color:var(--accent);box-shadow:var(--focus-ring);}
+.lf-box:focus-within .lf-ic{color:var(--accent);}
 .lf-ic{
-  width:20px;height:20px;margin:0 10px 0 14px;color:var(--text-mute);flex-shrink:0;
-  transition:color var(--d-fast) var(--ease),margin var(--d-fast) var(--ease);
+  width:20px;height:20px;margin:0 var(--sp-2) 0 var(--sp-3);color:var(--ink-3);flex-shrink:0;
+  transition:color var(--d-fast) var(--ease);
 }
 .lf-box input{
   flex:1;min-width:0;border:none;outline:none;background:transparent;
-  padding:13px 14px 13px 0;font-size:15px;line-height:22px;color:var(--text-hi);
+  padding:var(--sp-3) var(--sp-3) var(--sp-3) 0;
+  font-size:var(--fs-body-lg);line-height:var(--lh-body-lg);color:var(--ink);
 }
-.lf-box input::placeholder{color:var(--ink-400);}
+.lf-box input::placeholder{color:var(--ink-4);}
 /* Chrome's autofill repaints the field a flat blue-white and overrides `color`;
    the inset shadow is the only way to hold the surface, and -webkit-text-fill
    the only way to hold the text. Without these an autofilled login card lost
-   both its white field and its warm ink. */
+   both its white field and its ink. */
 .lf-box input:-webkit-autofill{
-  -webkit-text-fill-color:var(--text-hi);
-  -webkit-box-shadow:0 0 0 40px var(--field) inset;
-  caret-color:var(--text-hi);
+  -webkit-text-fill-color:var(--ink);
+  -webkit-box-shadow:0 0 0 40px var(--surface) inset;
+  caret-color:var(--ink);
 }
 .lf-eye{
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  width:34px;height:34px;margin-right:6px;border:none;border-radius:var(--r-xs);
-  background:transparent;color:var(--text-mute);cursor:pointer;
+  width:34px;height:34px;margin-right:var(--gap-tight);
+  border:none;border-radius:var(--r-xs);
+  background:transparent;color:var(--ink-3);cursor:pointer;
   transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease);
 }
 .lf-eye .ic{width:18px;height:18px;}
-.lf-eye:hover{background:var(--bg);color:var(--text-hi);}
-.lf-eye[aria-pressed="true"]{color:var(--brand);}
+.lf-eye:hover{background:var(--ground);color:var(--ink);}
+.lf-eye[aria-pressed="true"]{color:var(--accent);}
 
-/* Matches SeButton's `large` size across the two Flutter apps: 50px tall,
-   --r-md corners, Jakarta 700 at 16px. Written as `.btn.lc-cta` because the
-   BUTTONS block further down this file would otherwise win on source order and
-   drag the padding and radius back to the default. */
+/* Matches SeButton's `large` size across the two Flutter apps. Written as
+   `.btn.lc-cta` because the `.btn` rules — now in components.css, which loads
+   AFTER this file — would otherwise win and drag the height and radius back to
+   the default. Doubled specificity (0,2,0 against 0,1,0) is what keeps this,
+   not source order, so the split is safe. */
 .btn.lc-cta{
-  width:100%;height:50px;margin-top:var(--s5);padding:0 var(--s5);
-  border-radius:var(--r-md);
-  font-family:'Plus Jakarta Sans','Inter',sans-serif;
-  font-size:16px;font-weight:700;letter-spacing:-.1px;gap:var(--s2);
+  width:100%;min-height:var(--h-control-lg);
+  margin-top:var(--sp-5);padding:0 var(--sp-5);
+  border-radius:var(--r-sm);
+  font-family:var(--ff-display);
+  font-size:var(--fs-title);font-weight:600;letter-spacing:var(--tr-title);
+  gap:var(--gap-inline);
 }
 .btn.lc-cta .ic{width:20px;height:20px;transition:transform var(--d-fast) var(--ease);}
 .btn.lc-cta:hover:not(:disabled) .ic{transform:translateX(3px);}
 
 .l-foot{
-  display:flex;align-items:center;justify-content:center;gap:6px;
-  margin-top:var(--s6);padding-top:var(--s4);border-top:1px solid var(--border);
-  font-size:12px;line-height:16px;color:var(--text-mute);text-align:center;
+  display:flex;align-items:center;justify-content:center;gap:var(--gap-tight);
+  margin-top:var(--sp-6);padding-top:var(--sp-4);border-top:1px solid var(--line);
+  font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-3);
+  text-align:center;
 }
 .l-foot .ic{opacity:.7;}
 
 #l-err{
-  display:none;align-items:center;gap:var(--s2);margin-top:var(--s3);
-  background:var(--danger-tint);color:var(--danger);border-radius:var(--r-sm);
-  padding:10px 14px;font-size:13px;line-height:18px;font-weight:600;
+  display:none;align-items:center;gap:var(--gap-inline);margin-top:var(--sp-3);
+  background:var(--danger-tint);color:var(--danger-ink);border-radius:var(--r-sm);
+  padding:var(--sp-3) var(--sp-4);
+  font-size:var(--fs-dense);line-height:var(--lh-dense);font-weight:600;
   box-shadow:inset 3px 0 0 var(--danger);
 }
 #l-err.show{display:flex;animation:shake var(--d-slow) var(--ease);}
 #l-err .ic{flex-shrink:0;}
 
 @media (max-width:420px){
-  .lc{padding:var(--s6) var(--s5) var(--s5);}
-  .lc-title{font-size:22px;line-height:28px;letter-spacing:-.4px;}
-  /* The registered company line is 48 characters; at 12px it wraps mid-name on
-     a 360px phone. 11px keeps it on one line down to 320px. */
-  .l-foot{font-size:11px;}
+  .lc{padding:var(--sp-6) var(--sp-5) var(--sp-5);}
+  .lc-title{font-size:var(--fs-h3);line-height:var(--lh-h3);letter-spacing:var(--tr-h3);}
+  /* The registered company line is 48 characters; at 12px it wraps mid-name on a
+     360px phone. 11px keeps it on one line down to 320px. */
+  .l-foot{font-size:var(--fs-micro);}
 }
 
 /* ─────────────── SHELL ─────────────── */
 #app{display:none;min-height:100vh;overflow-x:clip;}
 .sidebar{
-  width:var(--sw);background:var(--sidebar-bg);position:fixed;inset:0 auto 0 0;
+  width:var(--sidebar-w);background:var(--shell);position:fixed;inset:0 auto 0 0;
   height:100vh;display:flex;flex-direction:column;z-index:100;
   transition:width var(--d-base) var(--ease),transform var(--d-base) var(--ease);
 }
-/* Desktop hamburger fully hides the sidebar (slides it off-canvas) and lets the
-   content take the full width — a partial 72px icon rail read as a "half sidebar"
-   and looked broken. The rail-specific rules below now apply only to an
-   off-screen element, so they are harmless. */
+/* The desktop hamburger fully hides the sidebar and lets the content take the
+   full width — a partial 72px icon rail read as a "half sidebar" and looked
+   broken. The rail-specific rules below now only ever apply to an off-screen
+   element, so they are harmless. */
 .sidebar.collapsed{transform:translateX(-100%);}
-.sb-logo{padding:var(--s6) var(--s5) var(--s5);border-bottom:1px solid rgba(255,255,255,.07);
-  overflow:hidden;white-space:nowrap;display:flex;align-items:center;gap:var(--s3);min-height:70px;}
+.sb-logo{padding:var(--sp-6) var(--sp-5) var(--sp-5);
+  border-bottom:1px solid rgba(251,249,249,.08);
+  overflow:hidden;white-space:nowrap;display:flex;align-items:center;
+  gap:var(--sp-3);min-height:72px;}
 .sb-mark{display:none;flex-shrink:0;width:40px;height:40px;border-radius:var(--r-sm);
-  background:var(--grad-ember);color:#fff;align-items:center;justify-content:center;
-  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;letter-spacing:-.5px;
-  box-shadow:var(--glow);}
+  background:var(--accent);color:#fff;align-items:center;justify-content:center;
+  font-family:var(--ff-display);font-weight:700;font-size:var(--fs-body-lg);
+  letter-spacing:var(--tr-display);}
 .sb-word{min-width:0;}
-.sb-logo .slt{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;
-  letter-spacing:-.6px;color:#F5F2EC;}
-.sb-logo .slt span{color:#F04A5E;}
-.sb-logo .sls{font-size:10px;color:rgba(245,242,236,.36);letter-spacing:.8px;
-  text-transform:uppercase;font-weight:700;margin-top:3px;}
+.sb-logo .slt{font-family:var(--ff-display);font-size:var(--fs-h3);font-weight:700;
+  letter-spacing:var(--tr-display);color:var(--n-50);}
+/* --red-400, not --red-500: on the near-black sidebar the identity red reaches
+   only ~4.4:1 while the lighter step reads at 6.3:1. */
+.sb-logo .slt span{color:var(--red-400);}
+.sb-logo .sls{font-size:var(--fs-micro);color:rgba(251,249,249,.42);
+  letter-spacing:var(--tr-micro);text-transform:uppercase;font-weight:600;
+  margin-top:var(--sp-half);}
 /* Collapsed rail: swap the clip-prone wordmark for a compact SE mark. */
-.sidebar.collapsed .sb-logo{justify-content:center;padding:var(--s5) 0;gap:0;}
+.sidebar.collapsed .sb-logo{justify-content:center;padding:var(--sp-5) 0;gap:0;}
 .sidebar.collapsed .sb-word{display:none;}
 .sidebar.collapsed .sb-mark{display:flex;}
-.sb-nav{flex:1;padding:var(--s3) 0;overflow-y:auto;overflow-x:hidden;}
-.sb-sec{padding:var(--s4) var(--s5) var(--s2);font-size:10px;font-weight:700;letter-spacing:.8px;
-  text-transform:uppercase;color:rgba(245,242,236,.28);white-space:nowrap;}
-.sidebar.collapsed .sb-sec{opacity:0;height:var(--s6);padding:var(--s2) 0;}
+.sb-nav{flex:1;padding:var(--sp-3) 0;overflow-y:auto;overflow-x:hidden;}
+.sb-sec{padding:var(--sp-4) var(--sp-5) var(--sp-2);
+  font-size:var(--fs-micro);font-weight:600;letter-spacing:var(--tr-micro);
+  text-transform:uppercase;color:rgba(251,249,249,.40);white-space:nowrap;}
+.sidebar.collapsed .sb-sec{opacity:0;height:var(--sp-6);padding:var(--sp-2) 0;}
 .ni{
-  position:relative;display:flex;align-items:center;gap:var(--s3);
-  padding:12px var(--s5);cursor:pointer;color:rgba(245,242,236,.56);
-  font-size:14px;font-weight:500;white-space:nowrap;user-select:none;
+  position:relative;display:flex;align-items:center;gap:var(--sp-3);
+  padding:var(--sp-3) var(--sp-5);cursor:pointer;color:rgba(251,249,249,.64);
+  font-size:var(--fs-body);font-weight:500;white-space:nowrap;user-select:none;
   transition:color var(--d-fast) var(--ease),background var(--d-fast) var(--ease);
 }
-.ni::before{ /* gradient left rail */
-  content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;
-  background:var(--grad-ember);transform:scaleY(0);transform-origin:center;
+/* Left rail on the active item. This is one of the two places the accent rail
+   survives — it encodes "you are here", which is information, not decoration. */
+.ni::before{
+  content:'';position:absolute;left:0;top:var(--sp-2);bottom:var(--sp-2);
+  width:3px;border-radius:0 3px 3px 0;
+  background:var(--accent-quiet);transform:scaleY(0);transform-origin:center;
   transition:transform var(--d-base) var(--ease);
 }
-.ni:hover{background:rgba(255,255,255,.05);color:#F5F2EC;}
-.ni.active{background:rgba(240,74,94,.13);color:#F5F2EC;}
+.ni:hover{background:rgba(255,255,255,.05);color:var(--n-50);}
+.ni.active{background:rgba(250,87,117,.14);color:var(--n-50);}
 .ni.active::before{transform:scaleY(1);}
 .ni .ic{color:inherit;}
 .ni .ni-fill{display:none;}
 .ni.active .ni-fill{display:block;}
 .ni.active .ni-line{display:none;}
-.ni.active .ic{color:#F04A5E;}
+.ni.active .ic{color:var(--red-400);}
 .ni .lbl{transition:opacity var(--d-fast) var(--ease);}
 .sidebar.collapsed .lbl,.sidebar.collapsed .sls{opacity:0;pointer-events:none;}
-.sidebar.collapsed .ni{justify-content:center;padding:12px 0;}
-.ndiv{height:1px;background:rgba(255,255,255,.07);margin:var(--s2) var(--s5);}
-.sidebar.collapsed .ndiv{margin:var(--s2) var(--s3);}
+.sidebar.collapsed .ni{justify-content:center;padding:var(--sp-3) 0;}
+.ndiv{height:1px;background:rgba(251,249,249,.08);margin:var(--sp-2) var(--sp-5);}
+.sidebar.collapsed .ndiv{margin:var(--sp-2) var(--sp-3);}
 /* Unseen-count badge on a nav item. Sits at the far right of the row; on the
-   collapsed rail it shrinks to a corner dot since the label is hidden. */
+   collapsed rail it shrinks to a corner dot since the label is hidden. The
+   coloured halo ring is gone — it was the same neon-flare treatment as the old
+   --glow, three times over in the one column. */
 .ni-badge{
-  margin-left:auto;min-width:19px;height:19px;padding:0 6px;border-radius:6px;
+  margin-left:auto;min-width:20px;height:20px;padding:0 var(--gap-tight);
+  border-radius:var(--r-full);
   display:inline-flex;align-items:center;justify-content:center;
-  font-size:11px;font-weight:700;line-height:1;color:#fff;background:var(--brand);
-  font-variant-numeric:tabular-nums;box-shadow:0 0 0 3px rgba(240,74,94,.18);
+  font-size:var(--fs-micro);font-weight:600;line-height:1;color:#fff;
+  background:var(--accent);font-variant-numeric:tabular-nums;
 }
-.ni-badge[data-tone="gold"]{background:var(--gold-500);color:#3A2600;box-shadow:0 0 0 3px rgba(245,165,36,.18);}
-.ni-badge[data-tone="ocean"]{background:var(--ocean-500);box-shadow:0 0 0 3px rgba(14,148,136,.2);}
-.ni-badge[data-tone="success"]{background:var(--success);box-shadow:0 0 0 3px rgba(22,163,74,.2);}
+.ni-badge[data-tone="warning"]{background:var(--warning);color:var(--warning-on);}
+.ni-badge[data-tone="info"]{background:var(--info);}
+.ni-badge[data-tone="success"]{background:var(--success);}
 .sidebar.collapsed .ni-badge{
-  position:absolute;top:6px;right:9px;margin:0;min-width:9px;width:9px;height:9px;
-  padding:0;border-radius:50%;font-size:0;box-shadow:0 0 0 2px var(--sidebar-bg);
+  position:absolute;top:var(--gap-tight);right:var(--sp-2);margin:0;
+  min-width:9px;width:9px;height:9px;
+  padding:0;border-radius:50%;font-size:0;box-shadow:0 0 0 2px var(--shell);
 }
-.main{margin-left:var(--sw);display:flex;flex-direction:column;min-height:100vh;min-width:0;
+.main{margin-left:var(--sidebar-w);display:flex;flex-direction:column;
+  min-height:100vh;min-width:0;
   overflow-x:clip;transition:margin-left var(--d-base) var(--ease);}
 .main.expanded{margin-left:0;}
 
 /* ─────────────── TOPBAR ─────────────── */
 .topbar{
-  background:var(--card);min-height:68px;padding:0 var(--s6);
-  display:flex;align-items:center;justify-content:space-between;gap:var(--s4);
-  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;
+  background:var(--surface);min-height:var(--h-topbar);padding:0 var(--sp-6);
+  display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);
+  border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50;
 }
-.tb-l{display:flex;align-items:center;gap:var(--s4);min-width:0;}
+.tb-l{display:flex;align-items:center;gap:var(--sp-4);min-width:0;}
 .iconbtn{
-  width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;
+  width:var(--h-control);height:var(--h-control);
+  display:inline-flex;align-items:center;justify-content:center;
   cursor:pointer;background:transparent;border:none;border-radius:var(--r-sm);
-  color:var(--text-lo);flex-shrink:0;
-  transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),transform var(--d-instant) var(--ease);
+  color:var(--ink-2);flex-shrink:0;
+  transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
+             transform var(--d-instant) var(--ease);
 }
-.iconbtn:hover{background:var(--hover);color:var(--text-hi);}
+.iconbtn:hover{background:var(--sunken);color:var(--ink);}
 .iconbtn:active{transform:scale(.94);}
-/* Now the topbar's only page label, so it is sized to be read rather than
-   skimmed past — and it must not wrap, or a two-line crumb pushes the 68px bar
-   out of shape on "Shop & Deliver Requests". */
-.tb-bc{font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text-mute);
-  display:flex;align-items:center;gap:5px;min-width:0;}
-.tb-bc em{color:var(--brand);font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* The topbar's only page label — the page name used to be printed here, again
+   underneath as a second heading, and a third time in .pg-title. It must not
+   wrap, or a two-line crumb pushes the bar out of shape on "Shop & Deliver
+   Requests". */
+.tb-bc{font-size:var(--fs-micro);font-weight:600;letter-spacing:var(--tr-micro);
+  text-transform:uppercase;color:var(--ink-3);
+  display:flex;align-items:center;gap:var(--gap-tight);min-width:0;}
+.tb-bc em{color:var(--accent);font-style:normal;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;}
 .tb-bc-root{white-space:nowrap;flex-shrink:0;}
 .tb-bc .ic{width:12px;height:12px;flex-shrink:0;}
-.tb-r{display:flex;align-items:center;gap:var(--s3);flex-shrink:0;}
-.tb-date{font-size:12px;color:var(--text-mute);font-weight:500;}
-.ab{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);
-  padding:5px 14px 5px 5px;border-radius:var(--r-full);}
-/* Teal, not ember. See the comment on .ab in index.html. */
-.av{width:32px;height:32px;background:linear-gradient(135deg,#17B3A4 0%,#0E9488 100%);
+.tb-r{display:flex;align-items:center;gap:var(--sp-3);flex-shrink:0;}
+.tb-date{font-size:var(--fs-caption);color:var(--ink-3);font-weight:500;}
+.ab{display:flex;align-items:center;gap:var(--gap-inline);background:var(--ground);
+  border:1px solid var(--line);
+  padding:var(--gap-tight) var(--sp-3) var(--gap-tight) var(--gap-tight);
+  border-radius:var(--r-full);}
+/* Deliberately NOT brand red: the only red dot in this corner should be the
+   unread-notification badge, or the eye stops trusting it. Teal used to carry
+   that job but the teal accent is retired, so this is now simply neutral — and
+   flat, since a gradient on a 32px circle is invisible anyway. */
+.av{width:32px;height:32px;background:var(--n-700);
   border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
-  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:13px;flex-shrink:0;
-  box-shadow:0 4px 12px rgba(14,148,136,.24);}
-.an{font-size:13.5px;font-weight:600;color:var(--text-hi);line-height:1.2;white-space:nowrap;}
+  font-family:var(--ff-display);font-weight:600;font-size:var(--fs-dense);flex-shrink:0;}
+.an{font-size:var(--fs-caption);font-weight:600;color:var(--ink);
+  line-height:1.2;white-space:nowrap;}
 
 /* ─────────────── ACTIVITY BELL ─────────────── */
 .bell-wrap{position:relative;}
 #bell-btn{position:relative;overflow:visible;}
 /* A true circle at one digit, growing into a pill only when the count needs two
    — the old 5px-radius rounded square read as a misaligned block. It carries
-   `hidden` whenever the unread total is 0 (renderActivity), which now actually
-   hides it; see the [hidden] rule at the top of this file. */
+   `hidden` whenever the unread total is 0 (renderActivity), which actually hides
+   it now; see the [hidden] rule in tokens.css. */
 .bell-badge{
   position:absolute;top:0;right:0;
-  min-width:18px;height:18px;padding:0 5px;
-  border-radius:var(--r-full);background:var(--brand);color:#fff;
-  font-size:10.5px;font-weight:800;line-height:1;letter-spacing:0;
+  min-width:18px;height:18px;padding:0 var(--gap-tight);
+  border-radius:var(--r-full);background:var(--accent);color:#fff;
+  font-size:var(--fs-micro);font-weight:600;line-height:1;letter-spacing:0;
   display:inline-flex;align-items:center;justify-content:center;
-  box-sizing:border-box;box-shadow:0 0 0 2px var(--card);
+  box-sizing:border-box;box-shadow:0 0 0 2px var(--surface);
   font-variant-numeric:tabular-nums;pointer-events:none;
 }
 .bell-menu{
   position:absolute;top:calc(100% + 8px);right:0;width:308px;max-width:calc(100vw - 32px);
-  background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);
   box-shadow:var(--e3);z-index:60;overflow:hidden;
   opacity:0;visibility:hidden;transform:translateY(-6px);
-  transition:opacity var(--d-fast) var(--ease),transform var(--d-fast) var(--ease),visibility var(--d-fast) var(--ease);
+  transition:opacity var(--d-fast) var(--ease),transform var(--d-fast) var(--ease),
+             visibility var(--d-fast) var(--ease);
 }
 .bell-menu.open{opacity:1;visibility:visible;transform:none;}
-.bell-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;
-  padding:12px 14px;border-bottom:1px solid var(--border);
-  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:14px;color:var(--text-hi);}
-.bell-clear{background:none;border:none;cursor:pointer;color:var(--brand);
-  font-size:12px;font-weight:600;padding:2px 4px;border-radius:var(--r-xs);}
+.bell-hd{display:flex;align-items:center;justify-content:space-between;gap:var(--gap-inline);
+  padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--line);
+  font-family:var(--ff-display);font-weight:600;font-size:var(--fs-title);color:var(--ink);}
+.bell-clear{background:none;border:none;cursor:pointer;color:var(--accent);
+  font-size:var(--fs-caption);font-weight:600;padding:var(--sp-half) var(--gap-tight);
+  border-radius:var(--r-xs);}
 .bell-clear:hover{text-decoration:underline;}
 .bell-list{max-height:340px;overflow-y:auto;}
-.bell-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
-  padding:12px 14px;background:none;border:none;border-bottom:1px solid var(--border);
-  cursor:pointer;color:var(--text-hi);transition:background var(--d-fast) var(--ease);}
+.bell-item{display:flex;align-items:center;gap:var(--gap-inline);width:100%;text-align:left;
+  padding:var(--sp-3) var(--sp-4);background:none;border:none;
+  border-bottom:1px solid var(--line);
+  cursor:pointer;color:var(--ink);transition:background var(--d-fast) var(--ease);}
 .bell-item:last-child{border-bottom:none;}
-.bell-item:hover{background:var(--hover);}
-.bell-dot{width:9px;height:9px;border-radius:50%;background:var(--brand);flex-shrink:0;}
-.bell-dot[data-tone="gold"]{background:var(--gold-500);}
-.bell-dot[data-tone="ocean"]{background:var(--ocean-500);}
+.bell-item:hover{background:var(--ground);}
+.bell-dot{width:9px;height:9px;border-radius:50%;background:var(--accent-quiet);flex-shrink:0;}
+.bell-dot[data-tone="warning"]{background:var(--warning);}
+.bell-dot[data-tone="info"]{background:var(--info);}
 .bell-dot[data-tone="success"]{background:var(--success);}
 .bell-txt{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;}
-.bell-txt b{font-size:13px;font-weight:600;}
-.bell-sub{font-size:11px;color:var(--text-mute);}
-.bell-item>.ic{color:var(--text-mute);width:16px;height:16px;flex-shrink:0;}
-.bell-empty{display:flex;flex-direction:column;align-items:center;gap:8px;
-  padding:30px 14px;color:var(--text-mute);font-size:13px;text-align:center;}
-.bell-empty .ic{width:30px;height:30px;color:var(--success);}
+.bell-txt b{font-size:var(--fs-dense);font-weight:600;}
+.bell-sub{font-size:var(--fs-caption);color:var(--ink-3);}
+.bell-item>.ic{color:var(--ink-4);width:16px;height:16px;flex-shrink:0;}
+.bell-empty{display:flex;flex-direction:column;align-items:center;gap:var(--gap-inline);
+  padding:var(--sp-7) var(--sp-4);color:var(--ink-3);font-size:var(--fs-dense);
+  text-align:center;}
+.bell-empty .ic{width:28px;height:28px;color:var(--success);}
 
 /* ─────────────── PAGES ─────────────── */
-.pw{padding:var(--s6) var(--gutter);flex:1;max-width:1560px;width:100%;min-width:0;}
+/* 1560px was wider than the content ever needs, so the stat cards stretched and
+   the tables ran to arm's length on a large monitor. */
+.pw{padding:var(--pad-page-y) var(--pad-page-x);flex:1;
+  max-width:var(--page-max);width:100%;min-width:0;}
 .page{display:none;}
 .page.active{display:block;animation:fadeThrough var(--d-base) var(--ease-in);}
-.pg-hdr{display:flex;justify-content:space-between;align-items:center;gap:var(--s4);
-  flex-wrap:wrap;margin-bottom:var(--s5);}
-/* Given a surface of its own rather than left as bare text on the page
-   background. Two things come out of that: the heading anchors the top of the
-   page instead of floating, and it can carry the brand rail that the stat cards
-   and the sidebar's active item already use — so the eye reads "you are here"
-   from the same cue in three places.
+.pg-hdr{display:flex;justify-content:space-between;align-items:center;gap:var(--sp-4);
+  flex-wrap:wrap;margin-bottom:var(--gap-section);}
+/* Bare text on the page background, deliberately. This used to sit in a tinted
+   band with a border and a red left rail — but a rail on a rounded tinted panel
+   is the most recognisable machine-generated pattern in the file, and the panel
+   was repeating it on the stat cards, the active nav item AND the toast. It
+   stays where it encodes state; a page title needs air, not a container.
 
-   The size is fluid, not stepped. A fixed 26px turned "Shop & Deliver Requests"
-   into three cramped lines on a phone; clamp() lets the longest title in the
-   panel settle without a per-page override. */
+   The size is fluid rather than stepped: a fixed 24px turned "Shop & Deliver
+   Requests" into three cramped lines on a phone, and clamp() lets the longest
+   title in the panel settle without a per-page override. */
 .pg-title{
-  font-family:'Plus Jakarta Sans',sans-serif;
-  font-size:clamp(18px,1.15rem + 1.1vw,26px);
-  line-height:1.25;font-weight:800;letter-spacing:-.4px;color:var(--text-hi);
-  display:inline-flex;align-items:center;min-width:0;
-  padding:9px 18px 9px 15px;
-  background:var(--band);
-  border:1px solid var(--border);
-  border-left:3px solid var(--brand);
-  border-radius:var(--r-sm);
-  text-wrap:balance;
+  font-family:var(--ff-display);
+  font-size:clamp(20px,1.1rem + .9vw,24px);
+  line-height:var(--lh-h2);font-weight:700;letter-spacing:var(--tr-display);
+  color:var(--ink);min-width:0;text-wrap:balance;
 }
 
 /* ─────────────── MODAL ─────────────── */
-.mbg{position:fixed;inset:0;background:var(--scrim);z-index:600;display:none;
-  align-items:center;justify-content:center;padding:var(--s4);backdrop-filter:blur(2px);}
+.mbg{position:fixed;inset:0;background:var(--veil);z-index:600;display:none;
+  align-items:center;justify-content:center;padding:var(--sp-4);backdrop-filter:blur(2px);}
 .mbg.open{display:flex;animation:fade var(--d-fast) var(--ease-in);}
-.mbox{background:var(--card);border-radius:var(--r-lg);padding:var(--s6);width:520px;
+.mbox{background:var(--surface);border-radius:var(--r-lg);padding:var(--sp-6);width:520px;
   max-width:100%;max-height:92vh;overflow-y:auto;box-shadow:var(--e4);
   animation:rise var(--d-base) var(--ease-in);}
 .mbox.wide{width:620px;}
 .mbox.narrow{width:420px;}
-.m-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;
-  letter-spacing:-.3px;color:var(--text-hi);margin-bottom:var(--s5);}
-.m-body{font-size:14px;color:var(--text-lo);line-height:1.55;margin-bottom:var(--s5);}
-.m-actions{display:flex;gap:var(--s2);justify-content:flex-end;margin-top:var(--s5);
-  padding-top:var(--s4);border-top:1px solid var(--border);}
-.m-ico{width:52px;height:52px;border-radius:var(--r-md);display:flex;align-items:center;
-  justify-content:center;margin-bottom:var(--s4);}
-.m-ico.danger{background:var(--danger-tint);color:var(--danger);}
-.m-ico.warning{background:var(--warning-tint);color:#9A6410;}
+.m-title{font-family:var(--ff-display);font-size:var(--fs-h3);line-height:var(--lh-h3);
+  font-weight:700;letter-spacing:var(--tr-h3);color:var(--ink);margin-bottom:var(--sp-5);}
+.m-body{font-size:var(--fs-body);color:var(--ink-2);line-height:1.55;
+  margin-bottom:var(--sp-5);}
+.m-actions{display:flex;gap:var(--gap-inline);justify-content:flex-end;
+  margin-top:var(--sp-5);padding-top:var(--sp-4);border-top:1px solid var(--line);}
+.m-ico{width:48px;height:48px;border-radius:var(--r-md);display:flex;align-items:center;
+  justify-content:center;margin-bottom:var(--sp-4);}
+.m-ico.danger{background:var(--danger-tint);color:var(--danger-ink);}
+.m-ico.warning{background:var(--warning-tint);color:var(--warning-ink);}
 
 /* ─────────────── SIDE PANEL ─────────────── */
-#sp-overlay{position:fixed;inset:0;background:var(--scrim);z-index:200;opacity:0;
+#sp-overlay{position:fixed;inset:0;background:var(--veil);z-index:200;opacity:0;
   pointer-events:none;transition:opacity var(--d-base) var(--ease);}
 #sp-overlay.open{opacity:1;pointer-events:auto;}
-.spanel{position:fixed;right:0;top:0;height:100vh;width:min(440px,100%);background:var(--card);
+.spanel{position:fixed;right:0;top:0;height:100vh;width:min(440px,100%);
+  background:var(--surface);
   box-shadow:var(--e4);z-index:201;transform:translateX(100%);
   transition:transform var(--d-slow) var(--ease);display:flex;flex-direction:column;}
 .spanel.open{transform:translateX(0);}
-.sp-hd{padding:var(--s5);border-bottom:1px solid var(--border);display:flex;
-  justify-content:space-between;align-items:center;gap:var(--s3);flex-shrink:0;}
-.sp-hd-sub{font-size:11px;color:var(--text-mute);font-weight:700;text-transform:uppercase;
-  letter-spacing:.8px;margin-bottom:3px;}
-.sp-hd-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:800;
-  letter-spacing:-.35px;color:var(--text-hi);}
-#sp-body{padding:var(--s5);overflow-y:auto;flex:1;}
-.sp-sec{margin-bottom:var(--s6);}
-.sp-sec-title{font-size:11px;font-weight:700;color:var(--text-mute);text-transform:uppercase;
-  letter-spacing:.8px;margin-bottom:var(--s3);padding-bottom:6px;border-bottom:1px solid var(--border);}
-.sp-row{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--s4);
-  padding:9px 0;border-bottom:1px solid var(--border);}
+.sp-hd{padding:var(--sp-5);border-bottom:1px solid var(--line);display:flex;
+  justify-content:space-between;align-items:center;gap:var(--sp-3);flex-shrink:0;}
+.sp-hd-sub{font-size:var(--fs-micro);color:var(--ink-3);font-weight:600;
+  text-transform:uppercase;letter-spacing:var(--tr-micro);margin-bottom:var(--sp-half);}
+.sp-hd-title{font-family:var(--ff-display);font-size:var(--fs-h3);line-height:var(--lh-h3);
+  font-weight:700;letter-spacing:var(--tr-h3);color:var(--ink);}
+#sp-body{padding:var(--sp-5);overflow-y:auto;flex:1;}
+.sp-sec{margin-bottom:var(--sp-6);}
+.sp-sec-title{font-size:var(--fs-micro);font-weight:600;color:var(--ink-2);
+  text-transform:uppercase;letter-spacing:var(--tr-micro);
+  margin-bottom:var(--sp-3);padding-bottom:var(--gap-tight);
+  border-bottom:1px solid var(--line);}
+.sp-row{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-4);
+  padding:var(--sp-2) 0;border-bottom:1px solid var(--line);}
 .sp-row:last-child{border-bottom:none;}
 /* Proof of delivery (P5-06). The driver has photographed every handover since
    Phase 1; the URL was written to the order and rendered nowhere. Links out to
    the full-size image, because a thumbnail settles no dispute. */
-.sp-proof{display:block;border-radius:var(--r-md);overflow:hidden;border:1px solid var(--border);}
-.sp-proof img{display:block;width:100%;height:auto;max-height:280px;object-fit:cover;background:var(--bg);}
-.sp-proof:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
-.sp-lbl{font-size:13px;color:var(--text-lo);flex-shrink:0;}
-.sp-val{font-size:13px;font-weight:600;color:var(--text-hi);text-align:right;
+.sp-proof{display:block;border-radius:var(--r-md);overflow:hidden;
+  border:1px solid var(--line);}
+.sp-proof img{display:block;width:100%;height:auto;max-height:280px;object-fit:cover;
+  background:var(--ground);}
+.sp-proof:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.sp-lbl{font-size:var(--fs-dense);color:var(--ink-2);flex-shrink:0;}
+.sp-val{font-size:var(--fs-dense);font-weight:500;color:var(--ink);text-align:right;
   max-width:240px;overflow-wrap:anywhere;}
-.sp-val.sm{font-size:12px;font-weight:500;}
-.sp-val.money{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:800;
-  color:var(--brand);font-variant-numeric:tabular-nums;}
-.sp-hero{display:flex;align-items:center;gap:var(--s4);margin-bottom:var(--s5);}
-.sp-avatar{width:60px;height:60px;border-radius:50%;background:var(--grad-ember);color:#fff;
-  display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;
-  font-size:22px;font-weight:800;flex-shrink:0;box-shadow:var(--glow);}
-.sp-hero-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;letter-spacing:-.2px;color:var(--text-hi);}
+.sp-val.sm{font-size:var(--fs-caption);font-weight:400;}
+/* A value that is missing rather than merely empty — e.g. a merchant with no
+   pickup coordinates, which silently drops it out of nearest-first dispatch. */
+.sp-val.sp-warn{color:var(--warning-ink);font-weight:500;}
+.sp-val.money{font-family:var(--ff-display);font-size:var(--fs-h3);font-weight:700;
+  letter-spacing:var(--tr-h3);color:var(--accent);font-variant-numeric:tabular-nums;}
+.sp-hero{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-5);}
+.sp-avatar{width:60px;height:60px;border-radius:50%;background:var(--accent);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);
+  font-size:var(--fs-h3);font-weight:700;flex-shrink:0;}
+.sp-hero-name{font-family:var(--ff-display);font-size:var(--fs-title);font-weight:600;
+  letter-spacing:var(--tr-title);color:var(--ink);}
 
 /* ─────────────── STATUS FLOW STEPPER ─────────────── */
-.sf{display:flex;align-items:flex-start;margin-bottom:var(--s4);}
-.sf-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;}
-.sf-dot{width:14px;height:14px;border-radius:50%;background:var(--border);
-  border:2px solid var(--card);box-shadow:0 0 0 1px var(--border);
+/* Teal was retired, so a completed step is --success. That is arguably clearer
+   anyway: a delivery step that is done is a good outcome, not a neutral one. */
+.sf{display:flex;align-items:flex-start;margin-bottom:var(--gap-field);}
+.sf-wrap{display:flex;flex-direction:column;align-items:center;gap:var(--gap-tight);
+  flex-shrink:0;}
+.sf-dot{width:14px;height:14px;border-radius:50%;background:var(--line);
+  border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line);
   transition:background var(--d-base) var(--ease),box-shadow var(--d-base) var(--ease);}
-.sf-dot.done{background:var(--ocean-500);box-shadow:0 0 0 1px var(--ocean-500);}
-.sf-dot.current{background:var(--ocean-500);box-shadow:0 0 0 1px var(--ocean-500);
+.sf-dot.done{background:var(--success);box-shadow:0 0 0 1px var(--success);}
+.sf-dot.current{background:var(--success);box-shadow:0 0 0 1px var(--success);
   animation:pulse 1.8s var(--ease) infinite;}
-.sf-line{flex:1;height:2px;background:var(--border);margin-top:6px;position:relative;overflow:hidden;}
-.sf-line::after{content:'';position:absolute;inset:0;background:var(--ocean-500);
-  transform:scaleX(0);transform-origin:left;transition:transform var(--d-deliberate) var(--ease);}
+.sf-line{flex:1;height:2px;background:var(--line);margin-top:var(--gap-tight);
+  position:relative;overflow:hidden;}
+.sf-line::after{content:'';position:absolute;inset:0;background:var(--success);
+  transform:scaleX(0);transform-origin:left;
+  transition:transform var(--d-deliberate) var(--ease);}
 .sf-line.done::after{transform:scaleX(1);}
-.sf-lbl{font-size:9px;font-weight:600;color:var(--text-mute);white-space:nowrap;}
-.sf-dot.done+.sf-lbl,.sf-wrap:has(.done) .sf-lbl{color:var(--text-lo);}
+/* Was 9px — below the floor of the scale and genuinely hard to read. At 11px the
+   four labels still fit across a 440px drawer. */
+.sf-lbl{font-size:var(--fs-micro);font-weight:500;color:var(--ink-3);white-space:nowrap;}
+.sf-dot.done+.sf-lbl,.sf-wrap:has(.done) .sf-lbl{color:var(--ink-2);}
 
 /* ─────────────── TOASTS ─────────────── */
-/* Sits just below the 68px topbar so a toast never covers the page title. */
+/* Sits just below the topbar so a toast never covers the page title. */
 #toast-host{position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:900;
-  display:flex;flex-direction:column;gap:var(--s2);pointer-events:none;width:min(420px,calc(100% - 32px));}
+  display:flex;flex-direction:column;gap:var(--gap-inline);pointer-events:none;
+  width:min(420px,calc(100% - 32px));}
 .toast{
-  display:flex;align-items:flex-start;gap:var(--s3);background:var(--card);
-  border:1px solid var(--border);border-radius:var(--r-sm);padding:13px 15px 13px 0;
+  display:flex;align-items:flex-start;gap:var(--sp-3);background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:var(--sp-3) var(--sp-4) var(--sp-3) 0;
   box-shadow:var(--e3);pointer-events:auto;overflow:hidden;position:relative;
   animation:toastIn var(--d-base) var(--ease-in);
 }
 .toast.out{animation:toastOut var(--d-fast) var(--ease-out) forwards;}
-.toast::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--text-lo);}
+/* Severity stripe — the second surviving accent rail, because it is the only
+   thing distinguishing an error toast from a success one at a glance. */
+.toast::before{content:'';position:absolute;left:0;top:0;bottom:0;width:var(--sp-1);
+  background:var(--ink-3);}
 .toast.t-success::before{background:var(--success);}
 .toast.t-error::before{background:var(--danger);}
 .toast.t-warning::before{background:var(--warning);}
 .toast.t-info::before{background:var(--info);}
-.toast .ic{margin-left:15px;width:20px;height:20px;}
+.toast .ic{margin-left:var(--sp-4);width:20px;height:20px;}
 .toast.t-success .ic{color:var(--success);}
 .toast.t-error .ic{color:var(--danger);}
 .toast.t-warning .ic{color:var(--warning);}
 .toast.t-info .ic{color:var(--info);}
-.toast-msg{font-size:13.5px;font-weight:500;color:var(--text-hi);line-height:1.45;flex:1;min-width:0;}
-.toast-msg b{font-weight:700;display:block;margin-bottom:2px;}
+.toast-msg{font-size:var(--fs-dense);font-weight:400;color:var(--ink);
+  line-height:1.45;flex:1;min-width:0;}
+.toast-msg b{font-weight:600;display:block;margin-bottom:var(--sp-half);}
 
 /* ─────────────── MOBILE OVERLAY ─────────────── */
-#mob-overlay{position:fixed;inset:0;background:var(--scrim);z-index:99;opacity:0;
+#mob-overlay{position:fixed;inset:0;background:var(--veil);z-index:99;opacity:0;
   pointer-events:none;transition:opacity var(--d-base) var(--ease);}
 #mob-overlay.open{opacity:1;pointer-events:auto;}

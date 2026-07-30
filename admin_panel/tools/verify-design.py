@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+"""ShipEast admin panel — design-system verification gate.
+
+Enforces the locked values in DESIGN-SPEC.md against the shipped source. Run
+from admin_panel/:
+
+    python3 tools/verify-design.py
+
+Exits non-zero if any gate fails, so it can be wired into CI.
+
+Two classes of check:
+  * CONSUMER gates run against every file that uses tokens. These must pass as
+    soon as the restyle's component phase is done.
+  * ALIAS gates run against tokens.css itself, where the compatibility aliases
+    live on purpose until the final sweep deletes them. Pass --strict to
+    require those gone too.
+"""
+from __future__ import annotations
+import argparse, pathlib, re, sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+CSS_DIR = ROOT / 'css'
+TOKENS = CSS_DIR / 'tokens.css'
+CASCADE = ['tokens.css', 'shell.css', 'components.css', 'pages.css', 'responsive.css']
+# Files that consume tokens but must never define the design system.
+CONSUMERS = [CSS_DIR / n for n in CASCADE if n != 'tokens.css'] + \
+            sorted(ROOT.glob('*.js')) + [ROOT / 'index.html']
+
+failures: list[str] = []
+notes: list[str] = []
+
+
+def fail(gate: str, msg: str) -> None:
+    failures.append(f'{gate}: {msg}')
+
+
+def strip_comments(text: str, html: bool = False) -> str:
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
+    if html:
+        text = re.sub(r'<!--.*?-->', '', text, flags=re.S)
+    return text
+
+
+# ─── colour maths ──────────────────────────────────────────────────────────
+def _rgb(hx: str) -> tuple[int, int, int]:
+    hx = hx.lstrip('#')
+    if len(hx) == 3:
+        hx = ''.join(c * 2 for c in hx)
+    return tuple(int(hx[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore
+
+
+def _lum(hx: str) -> float:
+    def ch(c: int) -> float:
+        s = c / 255
+        return s / 12.92 if s <= .03928 else ((s + .055) / 1.055) ** 2.4
+    r, g, b = _rgb(hx)
+    return .2126 * ch(r) + .7152 * ch(g) + .0722 * ch(b)
+
+
+def contrast(a: str, b: str) -> float:
+    l1, l2 = _lum(a), _lum(b)
+    hi, lo = max(l1, l2), min(l1, l2)
+    return round((hi + .05) / (lo + .05), 2)
+
+
+def token(name: str, scope: str | None = None) -> str | None:
+    """Literal hex value of a token, optionally within a theme scope."""
+    body = TOKENS.read_text(encoding='utf-8')
+    if scope:
+        parts = body.split(scope, 1)
+        if len(parts) < 2:
+            return None
+        body = parts[1]
+    m = re.search(re.escape(name) + r'\s*:\s*(#[0-9A-Fa-f]{3,6})\b', body)
+    return m.group(1) if m else None
+
+
+# ─── gate 1: banned literals in consumer files ─────────────────────────────
+DEAD_HEX = ['#C8102E', '#E1495F', '#86091E', '#F04A5E', '#A80D26', '#5F0615',
+            '#3D0410', '#EE8492', '#F7B9C2', '#FFE0E5', '#FFF1F3', '#E11D34',
+            '#9A0B22', '#FF6A3D', '#F5A524', '#0E9488', '#17B3A4', '#16A34A',
+            '#D92D20', '#F59E0B', '#1C1A17', '#3A362F', '#6B6459', '#938C7F',
+            '#C7C0B4', '#E4E0D9', '#ECEAE6', '#FAF9F7', '#F4F1EB', '#EDEAE3']
+DEAD_TOKEN = ['--grad-ember', '--grad-sunset', '--glow', '--gold-500', '--gold-tint',
+              '--ocean-500', '--ocean-tint', '--brand', '--brand-text', '--text-hi',
+              '--text-lo', '--text-mute', '--card-raised', '--sidebar-bg', '--scrim',
+              '--track-pill', '--gutter']
+
+
+def gate_dead_values() -> None:
+    for f in CONSUMERS:
+        if not f.exists():
+            continue
+        src = strip_comments(f.read_text(encoding='utf-8'), html=f.suffix == '.html')
+        rel = f.relative_to(ROOT)
+        for hx in DEAD_HEX:
+            for m in re.finditer(re.escape(hx), src, flags=re.I):
+                line = src[:m.start()].count('\n') + 1
+                fail('dead-hex', f'{rel}:{line} still uses {hx}')
+        for t in DEAD_TOKEN:
+            for m in re.finditer(r'var\(\s*' + re.escape(t) + r'\s*[),]', src):
+                line = src[:m.start()].count('\n') + 1
+                fail('dead-token', f'{rel}:{line} still reads {t}')
+        # --ink-N and --sN numeric aliases
+        for pat, label in ((r'var\(\s*(--ink-[0-9]{3})', 'ink alias'),
+                           (r'var\(\s*(--s[0-9]{1,2})\s*[),]', 'spacing alias')):
+            for m in re.finditer(pat, src):
+                line = src[:m.start()].count('\n') + 1
+                fail('dead-token', f'{rel}:{line} still reads {m.group(1)} ({label})')
+
+
+# ─── gate 2: type discipline ───────────────────────────────────────────────
+ALLOWED_FS = {'11px', '12px', '13px', '14px', '15px', '17px', '20px', '24px',
+              '26px', '30px', '.86em', '1em', 'inherit', '0'}
+
+
+def gate_type() -> None:
+    for f in CONSUMERS + [TOKENS]:
+        if not f.exists():
+            continue
+        src = strip_comments(f.read_text(encoding='utf-8'), html=f.suffix == '.html')
+        rel = f.relative_to(ROOT)
+        for m in re.finditer(r'font-weight\s*:\s*800', src):
+            line = src[:m.start()].count('\n') + 1
+            fail('weight-800', f'{rel}:{line} — 800 is retired, Jakarta caps at 700')
+        for m in re.finditer(r'font-size\s*:\s*([0-9]+\.5px)', src):
+            line = src[:m.start()].count('\n') + 1
+            fail('half-pixel', f'{rel}:{line} — {m.group(1)}')
+        for m in re.finditer(r'font-size\s*:\s*([^;}\n)]+)', src):
+            v = m.group(1).strip()
+            if v.startswith('var(') or v.startswith('clamp(') or v in ALLOWED_FS:
+                continue
+            line = src[:m.start()].count('\n') + 1
+            fail('off-scale-size', f'{rel}:{line} — font-size:{v} is not in the ten-step scale')
+
+
+# ─── gate 3: spacing discipline ────────────────────────────────────────────
+BANNED_PX = {'3px', '5px', '6px', '7px', '9px', '10px', '11px', '13px', '14px',
+             '15px', '17px', '18px', '19px', '21px', '22px', '23px', '25px',
+             '26px', '27px', '28px', '30px'}
+
+
+def gate_spacing() -> None:
+    props = r'(?:padding|margin|gap|row-gap|column-gap)(?:-(?:top|right|bottom|left|inline|block))?'
+    for f in [CSS_DIR / n for n in CASCADE]:
+        if not f.exists():
+            continue
+        src = strip_comments(f.read_text(encoding='utf-8'))
+        rel = f.relative_to(ROOT)
+        for m in re.finditer(props + r'\s*:\s*([^;}\n]+)', src):
+            # (?<![\d.]) so "12.5px" is not read as a "5px" hit — the decimal
+            # values are caught by the half-pixel gate instead.
+            for px in re.findall(r'(?<![\d.])-?\d+px', m.group(1)):
+                if px.lstrip('-') in BANNED_PX:
+                    line = src[:m.start()].count('\n') + 1
+                    fail('off-grid-spacing',
+                         f'{rel}:{line} — {m.group(0).split(":")[0].strip()}: {px} '
+                         f'is off the 4pt grid; use a --sp-*/--pad-*/--gap-* token')
+
+
+# ─── gate 4: every consumed token resolves ─────────────────────────────────
+def gate_tokens_resolve() -> None:
+    tok = strip_comments(TOKENS.read_text(encoding='utf-8'))
+    decl_only = re.sub(r'var\(\s*--[a-z0-9-]+', 'var(X', tok)
+    defined = set(re.findall(r'(--[a-z0-9-]+)\s*:', decl_only))
+    local = {'--card-pad'}
+    consumed: dict[str, str] = {}
+    for f in CONSUMERS + [TOKENS]:
+        if not f.exists():
+            continue
+        src = strip_comments(f.read_text(encoding='utf-8'), html=f.suffix == '.html')
+        for m in re.finditer(r'var\(\s*(--[a-z0-9-]+)', src):
+            consumed.setdefault(m.group(1), f'{f.relative_to(ROOT)}:'
+                                           f'{src[:m.start()].count(chr(10)) + 1}')
+    for t, where in sorted(consumed.items()):
+        if t not in defined and t not in local:
+            fail('undefined-token', f'{where} reads {t}, which is never declared')
+    notes.append(f'{len(defined)} tokens declared, {len(consumed)} consumed')
+
+
+# ─── gate 5: contrast ──────────────────────────────────────────────────────
+def gate_contrast() -> None:
+    need = ['--n-0', '--n-50', '--n-100', '--n-300', '--n-400', '--n-500',
+            '--n-600', '--n-800', '--red-50', '--red-400', '--red-500',
+            '--red-600', '--red-700', '--success', '--warning', '--danger', '--info']
+    L = {n: token(n) for n in need}
+    missing = [n for n, v in L.items() if not v]
+    if missing:
+        fail('contrast', f'cannot resolve {", ".join(missing)} to a literal')
+        return
+    dark_surface = token('--surface', '[data-theme="dark"]')
+    dark_sunken = token('--sunken', '[data-theme="dark"]')
+    dark_shell = token('--shell', '[data-theme="dark"]')
+    if not all((dark_surface, dark_sunken, dark_shell)):
+        fail('contrast', 'dark theme surfaces do not resolve to literals')
+        return
+
+    checks = [
+        # label,                fg,             bg,             min,  max
+        ('primary ink / card',   L['--n-800'],  L['--n-0'],     12.5, 14.6),
+        ('primary ink / band',   L['--n-800'],  L['--n-100'],   12.5, 14.6),
+        ('secondary ink / card', L['--n-600'],  L['--n-0'],      7.0,  9.0),
+        ('tertiary ink / card',  L['--n-500'],  L['--n-0'],      4.5,  6.0),
+        ('tertiary ink / band',  L['--n-500'],  L['--n-100'],    4.5,  6.0),
+        ('disabled ink / card',  L['--n-400'],  L['--n-0'],      3.0,  4.0),
+        ('white / action red',   '#FFFFFF',     L['--red-600'],  4.5, 99),
+        ('action red / card',    L['--red-600'], L['--n-0'],     4.5, 99),
+        ('accent ink / wash',    L['--red-700'], L['--red-50'],  4.5, 99),
+        ('white / danger',       '#FFFFFF',     L['--danger'],   4.5, 99),
+        ('white / success',      '#FFFFFF',     L['--success'],  4.5, 99),
+        ('white / info',         '#FFFFFF',     L['--info'],     4.5, 99),
+        ('dark primary ink',     L['--n-50'],   dark_surface,    4.5, 99),
+        ('dark secondary ink',   L['--n-300'],  dark_surface,    4.5, 99),
+        ('dark tertiary ink',    L['--n-400'],  dark_surface,    4.5, 99),
+        ('dark accent ink',      L['--red-400'], dark_surface,   4.5, 99),
+        ('dark accent / sunken', L['--red-400'], dark_sunken,    4.5, 99),
+        ('dark ink / sidebar',   L['--n-50'],   dark_shell,      4.5, 99),
+    ]
+    for label, fg, bg, lo, hi in checks:
+        v = contrast(fg, bg)
+        if not (lo <= v <= hi):
+            bound = f'{lo}' if hi >= 99 else f'{lo}–{hi}'
+            fail('contrast', f'{label}: {fg} on {bg} = {v}:1, wanted {bound}')
+
+    # warning must never be paired with white
+    w = contrast('#FFFFFF', L['--warning'])
+    if w >= 4.5:
+        notes.append(f'warning now passes with white ({w}:1) — the never-white rule '
+                     f'could be relaxed')
+    else:
+        notes.append(f'warning + white is {w}:1 as expected — tint+ink only')
+    notes.append(f'{len(checks)} contrast pairs checked')
+
+
+# ─── gate 6: structural sanity ─────────────────────────────────────────────
+def gate_structure() -> None:
+    for f in [CSS_DIR / n for n in CASCADE]:
+        if not f.exists():
+            fail('structure', f'{f.name} is missing')
+            continue
+        src = strip_comments(f.read_text(encoding='utf-8'))
+        if src.count('{') != src.count('}'):
+            fail('structure', f'{f.name} braces unbalanced '
+                              f'({src.count("{")} open, {src.count("}")} close)')
+    html = (ROOT / 'index.html').read_text(encoding='utf-8')
+    for i, name in enumerate(CASCADE):
+        if f'css/{name}' not in html:
+            fail('structure', f'index.html does not link css/{name}')
+    # cascade order must match CASCADE exactly
+    order = re.findall(r'href="css/([a-z]+\.css)"', html)
+    if order != CASCADE:
+        fail('structure', f'stylesheet link order is {order}, must be {CASCADE} '
+                          f'— responsive.css last, tokens.css first')
+    if (ROOT / 'styles.css').exists():
+        fail('structure', 'styles.css still exists; the split left a stale copy')
+
+
+# ─── gate 7: aliases gone (strict only) ────────────────────────────────────
+def gate_aliases_removed() -> None:
+    tok = strip_comments(TOKENS.read_text(encoding='utf-8'))
+    decl_only = re.sub(r'var\(\s*--[a-z0-9-]+', 'var(X', tok)
+    for t in DEAD_TOKEN:
+        if re.search(re.escape(t) + r'\s*:', decl_only):
+            fail('alias-left', f'tokens.css still declares {t}')
+    for m in re.finditer(r'(--ink-[0-9]{3}|--s[0-9]{1,2})\s*:', decl_only):
+        fail('alias-left', f'tokens.css still declares {m.group(1)}')
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--strict', action='store_true',
+                    help='also require the compatibility aliases to be gone')
+    args = ap.parse_args()
+
+    gate_structure()
+    gate_tokens_resolve()
+    gate_contrast()
+    gate_type()
+    gate_spacing()
+    gate_dead_values()
+    if args.strict:
+        gate_aliases_removed()
+
+    for n in notes:
+        print(f'  · {n}')
+    print()
+    if failures:
+        by_gate: dict[str, list[str]] = {}
+        for f in failures:
+            g, _, rest = f.partition(': ')
+            by_gate.setdefault(g, []).append(rest)
+        total = len(failures)
+        for g, items in sorted(by_gate.items()):
+            print(f'{g}  ({len(items)})')
+            for it in items[:15]:
+                print(f'    {it}')
+            if len(items) > 15:
+                print(f'    … and {len(items) - 15} more')
+            print()
+        print(f'FAILED — {total} issue{"s" if total != 1 else ""} across '
+              f'{len(by_gate)} gate{"s" if len(by_gate) != 1 else ""}')
+        return 1
+    print('ALL GATES PASSED')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -4,125 +4,176 @@
 
    Every media query and the reduced-motion block. Loaded LAST — a
    media query adds no specificity, so these rules depend on source order.
+
+   Queries run largest → smallest so that on a phone the narrowest matching
+   block is the last one to speak. The previous file had the ≤600px block
+   sitting ABOVE four separate ≤720px blocks, which meant the wider query
+   won at phone widths — the opposite of what anyone reading it would expect.
    ═══════════════════════════════════════════════════════════════ */
 
-/* ─────────────── RESPONSIVE ─────────────── */
+/* ─────────────── LARGE DESKTOP (≥1280px) ───────────────
+   The only place the layout gets MORE room rather than less. At 1440px the
+   page had the same 20px gutter as a tablet, so the content sat in a narrow
+   channel with a wide empty margin either side. */
+@media(min-width:1280px){
+  :root{
+    --pad-page-x:var(--sp-7);
+    --pad-page-y:var(--sp-7);
+    --pad-card:var(--sp-6);
+  }
+}
+
+/* ─────────────── TABLET (≤1100px) ───────────────
+   The two-column card grids fold. Below this a chart card is under ~500px
+   wide, which is narrower than its own axis labels need. */
 @media(max-width:1100px){
   .ag{grid-template-columns:1fr;}
   .nl,.pl{grid-template-columns:1fr;}
 }
+
+/* ─────────────── SIDEBAR BECOMES A DRAWER (≤900px) ───────────────
+   The desktop icon-collapse is disabled here so the hamburger only ever
+   slides the full sidebar in and out — a 72px icon rail on a tablet read as
+   a half-drawn sidebar rather than a deliberate state. */
 @media(max-width:900px){
-  /* Sidebar becomes an off-canvas drawer; the desktop icon-collapse is disabled
-     here so the hamburger only ever slides the full sidebar in/out. */
   .sidebar{z-index:500;transform:translateX(-100%);box-shadow:none;}
   .sidebar.mob-open{transform:translateX(0);box-shadow:0 24px 60px rgba(0,0,0,.4);}
-  .sidebar.collapsed{width:var(--sw);}
-  .sidebar.collapsed .lbl,.sidebar.collapsed .sls,.sidebar.collapsed .sb-sec{opacity:1;}
-  .sidebar.collapsed .ni{justify-content:flex-start;padding:12px var(--s5);}
-  .sidebar.collapsed .sb-logo{justify-content:flex-start;padding:var(--s6) var(--s5) var(--s5);gap:var(--s3);}
+  .sidebar.collapsed{width:var(--sidebar-w);}
+  .sidebar.collapsed .lbl,
+  .sidebar.collapsed .sls,
+  .sidebar.collapsed .sb-sec{opacity:1;}
+  .sidebar.collapsed .ni{justify-content:flex-start;padding:var(--sp-3) var(--sp-5);}
+  .sidebar.collapsed .sb-logo{
+    justify-content:flex-start;
+    padding:var(--sp-6) var(--sp-5) var(--sp-5);
+    gap:var(--sp-3);
+  }
   .sidebar.collapsed .sb-word{display:block;}
   .sidebar.collapsed .sb-mark{display:none;}
   .main{margin-left:0!important;}
   .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));}
   .tbl-wrap{-webkit-overflow-scrolling:touch;}
+  /* The date is the first thing to go from the topbar — it is the only item
+     there that nothing depends on. */
   .tb-date{display:none;}
 }
-@media(max-width:600px){
-  :root{--gutter:16px;}
-  .mbg{align-items:flex-end;padding:0;}
-  .mbox,.mbox.wide,.mbox.narrow{width:100%;border-radius:var(--r-xl) var(--r-xl) 0 0;max-height:88vh;}
-  .mg{grid-template-columns:1fr;}
-  .card{--card-pad:var(--s4);}
-  /* The crumb STAYS on phones — it is the topbar's only page label. Only its
-     "ShipEast Admin" root is dropped, since the app it belongs to is not in
-     question when you are looking at it. The account name goes; the avatar
-     alone still shows who is signed in. */
-  .an{display:none;}
-  .tb-bc-root,.tb-bc .ic{display:none;}
-  .tb-bc{font-size:12.5px;}
-  .tb-l{gap:var(--s2);}
-  .topbar{min-height:60px;padding:0 var(--s4);}
-  .ab{padding:3px;border-color:transparent;background:transparent;}
-  .pg-hdr{margin-bottom:var(--s4);}
-  td{padding:12px var(--s3);}
-}
 
-/* ─────────────── PHONES ───────────────
-   Everything below 720px. One block rather than three overlapping ones, because
-   the previous set disagreed with itself: ≤600px put the stat cards two-up and
-   ≤400px put them back to one-up, so on an actual phone (390pt) four cards
-   stacked into four full-width rows and pushed the table two screens down. */
+/* ═══════════════════════════════════════════════════════════════
+   PHONES (≤720px)
+
+   One block for everything phone-shaped, rather than the four overlapping
+   ≤720px blocks this file used to carry. Those disagreed with each other:
+   two of them defined `.tbl-wrap tbody tr` differently, and because the
+   later one won, the collapsible row-card design below never actually
+   rendered — rows came out as flat divided lists and the expand chevron
+   lost the positioned ancestor it is absolutely positioned against.
+   ═══════════════════════════════════════════════════════════════ */
 @media(max-width:720px){
+
   /* ── Stat cards: always two per row ──
-     Two-up at every phone width, including the ≤400px range that used to break
-     out to a single column. Four cards read as a 2×2 block that fits above the
-     fold; three (Shop & Deliver, Merchants, Customers) fill the first row and
-     leave the third on its own, which is the intended shape. */
-  .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s2);}
-  .sc{padding:var(--s3) var(--s3) var(--s3) var(--s4);}
-  .sc-top{margin-bottom:var(--s1);gap:var(--s2);}
-  .sc-lbl{font-size:9.5px;letter-spacing:.5px;margin-bottom:3px;}
-  .sc-val{font-size:22px;}
-  .sc-val.sm{font-size:18px;}
-  .sc-chip{width:30px;height:30px;border-radius:var(--r-xs);}
-  .sc-chip .ic{width:17px;height:17px;}
-  .sc-sub{font-size:10.5px;margin-top:3px;}
-  .sc::before{width:3px;}
+     Two-up at every phone width. An earlier rule set put them back to one-up
+     below 400px, so on a real phone (390pt) four cards became four full-width
+     rows and pushed the table two screens down. Four now read as a 2×2 block
+     above the fold; three fill the first row and leave the third alone, which
+     is the intended shape on Merchants, Customers and Shop & Deliver. */
+  .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-2);}
+  .sc{padding:var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);}
+  .sc-top{margin-bottom:var(--sp-1);gap:var(--sp-2);}
+  /* --fs-micro is the floor of the scale, so the label keeps its size and
+     gives up tracking instead. "ORDERS TODAY" measures ~90px at 11px/600,
+     inside the ~150px a half-width card has at 390pt. */
+  .sc-lbl{letter-spacing:.03em;margin-bottom:var(--sp-half);}
+  .sc-val{font-size:var(--fs-h3);}
+  .sc-val.sm{font-size:var(--fs-title);}
+  .sc-chip{width:32px;height:32px;border-radius:var(--r-xs);}
+  .sc-chip .ic{width:18px;height:18px;}
+  .sc::before{width:var(--sp-half);}
   .spark{height:20px;}
 
   /* ── Filter bars: wrap, never scroll ──
      These were horizontally scrolling strips, so "Cancelled" on Orders and
      three of the seven Shop & Deliver filters sat off the right edge behind a
      scrollbar nobody looks for — the filter you needed was the one you could
-     not see. They lay out as a wrapping grid instead: auto-fill at a 124px
-     minimum lands on two columns at phone widths and three on a large phone or
-     small tablet, with no width fixed by hand. */
+     not see. A wrapping grid instead: auto-fill at a 124px minimum lands on
+     two columns at phone widths and three on a large phone, with no width
+     fixed by hand. */
   .tabs{
     display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));
-    gap:5px;width:100%;overflow:visible;
+    gap:var(--sp-1);width:100%;overflow:visible;
   }
-  .tab{justify-content:space-between;padding:9px 12px;font-size:12.5px;}
-  .tab b{font-size:10.5px;}
-  /* Three fixed periods, so they get a fixed three-up row rather than auto-fill. */
-  .pbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%;}
-  .pb{padding:9px 6px;font-size:12.5px;text-align:center;}
-  /* The period selector is the second half of .pg-hdr on Analytics; let it take
-     the full row under the title instead of being squeezed beside it. */
-  .pg-hdr{flex-direction:column;align-items:stretch;}
+  .tab{justify-content:space-between;padding:var(--sp-2) var(--sp-3);}
+  /* Three fixed periods, so a fixed three-up row rather than auto-fill. */
+  .pbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-1);width:100%;}
+  .pb{padding:var(--sp-2) var(--sp-1);text-align:center;}
+
+  /* The period selector is the second half of .pg-hdr on Analytics, and the
+     Add buttons are its second half on Drivers and Merchants. Let them take a
+     full row under the title instead of being squeezed beside it. */
+  .pg-hdr{flex-direction:column;align-items:stretch;margin-bottom:var(--sp-4);}
   .pg-hdr>.pbs,.pg-hdr>.btn{width:100%;}
   .pg-hdr>.pg-title{align-self:flex-start;max-width:100%;}
   .srch{width:100%;}
 
   /* A form's trailing action goes full width — a right-aligned button with
      nothing beside it reads as stranded on a narrow screen. */
-  .form-actions{margin-top:var(--s4);}
+  .form-actions{margin-top:var(--sp-4);}
   .form-actions .btn{width:100%;}
   .m-actions .btn{flex:1;}
 
-  .pg-title{padding:8px 14px 8px 12px;}
-  .card-title{font-size:14px;}
+  .card-title{font-size:var(--fs-body-lg);}
+
+  /* ── Form-heavy pages ──
+     Notifications, Promo Codes and Settings are almost entirely form, and
+     were laid out for a wide canvas: desktop label widths, a 30px promo code
+     with 4px of tracking, and a phone mock at full width. Nothing here
+     changes structure — only metrics that assumed width they do not have. */
+  .nl,.pl{gap:var(--sp-4);}
+  .m-title{margin-bottom:var(--sp-4);}
+  .fset{padding:var(--sp-3);}
+  .notice{padding:var(--sp-3);line-height:1.45;}
+  .fr textarea{min-height:80px;}
+  .spanel{width:100%;}
+
+  /* The mock sits BESIDE the compose form on a desktop and BELOW it on a
+     phone, where the empty half became ~200px of dead scroll under the last
+     skeleton line. Show just enough of it to read as a phone. */
   .phone-mock{max-width:320px;margin:0 auto;}
-  /* On a desktop the 400px screen sits beside the compose form. On a phone it
-     sits BELOW it, so the empty half of the mock became ~200px of dead scroll
-     under the last skeleton line. Show just enough to read as a phone. */
   .ph-screen{min-height:0;}
-}
 
-/* ─────────────── MOBILE TABLES → COLLAPSIBLE CARDS ───────────────
-   Phones never scroll a table sideways. Each row folds into a card of
-   "COLUMN LABEL → value" blocks INSIDE the existing card (no card-in-card, no
-   horizontal scroll, nothing clipped). The column name comes from each <td>'s
-   data-label, stamped in app.js (setupTableLabels).
+  /* 30px at 4px of tracking overflowed its own card on a narrow phone.
+     overflow-wrap stopped it clipping but broke the code mid-word, which is
+     unreadable for something meant to be typed in by hand. */
+  .pc-prev{padding:var(--sp-5);}
+  .pc-code{font-size:var(--fs-h3);letter-spacing:2px;}
+  .pc-disc{font-size:var(--fs-body);}
 
-   Rows are also COLLAPSED by default. Printing all nine columns of a driver
-   made one row about a screen tall, so a roster of six drivers was six screens
-   of scrolling and no way to compare them. Only the columns listed in
-   MOBILE_PRIMARY (app.js) show; the rest carry .mc-hide and appear when the
-   row's chevron is pressed. Placed last so it wins over the desktop table
-   rules on small screens. */
-@media(max-width:720px){
-  /* The wrapper stops being a scrollport — the page scrolls naturally instead
-     and the inner max-height/overflow that created a nested scroll is removed. */
+  /* The weight-band list is typed by hand, so it keeps a comfortable size
+     rather than shrinking with everything around it. */
+  #pr-bands{font-size:var(--fs-dense);line-height:1.6;}
+
+  /* Analytics: the row labels reserved desktop widths, leaving the bars too
+     short to compare at a glance. */
+  .chart{height:168px;}
+  .zn{width:84px;font-size:var(--fs-caption);}
+  .zv{width:32px;font-size:var(--fs-caption);}
+  .prow-lbl{width:100px;font-size:var(--fs-caption);}
+  .ptrack{margin:0 var(--sp-2);height:10px;}
+  .prow-pct{width:36px;font-size:var(--fs-caption);}
+
+  /* ═══ TABLES → COLLAPSIBLE ROW CARDS ═══
+     Phones never scroll a table sideways. Each row folds into a card of
+     "COLUMN LABEL → value" blocks inside the existing card: no card-in-card,
+     no horizontal scroll, nothing clipped. The column name comes from each
+     <td>'s data-label, stamped in app.js (setupTableLabels).
+
+     Rows are COLLAPSED by default. Printing all nine columns of a driver made
+     one row about a screen tall, so a roster of six drivers was six screens
+     of scrolling with no way to compare them. Only the columns in
+     MOBILE_PRIMARY (app.js) show; the rest carry .mc-hide and appear when the
+     row's chevron is pressed. */
+
+  /* The wrapper stops being a scrollport — the page scrolls naturally and the
+     inner max-height that created a nested scroll is removed. */
   .tbl-wrap{
     overflow:visible;max-height:none;margin:0;padding:0;max-width:100%;
     -webkit-overflow-scrolling:auto;
@@ -132,44 +183,45 @@
   .tbl-wrap tbody,
   .tbl-wrap tr,
   .tbl-wrap td{display:block;width:100%;}
-  /* The header row is folded into each cell's label — hide it visually but keep
-     it in the DOM (a11y / the data-label source). */
+  /* The header row is folded into each cell's label — hidden visually but kept
+     in the DOM, since it is both the a11y header and the data-label source. */
   .tbl-wrap thead{
     position:absolute;width:1px;height:1px;padding:0;margin:-1px;
     overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
   }
-  /* Each row is its own bordered card, so a collapsed row is visibly one
-     record rather than a run of labels sharing a divider. position:relative is
-     what the chevron is positioned against. */
+  /* Each row is its own bordered card, so a collapsed row reads as one record
+     rather than a run of labels sharing a divider. position:relative is what
+     the chevron is positioned against — without it the button escapes to the
+     nearest positioned ancestor and lands in the wrong row. */
   .tbl-wrap tbody tr{
     position:relative;
-    padding:12px 42px 12px 13px;
-    margin-bottom:var(--s2);
-    border:1px solid var(--border);border-radius:var(--r-sm);
-    background:var(--card);
+    padding:var(--sp-3) 44px var(--sp-3) var(--sp-3);
+    margin-bottom:var(--sp-2);
+    border:1px solid var(--line);border-radius:var(--r-sm);
+    background:var(--surface);
   }
   .tbl-wrap tbody tr:last-child{margin-bottom:0;}
   .tbl-wrap tbody tr:hover td{background:none;}
   /* Cell = column label on its own line, value beneath. Block flow means any
-     cell contents (plain text, spans, a badge next to an id, a flex .cell-media
-     or .cell-actions) lay out correctly — nothing overlaps or mis-aligns. */
+     cell contents — plain text, a badge beside an id, a flex .cell-media or
+     .cell-actions — lay out correctly and nothing overlaps. */
   .tbl-wrap td{
-    padding:4px 0;border:none;
-    text-align:left!important;font-size:14px;color:var(--text-hi);
+    padding:var(--sp-1) 0;border:none;
+    text-align:left!important;font-size:var(--fs-body);color:var(--ink);
     white-space:normal;word-break:break-word;
   }
-  /* Undo the desktop first/last-column insets — those exist to align cells with
+  /* Undo the desktop first/last-column insets — they exist to align cells with
      the card padding in table layout, which no longer applies. */
   .tbl-wrap thead th:first-child,.tbl-wrap tbody td:first-child{padding-left:0;}
   .tbl-wrap thead th:last-child,.tbl-wrap tbody td:last-child{padding-right:0;}
   .tbl-wrap td::before{
-    content:attr(data-label);display:block;margin-bottom:2px;
-    font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;
-    color:var(--text-mute);
+    content:attr(data-label);display:block;margin-bottom:var(--sp-half);
+    font-size:var(--fs-micro);font-weight:600;text-transform:uppercase;
+    letter-spacing:var(--tr-micro);color:var(--ink-3);
   }
-  /* Skeleton / empty-state rows use a single colspan cell — no label, no card
-     chrome, no chevron. */
-  .tbl-wrap td[colspan]{padding:6px 0;}
+  /* Skeleton and empty-state rows use a single colspan cell — no label, no
+     card chrome, no chevron. */
+  .tbl-wrap td[colspan]{padding:var(--sp-2) 0;}
   .tbl-wrap td[colspan]::before{display:none;}
   .tbl-wrap tbody tr:has(td[colspan]){
     border:none;background:none;padding:0;margin:0;
@@ -177,123 +229,67 @@
   .cell-actions{justify-content:flex-start;}
   .cell-media{display:inline-flex;}
 
-  /* ── The collapsed/expanded halves ── */
+  /* ── The collapsed / expanded halves ── */
   .tbl-wrap tbody tr .mc-hide{display:none;}
   .tbl-wrap tbody tr.mc-open .mc-hide{display:block;}
   /* A divider above the first revealed cell, so an expanded card reads as
      "summary, then detail" rather than one long list. */
   .tbl-wrap tbody tr.mc-open .mc-hide.mc-first{
-    margin-top:var(--s3);padding-top:var(--s3);border-top:1px dashed var(--border-strong);
+    margin-top:var(--sp-3);padding-top:var(--sp-3);
+    border-top:1px dashed var(--line-strong);
   }
   .mc-exp{
-    position:absolute;top:8px;right:6px;
-    width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;
-    border:1px solid var(--border);border-radius:var(--r-xs);
-    background:var(--bg);color:var(--text-lo);cursor:pointer;
+    position:absolute;top:var(--sp-2);right:var(--sp-1);
+    width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid var(--line);border-radius:var(--r-xs);
+    background:var(--ground);color:var(--ink-2);cursor:pointer;
     transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
                transform var(--d-instant) var(--ease);
   }
-  .mc-exp .ic{width:16px;height:16px;transform:rotate(90deg);
-    transition:transform var(--d-fast) var(--ease);}
+  .mc-exp .ic{
+    width:16px;height:16px;transform:rotate(90deg);
+    transition:transform var(--d-fast) var(--ease);
+  }
   .mc-exp:active{transform:scale(.92);}
-  tr.mc-open .mc-exp{background:var(--red-50);color:var(--brand);border-color:var(--red-200);}
+  tr.mc-open .mc-exp{
+    background:var(--accent-wash);color:var(--accent);border-color:var(--red-200);
+  }
   tr.mc-open .mc-exp .ic{transform:rotate(-90deg);}
 }
+
 /* Desktop shows every column, so there is nothing to expand. This MUST stay
    inside a min-width query: a media query adds no specificity, so a bare
-   `.mc-exp{display:none}` sitting after the max-width:720px block above would
-   out-order the phone rule and hide the chevron on phones as well. */
+   `.mc-exp{display:none}` sitting after the ≤720px block above would out-order
+   the phone rule and hide the chevron on phones as well. */
 @media(min-width:721px){
   .mc-exp{display:none;}
 }
 
-/* ─────────────── PHONES: FORM-HEAVY PAGES ───────────────
-   Notifications, Promo Codes and Settings are the three pages that are almost
-   entirely form, and they were laid out for a 1560px canvas: desktop label
-   widths, a 30px promo code with 4px of letter-spacing, and a phone mock at
-   full width. Nothing here changes structure — only the metrics that assumed
-   width it does not have. */
-@media(max-width:720px){
-  .nl,.pl{gap:var(--s4);}
-  .m-title{font-size:18px;margin-bottom:var(--s4);}
-  .fset{padding:var(--s3);}
-  .notice{font-size:12px;padding:11px 12px;line-height:1.45;}
-
-  /* Promo preview card. 30px at 4px tracking overflowed its own card on a
-     narrow phone; overflow-wrap saved it from clipping but broke the code
-     mid-word, which is unreadable for something meant to be typed in. */
-  .pc-prev{padding:var(--s5);}
-  .pc-code{font-size:23px;letter-spacing:2px;}
-  .pc-disc{font-size:14px;}
-
-  /* Settings: the weight-band table is typed by hand, so it keeps a comfortable
-     size rather than shrinking with everything else. */
-  #pr-bands{font-size:13.5px;line-height:1.6;}
-  .fr textarea{min-height:78px;}
-
-  /* Analytics charts: the row labels reserved desktop widths, leaving the bars
-     too short to compare at a glance. */
-  .chart{height:168px;}
-  .zn{width:84px;font-size:12px;}
-  .zv{width:30px;font-size:12px;}
-  .prow-lbl{width:100px;font-size:12px;}
-  .ptrack{margin:0 var(--s2);height:10px;}
-  .prow-pct{width:34px;font-size:12px;}
-
-  /* Side panel becomes the full screen — a 440px drawer on a 390px phone was
-     already full width, but with a stray 1px sliver and a shadow off-canvas. */
-  .spanel{width:100%;}
-}
-
-/* ─────────────── MOBILE TABLES → STACKED CARDS ───────────────
-   Phones never scroll a table sideways. Each row folds into a
-   "COLUMN LABEL → value" block INSIDE the existing card (no card-in-card,
-   no horizontal scroll, nothing clipped). The column name comes from each
-   <td>'s data-label, stamped in app.js (setupTableLabels). Placed last so it
-   wins over the desktop table rules on small screens. */
-@media(max-width:720px){
-  /* The wrapper stops being a scrollport — the page scrolls naturally instead
-     and the inner max-height/overflow that created a nested scroll is removed. */
-  .tbl-wrap{
-    overflow:visible;max-height:none;margin:0;padding:0;
-    -webkit-overflow-scrolling:auto;
+/* ─────────────── SMALL PHONES (≤600px) ───────────────
+   Tighter gutters and a topbar that gives up everything it can. Runs after the
+   ≤720px block so it genuinely wins at these widths. */
+@media(max-width:600px){
+  :root{
+    --pad-page-x:var(--sp-4);
+    --pad-card:var(--sp-4);
   }
-  .tbl-wrap table,
-  .tbl-wrap thead,
-  .tbl-wrap tbody,
-  .tbl-wrap tr,
-  .tbl-wrap td{display:block;width:100%;}
-  /* The header row is folded into each cell's label — hide it visually but keep
-     it in the DOM (a11y / the data-label source). */
-  .tbl-wrap thead{
-    position:absolute;width:1px;height:1px;padding:0;margin:-1px;
-    overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+  /* Dialogs become bottom sheets — a centred 420px box on a 360px screen is
+     a full-bleed rectangle with a hairline of backdrop around it. */
+  .mbg{align-items:flex-end;padding:0;}
+  .mbox,.mbox.wide,.mbox.narrow{
+    width:100%;border-radius:var(--r-xl) var(--r-xl) 0 0;max-height:88vh;
   }
-  /* Each row is a divided list block within the card. */
-  .tbl-wrap tbody tr{
-    padding:14px 0;border-bottom:1px solid var(--border-strong);
-  }
-  .tbl-wrap tbody tr:first-child{padding-top:2px;}
-  .tbl-wrap tbody tr:last-child{border-bottom:none;padding-bottom:2px;}
-  .tbl-wrap tbody tr:hover td{background:none;}
-  /* Cell = column label on its own line, value beneath. Block flow means any
-     cell contents (plain text, spans, a badge next to an id, a flex .cell-media
-     or .cell-actions) lay out correctly — nothing overlaps or mis-aligns. */
-  .tbl-wrap td{
-    padding:5px 0;border:none;
-    text-align:left!important;font-size:14px;color:var(--text-hi);
-    white-space:normal;word-break:break-word;
-  }
-  .tbl-wrap td::before{
-    content:attr(data-label);display:block;margin-bottom:2px;
-    font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-    color:var(--text-mute);
-  }
-  /* Skeleton / empty-state rows use a single colspan cell — no label, block flow. */
-  .tbl-wrap td[colspan]{padding:6px 0;}
-  .tbl-wrap td[colspan]::before{display:none;}
-  .cell-actions{justify-content:flex-start;}
-  .cell-media{display:inline-flex;}
+  .mg{grid-template-columns:1fr;}
+
+  /* The crumb STAYS on phones — it is the topbar's only page label. Only its
+     "ShipEast Admin" root is dropped, since the app it belongs to is not in
+     question while you are looking at it. The account name goes too; the
+     avatar alone still shows who is signed in. */
+  .an{display:none;}
+  .tb-bc-root,.tb-bc .ic{display:none;}
+  .tb-l{gap:var(--sp-2);}
+  .topbar{min-height:56px;padding:0 var(--sp-4);}
+  .ab{padding:var(--sp-1);border-color:transparent;background:transparent;}
 }
 
 /* ─────────────── REDUCED MOTION ─────────────── */

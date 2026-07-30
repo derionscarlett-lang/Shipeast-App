@@ -188,32 +188,35 @@ function skeletonRows(cols,rows){
   return out;
 }
 
-// ── Empty-state illustrations (2-tone: coral/red + warm cream) ──
+// ── Empty-state illustrations ──
+// Flat 2D, four tones off the red ramp. The tones are CLASSES, not literals, so
+// the art re-tints with the theme (see the `.empty svg .a-*` block in
+// components.css). Never hard-code a colour here.
 var ART={
-  box:'<circle cx="100" cy="104" r="66" fill="#FFF1F3"/>'+
-      '<path d="M100 46 40 76v56l60 30 60-30V76z" fill="#F7B9C2"/>'+
-      '<path d="M100 46 40 76l60 30 60-30z" fill="#E1495F"/>'+
-      '<path d="M100 106v56l60-30V76z" fill="#C8102E"/>'+
-      '<path d="M70 61l60 30v22" stroke="#FFF1F3" stroke-width="6" fill="none" stroke-linecap="round"/>',
-  search:'<circle cx="100" cy="104" r="66" fill="#FFF1F3"/>'+
-      '<circle cx="90" cy="94" r="34" fill="none" stroke="#E1495F" stroke-width="10"/>'+
-      '<circle cx="90" cy="94" r="22" fill="#FFE0E5"/>'+
-      '<path d="M116 120l26 26" stroke="#C8102E" stroke-width="12" stroke-linecap="round"/>',
-  bell:'<circle cx="100" cy="104" r="66" fill="#FFF1F3"/>'+
-      '<path d="M100 56a30 30 0 0 1 30 30v26l12 16H58l12-16V86a30 30 0 0 1 30-30z" fill="#E1495F"/>'+
-      '<path d="M86 136a14 14 0 0 0 28 0z" fill="#C8102E"/>'+
-      '<circle cx="100" cy="50" r="7" fill="#C8102E"/>',
-  ticket:'<circle cx="100" cy="104" r="66" fill="#FFF1F3"/>'+
-      '<path d="M46 82h108v18a12 12 0 0 0 0 24v18H46v-18a12 12 0 0 0 0-24z" fill="#E1495F"/>'+
-      '<path d="M100 82v60" stroke="#FFF1F3" stroke-width="5" stroke-dasharray="8 8"/>'+
-      '<circle cx="72" cy="112" r="10" fill="#FFE0E5"/>',
-  users:'<circle cx="100" cy="104" r="66" fill="#FFF1F3"/>'+
-      '<circle cx="100" cy="88" r="24" fill="#E1495F"/>'+
-      '<path d="M56 152a44 44 0 0 1 88 0z" fill="#C8102E"/>',
-  store:'<circle cx="100" cy="104" r="66" fill="#FFF1F3"/>'+
-      '<path d="M56 88h88v62H56z" fill="#F7B9C2"/>'+
-      '<path d="M50 66h100l10 22H40z" fill="#E1495F"/>'+
-      '<path d="M86 150v-32h28v32z" fill="#C8102E"/>'
+  box:'<circle cx="100" cy="104" r="66" class="a-bg"/>'+
+      '<path d="M100 46 40 76v56l60 30 60-30V76z" class="a-soft"/>'+
+      '<path d="M100 46 40 76l60 30 60-30z" class="a-mid"/>'+
+      '<path d="M100 106v56l60-30V76z" class="a-deep"/>'+
+      '<path d="M70 61l60 30v22" class="a-sbg" stroke-width="6" fill="none" stroke-linecap="round"/>',
+  search:'<circle cx="100" cy="104" r="66" class="a-bg"/>'+
+      '<circle cx="90" cy="94" r="34" fill="none" class="a-smid" stroke-width="10"/>'+
+      '<circle cx="90" cy="94" r="22" class="a-pale"/>'+
+      '<path d="M116 120l26 26" class="a-sdeep" stroke-width="12" stroke-linecap="round"/>',
+  bell:'<circle cx="100" cy="104" r="66" class="a-bg"/>'+
+      '<path d="M100 56a30 30 0 0 1 30 30v26l12 16H58l12-16V86a30 30 0 0 1 30-30z" class="a-mid"/>'+
+      '<path d="M86 136a14 14 0 0 0 28 0z" class="a-deep"/>'+
+      '<circle cx="100" cy="50" r="7" class="a-deep"/>',
+  ticket:'<circle cx="100" cy="104" r="66" class="a-bg"/>'+
+      '<path d="M46 82h108v18a12 12 0 0 0 0 24v18H46v-18a12 12 0 0 0 0-24z" class="a-mid"/>'+
+      '<path d="M100 82v60" class="a-sbg" stroke-width="5" stroke-dasharray="8 8"/>'+
+      '<circle cx="72" cy="112" r="10" class="a-pale"/>',
+  users:'<circle cx="100" cy="104" r="66" class="a-bg"/>'+
+      '<circle cx="100" cy="88" r="24" class="a-mid"/>'+
+      '<path d="M56 152a44 44 0 0 1 88 0z" class="a-deep"/>',
+  store:'<circle cx="100" cy="104" r="66" class="a-bg"/>'+
+      '<path d="M56 88h88v62H56z" class="a-soft"/>'+
+      '<path d="M50 66h100l10 22H40z" class="a-mid"/>'+
+      '<path d="M86 150v-32h28v32z" class="a-deep"/>'
 };
 function emptyState(art,title,copy,cta){
   return '<div class="empty">'+
@@ -424,8 +427,8 @@ function closeMobileSidebar(){
    gold / teal / green dot reads the same everywhere. */
 var ACT_SECTIONS={
   orders:{one:'order',many:'orders',tone:'brand'},
-  overseas:{one:'shop & deliver request',many:'shop & deliver requests',tone:'gold'},
-  customers:{one:'customer',many:'customers',tone:'ocean'},
+  overseas:{one:'shop & deliver request',many:'shop & deliver requests',tone:'warning'},
+  customers:{one:'customer',many:'customers',tone:'info'},
   drivers:{one:'driver',many:'drivers',tone:'success'}
 };
 var ACT_ORDER=['orders','overseas','customers','drivers'];
@@ -780,7 +783,10 @@ function startListeners(){
 function stopListeners(){ unsubscribers.forEach(function(u){ u(); }); unsubscribers=[]; }
 
 // ══════════════════════ SPARKLINE ══════════════════════
-function sparkline(values,color){
+// `tone` is a CSS hook, not a colour: it becomes .spark-<tone>, which sets the
+// svg's `color`, and every paint below resolves through currentColor. That is
+// what keeps the sparkline on-theme without a hex ever entering this file.
+function sparkline(values,tone){
   if(!values||values.length<2) return '';
   var w=120,h=26,max=Math.max.apply(null,values)||1;
   var pts=values.map(function(v,i){
@@ -789,12 +795,14 @@ function sparkline(values,color){
   var d=pts.map(function(p,i){ return (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1); }).join(' ');
   var area=d+' L'+w+' '+h+' L0 '+h+' Z';
   var uid='sp'+Math.random().toString(36).slice(2,8);
-  return '<svg class="spark" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" aria-hidden="true">'+
+  return '<svg class="spark spark-'+(tone||'accent')+'" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" aria-hidden="true">'+
     '<defs><linearGradient id="'+uid+'" x1="0" y1="0" x2="0" y2="1">'+
-      '<stop offset="0%" stop-color="'+color+'" stop-opacity=".28"/>'+
-      '<stop offset="100%" stop-color="'+color+'" stop-opacity="0"/></linearGradient></defs>'+
+      // .28 put a visible red haze behind the stat number it sits under; .20 keeps
+      // the fill as a hint of volume without competing with the value.
+      '<stop offset="0%" stop-color="currentColor" stop-opacity=".20"/>'+
+      '<stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>'+
     '<path d="'+area+'" fill="url(#'+uid+')"/>'+
-    '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>'+
+    '<path d="'+d+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>'+
   '</svg>';
 }
 function hourlyCounts(list){
@@ -822,8 +830,8 @@ function renderDashboard(){
   countUp($('stat-pending'),pendingOrders);
   countUp($('stat-drivers'),onlineDrv);
 
-  var sp1=$('spark-orders'); if(sp1) sp1.innerHTML=sparkline(hourlyCounts(todayOrders),'#C8102E');
-  var sp2=$('spark-revenue'); if(sp2) sp2.innerHTML=sparkline(hourlyCounts(deliveredToday),'#F5A524');
+  var sp1=$('spark-orders'); if(sp1) sp1.innerHTML=sparkline(hourlyCounts(todayOrders),'accent');
+  var sp2=$('spark-revenue'); if(sp2) sp2.innerHTML=sparkline(hourlyCounts(deliveredToday),'money');
 
   var tbody=$('dash-tbody');
   if(!loadedOnce.orders){ tbody.innerHTML=skeletonRows(7,5); return; }
@@ -1198,8 +1206,8 @@ function renderDrivers(){
     el.innerHTML=
       statCard('drivers','Total Drivers',drivers.length,'','')+
       statCard('bolt','Online',onlineC,'Available now','success')+
-      statCard('orders','On Delivery',delC,'Currently delivering','ocean')+
-      statCard('clock','Pending Approval',pendC,'Awaiting review','gold');
+      statCard('orders','On Delivery',delC,'Currently delivering','info')+
+      statCard('clock','Pending Approval',pendC,'Awaiting review','warning');
   }
   var tbody=$('drivers-tbody'); if(!tbody) return;
   if(!loadedOnce.drivers){ tbody.innerHTML=skeletonRows(9,5); return; }
@@ -1721,8 +1729,8 @@ function renderCustomers(){
     var ordering=customers.filter(function(c){ return customerOrders(c.id).length>0; }).length;
     stats.innerHTML=
       statCard('users','Total Customers',customers.length,'','')+
-      statCard('orders','Have Ordered',ordering,customers.length?Math.round((ordering/customers.length)*100)+'% of accounts':'','ocean')+
-      statCard('close','Disabled',disabledCount,disabledCount?'blocked from signing in':'','gold');
+      statCard('orders','Have Ordered',ordering,customers.length?Math.round((ordering/customers.length)*100)+'% of accounts':'','info')+
+      statCard('close','Disabled',disabledCount,disabledCount?'blocked from signing in':'','warning');
   }
 
   // Honest cap notice: the listener mirrors at most CUSTOMERS_LIMIT accounts, so
@@ -1848,9 +1856,8 @@ function toggleCustomerDisabled(uid){
   $('cf-title').textContent='Disable '+c.name+'?';
   $('cf-body').innerHTML='They will be signed out immediately and cannot sign in again '+
     'until re-enabled. Their past orders are kept.'+
-    '<label for="cf-reason" style="display:block;margin-top:12px;font-size:13px">Reason (required)</label>'+
-    '<input id="cf-reason" type="text" maxlength="500" placeholder="e.g. repeated fraudulent orders" '+
-    'style="width:100%;margin-top:6px"/>';
+    '<div class="fr fr-standalone"><label for="cf-reason">Reason <small>(required)</small></label>'+
+    '<input id="cf-reason" type="text" maxlength="500" placeholder="e.g. repeated fraudulent orders"/></div>';
   var ok=$('cf-ok'); ok.textContent='Disable account'; ok.className='btn btn-danger';
   confirmResolve=function(confirmed){
     var reason=(($('cf-reason')||{}).value||'').trim();
@@ -1923,7 +1930,7 @@ function renderOverseas(){
     var s=Overseas.summarise(inquiries);
     stats.innerHTML=
       statCard('send','Open Enquiries',s.open,s.counts[Overseas.NEW]+' not yet touched','')+
-      statCard('clock','Awaiting Reply',s.counts[Overseas.QUOTED],'quoted, customer deciding','gold')+
+      statCard('clock','Awaiting Reply',s.counts[Overseas.QUOTED],'quoted, customer deciding','warning')+
       statCard('success','Closed',s.counts[Overseas.CLOSED],s.counts[Overseas.DECLINED]+' declined','success');
   }
 
@@ -2261,7 +2268,7 @@ function renderMerchantStats(){
   el.innerHTML=
     statCard('merchants','Total Merchants',merchants.length,'','')+
     statCard('check','Open Now',openC,'Accepting orders','success')+
-    statCard('clock','Closed',merchants.length-openC,'Not accepting','gold');
+    statCard('clock','Closed',merchants.length-openC,'Not accepting','warning');
 }
 function renderMerchants(){
   renderMerchantStats();
@@ -2276,7 +2283,7 @@ function renderMerchants(){
       '<td><div class="cell-media">'+merchantMedia(m)+'<b>'+esc(m.name)+'</b></div></td>'+
       '<td><span class="bdg bg-info plain">'+esc(m.category)+'</span></td>'+
       '<td class="cell-mute num">'+esc(m.phone)+'</td>'+
-      '<td class="cell-mute" style="max-width:180px;font-size:12px">'+esc(m.address)+'</td>'+
+      '<td class="cell-mute cell-addr">'+esc(m.address)+'</td>'+
       '<td class="right cell-id">'+ordersTodayFor(m.id)+'</td>'+
       '<td>'+starsOrNone(m.rating,m.ratingCount)+'</td>'+
       '<td>'+badge(m.open?'Open':'Closed')+'</td>'+
@@ -2581,7 +2588,9 @@ function openMerchantPanel(id){
       // P5-06. Whether this merchant feeds nearest-first driver dispatch.
       row('Pickup Location',(m.lat!=null&&m.lng!=null)
         ?'<span class="sp-val sm num">'+esc(formatLatLng(m.lat,m.lng))+'</span>'
-        :'<span class="sp-val sm" style="color:var(--gold)">Not set — no distance ranking</span>',true)+'</div>'+
+        // --gold was never declared, so this warning used to render in the
+        // inherited body colour and read as a normal value, not a gap.
+        :'<span class="sp-val sm sp-warn">Not set — no distance ranking</span>',true)+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Contact</div>'+
       row('Phone','<span class="num">'+esc(m.phone)+'</span>')+
       row('Email','<span class="sp-val sm">'+esc(m.email)+'</span>',true)+'</div>'+
@@ -2684,7 +2693,7 @@ function renderMenuItems(){
         (item.description?'<div class="mi-desc">'+esc(item.description)+'</div>':'')+
         '<div style="display:flex;align-items:center;gap:8px;margin-top:4px">'+
           '<span class="mi-price">'+money(item.price)+'</span>'+
-          '<span class="bdg bg-info plain" style="font-size:10px;text-transform:capitalize">'+esc(item.category)+'</span>'+
+          '<span class="bdg bg-info plain bdg-cap">'+esc(item.category)+'</span>'+
         '</div>'+
       '</div>'+
       '<div class="cell-actions">'+
@@ -2766,7 +2775,7 @@ function renderNotifHist(){
     // deliveredCount is written back by onNotificationCreated after the send;
     // it is briefly null on a just-sent push, so it is only shown once present.
     var delivered=n.delivered!=null
-      ? '<span style="font-size:11px;color:var(--text-mute)" class="num">Delivered to '+n.delivered+' device'+(n.delivered===1?'':'s')+'</span>'
+      ? '<span class="num nh-stamp">Delivered to '+n.delivered+' device'+(n.delivered===1?'':'s')+'</span>'
       : '';
     return '<div class="nh-item"><div class="nh-ico">'+icon('notifications')+'</div>'+
       '<div style="min-width:0">'+
@@ -2774,7 +2783,7 @@ function renderNotifHist(){
         '<div class="nh-meta">'+esc(n.msg)+'</div>'+
         '<div style="display:flex;gap:8px;align-items:center;margin-top:7px;flex-wrap:wrap">'+
           '<span class="bdg bg-info plain">'+esc(n.target)+'</span>'+
-          '<span style="font-size:11px;color:var(--text-mute)" class="num">'+esc(n.time)+'</span>'+
+          '<span class="num nh-stamp">'+esc(n.time)+'</span>'+
           delivered+
         '</div>'+
       '</div></div>';
@@ -2930,9 +2939,9 @@ function renderAnalytics(){
     var uniq=new Set(os.map(function(o){ return o.customer; })).size;
     var avg=completed.length?Math.round(revenue/completed.length):0;
     analyticsStats[p]=[
-      {lbl:'Revenue',val:money(revenue),ic:'revenue',accent:'gold'},
+      {lbl:'Revenue',val:money(revenue),ic:'revenue',accent:'warning'},
       {lbl:'Orders',val:String(os.length),ic:'orders',accent:''},
-      {lbl:'Customers',val:String(uniq),ic:'users',accent:'ocean'},
+      {lbl:'Customers',val:String(uniq),ic:'users',accent:'info'},
       {lbl:'Avg Order Value',val:money(avg),ic:'receipt',accent:'success'}
     ];
   });
@@ -3010,13 +3019,10 @@ function renderBarChart(){
   }).join('');
 
   host.innerHTML=
+    // No <defs>: the bars are flat fills set in pages.css (.bar / .bar.max).
+    // The two gradients that used to live here were referenced by nothing.
     '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(cfg.title)+'">'+
-      '<defs>'+
-        '<linearGradient id="barGrad" x1="0" y1="1" x2="0" y2="0">'+
-          '<stop offset="0%" stop-color="#C8102E"/><stop offset="100%" stop-color="#E1495F"/></linearGradient>'+
-        '<linearGradient id="barGradMax" x1="0" y1="1" x2="0" y2="0">'+
-          '<stop offset="0%" stop-color="#E11D34"/><stop offset="100%" stop-color="#FF6A3D"/></linearGradient>'+
-      '</defs>'+grid+bars+
+      grid+bars+
     '</svg><div class="chart-tip" id="chart-tip"></div>';
 }
 function renderZones(){

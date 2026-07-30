@@ -12,16 +12,16 @@
 
 /* ─────────────── FONTS (self-hosted, variable) ─────────────── */
 @font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:200 800;font-display:swap;
-  src:url('assets/fonts/jakarta-latin.woff2') format('woff2');
+  src:url('../assets/fonts/jakarta-latin.woff2') format('woff2');
   unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
 @font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:200 800;font-display:swap;
-  src:url('assets/fonts/jakarta-latin-ext.woff2') format('woff2');
+  src:url('../assets/fonts/jakarta-latin-ext.woff2') format('woff2');
   unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
 @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;
-  src:url('assets/fonts/inter-latin.woff2') format('woff2');
+  src:url('../assets/fonts/inter-latin.woff2') format('woff2');
   unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
 @font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;
-  src:url('assets/fonts/inter-latin-ext.woff2') format('woff2');
+  src:url('../assets/fonts/inter-latin-ext.woff2') format('woff2');
   unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
 
 :root{
@@ -148,9 +148,13 @@
   --pad-card-head-y:14px;      /* 14 is deliberate: centres a 17px title in 46px */
   --pad-cell-y:var(--sp-3);
   --pad-cell-x:var(--sp-3);
-  --pad-btn-y:10px;            /* with --fs-body/1.5 this lands --h-control exactly */
+  /* Both vertical paddings are 10px so a button and the input beside it come out
+     the same height. With --fs-body at line-height 1.2/1.3 plus a 1px border the
+     box lands a shade under 40px and --h-control pins it there exactly, which is
+     what makes `.inline-field` (Generate beside the password) line up. */
+  --pad-btn-y:10px;
   --pad-btn-x:18px;
-  --pad-input-y:11px;
+  --pad-input-y:10px;
   --pad-input-x:14px;
 
   --gap-section:var(--sp-6);   /* between cards / major blocks */
@@ -184,56 +188,6 @@
   --ease:cubic-bezier(.2,0,0,1);
   --ease-in:cubic-bezier(0,0,0,1);
   --ease-out:cubic-bezier(.4,0,1,1);
-
-/* ═══ 11. COMPATIBILITY ALIASES ═════════════════════════════════
-   TEMPORARY — deleted in Phase 4 of the restyle.
-
-   Every token name the old stylesheet exposed, repointed at its new
-   value. This is what lets the panel keep rendering correctly while the
-   component files migrate their use sites one at a time, and it lands the
-   bulk of the colour correction across all ten pages on its own.
-
-   DO NOT write new rules against these names. Use §1–§10 above.        */
-  --brand:var(--accent);
-  --brand-text:var(--accent-ink);
-  --bg:var(--ground);
-  --card:var(--surface);
-  --card-raised:var(--surface-raised);
-  --field:var(--surface);
-  --hover:var(--ground);
-  --track:var(--sunken);
-  --track-pill:var(--surface);
-  --band:var(--sunken);
-  --text-hi:var(--ink);
-  --text-lo:var(--ink-2);
-  --text-mute:var(--ink-3);
-  --border:var(--line);
-  --border-strong:var(--line-strong);
-  --sidebar-bg:var(--shell);
-  --scrim:var(--veil);
-
-  --ink-900:var(--n-800); --ink-700:var(--n-700); --ink-500:var(--n-600);
-  --ink-400:var(--n-500); --ink-300:var(--n-300); --ink-200:var(--n-200);
-  --ink-100:var(--n-100);
-
-  --s1:var(--sp-1);  --s2:var(--sp-2);  --s3:var(--sp-3);  --s4:var(--sp-4);
-  --s5:var(--sp-5);  --s6:var(--sp-6);  --s8:var(--sp-7);  --s10:var(--sp-8);
-  --s12:var(--sp-9); --s16:var(--sp-10);
-  --gutter:var(--pad-page-x);
-  --sw:var(--sidebar-w);
-  --swc:72px;
-
-  /* Flattened via alias, so every gradient use site goes solid at once
-     without touching four other files. Both are deleted in Phase 4. */
-  --grad-ember:var(--accent);
-  --grad-sunset:var(--accent);
-  --grad-scrim:linear-gradient(180deg,rgba(20,15,18,0) 0%,rgba(20,15,18,.72) 100%);
-  --glow:var(--e1);
-
-  /* Retired accents, folded into the semantic set. */
-  --gold-500:var(--warning);  --gold-tint:var(--warning-tint);
-  --gold:var(--warning);      /* app.js:2584 referenced this; it never existed */
-  --ocean-500:var(--info);    --ocean-tint:var(--info-tint);
 }
 
 /* ═══ DARK THEME ════════════════════════════════════════════════
@@ -312,12 +266,17 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 code{
   font-family:var(--ff-mono);font-size:.86em;
   background:var(--sunken);color:var(--ink-2);
-  padding:var(--sp-half) 6px;border-radius:var(--r-xs);
+  padding:var(--sp-half) var(--sp-2);border-radius:var(--r-xs);
 }
 
 /* Long-form explanatory copy inside a card. Replaces four inline
-   `style="max-width:none"` overrides on Settings and the wipe dialog. */
+   `style="max-width:none"` overrides on Settings and the wipe dialog, which were
+   reaching for `.empty-copy` — a centred empty-state class with a 320px measure,
+   entirely the wrong role for a paragraph of body text.
+   The gap is guarded on :empty because two of the four (#pr-preview and
+   #wipe-progress) are filled by JS and sit empty most of the time. */
 .prose{font-size:var(--fs-body);line-height:1.55;color:var(--ink-2);max-width:none;}
+.prose:not(:empty){margin-bottom:var(--gap-field);}
 .prose b{font-weight:600;color:var(--ink);}
 
 /* ─────────────── TYPE UTILITIES ───────────────
