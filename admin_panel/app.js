@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
    ShipEast Admin Portal — application logic
-   Firebase 10.x modular SDK. Styled through SEDS tokens (styles.css).
+   Firebase 10.x modular SDK. Styled through SEDS tokens (css/tokens.css).
    ═══════════════════════════════════════════════════════════════ */
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';

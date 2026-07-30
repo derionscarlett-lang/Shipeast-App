@@ -1,0 +1,154 @@
+/* ═══════════════════════════════════════════════════════════════
+   ShipEast Design System (SEDS) — Admin Panel
+   pages.css
+
+   Page-specific furniture: category chips, notification preview,
+   promo card, charts, menu-item cards, usage bars.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─────────────── CATEGORY / MEDIA CHIPS ─────────────── */
+.cat-ico{width:38px;height:38px;border-radius:var(--r-sm);display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;}
+.cat-ico .ic{width:20px;height:20px;}
+.cat-ico.lg{width:56px;height:56px;border-radius:var(--r-md);}
+.cat-ico.lg .ic{width:28px;height:28px;}
+.c-food{background:var(--red-50);color:var(--brand-text);}
+.c-grocery{background:var(--success-tint);color:#0F7A37;}
+.c-pharmacy{background:var(--ocean-tint);color:#0A6B62;}
+.c-packages{background:var(--gold-tint);color:#9A6410;}
+.c-other{background:var(--bg);color:var(--text-lo);}
+[data-theme="dark"] .c-food{color:var(--brand);}
+[data-theme="dark"] .c-grocery{color:#4ADE80;}
+[data-theme="dark"] .c-pharmacy{color:#2ED3C2;}
+[data-theme="dark"] .c-packages{color:var(--gold-500);}
+.thumb{width:38px;height:38px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0;
+  border:1px solid var(--border);background:var(--bg);}
+.thumb.lg{width:56px;height:56px;border-radius:var(--r-md);}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink-300);flex-shrink:0;display:inline-block;}
+.dot.on{background:var(--success);box-shadow:0 0 0 3px var(--success-tint);}
+
+/* ─────────────── NOTIFICATIONS PAGE ─────────────── */
+.nl,.pl{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:var(--s5);align-items:start;}
+.phone-mock{background:#141310;border-radius:38px;padding:12px;box-shadow:var(--e4);}
+.ph-notch{width:72px;height:5px;background:rgba(255,255,255,.22);border-radius:3px;margin:0 auto 10px;}
+.ph-screen{background:#FAF9F7;border-radius:26px;overflow:hidden;min-height:400px;}
+.ph-bar{background:#100F0D;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;}
+.ph-bar span{color:#F5F2EC;font-size:10px;font-weight:600;}
+.ph-ni{padding:13px 14px;background:#fff;border-bottom:1px solid #ECEAE6;
+  display:flex;gap:10px;align-items:flex-start;}
+.ph-badge{width:28px;height:28px;border-radius:var(--r-xs);background:var(--grad-ember);
+  color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ph-badge .ic{width:16px;height:16px;}
+.ph-app{font-size:10px;font-weight:700;color:#86091E;text-transform:uppercase;letter-spacing:.6px;}
+.ph-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:#1C1A17;margin-top:2px;}
+.ph-msg{font-size:11px;color:#6B6459;margin-top:2px;line-height:1.4;}
+.ph-filler{padding:12px;border-bottom:1px solid #ECEAE6;}
+.ph-filler div{height:9px;background:#ECEAE6;border-radius:4px;margin-bottom:7px;}
+.ph-filler div:last-child{margin-bottom:0;}
+.nh-item{display:flex;gap:var(--s3);padding:var(--s3) 0;border-bottom:1px solid var(--border);}
+.nh-item:last-child{border-bottom:none;}
+.nh-ico{width:38px;height:38px;border-radius:var(--r-sm);background:var(--red-50);
+  color:var(--brand-text);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+[data-theme="dark"] .nh-ico{color:var(--brand);}
+.nh-title{font-size:13.5px;font-weight:600;color:var(--text-hi);}
+.nh-meta{font-size:12px;color:var(--text-lo);margin-top:2px;}
+.notice{
+  display:flex;gap:10px;align-items:flex-start;background:var(--warning-tint);
+  border-radius:var(--r-sm);padding:12px 14px;font-size:12.5px;line-height:1.5;
+  color:#7A5008;margin-bottom:var(--s4);
+}
+.notice .ic{width:18px;height:18px;flex-shrink:0;color:var(--warning);margin-top:1px;}
+[data-theme="dark"] .notice{color:#FBBF24;}
+
+/* ─────────────── PROMO PREVIEW ─────────────── */
+.pc-prev{background:var(--grad-sunset);border-radius:var(--r-lg);padding:var(--s6);
+  color:#fff;margin-bottom:var(--s4);box-shadow:var(--e3);position:relative;overflow:hidden;}
+.pc-prev::after{content:'';position:absolute;right:-40px;top:-40px;width:150px;height:150px;
+  border-radius:50%;background:rgba(255,255,255,.10);}
+.pc-brand{font-size:11px;font-weight:700;letter-spacing:1.4px;opacity:.8;text-transform:uppercase;}
+.pc-code{font-family:'Plus Jakarta Sans',sans-serif;font-size:30px;font-weight:800;
+  letter-spacing:4px;margin:10px 0 6px;overflow-wrap:anywhere;}
+.pc-disc{font-size:15px;font-weight:600;opacity:.95;}
+.pc-valid{font-size:11px;opacity:.72;margin-top:var(--s3);font-variant-numeric:tabular-nums;}
+.pc-foot{margin-top:var(--s4);font-size:10px;opacity:.5;letter-spacing:1.4px;}
+.helper{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:13px 14px;font-size:12.5px;color:var(--text-lo);line-height:1.5;}
+.helper b{display:block;margin-bottom:4px;font-size:11px;text-transform:uppercase;
+  letter-spacing:.6px;color:var(--text-mute);}
+
+/* ─────────────── CHARTS ─────────────── */
+.ag{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4);}
+.ag .card{margin-bottom:0;}
+.chart{position:relative;height:190px;}
+.chart svg{width:100%;height:100%;overflow:visible;display:block;}
+.chart .grid-line{stroke:var(--border);stroke-width:1;}
+.chart .bar{fill:url(#barGrad);rx:5;transition:opacity var(--d-fast) var(--ease);}
+.chart .bar.max{fill:url(#barGradMax);}
+.chart .bar.zero{fill:var(--border);}
+.chart .bar.zero+.bar-val{fill:var(--text-mute);font-weight:500;}
+.chart .bar-hit{fill:transparent;cursor:pointer;}
+.chart .bar-lbl{font-size:11px;fill:var(--text-mute);text-anchor:middle;}
+.chart .bar-val{font-size:11px;font-weight:700;fill:var(--text-hi);text-anchor:middle;
+  font-variant-numeric:tabular-nums;}
+.chart:hover .bar{opacity:.45;}
+.chart .bar-g:hover .bar{opacity:1;}
+.chart-tip{position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-118%);
+  background:var(--ink-900);color:#F5F2EC;font-size:11.5px;font-weight:600;padding:6px 10px;
+  border-radius:var(--r-xs);white-space:nowrap;box-shadow:var(--e3);
+  transition:opacity var(--d-fast) var(--ease);font-variant-numeric:tabular-nums;}
+.chart-tip.show{opacity:1;}
+[data-theme="dark"] .chart-tip{background:#3D3A33;}
+.zr{display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s3);}
+.zn{font-size:13px;width:112px;font-weight:500;flex-shrink:0;color:var(--text-hi);}
+.zt{flex:1;height:10px;background:var(--border);border-radius:var(--r-full);overflow:hidden;}
+.zf{height:100%;border-radius:var(--r-full);background:var(--grad-ember);width:0;
+  transition:width var(--d-deliberate) var(--ease);}
+.zv{font-size:13px;font-weight:700;width:38px;text-align:right;flex-shrink:0;
+  font-variant-numeric:tabular-nums;color:var(--text-hi);}
+.prow{display:flex;align-items:center;margin-bottom:var(--s3);}
+.prow-lbl{font-size:13px;font-weight:600;width:132px;flex-shrink:0;color:var(--text-hi);}
+.ptrack{flex:1;height:12px;background:var(--border);border-radius:var(--r-full);
+  overflow:hidden;margin:0 var(--s3);}
+.pfill{height:100%;border-radius:var(--r-full);width:0;transition:width var(--d-deliberate) var(--ease);}
+.pfill.brand{background:var(--grad-ember);}
+.pfill.gold{background:linear-gradient(90deg,#F7BE5B,#F5A524);}
+.prow-pct{font-size:13px;font-weight:700;width:40px;text-align:right;
+  font-variant-numeric:tabular-nums;color:var(--text-hi);}
+
+/* ─────────────── MENU ITEM CARDS (side panel) ─────────────── */
+/* Banded header, matching .card-title and .fset-title — the menu form sits in
+   the side panel beside a Details tab that now has banded sections, and a bare
+   bold line was the odd one out. */
+.mi-form{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);
+  padding:var(--s4);margin-bottom:var(--s4);}
+.mi-form-title{
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:800;
+  text-transform:uppercase;letter-spacing:.8px;color:var(--text-mute);
+  margin:calc(var(--s4) * -1) calc(var(--s4) * -1) var(--s4);
+  padding:10px var(--s4);
+  background:var(--band);border-bottom:1px solid var(--border);
+  border-radius:calc(var(--r-md) - 1px) calc(var(--r-md) - 1px) 0 0;
+}
+.mi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:11px 13px;margin-bottom:var(--s2);box-shadow:var(--e1);
+  display:flex;align-items:center;gap:10px;
+  transition:box-shadow var(--d-fast) var(--ease);}
+.mi-card:hover{box-shadow:var(--e2);}
+.mi-name{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13px;color:var(--text-hi);}
+.mi-desc{font-size:11.5px;color:var(--text-lo);margin:2px 0;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;}
+.mi-price{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;
+  color:var(--brand);font-variant-numeric:tabular-nums;}
+
+/* ── Promo usage bar (P3-03) ──
+   `usedCount` is server-incremented at redemption, so this finally reflects
+   reality; before, every code read 0 uses forever. */
+.usage-track{
+  display:inline-block; width:52px; height:5px; margin-left:8px;
+  vertical-align:middle; border-radius:999px; overflow:hidden;
+  background:var(--ink-100);
+}
+.usage-fill{ display:block; height:100%; border-radius:999px; }
+.usage-fill.u-ok{ background:var(--success); }
+.usage-fill.u-warning{ background:var(--warning); }
+.usage-fill.u-danger{ background:var(--danger); }

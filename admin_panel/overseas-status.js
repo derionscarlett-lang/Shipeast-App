@@ -41,7 +41,7 @@ export const LABEL = {
   [DECLINED]: 'Declined'
 };
 
-/** Badge tone, matching the .bg-* classes in styles.css. */
+/** Badge tone, matching the .bg-* classes in css/components.css. */
 export const TONE = {
   [NEW]: 'brand',
   [CONTACTED]: 'info',

@@ -1,0 +1,205 @@
+/* ═══════════════════════════════════════════════════════════════
+   ShipEast Design System (SEDS) — Admin Panel
+   tokens.css
+
+   Tokens, fonts, reset & type scale. Loaded first — everything below
+   resolves against these custom properties.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   ShipEast Design System (SEDS) — Admin Panel
+   Token-driven. Every value in this file comes from PLAN.md §1.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─────────────── FONTS (self-hosted, variable) ─────────────── */
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:200 800;font-display:swap;
+  src:url('assets/fonts/jakarta-latin.woff2') format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Plus Jakarta Sans';font-style:normal;font-weight:200 800;font-display:swap;
+  src:url('assets/fonts/jakarta-latin-ext.woff2') format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;
+  src:url('assets/fonts/inter-latin.woff2') format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;
+  src:url('assets/fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+
+/* ─────────────── TOKENS ─────────────── */
+:root{
+  /* red ramp */
+  --red-50:#FFF1F3;  --red-100:#FFE0E5; --red-200:#F7B9C2; --red-300:#EE8492;
+  --red-400:#E1495F; --red-500:#C8102E; --red-600:#A80D26; --red-700:#86091E;
+  --red-800:#5F0615; --red-900:#3D0410;
+
+  /* signature gradients */
+  --grad-ember:linear-gradient(135deg,#E11D34 0%,#C8102E 52%,#9A0B22 100%);
+  --grad-sunset:linear-gradient(135deg,#FF6A3D 0%,#E11D34 55%,#C8102E 100%);
+  --grad-scrim:linear-gradient(180deg,rgba(20,18,15,0) 0%,rgba(20,18,15,.72) 100%);
+
+  /* supporting hues */
+  --gold-500:#F5A524; --gold-tint:#FEF3E2;
+  --ocean-500:#0E9488; --ocean-tint:#E5F6F4;
+
+  /* semantic */
+  --success:#16A34A; --success-tint:#E6F6EC;
+  --warning:#F59E0B; --warning-tint:#FEF3E2;
+  --danger:#D92D20;  --danger-tint:#FDECEA;
+  --info:#0E9488;    --info-tint:#E5F6F4;
+
+  /* warm neutrals */
+  --ink-900:#1C1A17; --ink-700:#3A362F; --ink-500:#6B6459; --ink-400:#938C7F;
+  --ink-300:#C7C0B4; --ink-200:#E4E0D9; --ink-100:#ECEAE6;
+
+  /* themed roles (light) */
+  --bg:#FAF9F7;
+  --card:#FFFFFF;
+  --card-raised:#FFFFFF;
+  /* Sunken/tinted surfaces. The page background and the card background are
+     both near-white, so a segmented control or a table header tinted with
+     either had no visible edge — that is the "no contrast" complaint. These
+     three give one, and are overridden per theme below rather than hardcoded
+     at each use site. */
+  --track:#EDEAE3;          /* segmented-control / filter-bar track */
+  --track-pill:#FFFFFF;     /* the selected segment sitting on that track */
+  --band:#F4F1EB;           /* table header + card title bands */
+  --text-hi:#1C1A17;
+  --text-lo:#6B6459;
+  --text-mute:#938C7F;
+  --border:#E4E0D9;
+  --border-strong:#ECEAE6;
+  --brand:#C8102E;
+  --brand-text:#86091E;   /* red on light tint — AA safe */
+  --field:#FFFFFF;
+  --hover:#FAF9F7;
+  --sidebar-bg:#1C1A17;
+  --scrim:rgba(28,26,23,.48);
+
+  /* spacing — 4pt grid */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
+  --s8:32px; --s10:40px; --s12:48px; --s16:64px;
+  --gutter:20px;
+
+  /* radius */
+  --r-xs:5px; --r-sm:7px; --r-md:9px; --r-lg:12px; --r-xl:16px; --r-full:999px;
+
+  /* elevation — layered, warm-tinted */
+  --e1:0 1px 2px rgba(28,26,23,.04), 0 2px 6px rgba(28,26,23,.06);
+  --e2:0 4px 12px rgba(28,26,23,.08), 0 2px 4px rgba(28,26,23,.05);
+  --e3:0 10px 28px rgba(28,26,23,.12);
+  --e4:0 20px 48px rgba(28,26,23,.18);
+  /* Signature red halo — softened (was 8px/22px/.30). The stacked glow was the
+     #1 "AI-coded" tell; this reads as a lift, not a neon flare. Cascades to
+     every primary button, avatar, and the online/settings toggles at once. */
+  --glow:0 6px 16px rgba(200,16,46,.20);
+
+  /* motion */
+  --d-instant:100ms; --d-fast:180ms; --d-base:240ms; --d-slow:360ms; --d-deliberate:520ms;
+  --ease:cubic-bezier(.2,0,0,1);
+  --ease-in:cubic-bezier(0,0,0,1);
+  --ease-out:cubic-bezier(.4,0,1,1);
+
+  /* layout */
+  --sw:248px; --swc:72px;
+}
+
+[data-theme="dark"]{
+  --bg:#141310;
+  --card:#201E1A;
+  --card-raised:#2A2823;
+  --text-hi:#F5F2EC;
+  --text-lo:#A49E92;
+  --text-mute:#7C766B;
+  --border:#33302A;
+  --border-strong:#3D3A33;
+  --brand:#F04A5E;
+  --brand-text:#F04A5E;
+  --field:#2A2823;
+  --hover:#2A2823;
+  --track:#1B1916;
+  --track-pill:#35312B;
+  --band:#26241F;
+  --sidebar-bg:#100F0D;
+  --scrim:rgba(0,0,0,.62);
+  --red-50:#2A1116;
+  --red-100:#38151C;
+  --success-tint:#122A1B;
+  --warning-tint:#2E2314;
+  --danger-tint:#2E1613;
+  --info-tint:#0F2422;
+  --gold-tint:#2E2314;
+  --ocean-tint:#0F2422;
+  --e1:0 1px 2px rgba(0,0,0,.3), 0 2px 6px rgba(0,0,0,.28);
+  --e2:0 4px 12px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.3);
+  --e3:0 10px 28px rgba(0,0,0,.5);
+  --e4:0 20px 48px rgba(0,0,0,.6);
+  --glow:0 6px 16px rgba(240,74,94,.20);
+}
+
+/* ─────────────── BASE ─────────────── */
+*{margin:0;padding:0;box-sizing:border-box;}
+
+/* The `hidden` attribute only hides an element because the UA stylesheet says
+   `[hidden]{display:none}` — and that is a *type* selector, so ANY class rule
+   with its own `display` silently beats it. That is not a theoretical hazard
+   here: `.bell-badge{display:inline-flex}` and `.up-preview{display:flex}` both
+   won, which is why the notification bell showed a red "0" that JS had already
+   set `hidden` on, and why a merchant form opened showing the previously-viewed
+   restaurant's photo. Every element the panel hides is hidden through this
+   attribute, so one authoritative rule fixes the whole class of bug. */
+[hidden]{display:none!important;}
+
+html{-webkit-text-size-adjust:100%;}
+/* Hard guard against page-level horizontal scroll: nothing in-flow may push the
+   document sideways. `clip` (not `hidden`) avoids creating a scroll container,
+   so the sticky topbar and position:fixed sidebar/modals are unaffected. */
+html,body{overflow-x:clip;max-width:100%;}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--bg);color:var(--text-hi);
+  font-size:15px;line-height:1.47;min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  transition:background var(--d-base) var(--ease),color var(--d-base) var(--ease);
+}
+h1,h2,h3,.font-display{font-family:'Plus Jakarta Sans','Inter',sans-serif;text-wrap:balance;}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit;}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:var(--r-xs);}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1;}
+
+/* type scale */
+.t-display{font-family:'Plus Jakarta Sans',sans-serif;font-size:32px;line-height:38px;font-weight:800;letter-spacing:-.6px;}
+.t-h1{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;line-height:32px;font-weight:800;letter-spacing:-.5px;}
+.t-h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;line-height:28px;font-weight:800;letter-spacing:-.4px;}
+.t-h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;line-height:24px;font-weight:700;letter-spacing:-.2px;}
+.t-section{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;line-height:24px;font-weight:800;letter-spacing:-.35px;}
+.t-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;line-height:22px;font-weight:700;letter-spacing:-.1px;}
+.t-body{font-size:15px;line-height:22px;font-weight:400;}
+.t-bodys{font-size:13px;line-height:18px;font-weight:400;}
+.t-label{font-size:12px;line-height:16px;font-weight:600;letter-spacing:.4px;}
+.t-eyebrow{font-size:11px;line-height:14px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;}
+
+/* icons */
+.ic{width:24px;height:24px;flex-shrink:0;fill:currentColor;display:block;}
+.ic-sm{width:20px;height:20px;}
+.ic-xs{width:16px;height:16px;}
+.ic-lg{width:28px;height:28px;}
+
+/* ─────────────── ANIMATIONS ─────────────── */
+@keyframes shimmer{100%{transform:translateX(100%);}}
+@keyframes fade{from{opacity:0;}to{opacity:1;}}
+@keyframes fadeThrough{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+@keyframes rise{from{opacity:0;transform:translateY(16px) scale(.985);}to{opacity:1;transform:none;}}
+@keyframes toastIn{from{opacity:0;transform:translateY(-16px);}to{opacity:1;transform:none;}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-10px);}}
+@keyframes shake{10%,90%{transform:translateX(-2px);}30%,70%{transform:translateX(3px);}50%{transform:translateX(-3px);}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 1px var(--ocean-500),0 0 0 0 rgba(14,148,136,.42);}
+  50%{box-shadow:0 0 0 1px var(--ocean-500),0 0 0 7px rgba(14,148,136,0);}}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);
+  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+
+.stagger>*{animation:fadeThrough var(--d-base) var(--ease-in) both;}
+.stagger>*:nth-child(1){animation-delay:0ms;}
+.stagger>*:nth-child(2){animation-delay:40ms;}
+.stagger>*:nth-child(3){animation-delay:80ms;}
+.stagger>*:nth-child(4){animation-delay:120ms;}
