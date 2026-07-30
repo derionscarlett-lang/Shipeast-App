@@ -36,20 +36,17 @@
    slides the full sidebar in and out — a 72px icon rail on a tablet read as
    a half-drawn sidebar rather than a deliberate state. */
 @media(max-width:900px){
-  /* Parked off-canvas it keeps its own inset hairlines but drops the cast
-     shadow, so nothing bleeds back onto the page from behind the left edge. */
-  .sidebar{z-index:500;transform:translateX(calc(-100% - var(--sidebar-gap) * 2));
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.24),
-      inset 1px 0 0 rgba(255,255,255,.1),
-      inset -1px 0 0 rgba(46,5,16,.16);}
-  /* Open, it is a lit red object floating over the page — the same shadow
-     stack as the desktop rail, NOT the neutral --e4 the old drawer used. A
-     grey shadow under a saturated red panel is the tell that the colour was
-     painted on afterwards, and at drawer size it is unmissable. */
+  /* Parked off-canvas it keeps its right-edge shade but drops the cast shadow,
+     so nothing bleeds back onto the page from behind the left edge. It travels
+     exactly its own width now that it is flush rather than inset. */
+  .sidebar{z-index:500;transform:translateX(-100%);
+    box-shadow:inset -1px 0 0 rgba(46,5,16,.16);}
+  /* Open, it is a lit red object standing over the page — the same shadow as
+     the desktop rail, NOT the neutral --e4 the old drawer used. A grey shadow
+     beside a saturated red panel is the tell that the colour was painted on
+     afterwards, and at drawer size it is unmissable. */
   .sidebar.mob-open{transform:translateX(0);
     box-shadow:var(--e-shell),
-      inset 0 1px 0 rgba(255,255,255,.24),
-      inset 1px 0 0 rgba(255,255,255,.1),
       inset -1px 0 0 rgba(46,5,16,.16);}
   .sidebar.collapsed{width:var(--sidebar-w);}
   .sidebar.collapsed .lbl,
@@ -58,11 +55,29 @@
   .sidebar.collapsed .ni{justify-content:flex-start;padding:var(--sp-3);}
   .sidebar.collapsed .sb-logo{
     justify-content:flex-start;
-    padding:var(--sp-5) var(--sp-4) var(--sp-4);
-    gap:var(--sp-3);
+    padding:var(--sp-4) var(--sp-3);
+    gap:var(--sp-2);
   }
   .sidebar.collapsed .sb-word{display:block;}
   .main{margin-left:0!important;}
+
+  /* ── LOGIN STACKS ──────────────────────────────────────────────────
+     Below the desktop split the brand panel becomes a BAND across the top
+     rather than disappearing: it is the only red on the screen, and dropping
+     it would leave a phone user signing in to a plain white form with no
+     indication of whose product it is. The panel's copy goes — a marketing
+     line under a logo is desktop furniture — and the lockup centres. */
+  #login-page{flex-direction:column;}
+  .lb{
+    flex:0 0 auto;align-items:center;
+    padding:var(--sp-8) var(--sp-6);gap:0;
+    box-shadow:inset 0 -1px 0 rgba(46,5,16,.16);
+  }
+  .lb-mark{width:min(216px,58%);}
+  .lb-copy{display:none;}
+  /* Top-aligned once stacked: vertically centring a form inside whatever
+     height is left over puts it in a different place on every device. */
+  .ls{align-items:flex-start;padding:var(--sp-8) var(--sp-6);}
   .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));}
   .tbl-wrap{-webkit-overflow-scrolling:touch;}
   /* The date is the first thing to go from the topbar — it is the only item
@@ -351,20 +366,25 @@
   /* The pill collapses to just the avatar, so it drops its surface and ring
      too — otherwise it reads as an empty chip with a face in it. */
   .ab{padding:var(--sp-1);background:transparent;box-shadow:none;}
-  /* The rail goes edge-to-edge as a drawer at this width: a 12px gutter of
-     ground down the side of a full-height overlay is just a misdrawn sheet.
-     Squaring it off costs the left inset hairline its job — there is no left
-     edge on screen any more — so the lit/shaded pair is re-cut as top-and-
-     right only, and the shadow is thrown sideways rather than all round. The
-     fill itself needs no attention any more: --shell is one flat colour, so it
-     cannot be stretched out of shape by a taller box the way the old bloom
-     could. */
-  .sidebar{inset:0 auto 0 0;border-radius:0;}
-  .sidebar.mob-open{border-radius:0;
+  /* The rail is flush and square at every width now, so the four rules that
+     used to re-cut it for phones are gone. What is left is the SHADOW: as a
+     drawer standing over the page it should throw sideways onto the content
+     it is covering, not all round like an object lying on it. */
+  .sidebar.mob-open{
     box-shadow:8px 0 24px -8px rgba(92,10,31,.3),
       24px 0 60px -20px rgba(92,10,31,.26),
-      inset 0 1px 0 rgba(255,255,255,.2),
       inset -1px 0 0 rgba(46,5,16,.16);}
+
+  /* ── Login on a small phone ──
+     The 30px title is the one thing that has to give: at 320px "Welcome back"
+     breaks across two lines and pushes the fields under the fold. */
+  .lb{padding:var(--sp-6) var(--sp-5);}
+  .lb-mark{width:min(176px,62%);}
+  .ls{padding:var(--sp-6) var(--sp-5);}
+  .lc-title{font-size:var(--fs-h2);line-height:var(--lh-h2);}
+  /* The registered company line is 48 characters; at 12px it wraps mid-name on
+     a 360px phone. 11px keeps it on one line down to 320px. */
+  .l-foot{font-size:var(--fs-micro);}
 }
 
 /* ─────────────── REDUCED MOTION ─────────────── */

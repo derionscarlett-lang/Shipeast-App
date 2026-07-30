@@ -71,6 +71,10 @@
   --red-600:#E30D3B;   /* action — white 4.79:1 */
   --red-700:#B60C31;   /* text on tint */
   --red-800:#890B28;
+  /* The ramp's floor. Nothing reads it since the login stopped painting its
+     canvas in it — that maroon was the one red in the file with no counterpart
+     anywhere in the app, which is exactly why the pre-auth screen looked like
+     a different product. Kept as a ramp step, not resurrected as a surface. */
   --red-900:#5C0A1F;
 
 /* ═══ 2. NEUTRALS ═══════════════════════════════════════════════
@@ -88,7 +92,11 @@
    brand's, the saturation is 3–6%, and the LUMINANCE is held where the
    contrast maths already passed. You read it as "warm", not as "coloured",
    and the red finally belongs to the same family as its background.       */
-  --n-0:#FFFFFF;       /* pure white — text ON red, the login card only */
+  /* Pure white. It survives as --surface-raised (a focused field, the phone
+     row-cards), the sidebar mark, and the selected nav pill — i.e. things
+     lifted OFF a surface. It is no longer a login-only value: the login has
+     no white card. */
+  --n-0:#FFFFFF;
   /* CARD surface. A blush white rather than #FFFFFF. This is the single
      highest-leverage value in the file: it is the largest painted area in
      the panel, so 9 points of red over blue here is what stops the whole
@@ -380,7 +388,11 @@
   --h-control-lg:48px;
   --h-topbar:72px;
   --sidebar-w:256px;
-  --sidebar-gap:var(--sp-3);   /* air around the floating rail */
+  /* Was --sidebar-gap, the inset around a floating rail. The rail is flush to
+     the viewport now, so the only thing still inset is the .spanel drawer on
+     the opposite edge — and a value named for the sidebar would have sent the
+     next person looking for a gap that no longer exists. */
+  --drawer-gap:var(--sp-3);
   --page-max:1440px;
 
 /* ═══ 8. RADIUS ═════════════════════════════════════════════════

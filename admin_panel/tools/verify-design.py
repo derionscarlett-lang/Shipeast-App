@@ -265,7 +265,7 @@ def gate_tokens_resolve() -> None:
 def gate_contrast() -> None:
     need = ['--n-0', '--n-25', '--n-50', '--n-100', '--n-300', '--n-400', '--n-500',
             '--n-600', '--n-800', '--red-50', '--red-400', '--red-500',
-            '--red-600', '--red-700', '--red-900',
+            '--red-600', '--red-700',
             '--success', '--warning', '--danger', '--info',
             '--brand-soft', '--success-soft', '--warning-soft', '--info-soft',
             '--danger-soft', '--shell', '--shell-mark', '--shell-ink-hi']
@@ -364,14 +364,17 @@ def gate_contrast() -> None:
         ('dark section head / rail',
          over(d_shell_dim[0], d_shell_dim[1], dark_shell), dark_shell, 4.5, 99),
         # --shell-mark is deliberately NOT re-cut for dark, so it is checked
-        # on both rails. This is the pair that catches anyone "tidying" it
-        # into the --red-100/200 steps, which invert.
+        # on both rails. It carries the lockup's sub-label on the rail, in
+        # both themes, at 11px — which is the size that makes these two the
+        # binding pair rather than a formality. This is also what catches
+        # anyone "tidying" it into the --red-100/200 steps, which invert.
         ('lockup mark / dark rail', L['--shell-mark'], dark_shell, 4.5, 99),
-        # The login canvas is a flat field of --red-900 with a white card on
-        # it; the only ink directly on the canvas is the card's shadow, but
-        # this pins the tone so nobody lightens it into the --shell family and
-        # leaves the screen reading as two disagreeing reds.
-        ('white / login canvas', '#FFFFFF',     L['--red-900'],  10.0, 99),
+        # The login's brand panel IS the rail — same --shell, same --shell-ink
+        # body copy, same warm white — so it is covered by the rail checks
+        # above rather than needing its own. The old `white / login canvas`
+        # pair went with the --red-900 field it measured: that maroon existed
+        # only behind the login card, which is exactly why the first screen
+        # announced a colour the product does not otherwise have.
 
         # ── Soft tones as SURFACES ────────────────────────────────────────
         # The point of the soft step is that it is a surface you may set type
