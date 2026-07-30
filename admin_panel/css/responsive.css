@@ -36,14 +36,26 @@
    slides the full sidebar in and out — a 72px icon rail on a tablet read as
    a half-drawn sidebar rather than a deliberate state. */
 @media(max-width:900px){
+  /* Parked off-canvas it keeps its own inset hairlines but drops the cast
+     shadow, so nothing bleeds back onto the page from behind the left edge. */
   .sidebar{z-index:500;transform:translateX(calc(-100% - var(--sidebar-gap) * 2));
-    box-shadow:none;}
-  .sidebar.mob-open{transform:translateX(0);box-shadow:var(--ring),var(--e4),var(--lip);}
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.24),
+      inset 1px 0 0 rgba(255,255,255,.1),
+      inset -1px 0 0 rgba(0,0,0,.18);}
+  /* Open, it is a lit red object floating over the page — the same shadow
+     stack as the desktop rail, NOT the neutral --e4 the old drawer used. A
+     grey shadow under a saturated red panel is the tell that the colour was
+     painted on afterwards, and at drawer size it is unmissable. */
+  .sidebar.mob-open{transform:translateX(0);
+    box-shadow:var(--e-shell),
+      inset 0 1px 0 rgba(255,255,255,.24),
+      inset 1px 0 0 rgba(255,255,255,.1),
+      inset -1px 0 0 rgba(0,0,0,.18);}
   .sidebar.collapsed{width:var(--sidebar-w);}
   .sidebar.collapsed .lbl,
   .sidebar.collapsed .sls,
   .sidebar.collapsed .sb-sec{opacity:1;}
-  .sidebar.collapsed .ni{justify-content:flex-start;padding:var(--sp-2) var(--sp-3);}
+  .sidebar.collapsed .ni{justify-content:flex-start;padding:var(--sp-3);}
   .sidebar.collapsed .sb-logo{
     justify-content:flex-start;
     padding:var(--sp-5) var(--sp-4) var(--sp-4);
@@ -78,17 +90,29 @@
      is the intended shape on Merchants, Customers and Shop & Deliver. */
   .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-3);}
   .sc{padding:var(--sp-4);}
-  .sc-top{margin-bottom:var(--sp-1);gap:var(--sp-2);}
+  /* The chip moves ABOVE the number instead of beside it. .sc-top is one flex
+     row of [label + value] and [chip], so at half width on a phone the value
+     was competing with a 38px tile plus its gap for a ~141px card: "J$418,900"
+     had 91px to live in and broke across two lines, straight into the chip.
+     column-reverse gives the number the card's full width and costs one row of
+     height. */
+  .sc-top{flex-direction:column-reverse;align-items:flex-start;
+    margin-bottom:var(--sp-1);gap:var(--sp-2);}
   /* --fs-micro is the floor of the scale, so the label keeps its size and
      gives up tracking instead. "ORDERS TODAY" measures ~90px at 11px/600,
      inside the ~150px a half-width card has at 390pt. */
   .sc-lbl{letter-spacing:0;margin-bottom:var(--sp-half);}
-  /* Still the loudest thing in the card at half width — 24px carries a
-     four-digit count in ~150px, which is what a 390pt phone gives it. */
-  .sc-val{font-size:var(--fs-h2);}
+  /* Still the loudest thing in the card at half width. One step down from the
+     desktop 34px rather than two: at 800 weight a five-character count
+     ("1,234") measures ~88px at 30px, and a half-width card on a 390pt phone
+     gives it ~118px between its paddings. The money variant carries a symbol
+     and up to seven digits, so it takes 24px to keep "$128,400" on one line. */
+  .sc-val{font-size:var(--fs-h1);}
   .sc-val.sm{font-size:var(--fs-h3);}
-  .sc-chip{width:36px;height:36px;border-radius:var(--r-sm);}
-  .sc-chip .ic{width:18px;height:18px;}
+  /* Smaller plate, same treatment — only the box metrics are overridden, so
+     the sheen, bevel and cast shadow carry through from components.css. */
+  .sc-chip{width:38px;height:38px;border-radius:var(--r-sm);}
+  .sc-chip .ic{width:20px;height:20px;}
   .spark{height:20px;}
 
   /* ── Filter bars: wrap, never scroll ──
@@ -125,8 +149,12 @@
   .form-actions .btn{width:100%;}
   .m-actions .btn{flex:1;}
 
-  .card-title{font-size:var(--fs-title);padding-bottom:var(--sp-3);
-    margin-bottom:var(--sp-4);}
+  /* The title KEEPS its 20px/800 desktop size here — only the space around it
+     tightens. Shrinking it to 17px was the phone giving up the one piece of
+     hierarchy a narrow column needs most: with the card's own chrome reduced
+     to a hairline, size and weight are all that separate a header from the
+     rows under it. */
+  .card-title{padding-bottom:var(--sp-3);margin-bottom:var(--sp-4);}
 
   /* ── Form-heavy pages ──
      Notifications, Promo Codes and Settings are almost entirely form, and
@@ -198,13 +226,19 @@
   /* Each row is its own bordered card, so a collapsed row reads as one record
      rather than a run of labels sharing a divider. position:relative is what
      the chevron is positioned against — without it the button escapes to the
-     nearest positioned ancestor and lands in the wrong row. */
+     nearest positioned ancestor and lands in the wrong row.
+
+     The row card is --surface-raised, NOT --surface: the card it sits inside
+     is --surface now that light carries a rose tint, so a row painted in the
+     same token would be a shadow with nothing in it. Raised is the step ABOVE
+     the card in both themes — white on the light card, a lighter plum on the
+     dark one — which is the only way a stack of row cards reads as a stack. */
   .tbl-wrap tbody tr{
     position:relative;
     padding:var(--sp-4) 44px var(--sp-4) var(--sp-4);
     margin-bottom:var(--sp-3);
     border-radius:var(--r-md);
-    background:var(--surface);box-shadow:var(--ring),var(--e1);
+    background:var(--surface-raised);box-shadow:var(--ring),var(--e1),var(--lip);
   }
   .tbl-wrap tbody tr:last-child{margin-bottom:0;}
   .tbl-wrap tbody tr:hover td{background:none;}
@@ -246,12 +280,18 @@
     margin-top:var(--sp-3);padding-top:var(--sp-3);
     border-top:1px dashed var(--line-strong);
   }
+  /* No border — it takes --ring like every other surface in the panel, so it
+     cannot hard-stop its own radius. Open, it fills with the action red and a
+     white glyph rather than swapping to a tint-plus-border, which is the same
+     "selected inverts completely" rule the nav pill follows. */
   .mc-exp{
     position:absolute;top:var(--sp-2);right:var(--sp-1);
     width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
-    border:1px solid var(--line);border-radius:var(--r-sm);
+    border:none;border-radius:var(--r-sm);
     background:var(--sunken);color:var(--ink-2);cursor:pointer;
+    box-shadow:var(--ring),var(--lip);
     transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
+               box-shadow var(--d-fast) var(--ease),
                transform var(--d-instant) var(--ease);
   }
   .mc-exp .ic{
@@ -260,7 +300,9 @@
   }
   .mc-exp:active{transform:scale(.92);}
   tr.mc-open .mc-exp{
-    background:var(--accent-wash);color:var(--accent);border-color:var(--red-200);
+    background-color:var(--accent);background-image:var(--dome);color:#fff;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.3),
+               0 1px 2px rgba(137,11,40,.28);
   }
   tr.mc-open .mc-exp .ic{transform:rotate(-90deg);}
 }
@@ -301,9 +343,18 @@
      too — otherwise it reads as an empty chip with a face in it. */
   .ab{padding:var(--sp-1);background:transparent;box-shadow:none;}
   /* The rail goes edge-to-edge as a drawer at this width: a 12px gutter of
-     ground down the side of a full-height overlay is just a misdrawn sheet. */
+     ground down the side of a full-height overlay is just a misdrawn sheet.
+     Squaring it off costs the left inset hairline its job — there is no left
+     edge on screen any more — so the lit/shaded pair is re-cut as top-and-
+     right only, and the shadow is thrown sideways rather than all round. The
+     red gradient itself is untouched: it is declared on .sidebar as
+     percentages, so it simply re-fits the taller box. */
   .sidebar{inset:0 auto 0 0;border-radius:0;}
-  .sidebar.mob-open{border-radius:0;}
+  .sidebar.mob-open{border-radius:0;
+    box-shadow:8px 0 24px -8px rgba(92,10,31,.3),
+      24px 0 60px -20px rgba(92,10,31,.26),
+      inset 0 1px 0 rgba(255,255,255,.2),
+      inset -1px 0 0 rgba(0,0,0,.18);}
 }
 
 /* ─────────────── REDUCED MOTION ─────────────── */

@@ -160,10 +160,14 @@ const ROWS = {
   ],
 };
 
-const STAT = (label, val, sub, accent, icon) => `
+/* `sm` mirrors renderAnalyticsStats() in app.js, which stamps .sc-val.sm on
+   every MONEY value — a currency symbol plus up to seven digits needs a
+   smaller step than a bare count does. The harness used to omit it, so the
+   one card most likely to overflow was the one card never being tested. */
+const STAT = (label, val, sub, accent, icon, sm) => `
 <div class="sc${accent ? ' ac-' + accent : ''}">
   <div class="sc-top">
-    <div><div class="sc-lbl">${label}</div><div class="sc-val num">${val}</div></div>
+    <div><div class="sc-lbl">${label}</div><div class="sc-val${sm ? ' sm' : ''} num">${val}</div></div>
     <div class="sc-chip${accent ? ' c-' + accent : ''}">
       <svg class="ic" aria-hidden="true"><use href="#i-${icon}"/></svg></div>
   </div>
@@ -185,8 +189,8 @@ const STATS = {
     + STAT('Awaiting Quote', '6', 'Needs pricing', 'warning', 'clock')
     + STAT('Completed', '24', 'Delivered', 'success', 'check'),
   'analytics-stats': STAT('Orders', '212', 'This period', '', 'orders')
-    + STAT('Revenue', 'J$418,900', 'Delivered only', 'warning', 'revenue')
-    + STAT('Avg Basket', 'J$1,976', 'Per order', 'info', 'receipt')
+    + STAT('Revenue', 'J$418,900', 'Delivered only', 'warning', 'revenue', true)
+    + STAT('Avg Basket', 'J$1,976', 'Per order', 'info', 'receipt', true)
     + STAT('Completion', '94%', 'Delivered / placed', 'success', 'check'),
 };
 

@@ -63,6 +63,14 @@ def contrast(a: str, b: str) -> float:
     return round((hi + .05) / (lo + .05), 2)
 
 
+def over(fg: str, alpha_: float, bg: str) -> str:
+    """Composite a translucent colour onto an opaque one, sRGB, no gamma —
+    which is what a browser does when it paints one over the other."""
+    f, b = _rgb(fg), _rgb(bg)
+    return '#%02X%02X%02X' % tuple(
+        round(f[i] * alpha_ + b[i] * (1 - alpha_)) for i in range(3))
+
+
 def token(name: str, scope: str | None = None) -> str | None:
     """Literal hex value of a token, optionally within a theme scope."""
     body = TOKENS.read_text(encoding='utf-8')
@@ -73,6 +81,23 @@ def token(name: str, scope: str | None = None) -> str | None:
         body = parts[1]
     m = re.search(re.escape(name) + r'\s*:\s*(#[0-9A-Fa-f]{3,6})\b', body)
     return m.group(1) if m else None
+
+
+def alpha(name: str, scope: str | None = None) -> tuple[str, float] | None:
+    """(hex, alpha) of an rgba() token, so translucent ink can be measured
+    against whatever it is painted on rather than exempted from the gate."""
+    body = TOKENS.read_text(encoding='utf-8')
+    if scope:
+        parts = body.split(scope, 1)
+        if len(parts) < 2:
+            return None
+        body = parts[1]
+    m = re.search(re.escape(name) + r'\s*:\s*rgba\(\s*(\d+)\s*,\s*(\d+)\s*,'
+                                    r'\s*(\d+)\s*,\s*([0-9.]+)\s*\)', body)
+    if not m:
+        return None
+    r, g, b, a = int(m.group(1)), int(m.group(2)), int(m.group(3)), float(m.group(4))
+    return '#%02X%02X%02X' % (r, g, b), a
 
 
 # ─── gate 1: banned literals in consumer files ─────────────────────────────
@@ -113,6 +138,14 @@ def gate_dead_values() -> None:
 ALLOWED_FS = {'11px', '12px', '13px', '14px', '15px', '17px', '20px', '24px',
               '26px', '30px', '.86em', '1em', 'inherit', '0'}
 
+# Weight 800 is BACK. The old rule banned it outright because Jakarta's
+# variable axis stopped at 700 and anything above it was synthesised — a faux
+# bold, which smears the stems and is exactly why the panel read as limp. The
+# faces are Figtree and Inter Tight now; both carry a real 800 master, so the
+# ban is replaced by a whitelist. 900 stays out: it exists in both files, but
+# at the sizes this panel uses it closes the counters on 'a' and 'e'.
+ALLOWED_FW = {'400', '500', '600', '700', '800', 'inherit', 'normal', 'bold'}
+
 
 def gate_type() -> None:
     for f in CONSUMERS + [TOKENS]:
@@ -120,9 +153,16 @@ def gate_type() -> None:
             continue
         src = strip_comments(f.read_text(encoding='utf-8'), html=f.suffix == '.html')
         rel = f.relative_to(ROOT)
-        for m in re.finditer(r'font-weight\s*:\s*800', src):
+        for m in re.finditer(r'font-weight\s*:\s*([^;}\n)]+)', src):
+            v = m.group(1).strip()
+            # A variable font's @font-face declares an axis RANGE ("300 900").
+            # That is the face's capability, not a value the design uses.
+            if v.startswith('var(') or v in ALLOWED_FW or re.fullmatch(r'\d+ \d+', v):
+                continue
             line = src[:m.start()].count('\n') + 1
-            fail('weight-800', f'{rel}:{line} — 800 is retired, Jakarta caps at 700')
+            fail('off-scale-weight',
+                 f'{rel}:{line} — font-weight:{v} is not one of '
+                 f'{"/".join(sorted(w for w in ALLOWED_FW if w.isdigit()))}')
         for m in re.finditer(r'font-size\s*:\s*([0-9]+\.5px)', src):
             line = src[:m.start()].count('\n') + 1
             fail('half-pixel', f'{rel}:{line} — {m.group(1)}')
@@ -180,9 +220,10 @@ def gate_tokens_resolve() -> None:
 
 # ─── gate 5: contrast ──────────────────────────────────────────────────────
 def gate_contrast() -> None:
-    need = ['--n-0', '--n-50', '--n-100', '--n-300', '--n-400', '--n-500',
+    need = ['--n-0', '--n-25', '--n-50', '--n-100', '--n-300', '--n-400', '--n-500',
             '--n-600', '--n-800', '--red-50', '--red-400', '--red-500',
-            '--red-600', '--red-700', '--success', '--warning', '--danger', '--info']
+            '--red-600', '--red-700', '--success', '--warning', '--danger', '--info',
+            '--shell', '--shell-hi', '--shell-mark']
     L = {n: token(n) for n in need}
     missing = [n for n, v in L.items() if not v]
     if missing:
@@ -191,12 +232,34 @@ def gate_contrast() -> None:
     dark_surface = token('--surface', '[data-theme="dark"]')
     dark_sunken = token('--sunken', '[data-theme="dark"]')
     dark_shell = token('--shell', '[data-theme="dark"]')
-    if not all((dark_surface, dark_sunken, dark_shell)):
+    dark_shell_hi = token('--shell-hi', '[data-theme="dark"]')
+    if not all((dark_surface, dark_sunken, dark_shell, dark_shell_hi)):
         fail('contrast', 'dark theme surfaces do not resolve to literals')
+        return
+
+    # The rail's labels are white at partial opacity over a gradient, so they
+    # have to be composited before they can be measured. Both are worst-cased
+    # against --shell-hi, the PEAK of the bloom, because the lockup and the
+    # first section heading sit directly in it — measuring against the calmer
+    # --shell body would pass a rail whose top third fails.
+    shell_ink = alpha('--shell-ink')
+    shell_dim = alpha('--shell-ink-dim')
+    d_shell_ink = alpha('--shell-ink', '[data-theme="dark"]')
+    d_shell_dim = alpha('--shell-ink-dim', '[data-theme="dark"]')
+    if not all((shell_ink, shell_dim, d_shell_ink, d_shell_dim)):
+        fail('contrast', 'rail ink tokens are not plain rgba(...) literals')
         return
 
     checks = [
         # label,                fg,             bg,             min,  max
+        # --surface is --n-25 now, NOT --n-0: light carries the brand tint on
+        # its surfaces, which was the whole point of the 2026 pass. --n-0
+        # survives as --surface-raised (inputs, row cards, the nav pill), so
+        # both tones are gated — the pure-white checks below are not dead.
+        ('primary ink / surface', L['--n-800'], L['--n-25'],    12.5, 14.6),
+        ('secondary ink / surface', L['--n-600'], L['--n-25'],   7.0,  9.0),
+        ('tertiary ink / surface', L['--n-500'], L['--n-25'],    4.5,  6.0),
+        ('action red / surface', L['--red-600'], L['--n-25'],    4.5, 99),
         ('primary ink / card',   L['--n-800'],  L['--n-0'],     12.5, 14.6),
         ('primary ink / band',   L['--n-800'],  L['--n-100'],   12.5, 14.6),
         ('secondary ink / card', L['--n-600'],  L['--n-0'],      7.0,  9.0),
@@ -221,6 +284,32 @@ def gate_contrast() -> None:
         ('dark accent ink',      L['--red-400'], dark_surface,   4.5, 99),
         ('dark accent / sunken', L['--red-400'], dark_sunken,    4.5, 99),
         ('dark ink / sidebar',   L['--n-50'],   dark_shell,      4.5, 99),
+
+        # ── The red rail ──────────────────────────────────────────────────
+        # Nine checks, because the sidebar is the one surface in the panel
+        # that is both permanently on screen and painted in a saturated
+        # colour, and every one of them is worst-cased against --shell-hi.
+        # Whoever next reaches for a brighter highlight will be told by these
+        # exactly which label it breaks.
+        ('white / rail body',    '#FFFFFF',     L['--shell'],    4.5, 99),
+        ('white / rail bloom',   '#FFFFFF',     L['--shell-hi'], 4.5, 99),
+        ('lockup mark / bloom',  L['--shell-mark'], L['--shell-hi'], 4.5, 99),
+        ('nav label / bloom',
+         over(shell_ink[0], shell_ink[1], L['--shell-hi']), L['--shell-hi'], 4.5, 99),
+        ('section head / bloom',
+         over(shell_dim[0], shell_dim[1], L['--shell-hi']), L['--shell-hi'], 4.5, 99),
+        # The selected pill inverts to white in BOTH themes, so its ink is
+        # gated once, against white, rather than per-theme.
+        ('active pill ink',      L['--red-700'], L['--n-0'],     4.5, 99),
+        ('dark white / rail bloom', '#FFFFFF',  dark_shell_hi,   4.5, 99),
+        ('dark nav label / bloom',
+         over(d_shell_ink[0], d_shell_ink[1], dark_shell_hi), dark_shell_hi, 4.5, 99),
+        ('dark section head / bloom',
+         over(d_shell_dim[0], d_shell_dim[1], dark_shell_hi), dark_shell_hi, 4.5, 99),
+        # --shell-mark is deliberately NOT re-cut for dark, so it is checked
+        # on both rails. This is the pair that catches anyone "tidying" it
+        # into the --red-100/200 steps, which invert.
+        ('lockup mark / dark bloom', L['--shell-mark'], dark_shell_hi, 4.5, 99),
     ]
     for label, fg, bg, lo, hi in checks:
         v = contrast(fg, bg)

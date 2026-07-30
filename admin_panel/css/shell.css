@@ -88,14 +88,14 @@
 .lc-eyebrow{
   display:flex;align-items:center;gap:var(--sp-3);
   color:var(--ink-3);
-  font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:600;
+  font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:700;
   letter-spacing:var(--tr-micro);text-transform:uppercase;
 }
 .lc-eyebrow::before,.lc-eyebrow::after{content:'';flex:1;height:1px;background:var(--line);}
 
 .lc-title{
   font-family:var(--ff-display);
-  font-size:var(--fs-h2);line-height:var(--lh-h2);font-weight:700;
+  font-size:var(--fs-h2);line-height:var(--lh-h2);font-weight:800;
   letter-spacing:var(--tr-display);
   color:var(--ink);text-align:center;margin-top:var(--sp-5);
 }
@@ -116,7 +116,7 @@
 }
 .lf-box{
   display:flex;align-items:center;background:var(--surface);
-  border:1.5px solid var(--line-strong);border-radius:var(--r-sm);
+  border:1.5px solid var(--line-strong);border-radius:var(--r-md);
   transition:border-color var(--d-fast) var(--ease),box-shadow var(--d-fast) var(--ease);
 }
 /* The border keeps its width on focus and changes colour instead, picking up the
@@ -165,9 +165,9 @@
 .btn.lc-cta{
   width:100%;min-height:var(--h-control-lg);
   margin-top:var(--sp-5);padding:0 var(--sp-5);
-  border-radius:var(--r-sm);
+  border-radius:var(--r-full);
   font-family:var(--ff-display);
-  font-size:var(--fs-title);font-weight:600;letter-spacing:var(--tr-title);
+  font-size:var(--fs-title);font-weight:700;letter-spacing:var(--tr-title);
   gap:var(--gap-inline);
 }
 .btn.lc-cta .ic{width:20px;height:20px;transition:transform var(--d-fast) var(--ease);}
@@ -212,11 +212,40 @@
    `inset` sets top/bottom/left, so the height falls out of the viewport
    rather than being pinned at 100vh — the old fixed height plus a 100vh
    #app was the reason the rail ran a hair past the fold on iOS. */
+/* …AND IT IS BRAND RED, lit like a solid object.
+
+   The previous pass made it white, on the reasoning that a near-black slab
+   down the left of a light panel is dated. That was true and it fixed the
+   wrong thing: white chrome beside white cards on a near-white page is why
+   the product read as a white product. This is ~250px × full height of
+   permanently-visible pixels — the largest single area the brand can own,
+   and the same move FoodPanda, Deliveroo and Bolt all make with their own
+   brand colour.
+
+   "Dynamic, 3D" is four layers, not a flat fill:
+     · a bloom of --shell-hi from the top-left, where the light lands;
+     · --shell-lo pooling into the bottom-right, where it curves away;
+     · a vertical wash, light at the head and shaded at the foot, so the
+       rail has a top and a bottom rather than being uniformly bright;
+     · insets: a lit top edge, a lit left edge, a dark right edge. Those
+       three hairlines are what make it read as extruded rather than
+       painted, and they cost nothing.
+   The cast shadow is --e-shell, tinted in the rail's own red — a neutral
+   shadow under a saturated object is the tell that the colour was added
+   late.                                                                   */
 .sidebar{
-  width:var(--sidebar-w);background:var(--shell);
+  width:var(--sidebar-w);
+  background-color:var(--shell);
+  background-image:
+    radial-gradient(126% 60% at 14% -6%,var(--shell-hi) 0%,transparent 58%),
+    radial-gradient(110% 56% at 104% 106%,var(--shell-lo) 0%,transparent 64%),
+    linear-gradient(180deg,rgba(255,255,255,.06) 0%,rgba(0,0,0,.16) 100%);
   position:fixed;inset:var(--sidebar-gap) auto var(--sidebar-gap) var(--sidebar-gap);
   border-radius:var(--r-lg);
-  box-shadow:var(--ring),var(--e2),var(--lip);
+  box-shadow:var(--e-shell),
+    inset 0 1px 0 rgba(255,255,255,.24),
+    inset 1px 0 0 rgba(255,255,255,.1),
+    inset -1px 0 0 rgba(0,0,0,.18);
   display:flex;flex-direction:column;z-index:100;overflow:hidden;
   transition:width var(--d-base) var(--ease),transform var(--d-base) var(--ease);
 }
@@ -229,23 +258,31 @@
 .sb-logo{padding:var(--sp-5) var(--sp-4) var(--sp-4);
   overflow:hidden;white-space:nowrap;display:flex;align-items:center;
   gap:var(--sp-3);min-height:72px;}
-/* The mark is no longer collapsed-only decoration — it is the brand anchor at
-   the top of a now-white rail, which would otherwise open with nothing but
-   text. Identity red, because it is a large fill carrying a 15px glyph, not
-   small print. */
-.sb-mark{display:flex;flex-shrink:0;width:40px;height:40px;border-radius:var(--r-sm);
-  background:var(--accent-quiet);color:#fff;align-items:center;justify-content:center;
-  font-family:var(--ff-display);font-weight:700;font-size:var(--fs-body-lg);
-  letter-spacing:var(--tr-display);box-shadow:var(--e1);}
+/* Inverted with the rail: a WHITE plate carrying a red mark. On brand-red
+   chrome the strongest thing you can put is white, and it makes the mark the
+   one genuinely bright object at the top of the column. It takes the plate
+   treatment (§9) so it reads as a tile sitting ON the rail rather than a hole
+   cut out of it. */
+.sb-mark{display:flex;flex-shrink:0;width:42px;height:42px;border-radius:var(--r-md);
+  background-color:var(--n-0);background-image:var(--plate-lit);
+  color:var(--red-700);align-items:center;justify-content:center;
+  font-family:var(--ff-display);font-weight:800;font-size:var(--fs-body-lg);
+  letter-spacing:var(--tr-display);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),
+             inset 0 -8px 12px -8px rgba(74,20,38,.18),
+             0 2px 4px rgba(46,5,16,.28),0 8px 16px -6px rgba(46,5,16,.36);}
 .sb-word{min-width:0;}
-.sb-logo .slt{font-family:var(--ff-display);font-size:var(--fs-title);font-weight:700;
-  letter-spacing:var(--tr-display);color:var(--ink);}
-/* Themed: --accent-ink is --red-700 on light (6.2:1 on white) and --red-400 on
-   dark (5.4:1 on the dark rail). The old hardcoded --red-400 was chosen for a
-   near-black sidebar and would sit at 2.7:1 on a white one. */
-.sb-logo .slt span{color:var(--accent-ink);}
+.sb-logo .slt{font-family:var(--ff-display);font-size:var(--fs-title);font-weight:800;
+  letter-spacing:var(--tr-display);color:#fff;}
+/* The second word of the lockup on a red rail. Not --accent-ink any more —
+   that is --red-700, which on brand-red chrome is 1.3:1 and simply disappears.
+   --shell-mark is a pale step of the same ramp that is deliberately NOT
+   re-cut for dark (the --red-100/200 steps are, which is what would have
+   made this vanish on the dark rail): 5.64:1 on the light rail, 9.6:1 on
+   the dark one, and unmistakably still the brand. */
+.sb-logo .slt span{color:var(--shell-mark);}
 .sb-logo .sls{font-size:var(--fs-micro);color:var(--shell-ink-dim);
-  letter-spacing:var(--tr-micro);text-transform:uppercase;font-weight:600;
+  letter-spacing:var(--tr-micro);text-transform:uppercase;font-weight:700;
   margin-top:var(--sp-half);}
 /* Collapsed rail: drop the wordmark, keep the mark centred. */
 .sidebar.collapsed .sb-logo{justify-content:center;padding:var(--sp-5) 0;gap:0;}
@@ -253,7 +290,7 @@
 
 .sb-nav{flex:1;padding:0 var(--sp-3) var(--sp-3);overflow-y:auto;overflow-x:hidden;}
 .sb-sec{padding:var(--sp-4) var(--sp-3) var(--sp-2);
-  font-size:var(--fs-micro);font-weight:600;letter-spacing:var(--tr-micro);
+  font-size:var(--fs-micro);font-weight:700;letter-spacing:var(--tr-micro);
   text-transform:uppercase;color:var(--shell-ink-dim);white-space:nowrap;}
 .sidebar.collapsed .sb-sec{opacity:0;height:var(--sp-6);padding:var(--sp-2) 0;}
 
@@ -265,16 +302,31 @@
    switching to its solid variant. Three signals, no furniture. */
 .ni{
   position:relative;display:flex;align-items:center;gap:var(--sp-3);
-  padding:var(--sp-2) var(--sp-3);margin-bottom:var(--sp-half);
-  border-radius:var(--r-sm);
+  padding:var(--sp-3);margin-bottom:var(--sp-half);
+  border-radius:var(--r-md);
   cursor:pointer;color:var(--shell-ink);
-  font-size:var(--fs-body);font-weight:500;white-space:nowrap;user-select:none;
-  transition:color var(--d-fast) var(--ease),background var(--d-fast) var(--ease);
+  font-size:var(--fs-body);font-weight:600;white-space:nowrap;user-select:none;
+  transition:color var(--d-fast) var(--ease),background var(--d-fast) var(--ease),
+             box-shadow var(--d-fast) var(--ease);
 }
-.ni:hover{background:var(--shell-hover);color:var(--ink);}
-.ni.active{background:var(--accent-wash);color:var(--accent-ink);font-weight:600;}
-.ni.active:hover{background:var(--accent-wash);}
+.ni:hover{background:var(--shell-hover);color:#fff;}
+/* THE white pill. On red chrome, the selected item inverts completely rather
+   than taking a slightly different shade of red — that is what makes it
+   unmissable from the corner of the eye, and it is the one place the panel
+   gets to use its brand red as INK instead of as a fill. --red-700 on white
+   is 6.8:1. It carries the plate treatment too, so the pill reads as lifted
+   out of the rail rather than punched through it. */
+.ni.active{
+  background-color:var(--n-0);background-image:var(--plate-lit);
+  color:var(--red-700);font-weight:700;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),
+             0 2px 4px rgba(46,5,16,.24),0 8px 18px -6px rgba(46,5,16,.34);
+}
+.ni.active:hover{background-color:var(--n-0);}
 .ni .ic{color:inherit;}
+/* Spelled out rather than var(--emboss): the pill is white in BOTH themes, so
+   the glyph on it always wants the light-theme relief, not the dark one. */
+.ni.active .ic{filter:drop-shadow(0 1px 1px rgba(74,20,38,.3));}
 .ni .ni-fill{display:none;}
 .ni.active .ni-fill{display:block;}
 .ni.active .ni-line{display:none;}
@@ -287,16 +339,22 @@
    collapsed rail it shrinks to a corner dot since the label is hidden. The
    coloured halo ring is gone — it was the same neon-flare treatment as the old
    --glow, three times over in the one column. */
+/* Inverted twice over. On the red rail a red badge is invisible, so the
+   resting badge is white with red ink; on the white active pill a white badge
+   is invisible, so it flips back to a red fill. Both states are spelled out
+   because "unseen count" is exactly the thing that must never be missed. */
 .ni-badge{
   margin-left:auto;min-width:20px;height:20px;padding:0 var(--gap-tight);
   border-radius:var(--r-full);
   display:inline-flex;align-items:center;justify-content:center;
-  font-size:var(--fs-micro);font-weight:600;line-height:1;color:#fff;
-  background:var(--accent);font-variant-numeric:tabular-nums;
+  font-size:var(--fs-micro);font-weight:700;line-height:1;
+  background:var(--n-0);color:var(--red-700);font-variant-numeric:tabular-nums;
+  box-shadow:0 1px 2px rgba(46,5,16,.3);
 }
+.ni.active .ni-badge{background:var(--accent);color:#fff;box-shadow:none;}
 .ni-badge[data-tone="warning"]{background:var(--warning);color:var(--warning-on);}
-.ni-badge[data-tone="info"]{background:var(--info);}
-.ni-badge[data-tone="success"]{background:var(--success);}
+.ni-badge[data-tone="info"]{background:var(--info);color:#fff;}
+.ni-badge[data-tone="success"]{background:var(--success);color:#fff;}
 .sidebar.collapsed .ni-badge{
   position:absolute;top:var(--gap-tight);right:var(--sp-2);margin:0;
   min-width:9px;width:9px;height:9px;
@@ -335,8 +393,8 @@
 .iconbtn{
   width:var(--h-control);height:var(--h-control);
   display:inline-flex;align-items:center;justify-content:center;
-  cursor:pointer;background:var(--surface);border:none;border-radius:var(--r-sm);
-  color:var(--ink-2);flex-shrink:0;box-shadow:var(--ring),var(--e1);
+  cursor:pointer;background:var(--surface);border:none;border-radius:var(--r-md);
+  color:var(--ink-2);flex-shrink:0;box-shadow:var(--ring),var(--e1),var(--lip);
   transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
              box-shadow var(--d-fast) var(--ease),
              transform var(--d-instant) var(--ease);
@@ -347,7 +405,7 @@
    underneath as a second heading, and a third time in .pg-title. It must not
    wrap, or a two-line crumb pushes the bar out of shape on "Shop & Deliver
    Requests". */
-.tb-bc{font-size:var(--fs-micro);font-weight:600;letter-spacing:var(--tr-micro);
+.tb-bc{font-size:var(--fs-micro);font-weight:700;letter-spacing:var(--tr-micro);
   text-transform:uppercase;color:var(--ink-3);
   display:flex;align-items:center;gap:var(--gap-tight);min-width:0;}
 .tb-bc em{color:var(--accent);font-style:normal;overflow:hidden;
@@ -367,10 +425,12 @@
    unread-notification badge, or the eye stops trusting it. Teal used to carry
    that job but the teal accent is retired, so this is now simply neutral — and
    flat, since a gradient on a 32px circle is invisible anyway. */
-.av{width:32px;height:32px;background:var(--n-700);
+.av{width:32px;height:32px;
+  background-color:var(--n-700);background-image:var(--dome);
   border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
-  font-family:var(--ff-display);font-weight:600;font-size:var(--fs-dense);flex-shrink:0;}
-.an{font-size:var(--fs-caption);font-weight:600;color:var(--ink);
+  font-family:var(--ff-display);font-weight:700;font-size:var(--fs-dense);flex-shrink:0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 2px rgba(31,25,28,.3);}
+.an{font-size:var(--fs-caption);font-weight:700;color:var(--ink);
   line-height:1.2;white-space:nowrap;}
 
 /* ─────────────── ACTIVITY BELL ─────────────── */
@@ -400,7 +460,7 @@
 .bell-menu.open{opacity:1;visibility:visible;transform:none;}
 .bell-hd{display:flex;align-items:center;justify-content:space-between;gap:var(--gap-inline);
   padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--line);
-  font-family:var(--ff-display);font-weight:600;font-size:var(--fs-title);color:var(--ink);}
+  font-family:var(--ff-display);font-weight:700;font-size:var(--fs-title);color:var(--ink);}
 .bell-clear{background:none;border:none;cursor:pointer;color:var(--accent);
   font-size:var(--fs-caption);font-weight:600;padding:var(--sp-half) var(--gap-tight);
   border-radius:var(--r-xs);}
@@ -443,18 +503,19 @@
    The size is fluid rather than stepped: a fixed 24px turned "Shop & Deliver
    Requests" into three cramped lines on a phone, and clamp() lets the longest
    title in the panel settle without a per-page override. */
-/* THE loudest thing on the page, finally. At clamp(20→24) it was the same
-   weight as a card title two inches below it, so no screen had an obvious
-   place to start reading — "no bold headings" was a fair description of a
-   panel whose largest text was 24px.
+/* THE loudest thing on the page. 38px at 800 and -.035em tracking — the
+   weight is the point, not only the size: at 700 in the old face this was
+   the same optical colour as a card title two inches below it, which is
+   what "no bold headings" actually described. Figtree holds its counters
+   at 800, so this is heavy without going solid.
 
-   34px at -.032em tracking is a real display setting: big enough to anchor
-   the page, tight enough not to sprawl. The floor stays at 24px so "Shop &
-   Deliver Requests" still lands on two lines rather than four on a phone. */
+   Fluid rather than stepped, because a fixed size turned "Shop & Deliver
+   Requests" into three cramped lines on a phone; the 24px floor keeps that
+   title on two lines at 360pt. */
 .pg-title{
   font-family:var(--ff-display);
-  font-size:clamp(24px,1.15rem + 1.6vw,34px);
-  line-height:var(--lh-hero);font-weight:700;letter-spacing:var(--tr-hero);
+  font-size:clamp(24px,1.1rem + 1.9vw,38px);
+  line-height:var(--lh-hero);font-weight:800;letter-spacing:var(--tr-hero);
   color:var(--ink);min-width:0;text-wrap:balance;
 }
 
@@ -470,15 +531,21 @@
 .mbox.wide{width:620px;}
 .mbox.narrow{width:420px;}
 .m-title{font-family:var(--ff-display);font-size:var(--fs-h3);line-height:var(--lh-h3);
-  font-weight:700;letter-spacing:var(--tr-h3);color:var(--ink);margin-bottom:var(--sp-5);}
+  font-weight:800;letter-spacing:var(--tr-h3);color:var(--ink);margin-bottom:var(--sp-5);}
 .m-body{font-size:var(--fs-body);color:var(--ink-2);line-height:1.55;
   margin-bottom:var(--sp-5);}
 .m-actions{display:flex;gap:var(--gap-inline);justify-content:flex-end;
   margin-top:var(--sp-5);padding-top:var(--sp-4);border-top:1px solid var(--line);}
-.m-ico{width:48px;height:48px;border-radius:var(--r-md);display:flex;align-items:center;
-  justify-content:center;margin-bottom:var(--sp-4);}
-.m-ico.danger{background:var(--danger-tint);color:var(--danger-ink);}
-.m-ico.warning{background:var(--warning-tint);color:var(--warning-ink);}
+/* A plate, at the largest size the panel draws one. See §9 in tokens.css:
+   background-COLOR carries the semantic tint, background-IMAGE lays the sheen
+   over it, and the bevel does the rest — so the two variants below only ever
+   need to name a colour. */
+.m-ico{width:52px;height:52px;border-radius:var(--r-md);display:flex;align-items:center;
+  justify-content:center;margin-bottom:var(--sp-4);
+  background-image:var(--plate-lit);box-shadow:var(--plate-bevel);}
+.m-ico .ic{width:28px;height:28px;filter:var(--emboss);}
+.m-ico.danger{background-color:var(--danger-tint);color:var(--danger-ink);}
+.m-ico.warning{background-color:var(--warning-tint);color:var(--warning-ink);}
 
 /* ─────────────── SIDE PANEL ─────────────── */
 #sp-overlay{position:fixed;inset:0;background:var(--veil);z-index:200;opacity:0;
@@ -496,15 +563,35 @@
   transform:translateX(calc(100% + var(--sidebar-gap)));
   transition:transform var(--d-slow) var(--ease);display:flex;flex-direction:column;}
 .spanel.open{transform:translateX(0);}
-.sp-hd{padding:var(--sp-5);border-bottom:1px solid var(--line);display:flex;
-  justify-content:space-between;align-items:center;gap:var(--sp-3);flex-shrink:0;}
-.sp-hd-sub{font-size:var(--fs-micro);color:var(--ink-3);font-weight:600;
+/* The drawer's header is BRANDED, not another white band with a rule under it.
+   This panel opens over the top of whatever you were reading, so it needs to
+   announce itself; a red head on a light body does that in one glance and
+   ties the drawer to the rail on the opposite edge. Same lit-object build as
+   the sidebar, at a shallower angle because the block is wide and short. */
+.sp-hd{
+  padding:var(--sp-5);display:flex;flex-shrink:0;
+  justify-content:space-between;align-items:center;gap:var(--sp-3);
+  background-color:var(--shell);
+  background-image:
+    radial-gradient(120% 180% at 6% -30%,var(--shell-hi) 0%,transparent 62%),
+    linear-gradient(180deg,rgba(255,255,255,.06) 0%,rgba(0,0,0,.14) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 8px rgba(46,5,16,.2);
+  position:relative;z-index:1;
+}
+.sp-hd-sub{font-size:var(--fs-micro);color:var(--shell-ink-dim);font-weight:700;
   text-transform:uppercase;letter-spacing:var(--tr-micro);margin-bottom:var(--sp-half);}
 .sp-hd-title{font-family:var(--ff-display);font-size:var(--fs-h3);line-height:var(--lh-h3);
-  font-weight:700;letter-spacing:var(--tr-h3);color:var(--ink);}
+  font-weight:800;letter-spacing:var(--tr-h3);color:#fff;}
+/* The close button sits on the red head, so it cannot use the topbar's
+   surface-and-ring treatment — it would read as a white tile floating on the
+   brand. Glass instead: a translucent white wash that deepens on hover. */
+.sp-hd .iconbtn{
+  background:rgba(255,255,255,.16);color:#fff;box-shadow:none;
+}
+.sp-hd .iconbtn:hover{background:rgba(255,255,255,.28);color:#fff;box-shadow:none;}
 #sp-body{padding:var(--sp-5);overflow-y:auto;flex:1;}
 .sp-sec{margin-bottom:var(--sp-6);}
-.sp-sec-title{font-size:var(--fs-micro);font-weight:600;color:var(--ink-2);
+.sp-sec-title{font-size:var(--fs-micro);font-weight:700;color:var(--ink-2);
   text-transform:uppercase;letter-spacing:var(--tr-micro);
   margin-bottom:var(--sp-3);padding-bottom:var(--gap-tight);
   border-bottom:1px solid var(--line);}
@@ -526,13 +613,19 @@
 /* A value that is missing rather than merely empty — e.g. a merchant with no
    pickup coordinates, which silently drops it out of nearest-first dispatch. */
 .sp-val.sp-warn{color:var(--warning-ink);font-weight:500;}
-.sp-val.money{font-family:var(--ff-display);font-size:var(--fs-h3);font-weight:700;
+.sp-val.money{font-family:var(--ff-display);font-size:var(--fs-h3);font-weight:800;
   letter-spacing:var(--tr-h3);color:var(--accent);font-variant-numeric:tabular-nums;}
 .sp-hero{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-5);}
-.sp-avatar{width:60px;height:60px;border-radius:50%;background:var(--accent);color:#fff;
+/* A sphere rather than a flat disc: the sheen sits top-left and the bevel's
+   inner bottom shade curves it away, which is the whole trick. */
+.sp-avatar{width:60px;height:60px;border-radius:50%;
+  background-color:var(--accent);background-image:var(--dome);color:#fff;
   display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);
-  font-size:var(--fs-h3);font-weight:700;flex-shrink:0;}
-.sp-hero-name{font-family:var(--ff-display);font-size:var(--fs-title);font-weight:600;
+  font-size:var(--fs-h3);font-weight:800;flex-shrink:0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),
+             inset 0 -10px 14px -8px rgba(74,20,38,.45),
+             0 2px 4px rgba(110,26,48,.2),0 8px 18px -6px rgba(110,26,48,.3);}
+.sp-hero-name{font-family:var(--ff-display);font-size:var(--fs-title);font-weight:700;
   letter-spacing:var(--tr-title);color:var(--ink);}
 
 /* ─────────────── STATUS FLOW STEPPER ─────────────── */
@@ -586,7 +679,7 @@
 .toast.t-info .ic{color:var(--info);}
 .toast-msg{font-size:var(--fs-dense);font-weight:400;color:var(--ink);
   line-height:1.45;flex:1;min-width:0;}
-.toast-msg b{font-weight:600;display:block;margin-bottom:var(--sp-half);}
+.toast-msg b{font-weight:700;display:block;margin-bottom:var(--sp-half);}
 
 /* ─────────────── MOBILE OVERLAY ─────────────── */
 #mob-overlay{position:fixed;inset:0;background:var(--veil);z-index:99;opacity:0;

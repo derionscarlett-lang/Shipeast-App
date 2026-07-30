@@ -10,22 +10,26 @@
    ═══════════════════════════════════════════════════════════════ */
 
 /* ─────────────── CATEGORY / MEDIA CHIPS ─────────────── */
-.cat-ico{width:40px;height:40px;border-radius:var(--r-sm);display:flex;align-items:center;
-  justify-content:center;flex-shrink:0;}
-.cat-ico .ic{width:20px;height:20px;}
+/* The same plate build as .sc-chip — these are the merchant/category glyphs
+   that appear down every list on Merchants and Shop & Deliver, so they are the
+   second most-repeated icon tile in the panel. Tint by class, depth by token. */
+.cat-ico{width:42px;height:42px;border-radius:var(--r-md);display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;
+  background-image:var(--plate-lit);box-shadow:var(--plate-bevel);}
+.cat-ico .ic{width:20px;height:20px;filter:var(--emboss);}
 .cat-ico.lg{width:56px;height:56px;border-radius:var(--r-md);}
 .cat-ico.lg .ic{width:28px;height:28px;}
 /* Each category gets a verified tint + deep-ink pair rather than a hand-mixed
    hex. Food is the brand tint because food IS the core of the business; the
    other three borrow the semantic hues, which is why the set no longer needs a
    gold and a teal accent of its own. */
-.c-food{background:var(--accent-wash);color:var(--accent-ink);}
-.c-grocery{background:var(--success-tint);color:var(--success-ink);}
-.c-pharmacy{background:var(--info-tint);color:var(--info-ink);}
-.c-packages{background:var(--warning-tint);color:var(--warning-ink);}
-.c-other{background:var(--sunken);color:var(--ink-2);}
-.thumb{width:40px;height:40px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0;
-  border:1px solid var(--line);background:var(--sunken);}
+.c-food{background-color:var(--accent-wash);color:var(--accent-ink);}
+.c-grocery{background-color:var(--success-tint);color:var(--success-ink);}
+.c-pharmacy{background-color:var(--info-tint);color:var(--info-ink);}
+.c-packages{background-color:var(--warning-tint);color:var(--warning-ink);}
+.c-other{background-color:var(--sunken);color:var(--ink-2);}
+.thumb{width:42px;height:42px;border-radius:var(--r-md);object-fit:cover;flex-shrink:0;
+  background:var(--sunken);box-shadow:var(--ring),var(--e1);}
 .thumb.lg{width:56px;height:56px;border-radius:var(--r-md);}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--line-strong);
   flex-shrink:0;display:inline-block;}
@@ -50,12 +54,13 @@
 .ph-bar span{color:#FBF9F9;font-size:var(--fs-micro);font-weight:600;}
 .ph-ni{padding:var(--sp-3) var(--sp-4);background:#FFFFFF;border-bottom:1px solid #EBE5E7;
   display:flex;gap:var(--gap-inline);align-items:flex-start;}
-.ph-badge{width:28px;height:28px;border-radius:var(--r-xs);background:#E30D3B;
-  color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ph-badge{width:28px;height:28px;border-radius:var(--r-xs);background-color:#E30D3B;
+  background-image:var(--dome);color:#fff;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.3);}
 .ph-badge .ic{width:16px;height:16px;}
-.ph-app{font-size:var(--fs-micro);font-weight:600;color:#B60C31;
+.ph-app{font-size:var(--fs-micro);font-weight:700;color:#B60C31;
   text-transform:uppercase;letter-spacing:var(--tr-micro);}
-.ph-title{font-family:var(--ff-display);font-size:var(--fs-dense);font-weight:600;
+.ph-title{font-family:var(--ff-display);font-size:var(--fs-dense);font-weight:700;
   color:#33292E;margin-top:var(--sp-half);}
 .ph-msg{font-size:var(--fs-caption);color:#5C4D54;margin-top:var(--sp-half);line-height:1.4;}
 .ph-filler{padding:var(--sp-3);border-bottom:1px solid #EBE5E7;}
@@ -66,9 +71,12 @@
 .nh-item{display:flex;gap:var(--sp-3);padding:var(--sp-3) 0;
   border-bottom:1px solid var(--line);}
 .nh-item:last-child{border-bottom:none;}
-.nh-ico{width:40px;height:40px;border-radius:var(--r-sm);background:var(--accent-wash);
-  color:var(--accent-ink);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.nh-title{font-size:var(--fs-dense);font-weight:600;color:var(--ink);}
+.nh-ico{width:42px;height:42px;border-radius:var(--r-md);
+  background-color:var(--accent-wash);background-image:var(--plate-lit);
+  color:var(--accent-ink);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;box-shadow:var(--plate-bevel);}
+.nh-ico .ic{filter:var(--emboss);}
+.nh-title{font-size:var(--fs-dense);font-weight:700;color:var(--ink);}
 .nh-meta{font-size:var(--fs-caption);color:var(--ink-3);margin-top:var(--sp-half);}
 .nh-stamp{font-size:var(--fs-micro);line-height:var(--lh-micro);color:var(--ink-3);}
 
@@ -96,16 +104,16 @@
   border-radius:50%;background:rgba(255,255,255,.10);}
 /* Explicit rgba rather than a stack of `opacity` values — four different
    opacities on white text is four unnamed greys nobody can reason about. */
-.pc-brand{font-size:var(--fs-micro);font-weight:600;letter-spacing:.12em;
+.pc-brand{font-size:var(--fs-micro);font-weight:700;letter-spacing:.12em;
   color:rgba(255,255,255,.78);text-transform:uppercase;}
 /* The preview column is ~200px of usable width, and at 30px/4px tracking an
    ordinary eight-character code (SUMMER25) overflowed it — `overflow-wrap`
    then split it across two lines mid-word, which is the one thing a coupon
    code must never do. 24px at 2px tracking carries codes up to ~11 characters
    on one line; `anywhere` stays as the last resort for longer ones. */
-.pc-code{font-family:var(--ff-display);font-size:var(--fs-h2);font-weight:700;
+.pc-code{font-family:var(--ff-display);font-size:var(--fs-h2);font-weight:800;
   letter-spacing:2px;margin:var(--sp-2) 0 var(--gap-tight);overflow-wrap:anywhere;}
-.pc-disc{font-size:var(--fs-body-lg);font-weight:600;color:rgba(255,255,255,.95);}
+.pc-disc{font-size:var(--fs-body-lg);font-weight:700;color:rgba(255,255,255,.95);}
 .pc-valid{font-size:var(--fs-micro);color:rgba(255,255,255,.72);
   margin-top:var(--sp-3);font-variant-numeric:tabular-nums;}
 .pc-foot{margin-top:var(--sp-4);font-size:var(--fs-micro);
@@ -118,7 +126,7 @@
   padding:var(--sp-3) var(--sp-4);font-size:var(--fs-caption);color:var(--ink-2);
   line-height:1.5;}
 .helper b{display:block;margin-bottom:var(--gap-tight);font-size:var(--fs-micro);
-  text-transform:uppercase;letter-spacing:var(--tr-micro);color:var(--ink-3);font-weight:600;}
+  text-transform:uppercase;letter-spacing:var(--tr-micro);color:var(--ink-3);font-weight:700;}
 
 /* ─────────────── CHARTS ─────────────── */
 .ag{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap-field);}
@@ -137,7 +145,7 @@
 .chart .bar.zero+.bar-val{fill:var(--ink-3);font-weight:400;}
 .chart .bar-hit{fill:transparent;cursor:pointer;}
 .chart .bar-lbl{font-size:var(--fs-micro);fill:var(--ink-3);text-anchor:middle;}
-.chart .bar-val{font-size:var(--fs-micro);font-weight:600;fill:var(--ink);text-anchor:middle;
+.chart .bar-val{font-size:var(--fs-micro);font-weight:700;fill:var(--ink);text-anchor:middle;
   font-variant-numeric:tabular-nums;}
 /* Hovering the chart dims every bar and the hovered group restores itself, so a
    single bar is isolated without needing a legend or a crosshair. */
@@ -146,7 +154,7 @@
 .chart-tip{position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-118%);
   background:var(--n-900);color:var(--n-50);font-size:var(--fs-caption);font-weight:600;
   padding:var(--gap-tight) var(--sp-2);
-  border-radius:var(--r-xs);white-space:nowrap;box-shadow:var(--e3);
+  border-radius:var(--r-sm);white-space:nowrap;box-shadow:var(--e3);
   transition:opacity var(--d-fast) var(--ease);font-variant-numeric:tabular-nums;}
 .chart-tip.show{opacity:1;}
 [data-theme="dark"] .chart-tip{background:var(--n-700);}
@@ -157,7 +165,7 @@
 .zt{flex:1;height:10px;background:var(--line);border-radius:var(--r-full);overflow:hidden;}
 .zf{height:100%;border-radius:var(--r-full);background:var(--accent-quiet);width:0;
   transition:width var(--d-deliberate) var(--ease);}
-.zv{font-size:var(--fs-dense);font-weight:600;width:40px;text-align:right;flex-shrink:0;
+.zv{font-size:var(--fs-dense);font-weight:700;width:40px;text-align:right;flex-shrink:0;
   font-variant-numeric:tabular-nums;color:var(--ink);}
 
 /* Payment breakdown. */
@@ -169,7 +177,7 @@
   transition:width var(--d-deliberate) var(--ease);}
 .pfill.brand{background:var(--accent-quiet);}
 .pfill.gold{background:var(--warning);}
-.prow-pct{font-size:var(--fs-dense);font-weight:600;width:40px;text-align:right;
+.prow-pct{font-size:var(--fs-dense);font-weight:700;width:40px;text-align:right;
   font-variant-numeric:tabular-nums;color:var(--ink);}
 
 /* ─────────────── MENU ITEM CARDS (side panel) ─────────────── */
@@ -179,22 +187,22 @@
 .mi-form{background:var(--sunken);border-radius:var(--r-md);box-shadow:var(--ring);
   padding:var(--sp-4);margin-bottom:var(--gap-field);}
 .mi-form-title{
-  font-family:var(--ff-display);font-size:var(--fs-micro);font-weight:600;
+  font-family:var(--ff-display);font-size:var(--fs-micro);font-weight:700;
   text-transform:uppercase;letter-spacing:var(--tr-micro);color:var(--ink-3);
   margin:calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) var(--sp-4);
   padding:var(--sp-2) var(--sp-4);
   background:var(--sunken);border-bottom:1px solid var(--line);
   border-radius:calc(var(--r-md) - 1px) calc(var(--r-md) - 1px) 0 0;
 }
-.mi-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);
-  padding:var(--sp-3);margin-bottom:var(--sp-2);box-shadow:var(--e1);
+.mi-card{background:var(--surface-raised);border-radius:var(--r-md);
+  padding:var(--sp-3);margin-bottom:var(--sp-2);box-shadow:var(--ring),var(--e1),var(--lip);
   display:flex;align-items:center;gap:var(--gap-inline);
   transition:box-shadow var(--d-fast) var(--ease);}
 .mi-card:hover{box-shadow:var(--e2);}
-.mi-name{font-family:var(--ff-display);font-weight:600;font-size:var(--fs-dense);color:var(--ink);}
+.mi-name{font-family:var(--ff-display);font-weight:700;font-size:var(--fs-dense);color:var(--ink);}
 .mi-desc{font-size:var(--fs-caption);color:var(--ink-3);margin:var(--sp-half) 0;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mi-price{font-family:var(--ff-display);font-size:var(--fs-dense);font-weight:700;
+.mi-price{font-family:var(--ff-display);font-size:var(--fs-dense);font-weight:800;
   color:var(--accent);font-variant-numeric:tabular-nums;}
 
 /* ── Promo usage bar (P3-03) ──
