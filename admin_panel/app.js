@@ -3109,9 +3109,6 @@ document.addEventListener('click',function(e){
      through to whatever that cell or row is otherwise wired to. */
   var mcx=t.closest('[data-mc-exp]'); if(mcx){ toggleRowExpanded(mcx); return; }
   var ni=t.closest('.ni[data-page]'); if(ni){ navTo(ni.getAttribute('data-page')); return; }
-  /* The sidebar brand plate is a home link, the way a logo is everywhere else.
-     Separate from the .ni branch because it must not pick up nav-row styling. */
-  var bp=t.closest('.sb-plate[data-page]'); if(bp){ navTo(bp.getAttribute('data-page')); return; }
   if(t.closest('#logout-btn')){ doLogout(); return; }
   if(t.closest('#hamburger')){ toggleSidebar(); return; }
   if(t.closest('#theme-btn')){ toggleTheme(); return; }
