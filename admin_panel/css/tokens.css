@@ -60,8 +60,16 @@
    8–24%, so these read as grey while sharing the brand's undertone —
    red sits IN them rather than on top of them.                          */
   --n-0:#FFFFFF;
-  --n-50:#FBF9F9;
-  --n-100:#F7F3F4;
+  /* The PAGE ground. Deliberately deeper than it was (#FBF9F9 was 1.05× white,
+     so a white card on it had nothing to lift out of and every surface in the
+     panel read as one flat sheet — the single biggest reason the layout looked
+     inert). At 1.15× the card genuinely floats, and --ink-3 still clears AA on
+     it at 4.61:1, which is the only reason it may go this deep. */
+  --n-50:#F4EEF1;
+  /* A tint applied ON a white card — tracks, segmented rails, table zebra.
+     Lighter than the ground on purpose: these are two different jobs, not one
+     ramp. Pinned near-white because it carries text (12.55:1 / 4.72:1). */
+  --n-100:#F6F1F3;
   --n-200:#EBE5E7;
   --n-300:#D6CCD0;
   --n-400:#9C8B93;   /* disabled            3.22:1 */
@@ -103,9 +111,32 @@
   --accent-quiet:var(--red-500); /* identity red, themed */
   --accent-ink:var(--red-700);   /* red text on a red tint, themed */
   --accent-wash:var(--red-50);   /* red tint surface, themed */
-  --shell:var(--n-900);          /* sidebar */
-  --veil:rgba(31,25,28,.48);     /* modal/drawer scrim */
+  /* The sidebar is WHITE on light now. A near-black slab down the left of an
+     otherwise light panel is the most dated thing in the file — it dates to
+     when chrome had to be dark to read as chrome. The rail earns its
+     separation from the page the same way every other surface here does: a
+     lighter surface, a soft shadow, and air around it. */
+  --shell:var(--n-0);
+  --shell-ink:var(--ink-2);      /* resting nav label */
+  --shell-ink-dim:var(--ink-3);  /* section headings, secondary lines */
+  --shell-line:var(--line);
+  --shell-hover:var(--n-100);
+  --veil:rgba(31,25,28,.44);     /* modal/drawer scrim */
   --focus-ring:0 0 0 3px rgba(227,13,59,.16);
+
+  /* Frosted chrome — the topbar sits ON the ground rather than in a bordered
+     bar of its own, so it needs a translucent tint of the ground to blur
+     through. Must stay in sync with --ground. */
+  --glass:rgba(244,238,241,.78);
+  /* The top-edge highlight that makes a surface read as a lifted, slightly
+     soft object rather than a printed rectangle. This is the whole of the
+     "light clay" idea: one hairline of light, not a puffy pastel blob. */
+  --lip:inset 0 1px 0 rgba(255,255,255,.9);
+  /* Edge definition folded into the shadow stack instead of a `border`. A 1px
+     border eats a pixel of the box and hard-stops the corner radius; a spread
+     ring does neither and reads softer at the same contrast. */
+  --ring:0 0 0 1px rgba(74,48,58,.055);
+  --ring-strong:0 0 0 1px rgba(74,48,58,.10);
 
 /* ═══ 5. TYPE ═══════════════════════════════════════════════════
    Ten steps, down from 24 ad-hoc sizes (five of which were half-pixel
@@ -125,9 +156,16 @@
   --fs-h3:20px;        --lh-h3:1.25;        /* section heads, modal titles */
   --fs-h2:24px;        --lh-h2:1.2;         /* page titles */
   --fs-h1:30px;        --lh-h1:1.15;        /* display */
-  --fs-stat:26px;      --lh-stat:1.05;      /* stat values */
+  /* Page titles and stat values were 24px and 26px — respectable, and totally
+     silent. Nothing on the screen was allowed to be the loudest thing on it,
+     so every page opened at the same even murmur. These two steps are the
+     panel's voice: they are the only places it raises it. */
+  --fs-hero:34px;      --lh-hero:1.08;      /* page titles */
+  --fs-stat:32px;      --lh-stat:1.02;      /* stat values */
 
-  /* The only five tracking values in the system. */
+  /* Six tracking values. Display type tightens as it grows — at 34px the
+     -.02em that suits a 24px title leaves the letters visibly loose. */
+  --tr-hero:-.032em;
   --tr-display:-.02em; --tr-h3:-.015em; --tr-title:-.01em;
   --tr-body:0;         --tr-micro:.05em;
 
@@ -145,8 +183,8 @@
   --pad-page-y:var(--sp-6);
   --pad-page-x:var(--sp-5);
   --pad-card:var(--sp-5);
-  --pad-card-head-y:14px;      /* 14 is deliberate: centres a 17px title in 46px */
-  --pad-cell-y:var(--sp-3);
+  /* The banded card header is gone (see .card-title) and table rows moved to
+     --sp-4, so --pad-card-head-y and --pad-cell-y no longer exist. */
   --pad-cell-x:var(--sp-3);
   /* Both vertical paddings are 10px so a button and the input beside it come out
      the same height. With --fs-body at line-height 1.2/1.3 plus a 1px border the
@@ -165,23 +203,43 @@
 /* ═══ 7. SIZING ═════════════════════════════════════════════════ */
   --h-control:40px;
   --h-control-lg:48px;
-  --h-topbar:64px;
-  --sidebar-w:248px;
+  --h-topbar:72px;
+  --sidebar-w:252px;
+  --sidebar-gap:var(--sp-3);   /* air around the floating rail */
   --page-max:1440px;
 
 /* ═══ 8. RADIUS ═════════════════════════════════════════════════
-   Even 2px rhythm, nudged up from the odd 5/7/9/12/16 to echo the app
-   icon's squircle without returning to pill-everything.                */
-  --r-xs:6px; --r-sm:8px; --r-md:10px; --r-lg:14px; --r-xl:18px; --r-full:999px;
+   Roughly doubled. 10px on a 400px-wide card is a chamfer — it reads as a
+   rectangle someone remembered to soften, which is exactly the 2010 tell.
+   The app icon is a squircle; at 18px a card finally belongs to it.
 
-/* ═══ 9. ELEVATION ══════════════════════════════════════════════
-   Flat and neutral. The coloured red halo (--glow) is gone: it was on
-   every primary button, avatar and toggle, and a saturated shadow is the
-   loudest machine-generated tell in the file.                          */
-  --e1:0 1px 2px rgba(31,25,28,.05);
-  --e2:0 2px 4px rgba(31,25,28,.06), 0 4px 12px rgba(31,25,28,.05);
-  --e3:0 8px 24px rgba(31,25,28,.10);
-  --e4:0 16px 40px rgba(31,25,28,.16);
+   The scale still stops short of pill-everything: only things that ARE
+   pills (badges, toggles, tracks, filter segments) take --r-full.        */
+  --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:28px; --r-full:999px;
+
+/* ═══ 9. ELEVATION — "light clay" ═══════════════════════════════
+   The brief: soft and tactile, but nowhere near real claymorphism. Real
+   clay is a puffy pastel blob with a double inner shadow; what actually
+   reads as premium is the restrained half of that idea —
+
+     · shadows in PLUM-BLACK, not neutral black. rgba(0,0,0,.1) over a
+       rose-tinted ground turns the shade grey and fights the palette.
+     · TWO offsets per level, a tight contact shadow plus a wide soft
+       pool, so the surface has a footprint as well as a glow.
+     · negative spread on the wide pool, which keeps it under the card
+       instead of haloing out sideways.
+     · --lip on top (§4) for the single hairline of light on the upper
+       edge. That one line is what makes it feel soft.
+
+   The old stack was one flat 1px/2px smudge at 5% — technically a shadow,
+   visually nothing, which is why every card sat flush on the page.       */
+  --e1:0 1px 2px rgba(74,48,58,.05), 0 2px 6px -2px rgba(74,48,58,.06);
+  --e2:0 1px 2px rgba(74,48,58,.05), 0 6px 12px -3px rgba(74,48,58,.07),
+       0 14px 28px -10px rgba(74,48,58,.08);
+  --e3:0 2px 4px rgba(74,48,58,.05), 0 12px 24px -6px rgba(74,48,58,.10),
+       0 28px 56px -18px rgba(74,48,58,.14);
+  --e4:0 4px 8px rgba(74,48,58,.06), 0 20px 40px -8px rgba(74,48,58,.14),
+       0 48px 88px -28px rgba(74,48,58,.22);
 
 /* ═══ 10. MOTION ════════════════════════════════════════════════ */
   --d-instant:100ms; --d-fast:180ms; --d-base:240ms; --d-slow:360ms; --d-deliberate:520ms;
@@ -209,9 +267,24 @@
   --accent-quiet:var(--red-500);
   --accent-ink:var(--red-400);
   --accent-wash:#2E1218;
-  --shell:#0E0A0C;
+  /* Lifted OFF the ground rather than sunk below it — same rule as light, so
+     the rail reads as the same floating object in both themes. It used to be
+     #0E0A0C, darker than the page, which is the inverse of how the rest of
+     the panel stacks. 15.6:1 against --ink. */
+  --shell:#1C1519;
+  --shell-ink:var(--ink-2);
+  --shell-ink-dim:var(--ink-3);
+  --shell-line:var(--line);
+  --shell-hover:rgba(255,255,255,.055);
   --veil:rgba(0,0,0,.62);
   --focus-ring:0 0 0 3px rgba(250,87,117,.22);
+
+  --glass:rgba(20,15,18,.78);
+  /* A quarter of the light-theme lip. On a dark surface the same 90% white
+     hairline reads as a lit filament rather than an edge. */
+  --lip:inset 0 1px 0 rgba(255,255,255,.055);
+  --ring:0 0 0 1px rgba(255,255,255,.055);
+  --ring-strong:0 0 0 1px rgba(255,255,255,.09);
 
   --red-50:#2E1218;
   --red-100:#3D1620;
@@ -222,10 +295,14 @@
   --danger-tint:#2E1418;   --danger-ink:#FA5775;
   --info-tint:#10243A;     --info-ink:#7FB4EE;
 
-  --e1:0 1px 2px rgba(0,0,0,.4);
-  --e2:0 2px 4px rgba(0,0,0,.45), 0 4px 12px rgba(0,0,0,.35);
-  --e3:0 8px 24px rgba(0,0,0,.5);
-  --e4:0 16px 40px rgba(0,0,0,.6);
+  /* Dark surfaces cannot be lifted by shadow — there is nothing darker to cast
+     onto. So the depth cue swaps: the shadow only anchors the contact edge and
+     --lip above does the lifting. Pushing these any harder just paints black
+     mud around every card. */
+  --e1:0 1px 2px rgba(0,0,0,.42);
+  --e2:0 2px 4px rgba(0,0,0,.44), 0 8px 20px -6px rgba(0,0,0,.44);
+  --e3:0 4px 8px rgba(0,0,0,.44), 0 16px 36px -10px rgba(0,0,0,.56);
+  --e4:0 8px 16px rgba(0,0,0,.5), 0 32px 64px -20px rgba(0,0,0,.7);
 }
 
 /* ─────────────── BASE ─────────────── */
@@ -278,6 +355,21 @@ code{
 .prose{font-size:var(--fs-body);line-height:1.55;color:var(--ink-2);max-width:none;}
 .prose:not(:empty){margin-bottom:var(--gap-field);}
 .prose b{font-weight:600;color:var(--ink);}
+
+/* ─────────────── SCROLLBARS ───────────────
+   Thin, inset and themed. `scrollbar-width`/`scrollbar-color` cover Firefox;
+   the ::-webkit rules cover Chromium and Safari, which ignore them. The track
+   is transparent on purpose — a painted trough inside a rounded card cuts a
+   grey rectangle through its corner. */
+*{scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{
+  background:var(--line-strong);border-radius:var(--r-full);
+  border:3px solid transparent;background-clip:content-box;
+}
+::-webkit-scrollbar-thumb:hover{background:var(--ink-4);background-clip:content-box;}
+::-webkit-scrollbar-corner{background:transparent;}
 
 /* ─────────────── TYPE UTILITIES ───────────────
    Mapped onto the ten-step scale. The old names survive because markup and

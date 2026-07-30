@@ -36,20 +36,20 @@
    slides the full sidebar in and out — a 72px icon rail on a tablet read as
    a half-drawn sidebar rather than a deliberate state. */
 @media(max-width:900px){
-  .sidebar{z-index:500;transform:translateX(-100%);box-shadow:none;}
-  .sidebar.mob-open{transform:translateX(0);box-shadow:0 24px 60px rgba(0,0,0,.4);}
+  .sidebar{z-index:500;transform:translateX(calc(-100% - var(--sidebar-gap) * 2));
+    box-shadow:none;}
+  .sidebar.mob-open{transform:translateX(0);box-shadow:var(--ring),var(--e4),var(--lip);}
   .sidebar.collapsed{width:var(--sidebar-w);}
   .sidebar.collapsed .lbl,
   .sidebar.collapsed .sls,
   .sidebar.collapsed .sb-sec{opacity:1;}
-  .sidebar.collapsed .ni{justify-content:flex-start;padding:var(--sp-3) var(--sp-5);}
+  .sidebar.collapsed .ni{justify-content:flex-start;padding:var(--sp-2) var(--sp-3);}
   .sidebar.collapsed .sb-logo{
     justify-content:flex-start;
-    padding:var(--sp-6) var(--sp-5) var(--sp-5);
+    padding:var(--sp-5) var(--sp-4) var(--sp-4);
     gap:var(--sp-3);
   }
   .sidebar.collapsed .sb-word{display:block;}
-  .sidebar.collapsed .sb-mark{display:none;}
   .main{margin-left:0!important;}
   .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));}
   .tbl-wrap{-webkit-overflow-scrolling:touch;}
@@ -76,18 +76,19 @@
      rows and pushed the table two screens down. Four now read as a 2×2 block
      above the fold; three fill the first row and leave the third alone, which
      is the intended shape on Merchants, Customers and Shop & Deliver. */
-  .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-2);}
-  .sc{padding:var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);}
+  .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-3);}
+  .sc{padding:var(--sp-4);}
   .sc-top{margin-bottom:var(--sp-1);gap:var(--sp-2);}
   /* --fs-micro is the floor of the scale, so the label keeps its size and
      gives up tracking instead. "ORDERS TODAY" measures ~90px at 11px/600,
      inside the ~150px a half-width card has at 390pt. */
-  .sc-lbl{letter-spacing:.03em;margin-bottom:var(--sp-half);}
-  .sc-val{font-size:var(--fs-h3);}
-  .sc-val.sm{font-size:var(--fs-title);}
-  .sc-chip{width:32px;height:32px;border-radius:var(--r-xs);}
+  .sc-lbl{letter-spacing:0;margin-bottom:var(--sp-half);}
+  /* Still the loudest thing in the card at half width — 24px carries a
+     four-digit count in ~150px, which is what a 390pt phone gives it. */
+  .sc-val{font-size:var(--fs-h2);}
+  .sc-val.sm{font-size:var(--fs-h3);}
+  .sc-chip{width:36px;height:36px;border-radius:var(--r-sm);}
   .sc-chip .ic{width:18px;height:18px;}
-  .sc::before{width:var(--sp-half);}
   .spark{height:20px;}
 
   /* ── Filter bars: wrap, never scroll ──
@@ -97,13 +98,17 @@
      not see. A wrapping grid instead: auto-fill at a 124px minimum lands on
      two columns at phone widths and three on a large phone, with no width
      fixed by hand. */
+  /* A wrapped grid is no longer a single pill track, so it takes the softer
+     rectangle radius — --r-full on a two-row grid rounds each end of the
+     block and leaves the middle segments looking clipped. */
   .tabs{
     display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));
-    gap:var(--sp-1);width:100%;overflow:visible;
+    gap:var(--sp-1);width:100%;overflow:visible;border-radius:var(--r-md);
   }
   .tab{justify-content:space-between;padding:var(--sp-2) var(--sp-3);}
   /* Three fixed periods, so a fixed three-up row rather than auto-fill. */
-  .pbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-1);width:100%;}
+  .pbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-1);
+    width:100%;border-radius:var(--r-md);}
   .pb{padding:var(--sp-2) var(--sp-1);text-align:center;}
 
   /* The period selector is the second half of .pg-hdr on Analytics, and the
@@ -120,7 +125,8 @@
   .form-actions .btn{width:100%;}
   .m-actions .btn{flex:1;}
 
-  .card-title{font-size:var(--fs-body-lg);}
+  .card-title{font-size:var(--fs-title);padding-bottom:var(--sp-3);
+    margin-bottom:var(--sp-4);}
 
   /* ── Form-heavy pages ──
      Notifications, Promo Codes and Settings are almost entirely form, and
@@ -176,7 +182,7 @@
      inner max-height that created a nested scroll is removed. */
   .tbl-wrap{
     overflow:visible;max-height:none;margin:0;padding:0;max-width:100%;
-    -webkit-overflow-scrolling:auto;
+    border-radius:0;-webkit-overflow-scrolling:auto;
   }
   .tbl-wrap table,
   .tbl-wrap thead,
@@ -195,13 +201,15 @@
      nearest positioned ancestor and lands in the wrong row. */
   .tbl-wrap tbody tr{
     position:relative;
-    padding:var(--sp-3) 44px var(--sp-3) var(--sp-3);
-    margin-bottom:var(--sp-2);
-    border:1px solid var(--line);border-radius:var(--r-sm);
-    background:var(--surface);
+    padding:var(--sp-4) 44px var(--sp-4) var(--sp-4);
+    margin-bottom:var(--sp-3);
+    border-radius:var(--r-md);
+    background:var(--surface);box-shadow:var(--ring),var(--e1);
   }
   .tbl-wrap tbody tr:last-child{margin-bottom:0;}
   .tbl-wrap tbody tr:hover td{background:none;}
+  /* The desktop row tint would paint the whole card, so the hover cue is
+     dropped entirely — there is no hover on a touch screen anyway. */
   /* Cell = column label on its own line, value beneath. Block flow means any
      cell contents — plain text, a badge beside an id, a flex .cell-media or
      .cell-actions — lay out correctly and nothing overlaps. */
@@ -224,7 +232,7 @@
   .tbl-wrap td[colspan]{padding:var(--sp-2) 0;}
   .tbl-wrap td[colspan]::before{display:none;}
   .tbl-wrap tbody tr:has(td[colspan]){
-    border:none;background:none;padding:0;margin:0;
+    border:none;background:none;box-shadow:none;padding:0;margin:0;
   }
   .cell-actions{justify-content:flex-start;}
   .cell-media{display:inline-flex;}
@@ -241,8 +249,8 @@
   .mc-exp{
     position:absolute;top:var(--sp-2);right:var(--sp-1);
     width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
-    border:1px solid var(--line);border-radius:var(--r-xs);
-    background:var(--ground);color:var(--ink-2);cursor:pointer;
+    border:1px solid var(--line);border-radius:var(--r-sm);
+    background:var(--sunken);color:var(--ink-2);cursor:pointer;
     transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
                transform var(--d-instant) var(--ease);
   }
@@ -289,7 +297,13 @@
   .tb-bc-root,.tb-bc .ic{display:none;}
   .tb-l{gap:var(--sp-2);}
   .topbar{min-height:56px;padding:0 var(--sp-4);}
-  .ab{padding:var(--sp-1);border-color:transparent;background:transparent;}
+  /* The pill collapses to just the avatar, so it drops its surface and ring
+     too — otherwise it reads as an empty chip with a face in it. */
+  .ab{padding:var(--sp-1);background:transparent;box-shadow:none;}
+  /* The rail goes edge-to-edge as a drawer at this width: a 12px gutter of
+     ground down the side of a full-height overlay is just a misdrawn sheet. */
+  .sidebar{inset:0 auto 0 0;border-radius:0;}
+  .sidebar.mob-open{border-radius:0;}
 }
 
 /* ─────────────── REDUCED MOTION ─────────────── */

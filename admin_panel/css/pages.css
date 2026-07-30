@@ -114,7 +114,7 @@
    what will actually be saved. */
 .pc-code-input{text-transform:uppercase;}
 
-.helper{background:var(--ground);border:1px solid var(--line);border-radius:var(--r-sm);
+.helper{background:var(--sunken);border-radius:var(--r-sm);box-shadow:var(--ring);
   padding:var(--sp-3) var(--sp-4);font-size:var(--fs-caption);color:var(--ink-2);
   line-height:1.5;}
 .helper b{display:block;margin-bottom:var(--gap-tight);font-size:var(--fs-micro);
@@ -176,7 +176,7 @@
 /* Banded header, matching .card-title and .fset-title — the menu form sits in
    the side panel beside a Details tab with banded sections, and a bare bold line
    was the odd one out. */
-.mi-form{background:var(--ground);border:1px solid var(--line);border-radius:var(--r-md);
+.mi-form{background:var(--sunken);border-radius:var(--r-md);box-shadow:var(--ring);
   padding:var(--sp-4);margin-bottom:var(--gap-field);}
 .mi-form-title{
   font-family:var(--ff-display);font-size:var(--fs-micro);font-weight:600;

@@ -13,68 +13,77 @@
 /* --card-pad is declared here rather than used inline so .card-title and
    .tbl-wrap can pull themselves back out to the card's edges with a single
    value the responsive block changes in one place. */
+/* The card carries the whole "light clay" idea, so it is worth being explicit
+   about what changed and why:
+
+   · NO BORDER. The 1px line was doing the separating, which is why every card
+     read as a boxed-in region on a form rather than a raised object. --ring
+     replaces it inside the shadow stack — same job, no hard edge, and the
+     corner radius stays true because a ring does not have to be mitred.
+   · --e2, not --e1. The old shadow was a 5%-opacity 1px smudge, i.e. nothing.
+   · --lip on the top edge, the one hairline of light that makes a surface feel
+     soft instead of printed.
+   · --r-lg (20px). At 10px a 900px-wide card is a rectangle with the corners
+     knocked off.
+   Hover lifts it, because a card that reacts feels like an object.           */
 .card{
   --card-pad:var(--pad-card);
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);
-  padding:var(--card-pad);box-shadow:var(--e1);margin-bottom:var(--gap-section);min-width:0;
-  transition:box-shadow var(--d-base) var(--ease),border-color var(--d-base) var(--ease);
+  background:var(--surface);border-radius:var(--r-lg);
+  padding:var(--card-pad);box-shadow:var(--ring),var(--e2),var(--lip);
+  margin-bottom:var(--gap-section);min-width:0;
+  transition:box-shadow var(--d-base) var(--ease);
 }
-/* A titled band across the top of the card, not a line of bold text floating in
-   its padding. "Top Merchants", "Payment Breakdown", "Package Delivery",
-   "Compose Notification" and the rest each sit in a header that visibly belongs
-   to the card below it, which is what was missing: the title and its contents
-   were the same surface, so there was nothing to say where one ended. Negative
-   margins take it to the card's own border, and the top corners are rounded to
-   match — inner radius is the outer radius minus the 1px border, or the band's
-   corner cuts across the card's. */
+/* The grey banded header is GONE. It was the panel's most dated single
+   detail — a tinted strip with a rule under it at the top of every card is
+   the shape of a 2010 portlet, and it appeared eleven times per screen.
+
+   What separates a title from its content now is what should always have: a
+   step up in size and weight (17px/600 → 20px/700), and real space beneath
+   it. The hairline stays, run full-bleed to the card's edges, because a card
+   that opens onto a dense table still needs the header to be a header — but
+   it is a rule, not a container. */
 .card-title{
-  font-family:var(--ff-display);font-size:var(--fs-title);line-height:var(--lh-title);
-  font-weight:600;letter-spacing:var(--tr-title);color:var(--ink);
+  font-family:var(--ff-display);font-size:var(--fs-h3);line-height:var(--lh-h3);
+  font-weight:700;letter-spacing:var(--tr-h3);color:var(--ink);
   display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);
   flex-wrap:wrap;
-  margin:calc(var(--card-pad) * -1) calc(var(--card-pad) * -1) var(--card-pad);
-  padding:var(--pad-card-head-y) var(--card-pad);
-  background:var(--sunken);
+  margin:0 calc(var(--card-pad) * -1) var(--sp-5);
+  padding:0 var(--card-pad) var(--sp-4);
   border-bottom:1px solid var(--line);
-  border-radius:calc(var(--r-md) - 1px) calc(var(--r-md) - 1px) 0 0;
 }
 .card-note{font-size:var(--fs-caption);font-weight:500;color:var(--ink-3);
   display:inline-flex;align-items:center;gap:var(--gap-tight);}
-/* Danger Zone keeps the banded header but tints it, so the one card in the panel
-   that can destroy data does not share a neutral header with the pricing form
-   beside it. The ink is --danger-ink rather than --danger: on a red tint the
-   mid-tone red drops under AA, the deep one reads at 8.8:1. */
-.card.danger-zone{border-color:var(--red-200);background:var(--danger-tint);}
-.card.danger-zone .card-title{
-  background:var(--red-100);border-bottom-color:var(--red-200);color:var(--danger-ink);
-}
+/* Danger Zone tints the whole card rather than just a header band, so the one
+   card in the panel that can destroy data never shares a silhouette with the
+   pricing form beside it. The ink is --danger-ink rather than --danger: on a
+   red tint the mid-tone red drops under AA, the deep one reads at 8.8:1. */
+.card.danger-zone{background:var(--danger-tint);box-shadow:0 0 0 1px var(--red-200),var(--e2);}
+.card.danger-zone .card-title{border-bottom-color:var(--red-200);color:var(--danger-ink);}
 .card.danger-zone .dz-label{display:inline-flex;align-items:center;gap:var(--gap-inline);color:inherit;}
 
 /* ─────────────── STAT CARDS ─────────────── */
-.sg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--gap-field);
+.sg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-5);
   margin-bottom:var(--gap-section);}
 .sg.g3{grid-template-columns:repeat(3,minmax(0,1fr));}
+/* The rail is gone — see .ni in shell.css for the same reasoning. A 4px
+   coloured sliver welded to the left edge of a box is the signature of the
+   era this redesign is leaving, and it was doing a job the chip beside it
+   already does better: the chip is bigger, it is tinted in the same hue, and
+   it carries a glyph that says WHICH metric rather than only that there is
+   one. Losing the rail also lets the card go back to even padding.          */
 .sc{
-  position:relative;background:var(--surface);border:1px solid var(--line);
-  border-radius:var(--r-md);padding:var(--pad-card) var(--pad-card) var(--pad-card) var(--sp-6);
-  box-shadow:var(--e1);overflow:hidden;
+  position:relative;background:var(--surface);
+  border-radius:var(--r-lg);padding:var(--pad-card);
+  box-shadow:var(--ring),var(--e2),var(--lip);overflow:hidden;
   transition:box-shadow var(--d-base) var(--ease),transform var(--d-base) var(--ease);
 }
-/* Left accent rail. Flat, not a gradient — the app icon the brand is built on is
-   a flat field, and a 4px sliver is far too narrow to read as a ramp anyway; all
-   a gradient did there was make the colour ambiguous. */
-.sc::before{
-  content:'';position:absolute;left:0;top:0;bottom:0;width:var(--sp-1);
-  background:var(--accent-quiet);
-}
-.sc.ac-warning::before{background:var(--warning);}
-.sc.ac-info::before{background:var(--info);}
-.sc.ac-success::before{background:var(--success);}
-.sc:hover{box-shadow:var(--e2);transform:translateY(-2px);}
+.sc:hover{box-shadow:var(--ring-strong),var(--e3),var(--lip);transform:translateY(-3px);}
 .sc-top{display:flex;align-items:flex-start;justify-content:space-between;
-  gap:var(--sp-3);margin-bottom:var(--sp-3);}
+  gap:var(--sp-3);margin-bottom:var(--sp-2);}
+/* 44px and squircled, up from a 40px rounded square. It is now the card's
+   colour signal as well as its glyph, so it has to hold the corner. */
 .sc-chip{
-  width:40px;height:40px;border-radius:var(--r-sm);display:flex;align-items:center;
+  width:44px;height:44px;border-radius:var(--r-md);display:flex;align-items:center;
   justify-content:center;background:var(--accent-wash);color:var(--accent-ink);flex-shrink:0;
 }
 .sc-chip.c-warning{background:var(--warning-tint);color:var(--warning-ink);}
@@ -87,10 +96,15 @@
 .sc-lbl{font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:600;
   color:var(--ink-3);text-transform:uppercase;letter-spacing:var(--tr-micro);
   margin-bottom:var(--gap-tight);}
+/* 32px, up from 26px, at hero tracking. A dashboard's whole job is that the
+   number is readable from across a desk; at 26px/-.02em these were the same
+   optical weight as the table below them. `.sm` is the money variant, which
+   carries a currency symbol and up to seven digits — 24px keeps "$128,400"
+   on one line in a quarter-width card. */
 .sc-val{font-family:var(--ff-display);font-size:var(--fs-stat);line-height:var(--lh-stat);
-  font-weight:700;letter-spacing:var(--tr-display);color:var(--ink);
+  font-weight:700;letter-spacing:var(--tr-hero);color:var(--ink);
   font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
-.sc-val.sm{font-size:var(--fs-h3);}
+.sc-val.sm{font-size:var(--fs-h2);letter-spacing:var(--tr-display);}
 .sc-sub{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-3);
   margin-top:var(--gap-tight);}
 .spark{display:block;width:100%;height:26px;margin-top:var(--sp-3);overflow:visible;}
@@ -113,43 +127,46 @@
 .tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:min(68vh,720px);
   max-width:none;-webkit-overflow-scrolling:touch;
   margin:0 calc(var(--card-pad) * -1) calc(var(--card-pad) * -1);
-  padding-bottom:var(--sp-1);}
+  padding-bottom:var(--sp-1);
+  /* The wrapper is pulled flush to the card's bottom edge, so it has to carry
+     the card's bottom corners itself. Without this the last row's hover tint
+     paints square into a 20px radius — invisible at the old 10px, obvious now.
+     A scroll container clips to its own radius, so this needs nothing else. */
+  border-radius:0 0 var(--r-lg) var(--r-lg);}
 table{width:100%;border-collapse:collapse;}
 /* The column-name strip was --card on --card: white labels on a white card,
    which is the "no contrast, no professional layout" complaint on Drivers and
    every other table. It is a banded header now, and the labels sit at --ink-2
    (7.2:1 on the band) rather than whispering against it at 600 weight instead
    of 800. Sticky, so the background must stay fully opaque. */
+/* The column strip is no longer a grey band either. It is the card's own
+   surface with a firm rule under it, which is what a modern data table does —
+   the labels are legible because they are uppercase micro at --ink-3 with real
+   tracking and 20px of vertical room, not because someone painted a box behind
+   them. Sticky still requires a fully opaque background, hence --surface
+   spelled out rather than left transparent. */
 thead th{
-  position:sticky;top:0;z-index:2;background:var(--sunken);
-  text-align:left;padding:var(--sp-3) var(--pad-cell-x);
+  position:sticky;top:0;z-index:2;background:var(--surface);
+  text-align:left;padding:var(--sp-2) var(--pad-cell-x) var(--sp-3);
   font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:600;
-  color:var(--ink-2);text-transform:uppercase;letter-spacing:var(--tr-micro);
-  border-bottom:1px solid var(--line);white-space:nowrap;
+  color:var(--ink-3);text-transform:uppercase;letter-spacing:var(--tr-micro);
+  border-bottom:1px solid var(--line-strong);white-space:nowrap;
 }
-thead th:first-child{border-radius:calc(var(--r-md) - 1px) 0 0 0;}
-thead th:last-child{border-radius:0 calc(var(--r-md) - 1px) 0 0;}
-/* A card that opens straight onto a table has no .card-title above it, so the
-   band IS the card's top edge and keeps the card's corner radius. One that has a
-   title already carries a rounded band, and a second set of rounded corners
-   directly below it reads as two stacked headers — so square them off. */
-.card-title ~ .tbl-wrap thead th:first-child,
-.card-title ~ * .tbl-wrap thead th:first-child,
-.card-title ~ .tbl-wrap thead th:last-child,
-.card-title ~ * .tbl-wrap thead th:last-child{border-radius:0;}
-/* …and pull the strip up against the title. Both are --sunken, so a --surface
-   gap between them read as a stray white sliver sandwiched by two grey bars
-   ("Recent Orders" on the Dashboard). Flush, they are one header block. */
-.card-title + .tbl-wrap{margin-top:calc(var(--card-pad) * -1);}
 thead th:first-child,tbody td:first-child{padding-left:var(--card-pad);}
 thead th:last-child,tbody td:last-child{padding-right:var(--card-pad);}
-td{padding:var(--pad-cell-y) var(--pad-cell-x);
+/* Rows breathe. --pad-cell-y was 12px against a 13px/1.45 cell, so a roster
+   read as a wall of text with hairlines through it; at 16px the eye can track
+   across a nine-column row without a ruler. */
+td{padding:var(--sp-4) var(--pad-cell-x);
   font-size:var(--fs-dense);line-height:var(--lh-dense);color:var(--ink);
   border-bottom:1px solid var(--line);vertical-align:middle;}
 /* Scroll-margin keeps a row that JS jumps to clear of the sticky topbar. */
 tbody tr{transition:background var(--d-fast) var(--ease);scroll-margin-top:var(--h-topbar);}
 tbody tr:last-child td{border-bottom:none;}
-tbody tr:hover td{background:var(--ground);}
+/* The hover tint is the brand wash, not neutral grey. It is the cheapest place
+   in the panel to make the brand felt during ordinary use, and a red-tinted
+   row under the cursor reads as "this one" far faster than a grey one. */
+tbody tr:hover td{background:var(--accent-wash);}
 td.right,th.right{text-align:right;font-variant-numeric:tabular-nums;}
 .cell-id{font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;}
 .cell-mute{color:var(--ink-2);}
@@ -187,7 +204,7 @@ tr.row-muted:hover td{opacity:1;}
 .bg-danger{background:var(--danger-tint);color:var(--danger-ink);}
 .bg-info{background:var(--info-tint);color:var(--info-ink);}
 .bg-brand{background:var(--accent-wash);color:var(--accent-ink);}
-.bg-neutral{background:var(--ground);color:var(--ink-2);border:1px solid var(--line);}
+.bg-neutral{background:var(--sunken);color:var(--ink-2);box-shadow:var(--ring);}
 
 /* ─────────────── BUTTONS ─────────────── */
 /* min-height pins every button to the control height whatever its padding
@@ -208,14 +225,22 @@ tr.row-muted:hover td{opacity:1;}
    stacked an ember gradient under a red halo that grew on hover; a saturated
    shadow is the loudest machine-generated tell there is, and it made every
    primary button look like it was glowing at the user. */
-.btn-primary{background:var(--accent);color:#fff;box-shadow:var(--e1);}
-.btn-primary:hover:not(:disabled){background:var(--red-700);box-shadow:var(--e2);}
-.btn-primary:active:not(:disabled){background:var(--red-800);box-shadow:none;}
-.btn-outline{background:transparent;border-color:var(--line-strong);color:var(--ink);}
+.btn-primary{background:var(--accent);color:#fff;
+  box-shadow:0 1px 2px rgba(137,11,40,.24),0 4px 12px -2px rgba(137,11,40,.28);}
+.btn-primary:hover:not(:disabled){background:var(--red-700);
+  box-shadow:0 2px 4px rgba(137,11,40,.26),0 8px 20px -4px rgba(137,11,40,.34);}
+.btn-primary:active:not(:disabled){background:var(--red-800);
+  box-shadow:0 1px 2px rgba(137,11,40,.3);}
+/* The outline button sits on cards AND on the page ground, so it takes a
+   surface of its own rather than `transparent` — on the tinted ground a
+   transparent button with a hairline read as an empty slot. */
+.btn-outline{background:var(--surface);border-color:var(--line-strong);color:var(--ink);
+  box-shadow:var(--e1);}
 .btn-outline:hover:not(:disabled){
-  border-color:var(--accent);color:var(--accent);background:var(--accent-wash);}
+  border-color:var(--accent);color:var(--accent);background:var(--accent-wash);
+  box-shadow:var(--e2);}
 .btn-ghost{background:transparent;color:var(--ink-2);}
-.btn-ghost:hover:not(:disabled){background:var(--ground);color:var(--ink);}
+.btn-ghost:hover:not(:disabled){background:var(--sunken);color:var(--ink);}
 /* Destructive actions are a deep maroon, nineteen lightness points below the
    brand. In a panel whose brand IS red they cannot also be brand red, or "Erase
    all data" and "Save pricing" are the same button. */
@@ -242,14 +267,14 @@ tr.row-muted:hover td{opacity:1;}
    table row, and at 40px they set the row height for the whole roster. The
    mobile card-fold bumps them to a proper touch target — see responsive.css. */
 .aicon{
-  width:32px;height:32px;border-radius:var(--r-xs);display:inline-flex;align-items:center;
-  justify-content:center;cursor:pointer;border:1px solid transparent;background:var(--ground);
+  width:32px;height:32px;border-radius:var(--r-sm);display:inline-flex;align-items:center;
+  justify-content:center;cursor:pointer;border:1px solid transparent;background:var(--sunken);
   color:var(--ink-2);flex-shrink:0;
   transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
              transform var(--d-instant) var(--ease);
 }
 .aicon .ic{width:18px;height:18px;}
-.aicon:hover{background:var(--sunken);color:var(--ink);}
+.aicon:hover{background:var(--line);color:var(--ink);}
 .aicon:active{transform:scale(.92);}
 .ai-v:hover{background:var(--info-tint);color:var(--info-ink);}
 .ai-e:hover{background:var(--success-tint);color:var(--success-ink);}
@@ -275,8 +300,9 @@ tr.row-muted:hover td{opacity:1;}
   width:100%;min-height:var(--h-control);
   padding:var(--pad-input-y) var(--pad-input-x);
   background:var(--surface);color:var(--ink);
-  border:1px solid var(--line-strong);border-radius:var(--r-sm);
+  border:1px solid var(--line);border-radius:var(--r-sm);
   font-size:var(--fs-body);line-height:1.3;outline:none;
+  box-shadow:inset 0 1px 2px rgba(74,48,58,.04);
   transition:border-color var(--d-fast) var(--ease),box-shadow var(--d-fast) var(--ease);
 }
 .fg input::placeholder,.fr input::placeholder,.fr textarea::placeholder{color:var(--ink-4);}
@@ -314,7 +340,7 @@ tr.row-muted:hover td{opacity:1;}
    it honours, and without them a dark-theme list renders as black text on white
    while the closed control is light-on-dark. */
 select option{background:var(--surface);color:var(--ink);}
-select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--ground);}
+select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--sunken);}
 
 /* ── Date input ───────────────────────────────────────────────────────
    Chrome renders a bare, low-contrast calendar glyph flush against the border.
@@ -337,9 +363,9 @@ select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--ground);}
   display:flex;align-items:center;gap:var(--gap-inline);
   min-height:var(--h-control);
   background:var(--surface);color:var(--ink-3);
-  border:1px solid var(--line-strong);border-radius:var(--r-md);
+  border:1px solid transparent;border-radius:var(--r-full);
   padding:var(--pad-input-y) var(--pad-input-x);
-  margin-bottom:var(--gap-field);width:min(420px,100%);box-shadow:var(--e1);
+  margin-bottom:var(--gap-field);width:min(420px,100%);box-shadow:var(--ring),var(--e1);
   transition:border-color var(--d-fast) var(--ease),box-shadow var(--d-fast) var(--ease);
 }
 .srch:focus-within{border-color:var(--accent);box-shadow:var(--focus-ring);}
@@ -356,16 +382,20 @@ select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--ground);}
    On phones this was a horizontally scrolling strip that hid whole filters off
    the right edge behind a scrollbar nobody notices. Below 720px it becomes a
    wrapping grid — every filter visible at once. See responsive.css. */
+/* A true pill track. The segmented control is the most-touched thing on
+   Orders and Shop & Deliver, and at --r-md with a hairline border it read as a
+   toolbar; fully rounded with the selection lifted out of it on a white pill,
+   it reads as a control you can push. */
 .tabs{
   display:flex;gap:var(--sp-1);background:var(--sunken);
-  border:1px solid var(--line);border-radius:var(--r-md);
+  border-radius:var(--r-full);
   padding:var(--sp-1);margin-bottom:var(--gap-field);width:fit-content;max-width:100%;
-  box-shadow:inset 0 1px 2px rgba(31,25,28,.04);
+  box-shadow:inset 0 1px 2px rgba(74,48,58,.05),var(--ring);
 }
 [data-theme="dark"] .tabs{box-shadow:inset 0 1px 2px rgba(0,0,0,.35);}
 .tab{
   display:flex;align-items:center;gap:var(--gap-inline);
-  padding:var(--sp-2) var(--sp-4);border-radius:var(--r-sm);
+  padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);
   font-size:var(--fs-dense);font-weight:500;cursor:pointer;color:var(--ink-2);
   user-select:none;white-space:nowrap;
   transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
@@ -374,7 +404,8 @@ select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--ground);}
 .tab:hover{color:var(--ink);background:rgba(51,41,46,.05);}
 [data-theme="dark"] .tab:hover{background:rgba(255,255,255,.05);}
 .tab.active{
-  background:var(--surface);color:var(--accent);font-weight:600;box-shadow:var(--e1);
+  background:var(--surface);color:var(--accent);font-weight:600;
+  box-shadow:var(--ring),var(--e1),var(--lip);
 }
 [data-theme="dark"] .tab.active{box-shadow:0 2px 6px rgba(0,0,0,.4);}
 .tab.active:hover{background:var(--surface);}
@@ -389,11 +420,11 @@ select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--ground);}
 /* Period selector — same track, but the selection is a flat brand fill rather
    than a raised pill, because this control chooses what the numbers below it
    MEAN rather than which subset of a list is shown. */
-.pbs{display:flex;gap:var(--sp-1);background:var(--sunken);border:1px solid var(--line);
-  border-radius:var(--r-md);padding:var(--sp-1);width:fit-content;max-width:100%;
-  box-shadow:inset 0 1px 2px rgba(31,25,28,.04);}
+.pbs{display:flex;gap:var(--sp-1);background:var(--sunken);
+  border-radius:var(--r-full);padding:var(--sp-1);width:fit-content;max-width:100%;
+  box-shadow:inset 0 1px 2px rgba(74,48,58,.05),var(--ring);}
 [data-theme="dark"] .pbs{box-shadow:inset 0 1px 2px rgba(0,0,0,.35);}
-.pb{padding:var(--sp-2) var(--sp-4);border-radius:var(--r-sm);
+.pb{padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);
   font-size:var(--fs-dense);font-weight:500;cursor:pointer;
   border:1px solid transparent;background:transparent;color:var(--ink-2);white-space:nowrap;
   transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease);}
@@ -501,7 +532,7 @@ label.up-drop{
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:var(--sp-1); min-height:112px; padding:var(--sp-4); margin-bottom:0;
   border:1.5px dashed var(--line-strong); border-radius:var(--r-sm);
-  background:var(--ground); cursor:pointer; text-align:center;
+  background:var(--sunken); cursor:pointer; text-align:center;
   text-transform:none; letter-spacing:normal;
   transition:border-color var(--d-fast) var(--ease), background var(--d-fast) var(--ease);
 }
@@ -573,8 +604,8 @@ label.up-drop{
    so "Driver app sign-in" is visibly a different kind of information from
    "Vehicle Model". */
 .fset{
-  border:1px solid var(--line); border-radius:var(--r-md);
-  padding:var(--sp-4); margin-bottom:var(--gap-field); background:var(--ground);
+  box-shadow:var(--ring); border-radius:var(--r-md);
+  padding:var(--sp-4); margin-bottom:var(--gap-field); background:var(--sunken);
 }
 .fset>.fr:last-child,.fset>.mg:last-child>.fr{margin-bottom:0;}
 .fset-title{

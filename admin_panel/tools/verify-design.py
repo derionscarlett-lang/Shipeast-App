@@ -202,6 +202,12 @@ def gate_contrast() -> None:
         ('secondary ink / card', L['--n-600'],  L['--n-0'],      7.0,  9.0),
         ('tertiary ink / card',  L['--n-500'],  L['--n-0'],      4.5,  6.0),
         ('tertiary ink / band',  L['--n-500'],  L['--n-100'],    4.5,  6.0),
+        # The 2026 ground (--n-50) is a real tint, not near-white, and the
+        # topbar sits directly on it — so the breadcrumb, the date and every
+        # page title are ink ON THE GROUND. These two are what stop anyone
+        # deepening it further "just a little" until the chrome fails AA.
+        ('primary ink / ground', L['--n-800'],  L['--n-50'],    10.0, 14.6),
+        ('tertiary ink / ground', L['--n-500'], L['--n-50'],     4.5,  6.0),
         ('disabled ink / card',  L['--n-400'],  L['--n-0'],      3.0,  4.0),
         ('white / action red',   '#FFFFFF',     L['--red-600'],  4.5, 99),
         ('action red / card',    L['--red-600'], L['--n-0'],     4.5, 99),

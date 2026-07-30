@@ -59,10 +59,10 @@
 .lc{
   position:relative;
   background:var(--surface);
-  border-radius:var(--r-lg);
+  border-radius:var(--r-xl);
   padding:var(--sp-7) var(--sp-7) var(--sp-6);
   width:min(444px,100%);
-  box-shadow:var(--e4),0 0 0 1px rgba(31,25,28,.06);
+  box-shadow:var(--e4),var(--ring);
   animation:rise var(--d-slow) var(--ease-in) both;
   /* Clips the hairline below to the card's own corners. A 2px-tall box cannot
      hold an 18px radius — the browser scales the corner down to fit, so the
@@ -154,7 +154,7 @@
   transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease);
 }
 .lf-eye .ic{width:18px;height:18px;}
-.lf-eye:hover{background:var(--ground);color:var(--ink);}
+.lf-eye:hover{background:var(--sunken);color:var(--ink);}
 .lf-eye[aria-pressed="true"]{color:var(--accent);}
 
 /* Matches SeButton's `large` size across the two Flutter apps. Written as
@@ -201,69 +201,88 @@
 
 /* ─────────────── SHELL ─────────────── */
 #app{display:none;min-height:100vh;overflow-x:clip;}
+
+/* A FLOATING RAIL, not a full-bleed slab.
+   Insetting it on all four sides and rounding it is the single change that
+   does most of the work here: the sidebar stops being a wall the page is
+   pinned against and becomes another card in the same material as the
+   content. The ground shows through above, below and to the left of it,
+   which is what gives the whole layout air.
+
+   `inset` sets top/bottom/left, so the height falls out of the viewport
+   rather than being pinned at 100vh — the old fixed height plus a 100vh
+   #app was the reason the rail ran a hair past the fold on iOS. */
 .sidebar{
-  width:var(--sidebar-w);background:var(--shell);position:fixed;inset:0 auto 0 0;
-  height:100vh;display:flex;flex-direction:column;z-index:100;
+  width:var(--sidebar-w);background:var(--shell);
+  position:fixed;inset:var(--sidebar-gap) auto var(--sidebar-gap) var(--sidebar-gap);
+  border-radius:var(--r-lg);
+  box-shadow:var(--ring),var(--e2),var(--lip);
+  display:flex;flex-direction:column;z-index:100;overflow:hidden;
   transition:width var(--d-base) var(--ease),transform var(--d-base) var(--ease);
 }
 /* The desktop hamburger fully hides the sidebar and lets the content take the
    full width — a partial 72px icon rail read as a "half sidebar" and looked
-   broken. The rail-specific rules below now only ever apply to an off-screen
-   element, so they are harmless. */
-.sidebar.collapsed{transform:translateX(-100%);}
-.sb-logo{padding:var(--sp-6) var(--sp-5) var(--sp-5);
-  border-bottom:1px solid rgba(251,249,249,.08);
+   broken. It must travel its own width PLUS the gap it is inset by, or the
+   rail parks with a 12px sliver still on screen. */
+.sidebar.collapsed{transform:translateX(calc(-100% - var(--sidebar-gap)));}
+
+.sb-logo{padding:var(--sp-5) var(--sp-4) var(--sp-4);
   overflow:hidden;white-space:nowrap;display:flex;align-items:center;
   gap:var(--sp-3);min-height:72px;}
-.sb-mark{display:none;flex-shrink:0;width:40px;height:40px;border-radius:var(--r-sm);
-  background:var(--accent);color:#fff;align-items:center;justify-content:center;
+/* The mark is no longer collapsed-only decoration — it is the brand anchor at
+   the top of a now-white rail, which would otherwise open with nothing but
+   text. Identity red, because it is a large fill carrying a 15px glyph, not
+   small print. */
+.sb-mark{display:flex;flex-shrink:0;width:40px;height:40px;border-radius:var(--r-sm);
+  background:var(--accent-quiet);color:#fff;align-items:center;justify-content:center;
   font-family:var(--ff-display);font-weight:700;font-size:var(--fs-body-lg);
-  letter-spacing:var(--tr-display);}
+  letter-spacing:var(--tr-display);box-shadow:var(--e1);}
 .sb-word{min-width:0;}
-.sb-logo .slt{font-family:var(--ff-display);font-size:var(--fs-h3);font-weight:700;
-  letter-spacing:var(--tr-display);color:var(--n-50);}
-/* --red-400, not --red-500: on the near-black sidebar the identity red reaches
-   only ~4.4:1 while the lighter step reads at 6.3:1. */
-.sb-logo .slt span{color:var(--red-400);}
-.sb-logo .sls{font-size:var(--fs-micro);color:rgba(251,249,249,.42);
+.sb-logo .slt{font-family:var(--ff-display);font-size:var(--fs-title);font-weight:700;
+  letter-spacing:var(--tr-display);color:var(--ink);}
+/* Themed: --accent-ink is --red-700 on light (6.2:1 on white) and --red-400 on
+   dark (5.4:1 on the dark rail). The old hardcoded --red-400 was chosen for a
+   near-black sidebar and would sit at 2.7:1 on a white one. */
+.sb-logo .slt span{color:var(--accent-ink);}
+.sb-logo .sls{font-size:var(--fs-micro);color:var(--shell-ink-dim);
   letter-spacing:var(--tr-micro);text-transform:uppercase;font-weight:600;
   margin-top:var(--sp-half);}
-/* Collapsed rail: swap the clip-prone wordmark for a compact SE mark. */
+/* Collapsed rail: drop the wordmark, keep the mark centred. */
 .sidebar.collapsed .sb-logo{justify-content:center;padding:var(--sp-5) 0;gap:0;}
 .sidebar.collapsed .sb-word{display:none;}
-.sidebar.collapsed .sb-mark{display:flex;}
-.sb-nav{flex:1;padding:var(--sp-3) 0;overflow-y:auto;overflow-x:hidden;}
-.sb-sec{padding:var(--sp-4) var(--sp-5) var(--sp-2);
+
+.sb-nav{flex:1;padding:0 var(--sp-3) var(--sp-3);overflow-y:auto;overflow-x:hidden;}
+.sb-sec{padding:var(--sp-4) var(--sp-3) var(--sp-2);
   font-size:var(--fs-micro);font-weight:600;letter-spacing:var(--tr-micro);
-  text-transform:uppercase;color:rgba(251,249,249,.40);white-space:nowrap;}
+  text-transform:uppercase;color:var(--shell-ink-dim);white-space:nowrap;}
 .sidebar.collapsed .sb-sec{opacity:0;height:var(--sp-6);padding:var(--sp-2) 0;}
+
+/* Nav items are PILLS inset from the rail's edge, not full-width strips with a
+   3px rail bolted to the left. The rail-and-tinted-strip pattern is the most
+   recognisable dated-admin shape there is, and it was being repeated on the
+   stat cards and the toast as well. "You are here" is now carried by the pill
+   itself: a filled brand wash, the label at full ink weight, and the icon
+   switching to its solid variant. Three signals, no furniture. */
 .ni{
   position:relative;display:flex;align-items:center;gap:var(--sp-3);
-  padding:var(--sp-3) var(--sp-5);cursor:pointer;color:rgba(251,249,249,.64);
+  padding:var(--sp-2) var(--sp-3);margin-bottom:var(--sp-half);
+  border-radius:var(--r-sm);
+  cursor:pointer;color:var(--shell-ink);
   font-size:var(--fs-body);font-weight:500;white-space:nowrap;user-select:none;
   transition:color var(--d-fast) var(--ease),background var(--d-fast) var(--ease);
 }
-/* Left rail on the active item. This is one of the two places the accent rail
-   survives — it encodes "you are here", which is information, not decoration. */
-.ni::before{
-  content:'';position:absolute;left:0;top:var(--sp-2);bottom:var(--sp-2);
-  width:3px;border-radius:0 3px 3px 0;
-  background:var(--accent-quiet);transform:scaleY(0);transform-origin:center;
-  transition:transform var(--d-base) var(--ease);
-}
-.ni:hover{background:rgba(255,255,255,.05);color:var(--n-50);}
-.ni.active{background:rgba(250,87,117,.14);color:var(--n-50);}
-.ni.active::before{transform:scaleY(1);}
+.ni:hover{background:var(--shell-hover);color:var(--ink);}
+.ni.active{background:var(--accent-wash);color:var(--accent-ink);font-weight:600;}
+.ni.active:hover{background:var(--accent-wash);}
 .ni .ic{color:inherit;}
 .ni .ni-fill{display:none;}
 .ni.active .ni-fill{display:block;}
 .ni.active .ni-line{display:none;}
-.ni.active .ic{color:var(--red-400);}
 .ni .lbl{transition:opacity var(--d-fast) var(--ease);}
 .sidebar.collapsed .lbl,.sidebar.collapsed .sls{opacity:0;pointer-events:none;}
-.sidebar.collapsed .ni{justify-content:center;padding:var(--sp-3) 0;}
-.ndiv{height:1px;background:rgba(251,249,249,.08);margin:var(--sp-2) var(--sp-5);}
-.sidebar.collapsed .ndiv{margin:var(--sp-2) var(--sp-3);}
+.sidebar.collapsed .ni{justify-content:center;padding:var(--sp-2) 0;}
+.ndiv{height:1px;background:var(--shell-line);margin:var(--sp-3) var(--sp-2);}
+.sidebar.collapsed .ndiv{margin:var(--sp-3) var(--sp-2);}
 /* Unseen-count badge on a nav item. Sits at the far right of the row; on the
    collapsed rail it shrinks to a corner dot since the label is hidden. The
    coloured halo ring is gone — it was the same neon-flare treatment as the old
@@ -283,28 +302,47 @@
   min-width:9px;width:9px;height:9px;
   padding:0;border-radius:50%;font-size:0;box-shadow:0 0 0 2px var(--shell);
 }
-.main{margin-left:var(--sidebar-w);display:flex;flex-direction:column;
+/* The rail is inset on the left AND casts to the right, so the content has to
+   clear its own width plus both gaps or the shadow lands under the first card. */
+.main{margin-left:calc(var(--sidebar-w) + var(--sidebar-gap) * 2);
+  display:flex;flex-direction:column;
   min-height:100vh;min-width:0;
   overflow-x:clip;transition:margin-left var(--d-base) var(--ease);}
 .main.expanded{margin-left:0;}
 
 /* ─────────────── TOPBAR ─────────────── */
+/* Frosted, borderless, and the same colour as the page. It used to be a white
+   bar with a hairline under it, which drew a hard horizontal line across the
+   top of every screen and boxed the content in — the classic dashboard-chrome
+   silhouette. Now it simply IS the top of the page, and the only reason you
+   can tell it is sticky is that content blurs as it passes beneath.
+
+   The blur needs a translucent background to act on, hence --glass; the
+   fallback below it is the opaque ground, so a browser without
+   backdrop-filter still gets a legible bar rather than see-through text. */
 .topbar{
-  background:var(--surface);min-height:var(--h-topbar);padding:0 var(--sp-6);
+  background:var(--ground);background:var(--glass);
+  -webkit-backdrop-filter:blur(16px) saturate(180%);
+  backdrop-filter:blur(16px) saturate(180%);
+  min-height:var(--h-topbar);padding:0 var(--pad-page-x);
   display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);
-  border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50;
+  position:sticky;top:0;z-index:50;
 }
 .tb-l{display:flex;align-items:center;gap:var(--sp-4);min-width:0;}
+/* Icon buttons in the topbar sit on the ground rather than on a white bar, so
+   they take a surface of their own to read as controls — a bare glyph floating
+   on the page background reads as an icon, not a button. */
 .iconbtn{
   width:var(--h-control);height:var(--h-control);
   display:inline-flex;align-items:center;justify-content:center;
-  cursor:pointer;background:transparent;border:none;border-radius:var(--r-sm);
-  color:var(--ink-2);flex-shrink:0;
+  cursor:pointer;background:var(--surface);border:none;border-radius:var(--r-sm);
+  color:var(--ink-2);flex-shrink:0;box-shadow:var(--ring),var(--e1);
   transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
+             box-shadow var(--d-fast) var(--ease),
              transform var(--d-instant) var(--ease);
 }
-.iconbtn:hover{background:var(--sunken);color:var(--ink);}
-.iconbtn:active{transform:scale(.94);}
+.iconbtn:hover{color:var(--ink);box-shadow:var(--ring-strong),var(--e2);}
+.iconbtn:active{transform:scale(.94);box-shadow:var(--ring),none;}
 /* The topbar's only page label — the page name used to be printed here, again
    underneath as a second heading, and a third time in .pg-title. It must not
    wrap, or a two-line crumb pushes the bar out of shape on "Shop & Deliver
@@ -318,8 +356,11 @@
 .tb-bc .ic{width:12px;height:12px;flex-shrink:0;}
 .tb-r{display:flex;align-items:center;gap:var(--sp-3);flex-shrink:0;}
 .tb-date{font-size:var(--fs-caption);color:var(--ink-3);font-weight:500;}
-.ab{display:flex;align-items:center;gap:var(--gap-inline);background:var(--ground);
-  border:1px solid var(--line);
+/* Was --ground with a hairline border — which is now the exact colour of the
+   topbar behind it, so the pill vanished. It takes a surface and a ring, like
+   every other control up here. */
+.ab{display:flex;align-items:center;gap:var(--gap-inline);background:var(--surface);
+  box-shadow:var(--ring),var(--e1);
   padding:var(--gap-tight) var(--sp-3) var(--gap-tight) var(--gap-tight);
   border-radius:var(--r-full);}
 /* Deliberately NOT brand red: the only red dot in this corner should be the
@@ -350,8 +391,8 @@
 }
 .bell-menu{
   position:absolute;top:calc(100% + 8px);right:0;width:308px;max-width:calc(100vw - 32px);
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);
-  box-shadow:var(--e3);z-index:60;overflow:hidden;
+  background:var(--surface);border-radius:var(--r-lg);
+  box-shadow:var(--ring),var(--e3),var(--lip);z-index:60;overflow:hidden;
   opacity:0;visibility:hidden;transform:translateY(-6px);
   transition:opacity var(--d-fast) var(--ease),transform var(--d-fast) var(--ease),
              visibility var(--d-fast) var(--ease);
@@ -370,7 +411,7 @@
   border-bottom:1px solid var(--line);
   cursor:pointer;color:var(--ink);transition:background var(--d-fast) var(--ease);}
 .bell-item:last-child{border-bottom:none;}
-.bell-item:hover{background:var(--ground);}
+.bell-item:hover{background:var(--accent-wash);}
 .bell-dot{width:9px;height:9px;border-radius:50%;background:var(--accent-quiet);flex-shrink:0;}
 .bell-dot[data-tone="warning"]{background:var(--warning);}
 .bell-dot[data-tone="info"]{background:var(--info);}
@@ -392,7 +433,7 @@
 .page{display:none;}
 .page.active{display:block;animation:fadeThrough var(--d-base) var(--ease-in);}
 .pg-hdr{display:flex;justify-content:space-between;align-items:center;gap:var(--sp-4);
-  flex-wrap:wrap;margin-bottom:var(--gap-section);}
+  flex-wrap:wrap;margin-bottom:var(--sp-5);}
 /* Bare text on the page background, deliberately. This used to sit in a tinted
    band with a border and a red left rail — but a rail on a rounded tinted panel
    is the most recognisable machine-generated pattern in the file, and the panel
@@ -402,19 +443,29 @@
    The size is fluid rather than stepped: a fixed 24px turned "Shop & Deliver
    Requests" into three cramped lines on a phone, and clamp() lets the longest
    title in the panel settle without a per-page override. */
+/* THE loudest thing on the page, finally. At clamp(20→24) it was the same
+   weight as a card title two inches below it, so no screen had an obvious
+   place to start reading — "no bold headings" was a fair description of a
+   panel whose largest text was 24px.
+
+   34px at -.032em tracking is a real display setting: big enough to anchor
+   the page, tight enough not to sprawl. The floor stays at 24px so "Shop &
+   Deliver Requests" still lands on two lines rather than four on a phone. */
 .pg-title{
   font-family:var(--ff-display);
-  font-size:clamp(20px,1.1rem + .9vw,24px);
-  line-height:var(--lh-h2);font-weight:700;letter-spacing:var(--tr-display);
+  font-size:clamp(24px,1.15rem + 1.6vw,34px);
+  line-height:var(--lh-hero);font-weight:700;letter-spacing:var(--tr-hero);
   color:var(--ink);min-width:0;text-wrap:balance;
 }
 
 /* ─────────────── MODAL ─────────────── */
 .mbg{position:fixed;inset:0;background:var(--veil);z-index:600;display:none;
-  align-items:center;justify-content:center;padding:var(--sp-4);backdrop-filter:blur(2px);}
+  align-items:center;justify-content:center;padding:var(--sp-4);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}
 .mbg.open{display:flex;animation:fade var(--d-fast) var(--ease-in);}
-.mbox{background:var(--surface);border-radius:var(--r-lg);padding:var(--sp-6);width:520px;
-  max-width:100%;max-height:92vh;overflow-y:auto;box-shadow:var(--e4);
+.mbox{background:var(--surface);border-radius:var(--r-xl);padding:var(--sp-6);width:520px;
+  max-width:100%;max-height:92vh;overflow-y:auto;
+  box-shadow:var(--ring),var(--e4),var(--lip);
   animation:rise var(--d-base) var(--ease-in);}
 .mbox.wide{width:620px;}
 .mbox.narrow{width:420px;}
@@ -433,9 +484,16 @@
 #sp-overlay{position:fixed;inset:0;background:var(--veil);z-index:200;opacity:0;
   pointer-events:none;transition:opacity var(--d-base) var(--ease);}
 #sp-overlay.open{opacity:1;pointer-events:auto;}
-.spanel{position:fixed;right:0;top:0;height:100vh;width:min(440px,100%);
-  background:var(--surface);
-  box-shadow:var(--e4);z-index:201;transform:translateX(100%);
+/* Inset and rounded, matching the sidebar it mirrors on the other edge. A
+   full-bleed drawer welded to the viewport edge is the last piece of the old
+   chrome silhouette; floating it keeps the panel in the same material as
+   everything else and lets the scrim read around all four sides. */
+.spanel{position:fixed;
+  inset:var(--sidebar-gap) var(--sidebar-gap) var(--sidebar-gap) auto;
+  width:min(440px,calc(100% - var(--sp-6)));
+  background:var(--surface);border-radius:var(--r-lg);overflow:hidden;
+  box-shadow:var(--ring),var(--e4),var(--lip);z-index:201;
+  transform:translateX(calc(100% + var(--sidebar-gap)));
   transition:transform var(--d-slow) var(--ease);display:flex;flex-direction:column;}
 .spanel.open{transform:translateX(0);}
 .sp-hd{padding:var(--sp-5);border-bottom:1px solid var(--line);display:flex;
@@ -459,7 +517,7 @@
 .sp-proof{display:block;border-radius:var(--r-md);overflow:hidden;
   border:1px solid var(--line);}
 .sp-proof img{display:block;width:100%;height:auto;max-height:280px;object-fit:cover;
-  background:var(--ground);}
+  background:var(--sunken);}
 .sp-proof:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 .sp-lbl{font-size:var(--fs-dense);color:var(--ink-2);flex-shrink:0;}
 .sp-val{font-size:var(--fs-dense);font-weight:500;color:var(--ink);text-align:right;
@@ -507,9 +565,9 @@
   width:min(420px,calc(100% - 32px));}
 .toast{
   display:flex;align-items:flex-start;gap:var(--sp-3);background:var(--surface);
-  border:1px solid var(--line);border-radius:var(--r-sm);
+  border-radius:var(--r-md);
   padding:var(--sp-3) var(--sp-4) var(--sp-3) 0;
-  box-shadow:var(--e3);pointer-events:auto;overflow:hidden;position:relative;
+  box-shadow:var(--ring),var(--e3),var(--lip);pointer-events:auto;overflow:hidden;position:relative;
   animation:toastIn var(--d-base) var(--ease-in);
 }
 .toast.out{animation:toastOut var(--d-fast) var(--ease-out) forwards;}
