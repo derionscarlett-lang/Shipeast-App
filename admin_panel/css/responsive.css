@@ -29,6 +29,11 @@
 @media(max-width:1100px){
   .ag{grid-template-columns:1fr;}
   .nl,.pl{grid-template-columns:1fr;}
+  /* Merchants goes two-up here rather than three. Below 1100 the sidebar is
+     still 260px of the window, so a third column would put each card under
+     200px — narrower than the four-up desktop case it was sized for, on a
+     screen with MORE room per card than a phone. Two is the honest step. */
+  .mgrid{grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 
 /* ─────────────── SIDEBAR BECOMES A DRAWER (≤900px) ───────────────
@@ -130,6 +135,17 @@
   .sc-chip{width:38px;height:38px;border-radius:var(--r-sm);}
   .sc-chip .ic{width:20px;height:20px;}
   .spark{height:20px;}
+
+  /* ── Merchant cards: one up ──
+     Two 170px cards side by side on a 390pt phone is the table problem again
+     in a different frame — the cover becomes a strip, the name takes three
+     lines and the footer controls wrap under themselves. One card per row is
+     the width the whole build was drawn for. */
+  .mgrid{grid-template-columns:minmax(0,1fr);gap:var(--sp-4);}
+  /* Wide again, so the cover stops being the tallest thing on screen: at
+     2:1 a full-width card on a 390pt phone would open with a 179px band
+     before a single word of the record. */
+  .mcd-cover{aspect-ratio:5/2;}
 
   /* ── Filter bars: wrap, never scroll ──
      These were horizontally scrolling strips, so "Cancelled" on Orders and

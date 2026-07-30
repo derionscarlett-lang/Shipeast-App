@@ -315,6 +315,23 @@ function merchantMedia(m,size){
     'onerror="this.outerHTML=this.dataset.fb" data-fb="'+esc(catIcon(m.category,size))+'">';
   return catIcon(m.category,size);
 }
+/* The merchant-card cover — the same photo as merchantMedia, but as a band
+   rather than a chip.
+   Covers are uploaded through mountMerchantUploader at 1000×500, so 2:1 is the
+   asset's real shape and the image is never cropped by the frame it is put in.
+   That is also the answer to "the images look too circular": a 42px tile at a
+   16px radius is 38% round, which is a plate, and a plate is the right shape
+   for a GLYPH. A photograph wants an edge.
+   With no photo the band takes the category's own tint and glyph, so a merchant
+   without a cover still reads as a merchant of some particular kind rather than
+   as a hole in the grid. */
+function merchantCover(m){
+  var c=CATS[m.category]||{ic:'merchants',cls:'c-other'},
+      fb='<div class="mcd-fb '+c.cls+'">'+icon(c.ic)+'</div>';
+  if(!m.imageUrl) return fb;
+  return '<img class="mcd-img" src="'+esc(m.imageUrl)+'" alt="" '+
+    'onerror="this.outerHTML=this.dataset.fb" data-fb="'+esc(fb)+'">';
+}
 
 // ══════════════════════ THEME ══════════════════════
 function applyTheme(theme){
@@ -2270,31 +2287,82 @@ function renderMerchantStats(){
     statCard('check','Open Now',openC,'Accepting orders','success')+
     statCard('clock','Closed',merchants.length-openC,'Not accepting','warning');
 }
+/* The loading state has to be card-shaped too. skeletonRows() draws <tr>s, so
+   reusing it here would have put a table inside a grid; the .sk blocks and the
+   pulse are the same tokens, only the frame differs. Eight, because that is two
+   full rows at the desktop four-up and the grid should not visibly reflow when
+   the real data lands. */
+function merchantSkeletons(n){
+  var out='';
+  for(var i=0;i<(n||8);i++){
+    out+='<div class="mcd mcd-sk">'+
+      '<div class="mcd-cover"><div class="sk"></div></div>'+
+      '<div class="mcd-body">'+
+        '<div class="sk sk-line" style="width:64%"></div>'+
+        '<div class="sk sk-pill" style="width:38%"></div>'+
+        '<div class="sk sk-line" style="width:78%"></div>'+
+        '<div class="sk sk-line" style="width:56%"></div>'+
+      '</div></div>';
+  }
+  return out;
+}
 function renderMerchants(){
   renderMerchantStats();
-  var tbody=$('merchants-tbody'); if(!tbody) return;
-  if(!loadedOnce.merchants){ tbody.innerHTML=skeletonRows(9,5); return; }
+  var grid=$('merchants-grid'); if(!grid) return;
+  if(!loadedOnce.merchants){ grid.innerHTML=merchantSkeletons(8); return; }
   if(!merchants.length){
-    tbody.innerHTML=emptyRow(9,'store','No merchants yet','Add a restaurant, grocer, or pharmacy to start taking orders.');
+    // The empty state gets a card of its own to sit in — the grid itself has
+    // no surface, so without one the illustration would float on the page
+    // ground with nothing holding it.
+    grid.innerHTML='<div class="card mgrid-full">'+
+      emptyState('store','No merchants yet',
+        'Add a restaurant, grocer, or pharmacy to start taking orders.')+'</div>';
     return;
   }
-  tbody.innerHTML=merchants.map(function(m){
-    return '<tr>'+
-      '<td><div class="cell-media">'+merchantMedia(m)+'<b>'+esc(m.name)+'</b></div></td>'+
-      '<td><span class="bdg bg-info plain">'+esc(m.category)+'</span></td>'+
-      '<td class="cell-mute num">'+esc(m.phone)+'</td>'+
-      '<td class="cell-mute cell-addr">'+esc(m.address)+'</td>'+
-      '<td class="right cell-id">'+ordersTodayFor(m.id)+'</td>'+
-      '<td>'+starsOrNone(m.rating,m.ratingCount)+'</td>'+
-      '<td>'+badge(m.open?'Open':'Closed')+'</td>'+
-      '<td><label class="tgl" title="Toggle open"><input type="checkbox"'+(m.open?' checked':'')+
-        ' class="tgl-merchant" data-id="'+esc(m.id)+'" aria-label="Merchant open"><span class="ts"></span></label></td>'+
-      '<td><div class="cell-actions">'+
-        '<button class="aicon ai-v" data-action="view-merchant" data-id="'+esc(m.id)+'" title="View" aria-label="View merchant">'+icon('view')+'</button>'+
-        '<button class="aicon ai-e" data-action="edit-merchant" data-id="'+esc(m.id)+'" title="Edit" aria-label="Edit merchant">'+icon('edit')+'</button>'+
-        '<button class="aicon ai-d" data-action="del-merchant" data-id="'+esc(m.id)+'" title="Delete" aria-label="Delete merchant">'+icon('delete')+'</button>'+
-      '</div></td>'+
-    '</tr>';
+  grid.innerHTML=merchants.map(function(m){
+    var id=esc(m.id),open=!!m.open;
+    return '<article class="mcd">'+
+      // ── Cover. The state badge rides on the photo rather than sitting in
+      //    the body: open/closed is the fact you scan a grid FOR, and up here
+      //    it is in the same place on all four cards in a row.
+      '<div class="mcd-cover">'+merchantCover(m)+
+        '<div class="mcd-state">'+badge(open?'Open':'Closed')+'</div>'+
+      '</div>'+
+      '<div class="mcd-body">'+
+        '<div class="mcd-id">'+
+          '<h3 class="mcd-name" title="'+esc(m.name)+'">'+esc(m.name)+'</h3>'+
+          '<span class="bdg bg-info plain bdg-cap mcd-cat">'+esc(m.category)+'</span>'+
+        '</div>'+
+        // ── Contact. Glyph-led, because a card has no column header to name
+        //    the value and two uppercase captions would cost two more lines.
+        '<div class="mcd-meta">'+
+          '<div class="mcd-line">'+icon('phone','ic-xs')+'<span class="num">'+esc(m.phone)+'</span></div>'+
+          '<div class="mcd-line">'+icon('map-pin','ic-xs')+'<span class="mcd-addr">'+esc(m.address)+'</span></div>'+
+        '</div>'+
+        '<div class="mcd-stats">'+
+          '<div class="mcd-row"><span class="mcd-k">Orders Today</span>'+
+            '<span class="mcd-v num">'+ordersTodayFor(m.id)+'</span></div>'+
+          '<div class="mcd-row"><span class="mcd-k">Rating</span>'+
+            '<span class="mcd-v">'+starsOrNone(m.rating,m.ratingCount)+'</span></div>'+
+          // The switch takes the same label→control row as the two readouts
+          // above it. It is the one control in the panel that writes to
+          // Firestore on a single click with no confirmation, so it says what
+          // it does in words instead of relying on a title attribute — and the
+          // words never change, because the STATE is the badge on the cover.
+          '<div class="mcd-row"><span class="mcd-k">Accepting orders</span>'+
+            '<label class="tgl" title="Toggle open"><input type="checkbox"'+(open?' checked':'')+
+              ' class="tgl-merchant" data-id="'+id+'" aria-label="Merchant open"><span class="ts"></span></label>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="mcd-foot">'+
+        '<div class="mcd-acts">'+
+          '<button class="aicon ai-v" data-action="view-merchant" data-id="'+id+'" title="View" aria-label="View merchant">'+icon('view')+'</button>'+
+          '<button class="aicon ai-e" data-action="edit-merchant" data-id="'+id+'" title="Edit" aria-label="Edit merchant">'+icon('edit')+'</button>'+
+          '<button class="aicon ai-d" data-action="del-merchant" data-id="'+id+'" title="Delete" aria-label="Delete merchant">'+icon('delete')+'</button>'+
+        '</div>'+
+      '</div>'+
+    '</article>';
   }).join('');
 }
 /* ── Merchant cover uploader (P4-01, upload-only, inline) ─────────────
@@ -3275,7 +3343,9 @@ var MOBILE_PRIMARY={
   'orders-tbody':    [0,1,4,6],  // Order ID · Customer · Total · Status
   'dash-tbody':      [0,1,4,5],  // Order ID · Customer · Amount · Status
   'drivers-tbody':   [0,1,6],    // Name · Phone · Status
-  'merchants-tbody': [0,1,6],    // Merchant · Category · Status
+  // No 'merchants-tbody' — Merchants is a card grid, not a table, so it never
+  // needs the row-card fold. It already reads as one record per card at every
+  // width; see .mgrid in pages.css.
   'customers-tbody': [0,1,5],    // Name · Email · Status
   'overseas-tbody':  [0,1,6],    // Ref · Customer · Status
   'promos-tbody':    [0,1,5]     // Code · Discount · Status
