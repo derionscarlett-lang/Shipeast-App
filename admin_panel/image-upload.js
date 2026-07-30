@@ -242,7 +242,24 @@ export function createUploader(opts) {
     var has = !!value;
     preview.hidden = !has;
     zone.hidden = has;
-    if (has) thumb.src = value;
+    if (has) {
+      thumb.src = value;
+    } else {
+      /* Half of the "form shows the last restaurant's photo" bug. The other
+         half was CSS (`.up-preview{display:flex}` outranked the UA's
+         `[hidden]{display:none}` — fixed in styles.css), but even hidden
+         correctly, leaving the old src on the <img> meant the component still
+         held the previous merchant's image and would flash it the instant
+         anything made the preview visible again. A cleared uploader must hold
+         no bytes at all.
+
+         removeAttribute, not src=''. An empty src resolves against the document
+         URL, so the browser re-requests the PAGE as an image, fails, and paints
+         the broken-image glyph — which is precisely the broken thumbnail that
+         appeared under "Add Menu Item", where a freshly built uploader had no
+         value to begin with. */
+      thumb.removeAttribute('src');
+    }
     el.classList.toggle('up-disabled', !enabled || busy);
     input.disabled = !enabled || busy;
   }

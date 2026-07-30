@@ -4,7 +4,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,getIdTokenResult,connectAuthEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,sendPasswordResetEmail,setPersistence,inMemoryPersistence,signOut,onAuthStateChanged,getIdTokenResult,connectAuthEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,deleteDoc,writeBatch,onSnapshot,query,orderBy,limit,serverTimestamp,runTransaction,Timestamp,connectFirestoreEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{getStorage,connectStorageEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 import{getFunctions,httpsCallable,connectFunctionsEmulator}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
@@ -278,6 +278,14 @@ function starsOrNone(rating,count){
   return stars(rating);
 }
 
+/* Same rule for drivers. Their ratingCount is only null on legacy docs written
+   before it was recorded, so an existing average is trusted there and only a
+   genuinely unrated driver falls through to the empty state. */
+function driverStars(d){
+  var n=d.ratingTotal!=null?d.ratingTotal:(Number(d.rating)>0?1:0);
+  return starsOrNone(d.rating,n);
+}
+
 /* Orders placed today for a merchant, derived from the already-loaded orders
    array (SCHEMA.md §d, P3-05). The stored `ordersToday` field had no reset
    mechanism, so it showed 0 for every merchant, permanently.
@@ -356,8 +364,10 @@ function navTo(page){
   document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
   var pg=$('page-'+page); if(pg) pg.classList.add('active');
   var lbl=pageLabels[page]||page;
+  // The breadcrumb is the topbar's only page label now — the second heading
+  // that used to sit under it was the same word again (index.html .tb-bc).
   $('tb-pg').textContent=lbl;
-  $('tb-title').textContent=lbl;
+  document.title=lbl+' · ShipEast Admin';
   if(page==='analytics'){ renderBarChart(); }
   // Paints the skeleton if the first snapshot has not landed yet — otherwise
   // an admin who navigates here quickly sees an empty table and reads it as
@@ -559,7 +569,10 @@ function startListeners(){
           return {id:d.id,name:o.name||'—',phone:o.phone||'—',email:o.email||'—',
             vtype:o.vehicleType||o.vtype||'Car',vehicle:o.vehicleModel||o.vehicle||'—',
             plate:o.licencePlate||o.plate||'—',dlicence:o.licenceNumber||o.dlicence||'—',
-            rating:o.averageRating||o.rating||5.0,trips:o.totalTrips||o.trips||0,
+            // Not 5.0. A driver nobody has rated has no score, and defaulting
+            // to a perfect one made every freshly added driver look like the
+            // best on the roster (same bug as P3-05 on merchants).
+            rating:o.averageRating||o.rating||0,trips:o.totalTrips||o.trips||0,
             ratingCounts:o.ratingCounts||o.ratingBreakdown||null,
             ratingTotal:o.ratingCount!=null?o.ratingCount:null,
             status:statusLbl,rawStatus:rawStatus,approved:approved,
@@ -1200,7 +1213,7 @@ function renderDrivers(){
       '<td class="cell-mute num">'+esc(d.phone)+'</td>'+
       '<td>'+esc(d.vtype)+'</td>'+
       '<td><span class="bdg bg-neutral plain num">'+esc(d.plate)+'</span></td>'+
-      '<td>'+stars(d.rating)+'</td>'+
+      '<td>'+driverStars(d)+'</td>'+
       '<td class="right num">'+d.trips+'</td>'+
       '<td>'+badge(d.rawStatus)+'</td>'+
       '<td>'+activeCol+'</td>'+
@@ -1221,27 +1234,79 @@ function statCard(ic,label,value,sub,accent){
     (sub?'<div class="sc-sub">'+esc(sub)+'</div>':'')+'</div>';
 }
 
-function openDriverModal(mode,id){
-  driverMode=mode; driverEditId=id||null;
+/* Blank placeholders read as data in this form — an empty Vehicle Model looked
+   identical to one that genuinely says "—", which is what the mirror stores for
+   "not given". Strip the sentinel on the way into the form so the placeholder
+   shows through, and put it back on the way out. */
+function unDash(v){ return (v==null||v==='—')?'':String(v); }
+
+/** Labels, field states and helper text for whichever mode the modal is in. */
+function setDriverModalMode(mode){
+  driverMode=mode;
   var isEdit=mode==='edit';
   $('drv-modal-title').textContent=isEdit?'Edit Driver':'Add New Driver';
-  $('drv-save-btn').innerHTML=icon('check')+(isEdit?'Save Changes':'Add Driver');
-  var d=isEdit?drivers.find(function(x){ return x.id===id; }):null;
-  $('d-name').value    =d?d.name:'';
-  $('d-phone').value   =d?d.phone:'';
-  $('d-email').value   =d?d.email:'';
-  $('d-vtype').value   =d?d.vtype:'Car';
-  $('d-vehicle').value =d?d.vehicle:'';
-  $('d-plate').value   =d?d.plate:'';
-  $('d-dlicence').value=d?d.dlicence:'';
-  $('d-status').value  =d?(d.approved?'Active':'Inactive'):'Active';
-  // A new driver is always created pending — the callable ignores this field
-  // on creation, so showing it as editable would be a lie.
-  $('d-status').disabled=!isEdit;
-  $('d-status-note').hidden=isEdit;
-  $('d-email').readOnly=isEdit;   // the email IS the account key
-  if(isEdit) loadDriverLicence(id);
+  $('drv-save-btn').innerHTML=icon('check')+(isEdit?'Update':'Add Driver');
+  /* Once the driver exists, "Cancel" is a lie — there is nothing left to
+     abandon, and an admin who reads it as "undo that" will click it expecting
+     the driver to go away. */
+  $('drv-cancel-btn').textContent=isEdit?'Close':'Cancel';
+  // The email is the Auth account key. Changing it would need the Admin SDK,
+  // and letting it be typed over would silently detach the profile from the
+  // login behind it.
+  $('d-email').readOnly=isEdit;
+  $('d-email-note').textContent=isEdit
+    ? 'This is the driver\'s username in the ShipEast Driver app. It cannot be changed — it is the account key.'
+    : 'This is the driver\'s username in the ShipEast Driver app. It cannot be changed later — it is the account key.';
+  $('drv-pass-row').hidden=isEdit;
+  $('drv-reset-row').hidden=!isEdit;
+  syncDriverStatusNote();
+}
+var DRIVER_STATUS_NOTE={
+  approved:'The driver can sign in and start receiving orders immediately.',
+  pending:'The driver can sign in, but the app holds them on the “awaiting approval” screen until you approve them.',
+  rejected:'The driver is taken offline and blocked from working. You can re-approve them later from the roster.'
+};
+function syncDriverStatusNote(){
+  var el=$('d-status-note'); if(!el) return;
+  el.textContent=DRIVER_STATUS_NOTE[($('d-status')||{}).value]||'';
+}
+
+function openDriverModal(mode,id){
+  driverEditId=(mode==='edit')?(id||null):null;
+  var d=(mode==='edit')?drivers.find(function(x){ return x.id===id; }):null;
+  $('d-name').value    =d?unDash(d.name):'';
+  $('d-phone').value   =d?unDash(d.phone):'';
+  $('d-email').value   =d?unDash(d.email):'';
+  $('d-vtype').value   =d?(d.vtype||'Car'):'Car';
+  $('d-vehicle').value =d?unDash(d.vehicle):'';
+  $('d-plate').value   =d?unDash(d.plate):'';
+  $('d-dlicence').value=d?unDash(d.dlicence):'';
+  $('d-status').value  =d?(d.rawStatus||'pending'):'approved';
+  $('d-pass').value    ='';
+  setDriverModalMode(mode);
+  if(mode==='edit'&&id) loadDriverLicence(id);
   openModal('modal-driver');
+}
+
+/* Readable rather than maximally random: this password gets read aloud or typed
+   into a phone by hand, so it avoids the character pairs that get misheard or
+   mistyped (0/O, 1/l/I) and keeps a shape a person can dictate. ~34 bits from
+   crypto.getRandomValues, which is far past what a rate-limited Firebase
+   sign-in endpoint can be attacked through, and it is replaced by whatever the
+   driver chooses the first time they reset it. */
+function generatePassword(){
+  var words='bolt,reef,palm,dock,cane,surf,jade,mango,coral,ridge,tide,kite'.split(',');
+  var bytes=new Uint32Array(3);
+  crypto.getRandomValues(bytes);
+  var w1=words[bytes[0]%words.length];
+  var w2=words[bytes[1]%words.length];
+  var n=100+(bytes[2]%900);
+  return w1.charAt(0).toUpperCase()+w1.slice(1)+'-'+w2+'-'+n;
+}
+function fillGeneratedPassword(){
+  var el=$('d-pass'); if(!el) return;
+  el.value=generatePassword();
+  el.focus(); el.select();
 }
 /* The licence number lives in drivers/{uid}/private/identity (P4-05), not on
    the parent document. Old records still hold it on the parent; the mirror's
@@ -1254,61 +1319,213 @@ function loadDriverLicence(id){
     if(v) $('d-dlicence').value=v;
   }).catch(function(){ /* no private record, or no access — keep what we have */ });
 }
-/* P4-05. "Add Driver" used to call addDoc, producing drivers/{randomId} with
-   no Auth account behind it. That person could never sign in, and when they
-   eventually self-registered they got a SECOND document — leaving the first
-   as an orphan that still appeared in the roster and could still be
-   "approved", approving nobody.
+/* ══════════════════════ DRIVER PROVISIONING ══════════════════════
+   Why this is done in the browser, and why that is not a shortcut.
 
-   Creating an Auth account requires the Admin SDK, so this now goes through
-   the createDriverAccount callable (functions/src/drivers.ts). Editing an
-   existing driver still writes directly; only creation moved. */
-var createDriverAccount=httpsCallable(fns,'createDriverAccount');
+   The history: "Add Driver" originally called addDoc, producing
+   drivers/{randomId} with no Auth account behind it. That person could never
+   sign in, and when they eventually self-registered they got a SECOND document,
+   leaving the first as an orphan that still appeared in the roster and could
+   still be "approved" — approving nobody. P4-05 moved creation to a callable,
+   `createDriverAccount`, so the account and the document would be made together
+   by the Admin SDK.
+
+   That callable has never run. Cloud Functions is a Blaze-plan product and this
+   project is on Spark: the Cloud Functions API has not been enabled on
+   shipeast-1a1f6 at all, so the endpoint does not exist. The Functions client
+   SDK cannot parse the 404 that comes back and reports it as code 'internal'
+   with the message 'internal' — which is exactly the "Could not add driver /
+   internal" toast, and why no message in it pointed anywhere useful.
+
+   So the account is created here instead, through a SECOND Firebase app
+   instance. Two properties make that safe rather than a hack:
+
+     1. It cannot disturb the admin's session. Auth state is per-app-instance,
+        so createUserWithEmailAndPassword on 'se-provision' signs that instance
+        in as the new driver and leaves the primary app untouched. Persistence
+        is in-memory, so nothing is written to disk and a refresh cannot
+        resurrect the driver's session in this browser.
+
+     2. It does not need a rule to be loosened. firestore.rules deliberately
+        allows a driver document to be created ONLY by its own uid, and only as
+        status:'pending' with totalTrips:0 — that is invariant 1 of the rules
+        file, "a driver cannot approve themselves". The provisioning instance IS
+        that uid at the moment of the write, so it satisfies the rule as written.
+        Approving the driver afterwards is a separate write, made by the admin
+        under isAdmin(), which is exactly the separation the rule exists to
+        enforce.
+
+   What is genuinely lost without the Admin SDK: the admin cannot change an
+   existing driver's password (see resetDriverPassword), and cannot change their
+   email. Both are stated in the form rather than silently missing. */
+var provisionApp=null,provisionAuth=null,provisionDb=null;
+function provisionHandles(){
+  if(!provisionApp){
+    provisionApp=initializeApp(firebaseConfig,'se-provision');
+    provisionAuth=getAuth(provisionApp);
+    provisionDb=getFirestore(provisionApp);
+    if(USE_EMULATORS){
+      connectAuthEmulator(provisionAuth,'http://localhost:'+EMULATORS.auth,{disableWarnings:true});
+      connectFirestoreEmulator(provisionDb,'localhost',EMULATORS.firestore);
+    }
+  }
+  return {auth:provisionAuth,db:provisionDb};
+}
+
+/** Firebase's auth/* codes, translated into something an operator can act on. */
+var DRIVER_AUTH_MSG={
+  'auth/email-already-in-use':'An account already exists for that email — the driver may have signed up themselves. Find them in the roster and use Edit instead of Add.',
+  'auth/invalid-email':'That email address is not valid.',
+  'auth/weak-password':'That password is too short. Firebase requires at least 6 characters.',
+  'auth/operation-not-allowed':'Email/password sign-in is switched off for this project. Enable it under Firebase Console → Authentication → Sign-in method.',
+  'auth/too-many-requests':'Too many attempts from this browser. Wait a minute and try again.',
+  'auth/network-request-failed':'The network request failed. Check the connection and try again.'
+};
+function authMessage(e){
+  return DRIVER_AUTH_MSG[e&&e.code]||(e&&e.message)||'Something went wrong.';
+}
+
+/**
+ * Creates the login and the roster entry together, keyed by the same uid.
+ *
+ * Resolves with the new uid. The document is always written as pending, because
+ * that is the only shape the create rule accepts; promoting it is the caller's
+ * separate, admin-authenticated write.
+ */
+function provisionDriver(input){
+  var h=provisionHandles();
+  var uid=null;
+  return setPersistence(h.auth,inMemoryPersistence)
+    .then(function(){ return createUserWithEmailAndPassword(h.auth,input.email,input.password); })
+    .then(function(cred){
+      uid=cred.user.uid;
+      return setDoc(doc(h.db,'drivers',uid),{
+        name:input.name,
+        email:input.email,
+        phone:input.phone||'—',
+        vehicleType:input.vehicleType,
+        vehicleModel:input.vehicleModel||'—',
+        licencePlate:input.licencePlate||'—',
+        // Required verbatim by the create rule. Never a status the admin picked.
+        status:'pending',
+        totalTrips:0,
+        isOnline:false,
+        onDelivery:false,
+        ratingCount:0,
+        averageRating:0,
+        todayEarnings:0,
+        createdBy:'admin',
+        createdAt:serverTimestamp(),
+        updatedAt:serverTimestamp()
+      });
+    })
+    .then(function(){
+      /* licenceNumber is deliberately NOT on the parent document. drivers/{uid}
+         is readable by every signed-in user — it has to be, because the
+         customer's tracking card shows the name and vehicle of the driver
+         bringing their order — so a licence number there is readable by every
+         customer who ever placed an order. */
+      if(!input.licenceNumber) return null;
+      return setDoc(doc(h.db,'drivers',uid,'private','identity'),
+        {licenceNumber:input.licenceNumber,updatedAt:serverTimestamp()},{merge:true});
+    })
+    .then(function(){
+      // Drop the driver's session from this browser. Failing to sign out is not
+      // worth failing the provisioning over — persistence is in-memory, so the
+      // worst case ends at the next page load.
+      return signOut(h.auth).catch(function(){});
+    })
+    .then(function(){ return uid; })
+    .catch(function(e){
+      /* An Auth account with no roster document is the one outcome worth naming
+         explicitly: the email is now taken, so a retry hits
+         email-already-in-use and reads like a different problem entirely. */
+      if(uid){
+        var err=new Error('The login was created but the driver profile could not be saved: '+
+          authMessage(e)+' The email '+input.email+' is now taken — reload and use Edit to finish the profile.');
+        err.partial=true;
+        throw err;
+      }
+      throw new Error(authMessage(e));
+    });
+}
 
 function saveDriver(){
   var name=$('d-name').value.trim();
   if(!name){ toast('warning','Full name is required.'); $('d-name').focus(); return; }
-  var email=$('d-email').value.trim();
   var licence=$('d-dlicence').value.trim();
+  var status=$('d-status').value;
   var btn=$('drv-save-btn'), isEdit=driverMode==='edit';
-  function restore(){ btn.disabled=false; btn.innerHTML=icon('check')+(isEdit?'Save Changes':'Add Driver'); }
+  function restore(){ btn.disabled=false; btn.innerHTML=icon('check')+(isEdit?'Update':'Add Driver'); }
 
   if(!isEdit){
+    var email=$('d-email').value.trim().toLowerCase();
+    var pass=$('d-pass').value;
     if(!email){ toast('warning','An email address is required — it is how the driver signs in.'); $('d-email').focus(); return; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      toast('warning','That does not look like an email address.'); $('d-email').focus(); return;
+    }
+    if(pass.length<6){
+      toast('warning','Set a password of at least 6 characters — the driver signs in with it.');
+      $('d-pass').focus(); return;
+    }
     btn.disabled=true; btn.innerHTML='<span class="spin"></span>Creating account…';
-    createDriverAccount({
-      email:email,name:name,phone:$('d-phone').value.trim(),
-      vehicleType:$('d-vtype').value,vehicleModel:$('d-vehicle').value.trim(),
-      licencePlate:$('d-plate').value.trim(),licenceNumber:licence
-    }).then(function(res){
-      var data=res.data||{};
-      closeModal('modal-driver'); restore();
-      toast('success',data.note||'Driver account created.','Driver invited');
-      // The status dropdown is deliberately ignored on creation: an
-      // admin-created driver is still an application, and approval stays a
-      // separate, deliberate act on the roster.
-      if(data.inviteLink) showInviteLink(data.email,data.inviteLink);
+
+    provisionDriver({
+      email:email,password:pass,name:name,
+      phone:$('d-phone').value.trim(),
+      vehicleType:$('d-vtype').value,
+      vehicleModel:$('d-vehicle').value.trim(),
+      licencePlate:$('d-plate').value.trim().toUpperCase(),
+      licenceNumber:licence
+    }).then(function(uid){
+      // Only now, and only as the admin: the create rule forbids any other
+      // starting status, and this write is what the rule wants an admin to make.
+      if(status==='pending') return uid;
+      return updateDoc(doc(db,'drivers',uid),{
+        status:status,
+        isOnline:false,
+        updatedAt:serverTimestamp()
+      }).then(function(){ return uid; })
+        .catch(function(e){
+          toast('warning','Driver created, but the status stayed "pending": '+e.message+
+            ' Approve them from the roster.');
+          return uid;
+        });
+    }).then(function(uid){
+      /* Stay open and switch to edit mode rather than closing. The driver now
+         exists, so the form's job changes from "create" to "amend", and the
+         buttons say so — Cancel becomes Close, Add Driver becomes Update. The
+         typed values are left in place: the drivers listener has usually not
+         delivered the new document yet, so re-reading from the mirror would
+         blank a form the admin is still looking at. */
+      driverEditId=uid;
+      setDriverModalMode('edit');
+      restore();
+      showCredentials(email,pass);
     }).catch(function(e){
-      toast('error',e.message,'Could not add driver'); restore();
+      toast('error',e.message,'Could not add driver');
+      restore();
     });
     return;
   }
 
-  var active=$('d-status').value==='Active';
-  var obj={name:name,phone:$('d-phone').value.trim()||'—',email:email||'—',
+  /* ── Edit ──────────────────────────────────────────────────────────────
+     isOnline is the driver's own presence flag, set by their app when they go
+     on shift. The old code wrote `isOnline: active` here, which meant editing a
+     driver's phone number forced them online whether their app was running or
+     not. It is only ever forced FALSE now, and only when the status being saved
+     means they must not be working. */
+  var obj={name:name,phone:$('d-phone').value.trim()||'—',
     vehicleType:$('d-vtype').value,vehicleModel:$('d-vehicle').value.trim()||'—',
     licencePlate:$('d-plate').value.trim().toUpperCase()||'—',
-    status:active?'approved':'pending',isOnline:active,
+    status:status,
     updatedAt:serverTimestamp()};
+  if(status!=='approved') obj.isOnline=false;
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Saving…';
-  /* licenceNumber is NOT in `obj`. drivers/{uid} is readable by any signed-in
-     user — it has to be, because the customer's tracking card shows the
-     driver's name and vehicle — so a licence number there is readable by
-     every customer who ever placed an order. It goes to the private
-     subcollection, which only the driver and an admin can read. */
   updateDoc(doc(db,'drivers',driverEditId),obj)
     .then(function(){
-      if(!licence||licence==='—') return;
+      if(!licence) return null;
       return setDoc(doc(db,'drivers',driverEditId,'private','identity'),
         {licenceNumber:licence,updatedAt:serverTimestamp()},{merge:true});
     })
@@ -1319,22 +1536,48 @@ function saveDriver(){
       toast('error',e.message,'Could not save driver'); restore();
     });
 }
-/* The invite is a password-reset link, so no temporary password is ever
-   transmitted or stored. It is shown once, for the admin to pass on. */
-function showInviteLink(email,link){
+
+/* Changing another account's password needs the Admin SDK. A reset email is the
+   one route a client has, and it is the honest one: the driver proves they
+   control the address and chooses their own password. */
+function resetDriverPassword(){
+  var email=($('d-email').value||'').trim();
+  if(!email){ toast('warning','No email address on this driver.'); return; }
+  confirmDialog({
+    tone:'warning',
+    title:'Send a password reset link?',
+    body:'Firebase will email '+email+' a link to choose a new password. Their current '+
+         'password keeps working until they use it.',
+    confirmLabel:'Send link'
+  }).then(function(ok){
+    if(!ok) return;
+    sendPasswordResetEmail(auth,email)
+      .then(function(){ toast('success','Reset link sent to '+email+'.'); })
+      .catch(function(e){ toast('error',authMessage(e),'Could not send the link'); });
+  });
+}
+
+/* Shown once, on screen, for the admin to hand over. The password is not stored
+   anywhere it could be read back — Firebase keeps only a hash — so this dialog
+   is the only chance to record it, and it says so. */
+function showCredentials(email,pass){
   $('cf-ico').className='m-ico warning';
-  $('cf-ico').innerHTML=icon('send','ic-lg');
-  $('cf-title').textContent='Invite link for '+email;
-  $('cf-body').innerHTML='Send this link so they can set a password and sign in. '+
-    'It is shown once.<br><textarea readonly rows="3" class="invite-link" '+
-    'aria-label="Invite link">'+esc(link)+'</textarea>';
-  var ok=$('cf-ok'); ok.textContent='Copy link'; ok.className='btn btn-primary';
+  $('cf-ico').innerHTML=icon('check','ic-lg');
+  $('cf-title').textContent='Driver added — sign-in details';
+  $('cf-body').innerHTML=
+    'Give these to the driver for the ShipEast Driver app. The password cannot be '+
+    'shown again after you close this.'+
+    '<div class="cred-box">'+
+      '<div class="cred-row"><span>Email</span><b>'+esc(email)+'</b></div>'+
+      '<div class="cred-row"><span>Password</span><b>'+esc(pass)+'</b></div>'+
+    '</div>';
+  var ok=$('cf-ok'); ok.textContent='Copy details'; ok.className='btn btn-primary';
   confirmResolve=function(copy){
     $('cf-body').innerHTML='';
     if(!copy) return;
-    navigator.clipboard.writeText(link)
-      .then(function(){ toast('success','Invite link copied.'); })
-      .catch(function(){ toast('warning','Copy failed — select the link and copy it manually.'); });
+    navigator.clipboard.writeText('ShipEast Driver app\nEmail: '+email+'\nPassword: '+pass)
+      .then(function(){ toast('success','Sign-in details copied.'); })
+      .catch(function(){ toast('warning','Copy failed — select the details and copy them manually.'); });
   };
   openModal('modal-confirm');
 }
@@ -1408,7 +1651,7 @@ function openDriverPanel(id){
       row('Licence No.','<span class="num">'+esc(d.dlicence)+'</span>')+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Performance</div>'+
       '<div class="sp-row"><span class="sp-lbl">Total Trips</span><span class="sp-val money">'+d.trips+'</span></div>'+
-      row('Avg Rating',stars(d.rating),false)+
+      row('Avg Rating',driverStars(d),false)+
       row('Account',badge(d.rawStatus))+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Rating Breakdown</div>'+rh+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Recent Deliveries</div>'+recentHtml+'</div>';
@@ -1613,7 +1856,16 @@ function applyCustomerDisabled(uid,disabled,reason){
       if(panelCustomerId===uid) setTimeout(function(){ openCustomerPanel(uid); },300);
     })
     .catch(function(e){
-      toast('error',e.message,'Could not change the account');
+      /* Same trap as "Could not add driver / internal": Cloud Functions is a
+         Blaze product and this project is on Spark, so the callable does not
+         exist and the client SDK reports the unparseable 404 as code 'internal'
+         with the message 'internal'. Say which of the two it is, because the
+         fix is completely different. */
+      var msg=(e&&e.code==='functions/internal')||/^internal$/i.test((e&&e.message)||'')
+        ? 'This needs the setUserDisabled Cloud Function, which is not deployed — Cloud Functions requires the Blaze plan. '+
+          'Until then an account can only be disabled from Firebase Console → Authentication.'
+        : e.message;
+      toast('error',msg,'Could not change the account');
     });
 }
 
@@ -2052,14 +2304,35 @@ function mountMerchantUploader(){
   return merchantUploader;
 }
 /* Common category icons plus free text — the field is a string, not an enum,
-   so the picker is a shortcut rather than a constraint. */
-var EMOJI_CHOICES=['🍽️','🍔','🍕','🍗','🥘','🐟','🍞','☕','🥤','🍦','🛒','💊','📦','🏪','🌶️'];
+   so the picker is a shortcut rather than a constraint. Widened past the
+   original single row of fifteen: with four merchant categories to cover, a
+   grocer, a pharmacy and a hardware store were all falling back to typing an
+   emoji by hand because none of the shortcuts fitted them. */
+var EMOJI_CHOICES=[
+  // Food
+  '🍽️','🍔','🍕','🍗','🍖','🥘','🍜','🐟','🍤','🥗','🌮','🍟','🍞','🥖','🥞',
+  // Sweet / drinks
+  '🍰','🧁','🍦','🍫','☕','🥤','🧃','🥛','🍺',
+  // Grocery, pharmacy, retail, logistics
+  '🛒','🏪','💊','🏥','🧴','🛍️','🎁','📦','🚚'
+];
 function renderEmojiPicker(){
   var host=$('m-emoji-picker'); if(!host) return;
   host.innerHTML=EMOJI_CHOICES.map(function(e){
     return '<button type="button" class="emoji-opt" data-emoji="'+esc(e)+'" '+
       'aria-label="Use '+esc(e)+'">'+esc(e)+'</button>';
   }).join('');
+}
+/** Collapsed by default; the current icon is already shown in the field. */
+function toggleEmojiPicker(force){
+  var host=$('m-emoji-picker'), btn=$('m-emoji-toggle');
+  if(!host) return;
+  var open=force!=null?force:host.hidden;
+  host.hidden=!open;
+  if(btn){
+    btn.setAttribute('aria-expanded',open?'true':'false');
+    btn.textContent=open?'Hide icons':'Choose icon';
+  }
 }
 function pickEmoji(e){
   var input=$('m-emoji'); if(!input) return;
@@ -2115,7 +2388,10 @@ function openMerchantModal(mode,id){
   merchantMode=mode; merchantEditId=id||null;
   var isEdit=mode==='edit';
   $('mer-modal-title').textContent=isEdit?'Edit Merchant':'Add New Merchant';
-  $('mer-save-btn').innerHTML=icon('check')+(isEdit?'Save Changes':'Add Merchant');
+  $('mer-save-btn').innerHTML=icon('check')+(isEdit?'Update':'Add Merchant');
+  // Matches the driver modal: once the record exists there is nothing left to
+  // cancel, so the escape hatch says what it actually does.
+  $('mer-cancel-btn').textContent=isEdit?'Close':'Cancel';
   var m=isEdit?merchants.find(function(x){ return x.id===id; }):null;
   $('m-name').value    =m?m.name:'';
   $('m-cat').value     =m?m.category:'Food';
@@ -2136,6 +2412,9 @@ function openMerchantModal(mode,id){
   $('m-lng').value     =(m&&m.lng!=null)?String(m.lng):'';
   syncLocationHint();
   syncEmojiSelection();
+  // Always re-collapsed: an open grid left over from the previous merchant is
+  // state from a form the admin has already finished with.
+  toggleEmojiPicker(false);
 
   var up=mountMerchantUploader();
   up.setValue(m?(m.imageUrl||''):'');
@@ -2214,7 +2493,7 @@ function saveMerchant(){
   }
   promise.then(function(created){
     btn.disabled=false;
-    btn.innerHTML=icon('check')+(isEdit?'Save Changes':'Add Merchant');
+    btn.innerHTML=icon('check')+(isEdit?'Update':'Add Merchant');
     if(isEdit){
       closeModal('modal-merchant');
       toast('success','Merchant updated.');
@@ -2242,7 +2521,7 @@ function saveMerchant(){
     }
   }).catch(function(e){
     toast('error',e.message,'Could not save merchant');
-    btn.disabled=false; btn.innerHTML=icon('check')+(isEdit?'Save Changes':'Add Merchant');
+    btn.disabled=false; btn.innerHTML=icon('check')+(isEdit?'Update':'Add Merchant');
   });
 }
 function deleteMerchant(id){
@@ -2327,7 +2606,7 @@ function loadMenuItemsTab(merchantId){
       '<div class="fr"><label for="mi-cat">Category</label>'+
         '<select id="mi-cat"><option value="mains">Mains</option><option value="sides">Sides</option>'+
         '<option value="drinks">Drinks</option><option value="popular">Popular</option></select></div>'+
-      '<div class="fr"><label>Item Photo <small>(JPEG/PNG/WebP · under 5 MB · saved &amp; optimised automatically)</small></label><div id="mi-image-drop"></div></div>'+
+      '<div class="fr"><label>Item Photo <small>(optional)</small></label><div id="mi-image-drop"></div></div>'+
       '<input id="mi-img" type="hidden"/>'+
       '<div style="display:flex;gap:8px;margin-top:12px">'+
         '<button class="btn btn-outline" id="mi-cancel-btn" data-action="cancel-menu-item" style="flex:1;display:none">Cancel</button>'+
@@ -2786,7 +3065,7 @@ function renderPaySplit(){
   var cod=src.filter(function(o){ return has(o,['cod','cash']); }).length;
   var total=online+cod;
   if(!total){
-    el.innerHTML=emptyState('ticket','No payment data','Payment split appears once orders are recorded for this period.');
+    el.innerHTML=emptyState('ticket','No payment data','The payment breakdown appears once orders are recorded for this period.');
     return;
   }
   var onPct=Math.round((online/total)*100), codPct=100-onPct;
@@ -2826,6 +3105,9 @@ function closeSidePanel(){
 // ══════════════════════ EVENT DELEGATION ══════════════════════
 document.addEventListener('click',function(e){
   var t=e.target;
+  /* First, because the chevron sits inside a row's first cell and must not fall
+     through to whatever that cell or row is otherwise wired to. */
+  var mcx=t.closest('[data-mc-exp]'); if(mcx){ toggleRowExpanded(mcx); return; }
   var ni=t.closest('.ni[data-page]'); if(ni){ navTo(ni.getAttribute('data-page')); return; }
   if(t.closest('#logout-btn')){ doLogout(); return; }
   if(t.closest('#hamburger')){ toggleSidebar(); return; }
@@ -2883,6 +3165,9 @@ document.addEventListener('click',function(e){
     case 'save-menu-item':  saveMenuItem(); break;
     case 'cancel-menu-item':cancelMenuItemEdit(); break;
     case 'save-driver':     saveDriver(); break;
+    case 'gen-driver-pass': fillGeneratedPassword(); break;
+    case 'toggle-emoji':    toggleEmojiPicker(); break;
+    case 'reset-driver-pass': resetDriverPassword(); break;
     case 'save-merchant':   saveMerchant(); break;
     case 'save-pricing':    savePricing(); break;
     case 'erase-open':      openWipeFlow(); break;
@@ -2895,6 +3180,9 @@ document.addEventListener('change',function(e){
   if(e.target.classList.contains('tgl-driver-online')) toggleDriverOnline(e.target.getAttribute('data-id'));
   if(e.target.classList.contains('tgl-merchant')) toggleMerchant(e.target.getAttribute('data-id'));
   if(e.target.id==='pc-type'||e.target.id==='pc-valid') updPromoPreview();
+  // The note under the Status dropdown says what the chosen value does to the
+  // driver's app, so it has to follow the dropdown.
+  if(e.target.id==='d-status') syncDriverStatusNote();
 });
 document.addEventListener('input',function(e){
   if(e.target.id==='orders-search') renderOrders();
@@ -2951,17 +3239,80 @@ window.addEventListener('resize',function(){
    snapshot, so a MutationObserver re-stamps after each render. Setting an
    attribute is not a childList change, so this never re-triggers itself. Rows
    whose cell count ≠ header count (skeleton / colspan empty states) are skipped. */
+/* Which columns stay visible while a phone row is collapsed, per tbody, by
+   column INDEX. Everything else is folded behind the row's chevron.
+
+   Chosen as "enough to recognise the record and judge whether to open it" — a
+   name, one contact detail, and its state. A driver row printed all nine
+   columns, which made one driver about a phone screen tall; the roster was
+   unusable for the thing a roster is for, which is scanning.
+
+   Indices, not header names: the headers are the label source and are already
+   read positionally here, and a copy-editing change to a <th> should not
+   silently collapse a column. A tbody absent from this map keeps every column
+   visible. */
+var MOBILE_PRIMARY={
+  'orders-tbody':    [0,1,4,6],  // Order ID · Customer · Total · Status
+  'dash-tbody':      [0,1,4,5],  // Order ID · Customer · Amount · Status
+  'drivers-tbody':   [0,1,6],    // Name · Phone · Status
+  'merchants-tbody': [0,1,6],    // Merchant · Category · Status
+  'customers-tbody': [0,1,5],    // Name · Email · Status
+  'overseas-tbody':  [0,1,6],    // Ref · Customer · Status
+  'promos-tbody':    [0,1,5]     // Code · Discount · Status
+};
+
 var _tblObservers=[];
 function stampTableLabels(table){
   var ths=table.querySelectorAll('thead th');
   if(!ths.length) return;
   var labels=[]; for(var i=0;i<ths.length;i++){ labels.push(ths[i].textContent.trim()); }
+  var body=table.querySelector('tbody');
+  var primary=body?MOBILE_PRIMARY[body.id]:null;
   var rows=table.querySelectorAll('tbody tr');
   for(var r=0;r<rows.length;r++){
     var tds=rows[r].children;
+    // Skeleton and empty-state rows use one colspan cell — nothing to label and
+    // nothing to collapse.
     if(tds.length!==labels.length) continue;
-    for(var c=0;c<tds.length;c++){ tds[c].setAttribute('data-label',labels[c]); }
+    var firstHidden=true;
+    for(var c=0;c<tds.length;c++){
+      tds[c].setAttribute('data-label',labels[c]);
+      if(!primary) continue;
+      var hidden=primary.indexOf(c)===-1;
+      tds[c].classList.toggle('mc-hide',hidden);
+      // .mc-first carries the divider that separates summary from detail, so it
+      // belongs to whichever hidden cell comes first — not to a fixed index.
+      tds[c].classList.toggle('mc-first',hidden&&firstHidden);
+      if(hidden) firstHidden=false;
+    }
+    if(primary) addRowExpander(rows[r]);
   }
+}
+/* The chevron lives inside the row's first cell but is positioned against the
+   row, which is `display:block; position:relative` on phones. It cannot be its
+   own <td>: that would change the cell count the labelling above depends on,
+   and add a stray column to the desktop table. Hidden outside the phone
+   breakpoint, where every column is on screen anyway. */
+function addRowExpander(tr){
+  if(tr.querySelector('.mc-exp')) return;
+  var host=tr.children[0]; if(!host) return;
+  var b=document.createElement('button');
+  b.type='button';
+  b.className='mc-exp';
+  b.setAttribute('data-mc-exp','1');
+  b.setAttribute('aria-expanded','false');
+  b.setAttribute('aria-label','Show all details');
+  b.title='Show all details';
+  b.innerHTML=icon('caret-right');
+  host.appendChild(b);
+}
+function toggleRowExpanded(btn){
+  var tr=btn.closest('tr'); if(!tr) return;
+  var open=!tr.classList.contains('mc-open');
+  tr.classList.toggle('mc-open',open);
+  btn.setAttribute('aria-expanded',open?'true':'false');
+  btn.setAttribute('aria-label',open?'Hide extra details':'Show all details');
+  btn.title=btn.getAttribute('aria-label');
 }
 function setupTableLabels(){
   if(_tblObservers.length) return; // wire up once
@@ -3012,9 +3363,17 @@ onAuthStateChanged(auth,function(user){
       }
       $('login-page').style.display='none';
       $('app').style.display='block';
-      var anEl=document.querySelector('.an'); if(anEl) anEl.textContent=user.displayName||user.email;
+      /* Deliberately NOT the email address. This console is routinely open on a
+         shared screen or in a screenshare, and the admin login address is half a
+         credential; a display name is enough to confirm who is signed in. The
+         email is still one click away in the account chip's title attribute for
+         an admin who genuinely needs to check which account this is. */
+      var label=user.displayName||'Admin';
+      var anEl=document.querySelector('.an'); if(anEl) anEl.textContent=label;
+      var abEl=document.querySelector('.ab');
+      if(abEl) abEl.title='Signed in as '+(user.email||'an administrator');
       var avEl=document.querySelector('.av');
-      if(avEl) avEl.textContent=((user.displayName||user.email||'A')[0]||'A').toUpperCase();
+      if(avEl) avEl.textContent=(label[0]||'A').toUpperCase();
       initApp();
     }).catch(function(e){
       rejectNonAdmin('Could not verify administrator access: '+e.message);

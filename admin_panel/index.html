@@ -177,12 +177,16 @@
         <button class="iconbtn" id="hamburger" title="Toggle sidebar" aria-label="Toggle sidebar">
           <svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg>
         </button>
-        <div>
-          <div class="tb-bc">ShipEast Admin
-            <svg class="ic" aria-hidden="true"><use href="#i-caret-right"/></svg>
-            <em id="tb-pg">Dashboard</em>
-          </div>
-          <div class="tb-pg-title" id="tb-title">Dashboard</div>
+        <!-- Breadcrumb only. The page name used to be repeated directly
+             underneath it as a second heading, and the page itself prints it a
+             third time in .pg-title — three copies of one word on every screen.
+             The crumb survives because it is the one that carries context
+             ("ShipEast Admin ▸ Orders"); it stays visible on phones too, where
+             it is the topbar's only label. -->
+        <div class="tb-bc" aria-label="Breadcrumb">
+          <span class="tb-bc-root">ShipEast Admin</span>
+          <svg class="ic" aria-hidden="true"><use href="#i-caret-right"/></svg>
+          <em id="tb-pg">Dashboard</em>
         </div>
       </div>
       <div class="tb-r">
@@ -205,9 +209,13 @@
         <button class="iconbtn" id="theme-btn" title="Switch to dark theme" aria-label="Switch to dark theme">
           <svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>
         </button>
+        <!-- Name only, never the email. An admin console is often on screen in
+             a shared office or a screenshare, and info@shipeastja.com is half a
+             credential. The avatar is deliberately NOT brand red: the only red
+             dot in this corner should be the unread-notification badge. -->
         <div class="ab">
           <div class="av">A</div>
-          <div><div class="an">Admin User</div><div class="ar">Super Admin</div></div>
+          <div class="an">Admin</div>
         </div>
       </div>
     </header>
@@ -216,6 +224,7 @@
 
       <!-- ── DASHBOARD ── -->
       <section class="page active" id="page-dashboard">
+        <div class="pg-hdr"><h1 class="pg-title">Dashboard</h1></div>
         <div class="sg stagger">
           <div class="sc">
             <div class="sc-top">
@@ -351,9 +360,17 @@
               </div>
               <div class="fr"><label for="n-title">Title</label><input id="n-title" placeholder="e.g. Flash Sale — 20% Off Deliveries!"/></div>
               <div class="fr"><label for="n-msg">Message</label><textarea id="n-msg" rows="4" placeholder="Write your notification message here…"></textarea></div>
-              <button class="btn btn-primary btn-block" id="notif-send-btn" data-action="send-notif">
-                <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Send Notification
-              </button>
+              <!-- Was a full-width 15px btn-block: a single crimson slab most of
+                   the card wide, for an action that fires an irreversible push.
+                   Size is not how that gets its weight — the confirm dialog is.
+                   A normal right-aligned primary button reads as the end of the
+                   form instead of as a banner. It goes full-width on phones,
+                   where a right-aligned button next to nothing looks stranded. -->
+              <div class="form-actions">
+                <button class="btn btn-primary" id="notif-send-btn" data-action="send-notif">
+                  <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Send Notification
+                </button>
+              </div>
             </div>
             <div class="card">
               <div class="card-title">Recent Notifications</div>
@@ -404,9 +421,11 @@
                 <div class="fr"><label for="pc-maxdisc">Max Discount ($) <small>(required for %)</small></label><input id="pc-maxdisc" type="number" min="0" step="1" placeholder="500"/></div>
               </div>
               <div class="fr"><label for="pc-valid">Valid Until <small>(blank = never expires)</small></label><input id="pc-valid" type="date"/></div>
-              <button class="btn btn-primary btn-block" id="promo-create-btn" data-action="create-promo">
-                <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Create Promo Code
-              </button>
+              <div class="form-actions">
+                <button class="btn btn-primary" id="promo-create-btn" data-action="create-promo">
+                  <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Create Promo Code
+                </button>
+              </div>
             </div>
             <div class="card">
               <div class="card-title">Active Promo Codes</div>
@@ -465,7 +484,10 @@
             </table>
           </div>
           <div class="card">
-            <div class="card-title">Payment Split</div>
+            <!-- "Payment Split" read as a typo to the people using this page.
+                 It was not one, but a title nobody trusts is a broken title, and
+                 "Breakdown" says the same thing without the second reading. -->
+            <div class="card-title">Payment Breakdown</div>
             <div id="pay-split"></div>
           </div>
         </div>
@@ -511,9 +533,11 @@
                 <input id="pr-commission" type="number" min="0" max="1" step="0.01" placeholder="0.10"/>
               </div>
             </div>
-            <button class="btn btn-primary" data-action="save-pricing">
-              <svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Save pricing
-            </button>
+            <div class="form-actions">
+              <button class="btn btn-primary" data-action="save-pricing">
+                <svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Save pricing
+              </button>
+            </div>
           </div>
 
           <!-- ── Danger Zone ── -->
@@ -597,29 +621,69 @@
 <div class="mbg" id="modal-driver" role="dialog" aria-labelledby="drv-modal-title">
   <div class="mbox wide">
     <div class="m-title" id="drv-modal-title">Add New Driver</div>
-    <div class="mg">
-      <div class="fr"><label for="d-name">Full Name *</label><input id="d-name" placeholder="Devon Campbell"/></div>
-      <div class="fr"><label for="d-phone">Phone Number</label><input id="d-phone" placeholder="876-xxx-xxxx"/></div>
-      <div class="fr"><label for="d-email">Email Address *</label><input id="d-email" type="email" placeholder="driver@email.com"/>
-        <div class="up-locked">This is how the driver signs in. They receive an invite link to set a password.</div>
+
+    <div class="fset">
+      <div class="fset-title">Driver details</div>
+      <div class="mg">
+        <div class="fr"><label for="d-name">Full Name *</label><input id="d-name" placeholder="Devon Campbell"/></div>
+        <div class="fr"><label for="d-phone">Phone Number</label><input id="d-phone" placeholder="876-xxx-xxxx"/></div>
+        <div class="fr"><label for="d-vtype">Vehicle Type</label>
+          <select id="d-vtype"><option>Car</option><option>Motorcycle</option><option>Van</option><option>Truck</option></select>
+        </div>
+        <div class="fr"><label for="d-vehicle">Vehicle Model</label><input id="d-vehicle" placeholder="Toyota Axio"/></div>
+        <div class="fr"><label for="d-plate">Licence Plate Number</label><input id="d-plate" placeholder="PB 2341"/></div>
+        <!-- P4-05: stored in drivers/{uid}/private/identity, never on the parent
+             document, which every signed-in user can read. -->
+        <div class="fr"><label for="d-dlicence">Driver's Licence Number <small>(private)</small></label><input id="d-dlicence" placeholder="JA-DL-00000"/></div>
       </div>
-      <div class="fr"><label for="d-vtype">Vehicle Type</label>
-        <select id="d-vtype"><option>Car</option><option>Motorcycle</option><option>Van</option><option>Truck</option></select>
-      </div>
-      <div class="fr"><label for="d-vehicle">Vehicle Model</label><input id="d-vehicle" placeholder="Toyota Axio"/></div>
-      <div class="fr"><label for="d-plate">Licence Plate Number</label><input id="d-plate" placeholder="PB 2341"/></div>
-      <!-- P4-05: stored in drivers/{uid}/private/identity, never on the parent
-           document, which every signed-in user can read. -->
-      <div class="fr"><label for="d-dlicence">Driver's Licence Number <small>(private)</small></label><input id="d-dlicence" placeholder="JA-DL-00000"/></div>
+      <!-- The old options were "Active" and "Inactive", neither of which is a
+           status this system has. The roster, the badges and the driver app all
+           speak approved / pending / rejected, and the driver app gates sign-in
+           on exactly that value — so this dropdown now says the same words, and
+           choosing one here is honoured instead of silently ignored. -->
       <div class="fr"><label for="d-status">Status</label>
-        <select id="d-status"><option value="Active">Active</option><option value="Inactive">Inactive</option></select>
-        <!-- P4-05: a new driver is always created pending. The status here is
-             ignored on creation, so it is disabled rather than misleading. -->
-        <div id="d-status-note" class="up-locked" hidden>New drivers start as pending — approve them from the roster.</div>
+        <select id="d-status">
+          <option value="approved">Approved — can sign in and take orders</option>
+          <option value="pending">Pending approval — sign-in shows the waiting screen</option>
+          <option value="rejected">Rejected — blocked from working</option>
+        </select>
+        <div id="d-status-note" class="fr-hint"></div>
       </div>
     </div>
+
+    <!-- ── Driver app credentials ──────────────────────────────────────────
+         The admin sets the password directly. The alternative — emailing an
+         invite link — needs an outbound mail path this project does not have,
+         and the practical case is an operator sitting beside a new rider with
+         the rider's phone in hand. -->
+    <div class="fset">
+      <div class="fset-title">Driver app sign-in</div>
+      <div class="fr"><label for="d-email">Email Address *</label>
+        <input id="d-email" type="email" autocomplete="off" placeholder="driver@email.com"/>
+        <div id="d-email-note" class="fr-hint">This is the driver's username in the ShipEast Driver app. It cannot be changed later — it is the account key.</div>
+      </div>
+      <div class="fr" id="drv-pass-row">
+        <label for="d-pass">Password * <small>(at least 6 characters)</small></label>
+        <div class="inline-field">
+          <input id="d-pass" type="text" autocomplete="off" spellcheck="false" placeholder="Set the driver's password"/>
+          <button type="button" class="btn btn-outline btn-sm" data-action="gen-driver-pass" title="Generate a strong password">Generate</button>
+        </div>
+        <div class="fr-hint">Write this down or send it to the driver — it is not stored anywhere readable and cannot be shown again.</div>
+      </div>
+      <div class="fr" id="drv-reset-row" hidden>
+        <label>Password</label>
+        <div class="fr-hint" style="margin-top:0">
+          A password can only be changed by the person who owns it. Send a reset
+          link and the driver sets a new one from their own inbox.
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" data-action="reset-driver-pass" style="margin-top:10px">
+          <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Send password reset link
+        </button>
+      </div>
+    </div>
+
     <div class="m-actions">
-      <button class="btn btn-outline" data-close="modal-driver">Cancel</button>
+      <button class="btn btn-outline" id="drv-cancel-btn" data-close="modal-driver">Cancel</button>
       <button class="btn btn-primary" id="drv-save-btn" data-action="save-driver">Add Driver</button>
     </div>
   </div>
@@ -629,58 +693,75 @@
 <div class="mbg" id="modal-merchant" role="dialog" aria-labelledby="mer-modal-title">
   <div class="mbox wide">
     <div class="m-title" id="mer-modal-title">Add New Merchant</div>
-    <div class="mg">
-      <div class="fr"><label for="m-name">Business Name *</label><input id="m-name" placeholder="Restaurant Name"/></div>
-      <div class="fr"><label for="m-cat">Category</label>
-        <select id="m-cat"><option>Food</option><option>Grocery</option><option>Pharmacy</option><option>Packages</option></select>
-      </div>
-      <div class="fr"><label for="m-owner">Owner Name</label><input id="m-owner" placeholder="Owner Full Name"/></div>
-      <div class="fr"><label for="m-phone">Phone Number</label><input id="m-phone" placeholder="876-xxx-xxxx"/></div>
-      <div class="fr"><label for="m-email">Email Address</label><input id="m-email" type="email" placeholder="business@email.com"/></div>
-      <div class="fr"><label for="m-fee">Delivery Fee ($) <small>(0 shows as “Free delivery”)</small></label><input id="m-fee" type="number" min="0" step="1" inputmode="numeric" placeholder="200"/></div>
-      <div class="fr"><label for="m-hours">Opening Hours <small>(business hours)</small></label><input id="m-hours" placeholder="8:00 AM – 10:00 PM"/></div>
-      <!-- P3-01: there was no input for this at all, which is why every merchant
-           showed the customer app's hardcoded "25–35 min" fallback. -->
-      <div class="fr"><label for="m-etatime">Delivery Time <small>(ETA shown to customers)</small></label><input id="m-etatime" placeholder="25–35 min"/></div>
-      <div class="fr"><label for="m-status">Status</label>
-        <select id="m-status"><option value="Open">Open</option><option value="Closed">Closed</option></select>
-      </div>
-    </div>
-    <div class="fr"><label for="m-address">Address</label><input id="m-address" placeholder="Street address, Parish"/></div>
 
-    <!-- P5-06: pickup coordinates. A food order copies these onto itself as
-         pickupLat/pickupLng, and the driver dashboard ranks offers nearest-first
-         from them. Without an input here, admin-created merchants produced orders
-         with null coords that sorted to the back of every driver's queue. -->
-    <div class="fr"><label for="m-location">Pickup Location <small>(paste a Google Maps link or “lat, lng” — powers nearest-driver dispatch)</small></label>
-      <input id="m-location" placeholder="e.g. 18.0179, -76.8099 — or paste a Google Maps link"/>
-      <div id="m-location-hint" class="up-locked" hidden></div>
-    </div>
-    <div class="mg">
-      <div class="fr"><label for="m-lat">Latitude</label><input id="m-lat" type="number" step="any" inputmode="decimal" placeholder="18.0179"/></div>
-      <div class="fr"><label for="m-lng">Longitude</label><input id="m-lng" type="number" step="any" inputmode="decimal" placeholder="-76.8099"/></div>
-    </div>
-
-    <!-- P4-02: `emoji` is customer-facing display data (home_screen.dart:672)
-         that the panel had no input for, so admin-created merchants fell back
-         to a generic plate while seeded ones had bespoke icons. -->
-    <div class="fr"><label for="m-emoji">Display Icon <small>(shown on the customer home screen)</small></label>
-      <div class="emoji-row">
-        <input id="m-emoji" class="emoji-field" maxlength="8" placeholder="🍔"/>
-        <div id="m-emoji-picker" class="emoji-picker" role="group" aria-label="Common icons"></div>
+    <div class="fset">
+      <div class="fset-title">Business details</div>
+      <div class="mg">
+        <div class="fr"><label for="m-name">Business Name *</label><input id="m-name" placeholder="Restaurant Name"/></div>
+        <div class="fr"><label for="m-cat">Category</label>
+          <select id="m-cat"><option>Food</option><option>Grocery</option><option>Pharmacy</option><option>Packages</option></select>
+        </div>
+        <div class="fr"><label for="m-owner">Owner Name</label><input id="m-owner" placeholder="Owner Full Name"/></div>
+        <div class="fr"><label for="m-phone">Phone Number</label><input id="m-phone" placeholder="876-xxx-xxxx"/></div>
+        <div class="fr"><label for="m-email">Email Address</label><input id="m-email" type="email" placeholder="business@email.com"/></div>
+        <div class="fr"><label for="m-fee">Delivery Fee ($) <small>(0 shows as “Free delivery”)</small></label><input id="m-fee" type="number" min="0" step="1" inputmode="numeric" placeholder="200"/></div>
+        <div class="fr"><label for="m-hours">Opening Hours <small>(business hours)</small></label><input id="m-hours" placeholder="8:00 AM – 10:00 PM"/></div>
+        <!-- P3-01: there was no input for this at all, which is why every merchant
+             showed the customer app's hardcoded "25–35 min" fallback. -->
+        <div class="fr"><label for="m-etatime">Delivery Time <small>(ETA shown to customers)</small></label><input id="m-etatime" placeholder="25–35 min"/></div>
+        <div class="fr"><label for="m-status">Status</label>
+          <select id="m-status"><option value="Open">Open</option><option value="Closed">Closed</option></select>
+        </div>
       </div>
     </div>
 
-    <!-- P4-01 / upload-only: the admin uploads the photo directly — no URL
-         paste. `#m-imageurl` is kept as a HIDDEN field so it stays the single
-         source of truth the uploader writes to and saveMerchant reads. -->
-    <div class="fr"><label for="m-image-file">Restaurant Photo <small>(JPEG/PNG/WebP · under 5 MB · saved &amp; optimised automatically)</small></label>
-      <div id="m-image-drop"></div>
-      <div id="m-image-locked" class="up-locked" hidden>Save the merchant first — a photo needs somewhere to live.</div>
+    <div class="fset">
+      <div class="fset-title">Pickup location</div>
+      <div class="fr"><label for="m-address">Address</label><input id="m-address" placeholder="Street address, Parish"/></div>
+      <!-- P5-06: pickup coordinates. A food order copies these onto itself as
+           pickupLat/pickupLng, and the driver dashboard ranks offers nearest-first
+           from them. Without an input here, admin-created merchants produced orders
+           with null coords that sorted to the back of every driver's queue. -->
+      <div class="fr"><label for="m-location">Coordinates <small>(paste a Google Maps link or “lat, lng” — powers nearest-driver dispatch)</small></label>
+        <input id="m-location" placeholder="e.g. 18.0179, -76.8099 — or paste a Google Maps link"/>
+        <div id="m-location-hint" class="fr-hint" hidden></div>
+      </div>
+      <div class="mg">
+        <div class="fr"><label for="m-lat">Latitude</label><input id="m-lat" type="number" step="any" inputmode="decimal" placeholder="18.0179"/></div>
+        <div class="fr"><label for="m-lng">Longitude</label><input id="m-lng" type="number" step="any" inputmode="decimal" placeholder="-76.8099"/></div>
+      </div>
     </div>
+
+    <div class="fset">
+      <div class="fset-title">Customer-facing appearance</div>
+      <!-- P4-02: `emoji` is customer-facing display data (home_screen.dart:672)
+           that the panel had no input for, so admin-created merchants fell back
+           to a generic plate while seeded ones had bespoke icons.
+
+           The grid of icons used to be permanently open, which pushed the photo
+           uploader below the fold on every merchant even though most merchants
+           keep whatever icon they already have. It is behind a button now. -->
+      <div class="fr"><label for="m-emoji">Display Icon <small>(shown on the customer home screen)</small></label>
+        <div class="inline-field">
+          <input id="m-emoji" class="emoji-field" maxlength="8" placeholder="🍔"/>
+          <button type="button" class="btn btn-outline btn-sm" id="m-emoji-toggle"
+            data-action="toggle-emoji" aria-expanded="false" aria-controls="m-emoji-picker">Choose icon</button>
+        </div>
+        <div id="m-emoji-picker" class="emoji-picker" role="group" aria-label="Common icons" hidden></div>
+      </div>
+
+      <!-- P4-01 / upload-only: the admin uploads the photo directly — no URL
+           paste. `#m-imageurl` is kept as a HIDDEN field so it stays the single
+           source of truth the uploader writes to and saveMerchant reads. -->
+      <div class="fr"><label for="m-image-file">Restaurant Photo <small>(optional)</small></label>
+        <div id="m-image-drop"></div>
+        <div id="m-image-locked" class="fr-hint" hidden>Save the merchant first — a photo needs somewhere to live.</div>
+      </div>
+    </div>
+
     <input id="m-imageurl" type="hidden"/>
     <div class="m-actions">
-      <button class="btn btn-outline" data-close="modal-merchant">Cancel</button>
+      <button class="btn btn-outline" id="mer-cancel-btn" data-close="modal-merchant">Cancel</button>
       <button class="btn btn-primary" id="mer-save-btn" data-action="save-merchant">Add Merchant</button>
     </div>
   </div>
