@@ -8,6 +8,7 @@ import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
+import '../widgets/se_auth_scaffold.dart';
 import '../widgets/se_bottom_sheet.dart';
 import '../widgets/se_text_field.dart';
 import '../widgets/se_button.dart';
@@ -28,9 +29,11 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    // The page is capped in brand red, so the status bar glyphs go light.
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
     ));
   }
 
@@ -137,168 +140,59 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: SeColors.surface0,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // Back button, pinned so the form group can centre on its own.
-            Positioned(
-              top: 4,
-              left: SeSpacing.gutter - 8,
-              child: _BackButton(onTap: () => Navigator.pop(context)),
-            ),
-            // Form group, vertically centred for balanced breathing room.
-            LayoutBuilder(
-              builder: (context, c) => SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                    SeSpacing.gutter, 64, SeSpacing.gutter, 20),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: c.maxHeight - 84),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const _AuthHeader(
-                        title: 'Welcome back',
-                        subtitle: 'Sign in to continue with ShipEast',
-                      ),
-                      const SizedBox(height: 32),
-                      SeTextField(
-                        controller: _emailController,
-                        label: 'EMAIL ADDRESS',
-                        hint: 'your@email.com',
-                        icon: SeIcons.envelope,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 14),
-                      SeTextField(
-                        controller: _passwordController,
-                        label: 'PASSWORD',
-                        hint: '••••••••',
-                        icon: SeIcons.lock,
-                        obscure: true,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _handleLogin(),
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 8, bottom: 22),
-                          child: GestureDetector(
-                            onTap: _handleForgotPassword,
-                            child: Text('Forgot password?',
-                                style: SeType.label
-                                    .copyWith(color: SeColors.brandAction)),
-                          ),
-                        ),
-                      ),
-                      SeButton(
-                        label: 'Sign In',
-                        loading: _isLoading,
-                        onPressed: _isLoading ? null : _handleLogin,
-                      ),
-                      const SizedBox(height: 22),
-                      Row(
-                        children: [
-                          const Expanded(child: Divider(color: SeColors.ink200)),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text('or',
-                                style: SeType.bodyS
-                                    .copyWith(color: SeColors.ink400)),
-                          ),
-                          const Expanded(child: Divider(color: SeColors.ink200)),
-                        ],
-                      ),
-                      const SizedBox(height: 22),
-                      _GoogleButton(
-                        onTap: _isLoading ? null : _handleGoogleSignIn,
-                      ),
-                      const SizedBox(height: 28),
-                      GestureDetector(
-                        onTap: () => Navigator.pushNamed(context, '/register'),
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: "Don't have an account?  ",
-                                style: SeType.body
-                                    .copyWith(color: SeColors.ink500),
-                              ),
-                              TextSpan(
-                                text: 'Sign Up',
-                                style: SeType.body.copyWith(
-                                    color: SeColors.brandAction,
-                                    fontWeight: FontWeight.w700),
-                              ),
-                            ],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+    return SeAuthScaffold(
+      title: 'Welcome back',
+      subtitle: 'Sign in to pick up where you left off.',
+      children: [
+        SeTextField(
+          controller: _emailController,
+          label: 'Email address',
+          hint: 'you@email.com',
+          icon: SeIcons.envelope,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
         ),
-      ),
+        const SizedBox(height: 16),
+        SeTextField(
+          controller: _passwordController,
+          label: 'Password',
+          hint: 'Enter your password',
+          icon: SeIcons.lock,
+          obscure: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _handleLogin(),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: GestureDetector(
+            onTap: _handleForgotPassword,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 10, bottom: 4),
+              child: Text('Forgot password?',
+                  style: SeType.label.copyWith(color: SeColors.brandAction)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 22),
+        SeButton(
+          label: 'Sign in',
+          loading: _isLoading,
+          onPressed: _isLoading ? null : _handleLogin,
+        ),
+        const SizedBox(height: 24),
+        const SeAuthDivider(),
+        const SizedBox(height: 20),
+        _GoogleButton(onTap: _isLoading ? null : _handleGoogleSignIn),
+        const SizedBox(height: 26),
+        SeAuthSwitch(
+          prompt: 'New to ShipEast?',
+          action: 'Create an account',
+          onTap: () => Navigator.pushReplacementNamed(context, '/register'),
+        ),
+      ],
     );
   }
-}
-
-/// A round, quiet back button — shared across the auth screens.
-class _BackButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _BackButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: const BoxDecoration(
-              color: SeColors.surface50, shape: BoxShape.circle),
-          child: const Icon(SeIcons.arrowLeft, size: 20, color: SeColors.ink900),
-        ),
-      );
-}
-
-/// Calm, centred brand mark + title used by both sign-in and sign-up, replacing
-/// the old ember slab. A modest emblem gives brand presence without crowding the
-/// form, keeping the screen clean and breathable.
-class _AuthHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  const _AuthHeader({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: SeColors.brand,
-              borderRadius: SeRadius.all(SeRadius.lg),
-              boxShadow: SeElevation.glow,
-            ),
-            child: const Icon(SeIcons.box, color: Colors.white, size: 32),
-          ),
-          const SizedBox(height: 20),
-          Text(title, style: SeType.h1, textAlign: TextAlign.center),
-          const SizedBox(height: 6),
-          Text(subtitle,
-              style: SeType.body.copyWith(color: SeColors.ink500),
-              textAlign: TextAlign.center),
-        ],
-      );
 }
 
 /// Password-reset sheet. Sends a Firebase reset email and, on success, tells
@@ -380,8 +274,8 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
           const SizedBox(height: 20),
           SeTextField(
             controller: _controller,
-            label: 'EMAIL ADDRESS',
-            hint: 'your@email.com',
+            label: 'Email address',
+            hint: 'you@email.com',
             icon: SeIcons.envelope,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
@@ -390,7 +284,6 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
           const SizedBox(height: 20),
           SeButton(
             label: 'Send reset link',
-            icon: SeIcons.envelope,
             loading: _sending,
             onPressed: _sending ? null : _send,
           ),
@@ -400,6 +293,8 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
   }
 }
 
+/// Federated sign-in. Deliberately quieter than the primary pill — an outline
+/// on white — so the page still has one obvious action.
 class _GoogleButton extends StatelessWidget {
   final VoidCallback? onTap;
   const _GoogleButton({required this.onTap});
@@ -410,6 +305,7 @@ class _GoogleButton extends StatelessWidget {
       opacity: onTap == null ? 0.6 : 1,
       child: GestureDetector(
         onTap: onTap,
+        behavior: HitTestBehavior.opaque,
         child: Container(
           height: 50,
           alignment: Alignment.center,
@@ -420,12 +316,17 @@ class _GoogleButton extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(SeIcons.google, size: 22, color: Color(0xFF4285F4)),
-              const SizedBox(width: 10),
-              Text('Continue with Google',
-                  style: SeType.jakarta(15, FontWeight.w600,
-                      color: SeColors.ink900)),
+              const Icon(SeIcons.google, size: 24, color: Color(0xFF4285F4)),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text('Continue with Google',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: SeType.jakarta(15, FontWeight.w600,
+                        color: SeColors.ink900)),
+              ),
             ],
           ),
         ),

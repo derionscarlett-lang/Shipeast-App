@@ -7,36 +7,39 @@ class SeBrand {
   SeBrand._();
 
   /// Keep in lockstep with pubspec `version:` (before the `+build`).
-  static const String version = '1.0.2';
+  static const String version = '1.2.0';
   static const String tagline = 'Couriers & Bearer Services · Jamaica';
+
+  /// Tracked-out strap for the launch screen. Short enough to hold one line on
+  /// a 320dp phone at the wide letter-spacing the lockup needs.
+  static const String strapline = 'COURIERS & DELIVERY · JAMAICA';
 }
 
-/// ShipEast wordmark — `Ship` in ink + `East` in brand red, one weight.
-/// Retires the Dancing Script script look from the UI.
+/// ShipEast wordmark — `Ship` + `East` in one face, two tones.
+///
+/// On light ground the accent is the identity red; on the brand shell it is
+/// [SeColors.shellMark], the pink that reads as a highlight against deep red
+/// instead of vanishing into it. Tracking tightens as the mark grows, which is
+/// what keeps it looking drawn rather than typed at display sizes.
 class SeWordmark extends StatelessWidget {
   final double size;
 
-  /// When true, `Ship` renders white (for use on the Ember gradient).
+  /// When true, renders for the brand shell (warm white + pink accent).
   final bool onDark;
 
   const SeWordmark({super.key, this.size = 26, this.onDark = false});
 
   @override
   Widget build(BuildContext context) {
-    final shipColor = onDark ? Colors.white : SeColors.ink900;
-    final eastColor = onDark ? Colors.white : SeColors.red500;
-    return RichText(
-      text: TextSpan(
-        style: SeType.jakarta(size, FontWeight.w800),
+    final shipColor = onDark ? SeColors.shellInk : SeColors.ink900;
+    final eastColor = onDark ? SeColors.shellMark : SeColors.red500;
+    return Text.rich(
+      TextSpan(
+        style: SeType.jakarta(size, FontWeight.w800)
+            .copyWith(letterSpacing: -size * 0.032, height: 1.1),
         children: [
           TextSpan(text: 'Ship', style: TextStyle(color: shipColor)),
-          TextSpan(
-            text: 'East',
-            style: TextStyle(
-              color: eastColor,
-              decoration: onDark ? TextDecoration.none : null,
-            ),
-          ),
+          TextSpan(text: 'East', style: TextStyle(color: eastColor)),
         ],
       ),
     );
