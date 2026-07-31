@@ -861,9 +861,12 @@ function renderDashboard(){
       // Beside the id, not in its own column: a package job needs to be
       // obvious at a glance, and the orders table is already nine columns wide.
       '<td><span class="cell-id">'+esc(shortId(o.id))+'</span>'+typeBadge(o.type)+'</td>'+
-      '<td>'+esc(o.customer)+'</td>'+
-      '<td>'+esc(o.merchant)+'</td>'+
-      '<td class="cell-mute">'+esc(o.driver)+'</td>'+
+      // The column is a fixed width now, so a long name ellipsises rather than
+      // widening it. title= is what gives it back — nothing in a table is ever
+      // the only place a value can be read, but it must not become unreadable.
+      '<td title="'+esc(o.customer)+'">'+esc(o.customer)+'</td>'+
+      '<td title="'+esc(o.merchant)+'">'+esc(o.merchant)+'</td>'+
+      '<td class="cell-mute" title="'+esc(o.driver)+'">'+esc(o.driver)+'</td>'+
       '<td class="right cell-strong">'+esc(o.amount)+'</td>'+
       '<td>'+badge(o.status)+'</td>'+
       '<td><button class="aicon ai-v" data-action="view-order" data-oid="'+esc(o._docId||o.id)+'" title="View order" aria-label="View order">'+icon('view')+'</button></td>'+
@@ -916,9 +919,9 @@ function renderOrders(){
       // Beside the id, not in its own column: a package job needs to be
       // obvious at a glance, and the orders table is already nine columns wide.
       '<td><span class="cell-id">'+esc(shortId(o.id))+'</span>'+typeBadge(o.type)+'</td>'+
-      '<td>'+esc(o.customer)+'</td>'+
-      '<td>'+esc(o.merchant)+'</td>'+
-      '<td class="cell-mute">'+esc(o.driver)+'</td>'+
+      '<td title="'+esc(o.customer)+'">'+esc(o.customer)+'</td>'+
+      '<td title="'+esc(o.merchant)+'">'+esc(o.merchant)+'</td>'+
+      '<td class="cell-mute" title="'+esc(o.driver)+'">'+esc(o.driver)+'</td>'+
       '<td class="right cell-strong">'+esc(o.amount)+'</td>'+
       '<td><span class="bdg bg-neutral plain">'+esc(o.payment)+'</span></td>'+
       '<td>'+badge(o.status)+'</td>'+
@@ -1247,7 +1250,7 @@ function renderDrivers(){
         ' class="tgl-driver-online" data-id="'+esc(d.id)+'" aria-label="Driver online"><span class="ts"></span></label>';
     }
     return '<tr>'+
-      '<td><div class="cell-media"><span class="dot'+(d.isOnline&&d.approved?' on':'')+'"></span><b>'+esc(d.name)+'</b></div></td>'+
+      '<td title="'+esc(d.name)+'"><div class="cell-media"><span class="dot'+(d.isOnline&&d.approved?' on':'')+'"></span><b>'+esc(d.name)+'</b></div></td>'+
       '<td class="cell-mute num">'+esc(d.phone)+'</td>'+
       '<td>'+esc(d.vtype)+'</td>'+
       '<td><span class="bdg bg-neutral plain num">'+esc(d.plate)+'</span></td>'+
@@ -1770,8 +1773,8 @@ function renderCustomers(){
   tbody.innerHTML=rows.map(function(c){
     var count=customerOrders(c.id).length;
     return '<tr'+(c.disabled?' class="row-muted"':'')+'>'+
-      '<td><b>'+esc(c.name)+'</b></td>'+
-      '<td class="cell-mute">'+esc(c.email)+'</td>'+
+      '<td title="'+esc(c.name)+'"><b>'+esc(c.name)+'</b></td>'+
+      '<td class="cell-mute" title="'+esc(c.email)+'">'+esc(c.email)+'</td>'+
       '<td class="cell-mute num">'+esc(c.phone)+'</td>'+
       '<td class="right cell-id">'+count+'</td>'+
       '<td class="right cell-strong">'+money(customerValue(c.id))+'</td>'+
@@ -1962,10 +1965,10 @@ function renderOverseas(){
     var contents=i.itemDescription.length>44?i.itemDescription.slice(0,44)+'…':i.itemDescription;
     return '<tr>'+
       '<td><span class="cell-id">'+esc(inquiryRef(i.id))+'</span></td>'+
-      '<td><b>'+esc(i.customerName)+'</b><div class="cell-mute">'+esc(i.originCountry)+'</div></td>'+
-      '<td>'+esc(i.recipientName)+'</td>'+
+      '<td title="'+esc(i.customerName)+'"><b>'+esc(i.customerName)+'</b><div class="cell-mute">'+esc(i.originCountry)+'</div></td>'+
+      '<td title="'+esc(i.recipientName)+'">'+esc(i.recipientName)+'</td>'+
       '<td class="cell-mute">'+esc(i.recipientParish)+'</td>'+
-      '<td class="cell-mute">'+esc(i.itemCategory)+' · '+esc(contents)+'</td>'+
+      '<td class="cell-mute" title="'+esc(i.itemCategory)+' · '+esc(i.itemDescription)+'">'+esc(i.itemCategory)+' · '+esc(contents)+'</td>'+
       '<td class="right num">'+esc(inquiryBudget(i.budget))+'</td>'+
       '<td>'+inquiryBadge(i.status)+'</td>'+
       // A brand-new enquiry has no resolved timestamp yet, and "—" would read
@@ -2295,19 +2298,33 @@ function renderMerchantStats(){
 function merchantSkeletons(n){
   var out='';
   for(var i=0;i<(n||8);i++){
+    // Built from the REAL card's own boxes, so the placeholder is exactly the
+    // height of the thing it stands in for and the grid does not jump when the
+    // data lands.
     out+='<div class="mcd mcd-sk">'+
       '<div class="mcd-cover"><div class="sk"></div></div>'+
       '<div class="mcd-body">'+
-        '<div class="sk sk-line" style="width:64%"></div>'+
-        '<div class="sk sk-pill" style="width:38%"></div>'+
-        '<div class="sk sk-line" style="width:78%"></div>'+
-        '<div class="sk sk-line" style="width:56%"></div>'+
-      '</div></div>';
+        '<div class="mcd-id">'+
+          '<div class="mcd-name"><span class="sk sk-line" style="width:84%"></span></div>'+
+          '<div class="sk sk-pill mcd-sk-cat"></div>'+
+        '</div>'+
+        '<div class="mcd-line one"><span class="sk sk-line" style="width:62%"></span></div>'+
+        '<div class="mcd-stats"><div class="mcd-row">'+
+          '<span class="sk sk-line" style="width:52%"></span>'+
+          '<span class="sk sk-pill mcd-sk-tgl"></span>'+
+        '</div></div>'+
+      '</div>'+
+      '<div class="mcd-foot"><div class="sk mcd-sk-btn"></div></div>'+
+    '</div>';
   }
   return out;
 }
 function renderMerchants(){
   renderMerchantStats();
+  var cnt=$('merchants-count');
+  if(cnt) cnt.textContent=loadedOnce.merchants
+    ? merchants.length+(merchants.length===1?' store':' stores')
+    : '';
   var grid=$('merchants-grid'); if(!grid) return;
   if(!loadedOnce.merchants){ grid.innerHTML=merchantSkeletons(8); return; }
   if(!merchants.length){
@@ -2320,50 +2337,70 @@ function renderMerchants(){
     return;
   }
   grid.innerHTML=merchants.map(function(m){
-    var id=esc(m.id),open=!!m.open;
-    return '<article class="mcd">'+
+    var id=esc(m.id),open=!!m.open,shown=!!expandedMerchants[m.id];
+    return '<article class="mcd'+(shown?' open':'')+'">'+
       // ── Cover. The state badge rides on the photo rather than sitting in
       //    the body: open/closed is the fact you scan a grid FOR, and up here
       //    it is in the same place on all four cards in a row.
       '<div class="mcd-cover">'+merchantCover(m)+
         '<div class="mcd-state">'+badge(open?'Open':'Closed')+'</div>'+
       '</div>'+
+      // ── The default half: who they are, what they sell, how to reach them,
+      //    and the one switch that changes what customers see right now. Five
+      //    facts, every one of them a fixed height — see .mcd-name in pages.css
+      //    for why that is the whole trick behind cards that stay the same size.
       '<div class="mcd-body">'+
         '<div class="mcd-id">'+
           '<h3 class="mcd-name" title="'+esc(m.name)+'">'+esc(m.name)+'</h3>'+
           '<span class="bdg bg-info plain bdg-cap mcd-cat">'+esc(m.category)+'</span>'+
         '</div>'+
-        // ── Contact. Glyph-led, because a card has no column header to name
-        //    the value and two uppercase captions would cost two more lines.
-        '<div class="mcd-meta">'+
-          '<div class="mcd-line">'+icon('phone','ic-xs')+'<span class="num">'+esc(m.phone)+'</span></div>'+
-          '<div class="mcd-line">'+icon('map-pin','ic-xs')+'<span class="mcd-addr">'+esc(m.address)+'</span></div>'+
-        '</div>'+
+        // Glyph-led, because a card has no column header to name the value and
+        // an uppercase caption would cost another line to say what a phone
+        // handset says instantly.
+        '<div class="mcd-line one">'+icon('phone','ic-xs')+'<span class="num">'+esc(m.phone)+'</span></div>'+
         '<div class="mcd-stats">'+
-          '<div class="mcd-row"><span class="mcd-k">Orders Today</span>'+
-            '<span class="mcd-v num">'+ordersTodayFor(m.id)+'</span></div>'+
-          '<div class="mcd-row"><span class="mcd-k">Rating</span>'+
-            '<span class="mcd-v">'+starsOrNone(m.rating,m.ratingCount)+'</span></div>'+
-          // The switch takes the same label→control row as the two readouts
-          // above it. It is the one control in the panel that writes to
-          // Firestore on a single click with no confirmation, so it says what
-          // it does in words instead of relying on a title attribute — and the
-          // words never change, because the STATE is the badge on the cover.
+          // The switch is the one control in the panel that writes to Firestore
+          // on a single click with no confirmation, so it says what it does in
+          // words instead of relying on a title attribute — and the words never
+          // change, because the STATE is the badge on the cover.
           '<div class="mcd-row"><span class="mcd-k">Accepting orders</span>'+
             '<label class="tgl" title="Toggle open"><input type="checkbox"'+(open?' checked':'')+
               ' class="tgl-merchant" data-id="'+id+'" aria-label="Merchant open"><span class="ts"></span></label>'+
           '</div>'+
         '</div>'+
       '</div>'+
-      '<div class="mcd-foot">'+
+      // ── The revealed half. An address runs to one line or three, a rating is
+      //    a star row or the words "No ratings yet" — variable heights, all of
+      //    them, which is exactly why they are behind the button.
+      '<div class="mcd-more" id="mcd-more-'+id+'">'+
+        '<div class="mcd-line">'+icon('map-pin','ic-xs')+'<span class="mcd-addr">'+esc(m.address)+'</span></div>'+
+        '<div class="mcd-row"><span class="mcd-k">Orders Today</span>'+
+          '<span class="mcd-v num">'+ordersTodayFor(m.id)+'</span></div>'+
+        '<div class="mcd-row"><span class="mcd-k">Rating</span>'+
+          '<span class="mcd-v">'+starsOrNone(m.rating,m.ratingCount)+'</span></div>'+
         '<div class="mcd-acts">'+
           '<button class="aicon ai-v" data-action="view-merchant" data-id="'+id+'" title="View" aria-label="View merchant">'+icon('view')+'</button>'+
           '<button class="aicon ai-e" data-action="edit-merchant" data-id="'+id+'" title="Edit" aria-label="Edit merchant">'+icon('edit')+'</button>'+
           '<button class="aicon ai-d" data-action="del-merchant" data-id="'+id+'" title="Delete" aria-label="Delete merchant">'+icon('delete')+'</button>'+
         '</div>'+
       '</div>'+
+      '<div class="mcd-foot">'+
+        '<button type="button" class="btn btn-outline btn-sm mcd-exp" data-action="expand-merchant" data-id="'+id+'" '+
+          'aria-expanded="'+(shown?'true':'false')+'" aria-controls="mcd-more-'+id+'">'+
+          (shown?'Hide Details':'View Details')+icon('caret-right')+'</button>'+
+      '</div>'+
     '</article>';
   }).join('');
+}
+/* Which cards are open, by merchant id. It has to live OUTSIDE the DOM: the
+   grid is rebuilt wholesale on every Firestore snapshot, and flipping a card's
+   own "Accepting orders" switch causes one — so a state held on the element
+   would collapse the card the moment you used the control inside it. */
+var expandedMerchants={};
+function toggleMerchantCard(id){
+  if(expandedMerchants[id]) delete expandedMerchants[id];
+  else expandedMerchants[id]=true;
+  renderMerchants();
 }
 /* ── Merchant cover uploader (P4-01, upload-only, inline) ─────────────
    Built once and re-pointed at whichever merchant is open. `#m-imageurl` is a
@@ -3135,7 +3172,7 @@ function renderTopMerch(){
     return;
   }
   el.innerHTML=data.slice(0,5).map(function(m){
-    return '<tr><td><b>'+esc(m.n)+'</b></td>'+
+    return '<tr><td title="'+esc(m.n)+'"><b>'+esc(m.n)+'</b></td>'+
       '<td class="right cell-id">'+m.o+'</td>'+
       '<td class="right cell-strong">'+money(m.r)+'</td></tr>';
   }).join('');
@@ -3244,6 +3281,7 @@ document.addEventListener('click',function(e){
     case 'del-driver':      deleteDriver(id); break;
     case 'approve-driver':  approveDriver(id); break;
     case 'reject-driver':   rejectDriver(id); break;
+    case 'expand-merchant': toggleMerchantCard(id); break;
     case 'view-merchant':   openMerchantPanel(id); break;
     case 'edit-merchant':   openMerchantModal('edit',id); break;
     case 'del-merchant':    deleteMerchant(id); break;

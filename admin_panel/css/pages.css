@@ -48,9 +48,37 @@
    FOUR UP on the desktop. At 1440 that is a 264px card and at 1281 (the
    narrowest width that still gets four) it is 210px — which is what every
    metric below is sized against, not the comfortable case. */
+/* ── The band that separates the summary from the directory ──
+   Not a .card — it sits on the page ground between two blocks and its whole
+   job is to say "the tiles below are a different thing from the tiles above".
+   A rule under it does that with less furniture than a box would. */
+.sec-hdr{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp-4);
+  margin:var(--sp-7) 0 var(--sp-5);padding-bottom:var(--sp-3);
+  border-bottom:1px solid var(--line);
+}
+.sec-hdr-txt{min-width:0;}
+.sec-title{font-size:var(--fs-h3);line-height:var(--lh-h3);font-weight:700;
+  letter-spacing:var(--tr-h3);color:var(--ink);}
+.sec-sub{font-size:var(--fs-caption);line-height:var(--lh-body);color:var(--ink-3);
+  margin-top:var(--sp-half);}
+/* The count is a readout, not a filter — it takes the quiet chip treatment so
+   it never reads as something to press. */
+.sec-count{
+  flex-shrink:0;padding:var(--sp-1) var(--sp-3);border-radius:var(--r-full);
+  background:var(--sunken);box-shadow:var(--ring);
+  font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:600;
+  letter-spacing:var(--tr-micro);color:var(--ink-2);text-transform:uppercase;
+}
+
 .mgrid{
   display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
   gap:var(--sp-5);margin-bottom:var(--gap-section);
+  /* Every card is the same height whatever is in it (see .mcd below), so the
+     row does not need to stretch to its tallest member — and when one card is
+     expanded, `start` is what stops the other three in its row from growing a
+     matching column of empty space underneath their footers. */
+  align-items:start;
 }
 /* The loading and empty states are grid children like any other, so they say
    so rather than being positioned out of the flow. */
@@ -67,13 +95,20 @@
 }
 .mcd:hover{box-shadow:var(--ring-strong),var(--e3),var(--lip);transform:translateY(-3px);}
 
-/* 2:1, which is the shape the uploader actually stores (1000×500), so the
-   frame never crops the photo the admin chose. It is also the answer to the
-   images reading as bubbles: at 42px on a 16px radius the old thumbnail was
-   38% round. A plate is the right shape for a GLYPH; a photograph wants an
-   edge, and the only corners here are the card's own. */
-.mcd-cover{position:relative;aspect-ratio:2/1;background:var(--sunken);flex-shrink:0;}
-.mcd-img{display:block;width:100%;height:100%;object-fit:cover;}
+/* ONE frame, at ONE ratio, for every card. 2:1 is the shape the uploader
+   actually stores (1000×500), so the frame agrees with the pipeline that fills
+   it. aspect-ratio fixes the frame's HEIGHT to the card's width, and every card
+   in the grid is the same width — so the band is identical on all of them
+   whatever anybody uploaded. object-fit:cover is what makes that safe: a
+   portrait photo, a square logo and a wide storefront all fill the same box and
+   are cropped to it rather than stretching it.
+
+   The image is also the reason the card can be a fixed height at all. Everything
+   below it is one line or a switch; this is the only part that could have had an
+   opinion, and it no longer does. */
+.mcd-cover{position:relative;aspect-ratio:2/1;background:var(--sunken);flex-shrink:0;
+  overflow:hidden;}
+.mcd-img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;}
 /* No photo: the band takes the category's own tint and glyph (.c-food and
    friends above), so the card still says what KIND of merchant this is rather
    than leaving a grey hole in the grid. */
@@ -88,46 +123,64 @@
 .mcd-state{position:absolute;top:var(--sp-2);right:var(--sp-2);}
 .mcd-state .bdg{box-shadow:var(--e2);}
 
-/* flex:1 plus margin-top:auto on .mcd-stats below is what makes a ROW of cards
-   read as a row: the rule, the two figures, the switch and the actions all land
-   at the same height across four cards, and the slack a short name leaves goes
-   above the rule where it reads as air rather than as a gap someone forgot to
-   fill. */
-.mcd-body{display:flex;flex-direction:column;flex:1;gap:var(--sp-3);padding:var(--sp-4);}
-/* --sp-4 rather than --pad-card: --pad-card is 20px, and 24px at ≥1280 where
-   these cards are at their narrowest relative to their content. A card this
-   size wants its padding to stop growing. */
+/* ── THE COLLAPSED CARD IS A FIXED HEIGHT, BY CONSTRUCTION ──
+   Not a magic number on .mcd — every part of the default card is individually
+   incapable of changing height, so the sum cannot change either. The name is
+   always exactly two lines whether it needs one or three; the category is a
+   badge; the phone is one line that ellipsises; the switch row has the switch's
+   own height as its floor. Nothing here can be pushed by data.
+
+   That is what the earlier build got wrong. It showed the address (one line for
+   some merchants, two for others), the rating (a star row, or the words "No
+   ratings yet") and a count — three variable-height facts in a 210px column —
+   and then leaned on flexbox stretching to hide the difference. Stretching only
+   equalises cards WITHIN a row, so the grid came out as bands of different
+   heights, and every card was ~500px tall to boot. Those three facts live
+   behind the button now (.mcd-more). */
+.mcd-body{display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-4);}
 .mcd-id{display:flex;flex-direction:column;align-items:flex-start;
   gap:var(--gap-tight);min-width:0;}
 /* --fs-title/700 is the card-title role, one step below the 20px a full-width
-   .card-title takes. Clamped to two lines: "Island Grill Half Way Tree" is a
-   real merchant name and at 210px it needs both of them. */
+   .card-title takes. Two lines ALWAYS — the height is set, not clamped, so
+   "Scotchies" reserves the same space "Tastee Patties Constant Spring" needs.
+   That one declaration is what keeps every card in the grid the same size. */
 .mcd-name{
   font-size:var(--fs-title);line-height:var(--lh-title);font-weight:700;
   letter-spacing:var(--tr-title);color:var(--ink);
+  height:calc(var(--fs-title) * var(--lh-title) * 2);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
 }
 
 /* Glyph-led rather than labelled. A card has no column header to name its
    values, and two uppercase captions here would cost two more lines to say
    what a phone and a pin say instantly. */
-.mcd-meta{display:flex;flex-direction:column;gap:var(--gap-tight);min-width:0;}
+/* One text line's worth of height whatever is in it — which is what lets the
+   loading skeleton be exactly as tall as the card it stands in for, rather than
+   11px shorter per line and jumping when the data lands. */
 .mcd-line{display:flex;align-items:flex-start;gap:var(--gap-inline);min-width:0;
+  min-height:calc(var(--fs-caption) * var(--lh-body));
   font-size:var(--fs-caption);line-height:var(--lh-body);color:var(--ink-2);}
+/* Same reason: a badge's height is otherwise whatever its padding and font
+   happen to add up to, and the skeleton has neither. */
+.mcd-cat{height:24px;}
 .mcd-line .ic{color:var(--ink-4);flex-shrink:0;margin-top:1px;}
+/* The phone is in the default half of the card, so it is the one meta line that
+   must never take a second row. */
+.mcd-line.one{white-space:nowrap;overflow:hidden;}
+.mcd-line.one>span{overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .mcd-addr{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
   overflow:hidden;}
 
-/* The two numbers, over a rule — label left, value right, which is the same
-   .sp-row shape the side panel already uses for exactly this kind of pair.
-   Two columns side by side was the obvious first move and it was wrong: at the
-   narrow four-up width each column is ~90px, "ORDERS TODAY" is ~100px at 11px
-   with micro tracking, and a wrapped label pushed its value a line below the
-   one beside it. A full-width row cannot have that argument. */
+/* The label→value row, which is the same .sp-row shape the side panel already
+   uses for exactly this kind of pair. Two columns side by side was the obvious
+   first move and it was wrong: at the narrow four-up width each column is ~90px,
+   "ORDERS TODAY" is ~100px at 11px with micro tracking, and a wrapped label
+   pushed its value a line below the one beside it. A full-width row cannot have
+   that argument. */
 .mcd-stats{display:flex;flex-direction:column;gap:var(--gap-tight);
-  margin-top:auto;padding-top:var(--sp-3);border-top:1px solid var(--line);}
+  padding-top:var(--sp-3);border-top:1px solid var(--line);}
 /* min-height:24px is the toggle's own height — it keeps the switch row the
-   same height as the two readout rows above it, so the band stays a band. */
+   same height as the readout rows, so the band stays a band. */
 .mcd-row{display:flex;align-items:center;justify-content:space-between;
   gap:var(--sp-3);min-height:24px;min-width:0;}
 .mcd-k{font-size:var(--fs-micro);line-height:var(--lh-micro);
@@ -141,19 +194,45 @@
    weight, or an unrated merchant reads louder than a rated one. */
 .mcd-v .cell-mute{font-size:var(--fs-caption);font-weight:400;}
 
-/* Actions only, right-aligned over a rule — the same shape .form-actions gives
-   a form. The switch is NOT here: it belongs with the facts it changes, and
-   putting 250px of controls on one line inside a 193px card only ever produced
-   a wrapped footer that was a different height at every breakpoint. */
+/* ── THE SECOND HALF ──
+   The address, the two figures and the three actions. Everything here is
+   either variable in height or rarely needed while scanning a directory, which
+   is the same test: if it cannot be relied on to be one line, it does not get
+   to decide how tall the card is.
+
+   display:none rather than height:0 — a collapsed card must not hand its
+   buttons to the keyboard or its text to a screen reader, and the ARIA state on
+   the button below says so out loud. */
+.mcd-more{display:none;padding:0 var(--sp-4) var(--sp-4);}
+.mcd.open .mcd-more{display:flex;flex-direction:column;gap:var(--sp-3);}
+/* The actions land at the bottom of the revealed half, over their own rule, so
+   the reveal reads as "detail, then what you can do about it". */
+.mcd-acts{display:flex;gap:var(--gap-tight);flex-shrink:0;
+  padding-top:var(--sp-3);border-top:1px solid var(--line);}
+
+/* Full width, quiet, and the last thing in the card — it is a disclosure, not a
+   call to action, so it takes the outline button rather than the filled one and
+   never competes with the switch above it. margin-top:auto pins it to the
+   bottom edge in the one case where a card is taller than its own content: a
+   row in which some OTHER card is open. */
 .mcd-foot{
-  display:flex;align-items:center;justify-content:flex-end;gap:var(--gap-inline);
+  display:flex;align-items:center;gap:var(--gap-inline);margin-top:auto;
   padding:var(--sp-3) var(--sp-4);border-top:1px solid var(--line);
 }
-.mcd-acts{display:flex;gap:var(--gap-tight);flex-shrink:0;}
+.mcd-exp{width:100%;justify-content:center;}
+/* The sprite only carries a right-pointing caret, so the glyph is rotated into
+   place — down while there is more to see, up once it is open. */
+.mcd-exp .ic{transform:rotate(90deg);transition:transform var(--d-fast) var(--ease);}
+.mcd.open .mcd-exp .ic{transform:rotate(-90deg);}
 
 /* A skeleton card must not lift, and must not offer a hover target for a
    record that is not there yet. */
 .mcd-sk{pointer-events:none;}
+/* The two placeholders that stand in for a control rather than for text, at the
+   control's own size — a 44px switch and a full-width small button. */
+.mcd-sk-cat{width:38%;height:24px;}
+.mcd-sk-tgl{width:44px;height:24px;flex-shrink:0;}
+.mcd-sk-btn{width:100%;height:32px;border-radius:var(--r-md);}
 
 /* ─────────────── NOTIFICATIONS PAGE ─────────────── */
 .nl,.pl{display:grid;grid-template-columns:minmax(0,1fr) 300px;

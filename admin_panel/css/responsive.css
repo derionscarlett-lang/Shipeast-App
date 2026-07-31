@@ -255,6 +255,18 @@
   .tbl-wrap tbody,
   .tbl-wrap tr,
   .tbl-wrap td{display:block;width:100%;}
+  /* Both halves of the desktop column system are undone here. The declared
+     widths belong to `table-layout:fixed`, which stops applying the moment the
+     table becomes a block — but the min-width that keeps those columns from
+     being crushed does NOT stop applying, and 1088px on a 390pt phone is a page
+     that scrolls sideways. The <col> elements generate no box once the table is
+     a block, so the colgroup can stay in the markup untouched.
+
+     .t-wide has to be named explicitly: a media query adds no specificity, so
+     `.tbl-wrap table` alone loses to `.tbl-wrap table.t-wide` and the
+     nine-column rosters would keep their desktop floor here. */
+  .tbl-wrap table,
+  .tbl-wrap table.t-wide{min-width:0;}
   /* The header row is folded into each cell's label — hidden visually but kept
      in the DOM, since it is both the a11y header and the data-label source. */
   .tbl-wrap thead{
@@ -288,10 +300,21 @@
   /* Cell = column label on its own line, value beneath. Block flow means any
      cell contents — plain text, a badge beside an id, a flex .cell-media or
      .cell-actions — lay out correctly and nothing overlaps. */
+  /* The desktop one-line-then-ellipsis rule is undone: a row card has the whole
+     width of the page to say a value in, so nothing needs truncating. Restoring
+     overflow also matters structurally — the expand chevron lives inside the
+     first cell and is positioned against the row, so a clipping <td> would cut
+     it in half. */
   .tbl-wrap td{
     padding:var(--sp-1) 0;border:none;
     text-align:left!important;font-size:var(--fs-body);color:var(--ink);
     white-space:normal;word-break:break-word;
+    overflow:visible;text-overflow:clip;
+  }
+  .tbl-wrap td>div,
+  .tbl-wrap .cell-media>b,
+  .tbl-wrap .cell-media>span:not(.dot){
+    overflow:visible;text-overflow:clip;white-space:normal;
   }
   /* Undo the desktop first/last-column insets — they exist to align cells with
      the card padding in table layout, which no longer applies. */

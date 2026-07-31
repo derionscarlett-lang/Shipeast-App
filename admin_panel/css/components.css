@@ -171,7 +171,56 @@
    and nothing moves. */
 .card>.tbl-wrap:first-child{
   margin-top:calc(var(--card-pad) * -1);border-radius:var(--r-lg);}
-table{width:100%;border-collapse:collapse;}
+/* ── COLUMN WIDTHS ARE DECLARED, NOT DISCOVERED ──────────────────────────
+   Every table in the panel is `table-layout:fixed` with a <colgroup>, and the
+   widths below are the whole story.
+
+   Auto layout was measuring the CONTENT of each column and sizing to it, which
+   meant the grid moved whenever the data did. On Drivers that produced the
+   visible fault: "Active" swelled to 231px because ONE row held an
+   Approve/Reject pair, "Trips" was crushed to 58px because a number is narrow,
+   and the count ended up hugging the right edge of a column three times its
+   width — sitting under the tail of its own heading rather than under the
+   heading. It also meant the columns re-flowed every time an Orders filter or a
+   Customers search changed which rows were on screen.
+
+   Fixed layout ends all of that: a column is the width its ROLE needs, the same
+   width on every page and in every state. The roles below were sized from the
+   real rendered controls — a 44px switch, a 32px icon button, a five-star
+   rating, a status pill — plus the 2×12px cell padding they sit in. Exactly one
+   column per table is left `auto` (.tc-flex) to absorb the slack, which is
+   always the name or the prose.
+
+   Anything longer than its column now ellipsises rather than widening it (see
+   the td rule below), so the row stays one line tall and the column stays put. */
+table{width:100%;border-collapse:collapse;table-layout:fixed;}
+.tc-flex{width:auto;}          /* names, addresses, prose — takes the slack */
+.tc-name{width:152px;}         /* a person's name where it cannot have the slack */
+.tc-ref{width:120px;}          /* #A1B2C3D4, a promo code */
+.tc-ref-type{width:196px;}     /* the same, plus the package/food type badge */
+.tc-num{width:80px;}           /* a right-aligned count */
+.tc-money{width:120px;}        /* a right-aligned currency figure */
+.tc-badge{width:132px;}        /* one status pill — sized on "On the Way", the widest label OrderStatus has */
+.tc-chip{width:100px;}         /* a plain data chip: a plate, a payment method */
+.tc-phone{width:116px;}
+.tc-date{width:108px;}         /* a timestamp or a date */
+.tc-rating{width:128px;}       /* five stars and a figure, or "No ratings yet" */
+.tc-switch{width:152px;}       /* the online switch, or the approve/reject pair */
+.tc-usage{width:128px;}        /* the promo usage bar */
+/* Sized by the HEADING, not the button. One 32px icon needs 68px of column and
+   the word "ACTIONS" needs 92 — a column narrower than its own label is not a
+   column, and the last one in the table pays the card's 24px padding on top. */
+.tc-act1{width:96px;}          /* one icon button */
+.tc-act3{width:144px;}         /* three icon buttons */
+/* The declared columns above force the table to at least their own sum, so this
+   is not about them — it is the floor under the .tc-flex columns, which would
+   otherwise be free to collapse to an ellipsis and nothing else. Below it
+   .tbl-wrap scrolls, which is the honest outcome for nine columns of controls
+   on a narrow desktop. Phones never reach it: they get row cards from ≤720px
+   (responsive.css), where this is switched off entirely. */
+.tbl-wrap table{min-width:880px;}
+.tbl-wrap table.t-wide{min-width:1096px;}   /* the nine-column rosters */
+.tbl-wrap table.t-narrow{min-width:0;}      /* tables inside a half-width card */
 /* The column-name strip was --card on --card: white labels on a white card,
    which is the "no contrast, no professional layout" complaint on Drivers and
    every other table. It is a banded header now, and the labels sit at --ink-2
@@ -194,15 +243,29 @@ thead th{
   font-size:var(--fs-micro);line-height:var(--lh-micro);font-weight:600;
   color:var(--ink-2);text-transform:uppercase;letter-spacing:var(--tr-micro);
   border-bottom:1px solid var(--line-strong);white-space:nowrap;
+  /* A heading must not escape its own column. Under fixed layout it no longer
+     widens the column to fit, so without this it simply painted over the
+     neighbour — or off the card's right edge, in the last column's case. */
+  overflow:hidden;text-overflow:ellipsis;
 }
 thead th:first-child,tbody td:first-child{padding-left:var(--card-pad);}
 thead th:last-child,tbody td:last-child{padding-right:var(--card-pad);}
 /* Rows breathe. --pad-cell-y was 12px against a 13px/1.45 cell, so a roster
    read as a wall of text with hairlines through it; at 16px the eye can track
    across a nine-column row without a ruler. */
+/* One line, then an ellipsis. This is the other half of fixed layout: a column
+   can only hold still if the cell inside it refuses to push. Overflow is
+   clipped with a visible ellipsis rather than wrapped, so every row is exactly
+   one line tall and each value stays inside the band its heading names.
+   Cells that are legitimately taller — a two-line address, a name over its
+   origin — opt out below. */
 td{padding:var(--sp-4) var(--pad-cell-x);
   font-size:var(--fs-dense);line-height:var(--lh-dense);color:var(--ink);
-  border-bottom:1px solid var(--line);vertical-align:middle;}
+  border-bottom:1px solid var(--line);vertical-align:middle;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* text-overflow only draws on the box that clips, so a block child inside a
+   cell — the origin line under a customer's name — has to clip for itself. */
+td>div{overflow:hidden;text-overflow:ellipsis;}
 /* Scroll-margin keeps a row that JS jumps to clear of the sticky topbar. */
 tbody tr{transition:background var(--d-fast) var(--ease);scroll-margin-top:var(--h-topbar);}
 tbody tr:last-child td{border-bottom:none;}
@@ -231,16 +294,33 @@ td.right,th.right{text-align:right;font-variant-numeric:tabular-nums;}
 /* A street address is the one cell that will happily run to 60 characters and
    push every column after it off-screen. Capped and clipped to two lines. */
 .cell-addr{max-width:180px;font-size:var(--fs-caption);line-height:var(--lh-caption);
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  white-space:normal;}
+/* ── The three opt-outs from the one-line rule ──
+   A full-width empty state and a skeleton line are not values in a column, so
+   neither the nowrap nor the ellipsis applies to them; without this the empty
+   state's prose would run off the side of the table as a single line. */
+td[colspan]{white-space:normal;overflow:visible;text-overflow:clip;}
 .cell-strong{font-weight:600;font-variant-numeric:tabular-nums;}
-.cell-actions{display:flex;gap:var(--gap-tight);flex-wrap:nowrap;}
+/* Wraps now. The Approve/Reject pair on a pending driver measures 207px and the
+   switch column it shares is 156px — under auto layout that ONE row set the
+   width of the column for the whole roster. It stacks instead, which costs a
+   line on the row that is actually asking to be dealt with and leaves the other
+   eight rows their proper shape. */
+.cell-actions{display:flex;gap:var(--gap-tight);flex-wrap:wrap;}
 /* A disabled customer's row (P5-05). Dimmed rather than hidden — an admin
    looking for the account they just disabled must still be able to find it.
    Opacity alone would be an accessibility failure, so the row keeps its explicit
    "Disabled" badge and this is only reinforcement. */
 tr.row-muted td{opacity:.6;}
 tr.row-muted:hover td{opacity:1;}
+/* A flex box does not inherit its parent cell's ellipsis — the cell clips the
+   BOX, so the name inside it would simply disappear at the edge. The text child
+   has to clip for itself, and min-width:0 is what lets it shrink below its own
+   content width in the first place. */
 .cell-media{display:flex;align-items:center;gap:var(--gap-inline);min-width:0;}
+.cell-media>b,.cell-media>span:not(.dot){
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 /* ─────────────── BADGES ─────────────── */
 .bdg{

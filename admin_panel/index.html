@@ -343,7 +343,14 @@
         </div>
         <div class="card">
           <div class="card-title">Recent Orders</div>
+          <!-- Every table declares its columns. See the .tc-* vocabulary in
+               components.css: the class names a ROLE, the role fixes the width,
+               and the width is the same on every page that shows that role. -->
           <div class="tbl-wrap"><table>
+            <colgroup>
+              <col class="tc-ref-type"/><col class="tc-flex"/><col class="tc-flex"/><col class="tc-name"/>
+              <col class="tc-money"/><col class="tc-badge"/><col class="tc-act1"/>
+            </colgroup>
             <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th class="right">Amount</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="dash-tbody"></tbody>
           </table></div>
@@ -358,7 +365,11 @@
           <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
           <input id="orders-search" placeholder="Search order ID, customer, merchant…" aria-label="Search orders"/>
         </div>
-        <div class="card"><div class="tbl-wrap"><table>
+        <div class="card"><div class="tbl-wrap"><table class="t-wide">
+          <colgroup>
+            <col class="tc-ref-type"/><col class="tc-flex"/><col class="tc-flex"/><col class="tc-flex"/>
+            <col class="tc-money"/><col class="tc-chip"/><col class="tc-badge"/><col class="tc-date"/><col class="tc-act1"/>
+          </colgroup>
           <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th class="right">Total</th><th>Payment</th><th>Status</th><th>Time</th><th>Actions</th></tr></thead>
           <tbody id="orders-tbody"></tbody>
         </table></div></div>
@@ -373,7 +384,11 @@
           </button>
         </div>
         <div class="sg" id="drivers-stats"></div>
-        <div class="card"><div class="tbl-wrap"><table>
+        <div class="card"><div class="tbl-wrap"><table class="t-wide">
+          <colgroup>
+            <col class="tc-flex"/><col class="tc-phone"/><col class="tc-chip"/><col class="tc-chip"/>
+            <col class="tc-rating"/><col class="tc-num"/><col class="tc-badge"/><col class="tc-switch"/><col class="tc-act3"/>
+          </colgroup>
           <thead><tr><th>Name</th><th>Phone</th><th>Vehicle</th><th>Plate</th><th>Rating</th><th class="right">Trips</th><th>Status</th><th>Active</th><th>Actions</th></tr></thead>
           <tbody id="drivers-tbody"></tbody>
         </table></div></div>
@@ -388,6 +403,17 @@
           </button>
         </div>
         <div class="sg g3" id="merchants-stats"></div>
+        <!-- The grid used to begin the moment the three summary boxes ended, so
+             a page that is really two things — a summary, then a directory —
+             read as one long fall of tiles. This band names the second thing and
+             puts real air above it. -->
+        <div class="sec-hdr">
+          <div class="sec-hdr-txt">
+            <h2 class="sec-title">All Merchants</h2>
+            <p class="sec-sub">Every store customers can order from. A card's switch takes it off the app immediately.</p>
+          </div>
+          <span class="sec-count num" id="merchants-count"></span>
+        </div>
         <!-- A GRID OF CARDS, NOT A TABLE.
              A merchant is the one record in this panel that is mostly not
              text: it has a cover photo, a category, a rating and a switch
@@ -413,6 +439,10 @@
         </div>
         <div id="customers-cap"></div>
         <div class="card"><div class="tbl-wrap"><table>
+          <colgroup>
+            <col class="tc-flex"/><col class="tc-flex"/><col class="tc-phone"/><col class="tc-num"/>
+            <col class="tc-money"/><col class="tc-badge"/><col class="tc-act1"/>
+          </colgroup>
           <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Orders</th><th class="right">Lifetime Value</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="customers-tbody"></tbody>
         </table></div></div>
@@ -427,7 +457,14 @@
           <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
           <input id="overseas-search" placeholder="Search customer, recipient, parish, shopping list…" aria-label="Search shop-and-deliver requests"/>
         </div>
-        <div class="card"><div class="tbl-wrap"><table>
+        <div class="card"><div class="tbl-wrap"><table class="t-wide">
+          <!-- The shopping list is the only .tc-flex here on purpose: it is the
+               one column whose content has no natural length, so it takes
+               whatever the named columns either side of it do not need. -->
+          <colgroup>
+            <col class="tc-ref"/><col class="tc-name"/><col class="tc-name"/><col class="tc-chip"/>
+            <col class="tc-flex"/><col class="tc-money"/><col class="tc-badge"/><col class="tc-date"/><col class="tc-act1"/>
+          </colgroup>
           <thead><tr><th>Ref</th><th>Customer</th><th>Deliver to</th><th>Parish</th><th>Shopping list</th><th class="right">Budget</th><th>Status</th><th>Received</th><th>Actions</th></tr></thead>
           <tbody id="overseas-tbody"></tbody>
         </table></div></div>
@@ -522,7 +559,11 @@
             </div>
             <div class="card">
               <div class="card-title">Active Promo Codes</div>
-              <div class="tbl-wrap"><table>
+              <div class="tbl-wrap"><table class="t-narrow">
+                <colgroup>
+                  <col class="tc-ref"/><col class="tc-flex"/><col class="tc-usage"/><col class="tc-num"/>
+                  <col class="tc-date"/><col class="tc-badge"/><col class="tc-act1"/>
+                </colgroup>
                 <thead><tr><th>Code</th><th>Discount</th><th class="right">Used</th><th class="right">Max</th><th>Valid Until</th><th>Status</th><th>Delete</th></tr></thead>
                 <tbody id="promos-tbody"></tbody>
               </table></div>
@@ -571,7 +612,8 @@
           </div>
           <div class="card">
             <div class="card-title">Top Merchants</div>
-            <div class="tbl-wrap"><table>
+            <div class="tbl-wrap"><table class="t-narrow">
+              <colgroup><col class="tc-flex"/><col class="tc-num"/><col class="tc-money"/></colgroup>
               <thead><tr><th>Merchant</th><th class="right">Orders</th><th class="right">Revenue</th></tr></thead>
               <tbody id="top-merch"></tbody>
             </table></div>
