@@ -169,11 +169,13 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     context.read<CartProvider>().removeItem(itemId);
   }
 
+  // Mirrors the home-screen category palette so a merchant's hero reads in the
+  // same hue as the chip that led here. Star-gold stays reserved for ratings.
   Color get _heroHue => switch (_merchantCategory) {
-        'Grocery' => SeColors.success,
-        'Pharmacy' => SeColors.ocean500,
-        'Packages' => SeColors.gold500,
-        _ => SeColors.red500,
+        'Grocery' => SeColors.catGrocery,
+        'Pharmacy' => SeColors.catPharmacy,
+        'Packages' => SeColors.catPackages,
+        _ => SeColors.catFood,
       };
 
   @override
@@ -272,13 +274,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   }
 
   Widget _heroFallback() => Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [_heroHue.withValues(alpha: 0.9), _heroHue],
-          ),
-        ),
+        color: _heroHue, // flat brand plate (was a same-hue gradient)
         child: Center(
           child: Text(_merchantEmoji, style: const TextStyle(fontSize: 54)),
         ),
@@ -485,7 +481,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                   child: Text('$qty',
                       style: SeType.tabular(SeType.title)),
                 ),
-                _stepBtn(SeIcons.plus, SeColors.red500, Colors.white,
+                _stepBtn(SeIcons.plus, SeColors.brandAction, Colors.white,
                     () => _addToCart(item)),
               ],
             ),

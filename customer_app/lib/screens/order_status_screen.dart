@@ -376,18 +376,15 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     );
   }
 
+  // Flat now (no gradients). A two-stop list of one colour renders flat.
   static const LinearGradient _successGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF16A34A), Color(0xFF0B7A38)],
+    colors: [SeColors.success, SeColors.success],
   );
 
-  /// Neutral slate, deliberately not the brand ember and not alarm red. A
+  /// Neutral dark, deliberately not the brand red and not alarm red. A
   /// cancelled order is a dead end, not an error the customer caused.
   static const LinearGradient _cancelledGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF475467), Color(0xFF1D2939)],
+    colors: [SeColors.ink900, SeColors.ink900],
   );
 
   /// Terminal presentation for a cancelled order.

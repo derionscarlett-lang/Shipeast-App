@@ -76,10 +76,9 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
   /// still typing the first field read as nagging, not help.
   Map<String, String> _errors = const {};
 
+  // Flat info surface now (no gradients). Renders flat via two identical stops.
   static const LinearGradient _oceanGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF0E9488), Color(0xFF0B6E66)],
+    colors: [SeColors.info, SeColors.info],
   );
 
   @override
@@ -241,7 +240,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
               'drop it to your family. The total depends on the store and the '
               'day’s prices, so a member of the team will confirm it with you '
               'first — nothing is charged until you agree to it.',
-              style: SeType.bodyS.copyWith(color: const Color(0xFF0B6E66)),
+              style: SeType.bodyS.copyWith(color: SeColors.infoInk),
             ),
           ],
         ),

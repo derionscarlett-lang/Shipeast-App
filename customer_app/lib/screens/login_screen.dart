@@ -232,7 +232,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: GestureDetector(
                     onTap: _handleForgotPassword,
                     child: Text('Forgot Password?',
-                        style: SeType.label.copyWith(color: SeColors.red500)),
+                        style: SeType.label.copyWith(color: SeColors.brandAction)),
                   ),
                 ),
               ),
@@ -271,7 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextSpan(
                         text: 'Sign Up',
                         style: SeType.body.copyWith(
-                            color: SeColors.red500, fontWeight: FontWeight.w700),
+                            color: SeColors.brandAction, fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -399,9 +399,9 @@ class _GoogleButton extends StatelessWidget {
           height: 50,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: SeColors.surface0,
+            color: SeColors.surfaceRaised,
             border: Border.all(color: SeColors.ink200, width: 1.5),
-            borderRadius: SeRadius.all(SeRadius.md),
+            borderRadius: SeRadius.pill,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

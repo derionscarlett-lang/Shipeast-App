@@ -175,7 +175,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         TextSpan(
                           text: 'Terms',
                           style: const TextStyle(
-                              color: SeColors.red500,
+                              color: SeColors.brandAction,
                               fontWeight: FontWeight.w600),
                           recognizer: _termsTap,
                         ),
@@ -183,7 +183,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         TextSpan(
                           text: 'Privacy Policy',
                           style: const TextStyle(
-                              color: SeColors.red500,
+                              color: SeColors.brandAction,
                               fontWeight: FontWeight.w600),
                           recognizer: _privacyTap,
                         ),
@@ -256,7 +256,7 @@ class _ParcelMark extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: SeColors.gold500,
+                color: SeColors.brandAction,
                 shape: BoxShape.circle,
                 boxShadow: SeElevation.e2,
               ),

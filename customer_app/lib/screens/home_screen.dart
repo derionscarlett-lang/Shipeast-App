@@ -59,11 +59,12 @@ class _HomeScreenState extends State<HomeScreen> {
     {'icon': SeIcons.pharmacy, 'label': 'Pharmacy', 'hue': SeColors.catPharmacy, 'tint': SeColors.catPharmacyTint},
   ];
 
+  // Package-type accents drawn from the brand palette (no off-palette hues).
   static const List<Map<String, dynamic>> _packageCategories = [
-    {'icon': SeIcons.food, 'label': 'Food Items', 'color': Color(0xFFF97316)},
-    {'icon': SeIcons.box, 'label': 'Clothing', 'color': Color(0xFF8B5CF6)},
-    {'icon': SeIcons.box, 'label': 'Glassware', 'color': SeColors.ocean500},
-    {'icon': SeIcons.box, 'label': 'Electronics', 'color': Color(0xFF3B82F6)},
+    {'icon': SeIcons.food, 'label': 'Food Items', 'color': SeColors.warning},
+    {'icon': SeIcons.box, 'label': 'Clothing', 'color': SeColors.brand},
+    {'icon': SeIcons.box, 'label': 'Glassware', 'color': SeColors.info},
+    {'icon': SeIcons.box, 'label': 'Electronics', 'color': SeColors.info},
     {'icon': SeIcons.note, 'label': 'Documents', 'color': SeColors.success},
     {'icon': SeIcons.packages, 'label': 'Custom Package', 'color': SeColors.ink500},
   ];
@@ -311,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         value: packingRequired,
                         onChanged: (v) =>
                             setModalState(() => packingRequired = v),
-                        activeThumbColor: SeColors.red500,
+                        activeThumbColor: SeColors.brandAction,
                       ),
                       if (pricing.packingSurcharge > 0)
                         Padding(
@@ -634,13 +635,11 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF0E9488), Color(0xFF0B6E66)],
-            ),
+            // Flat info surface (was a teal gradient). Sits apart from the red
+            // header above it and carries white text at 5.6:1.
+            color: SeColors.info,
             borderRadius: SeRadius.all(SeRadius.md),
-            boxShadow: SeElevation.glowColor(SeColors.ocean500, opacity: 0.28),
+            boxShadow: SeElevation.e2,
           ),
           child: Row(
             children: [
@@ -786,9 +785,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text('See all',
                         style:
-                            SeType.label.copyWith(color: SeColors.red500)),
+                            SeType.label.copyWith(color: SeColors.brandAction)),
                     const Icon(SeIcons.caretRight,
-                        size: 14, color: SeColors.red500),
+                        size: 14, color: SeColors.brandAction),
                   ],
                 ),
               ),
@@ -910,7 +909,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 9, vertical: 4),
                       decoration: BoxDecoration(
-                        color: SeColors.red500,
+                        color: SeColors.brandAction,
                         borderRadius: SeRadius.all(SeRadius.xs),
                         boxShadow: SeElevation.e1,
                       ),
@@ -984,13 +983,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _fallbackHero(Color hue) => Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [hue.withValues(alpha: 0.9), hue],
-          ),
-        ),
+        color: hue, // flat brand plate (was a same-hue gradient)
         child: Center(
           child: Icon(SeIcons.storefront,
               size: 44, color: Colors.white.withValues(alpha: 0.85)),

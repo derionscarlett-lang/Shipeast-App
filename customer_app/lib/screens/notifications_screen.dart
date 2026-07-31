@@ -131,8 +131,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: ListView.separated(
           padding: const EdgeInsets.all(SeSpacing.gutter),
           itemCount: 6,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (_, __) => Row(
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          itemBuilder: (_, _) => Row(
             children: const [
               SeSkeleton.circle(size: 44),
               SizedBox(width: 12),

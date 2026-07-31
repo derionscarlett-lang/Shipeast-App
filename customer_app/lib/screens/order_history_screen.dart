@@ -283,8 +283,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         child: ListView.separated(
           padding: const EdgeInsets.all(SeSpacing.gutter),
           itemCount: 5,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (_, __) => Container(
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (_, _) => Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -442,11 +442,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(SeIcons.refresh, size: 14, color: SeColors.red500),
+              const Icon(SeIcons.refresh, size: 14, color: SeColors.brandAction),
               const SizedBox(width: 5),
               Text('Reorder',
                   style: SeType.label.copyWith(
-                      color: SeColors.red600, fontWeight: FontWeight.w700)),
+                      color: SeColors.brandAction, fontWeight: FontWeight.w700)),
             ],
           ),
         ),

@@ -17,7 +17,7 @@ class SeChip extends StatelessWidget {
     required this.label,
     this.icon,
     this.fg = SeColors.ink700,
-    this.bg = SeColors.surface0,
+    this.bg = SeColors.surfaceRaised,
     this.selected = false,
     this.onTap,
   });
@@ -38,7 +38,7 @@ class SeChip extends StatelessWidget {
         color: bg,
         borderRadius: SeRadius.pill,
         border: selected
-            ? Border.all(color: SeColors.red500, width: 1.5)
+            ? Border.all(color: SeColors.brand, width: 1.5)
             : null,
       ),
       child: Row(
@@ -95,20 +95,15 @@ class SeCategoryTile extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              gradient: selected
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color.lerp(hue, Colors.white, 0.18)!, hue],
-                    )
-                  : null,
-              color: selected ? null : tint,
-              borderRadius: BorderRadius.circular(12),
+              // Flat, no gradient: a selected tile fills with its hue and lifts
+              // a touch; an unselected tile is a soft tint surface + hairline.
+              color: selected ? hue : tint,
+              borderRadius: BorderRadius.circular(SeRadius.md),
               border: selected
                   ? null
                   : Border.all(color: hue.withValues(alpha: 0.14), width: 1),
               boxShadow: selected
-                  ? SeElevation.glowColor(hue, opacity: 0.24)
+                  ? SeElevation.glowColor(hue, opacity: 0.20)
                   : SeElevation.e0,
             ),
             child: Icon(icon, size: 27, color: selected ? Colors.white : hue),

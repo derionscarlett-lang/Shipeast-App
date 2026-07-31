@@ -168,7 +168,7 @@ class _MainShellState extends State<MainShell> {
             width: 58,
             height: 58,
             decoration: const BoxDecoration(
-              gradient: SeColors.emberGradient,
+              color: SeColors.brandAction,
               shape: BoxShape.circle,
               boxShadow: SeElevation.glow,
             ),

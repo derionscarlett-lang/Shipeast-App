@@ -258,7 +258,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   icon: _paypalLogo(),
                   name: 'PayPal',
                   sub: 'Pay securely via PayPal',
-                  iconBg: const Color(0xFFF0F4FF),
+                  iconBg: SeColors.infoSoft,
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),

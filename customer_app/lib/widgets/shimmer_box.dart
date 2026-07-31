@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/se_colors.dart';
 
 class ShimmerBox extends StatefulWidget {
   final double width;
@@ -19,7 +20,6 @@ class ShimmerBox extends StatefulWidget {
 class _ShimmerBoxState extends State<ShimmerBox>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
-  late Animation<double> _anim;
 
   @override
   void initState() {
@@ -27,7 +27,6 @@ class _ShimmerBoxState extends State<ShimmerBox>
     _ctrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1200))
       ..repeat();
-    _anim = Tween<double>(begin: -2.0, end: 2.0).animate(_ctrl);
   }
 
   @override
@@ -38,24 +37,23 @@ class _ShimmerBoxState extends State<ShimmerBox>
 
   @override
   Widget build(BuildContext context) {
+    // No gradients: breathe a flat blush block's opacity (matches SeShimmer).
     return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, child) => Container(
-        width: widget.width,
-        height: widget.height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(widget.radius),
-          gradient: LinearGradient(
-            begin: Alignment(_anim.value - 1, 0),
-            end: Alignment(_anim.value, 0),
-            colors: const [
-              Color(0xFFEDEAE4),
-              Color(0xFFF7F5F1),
-              Color(0xFFEDEAE4),
-            ],
+      animation: _ctrl,
+      builder: (_, child) {
+        final t = (_ctrl.value * 2 - 1).abs();
+        return Opacity(
+          opacity: 1 - 0.5 * t,
+          child: Container(
+            width: widget.width,
+            height: widget.height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(widget.radius),
+              color: SeColors.ink200,
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

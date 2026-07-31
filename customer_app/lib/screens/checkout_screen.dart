@@ -355,10 +355,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 onTap: onAction,
                 child: Row(
                   children: [
-                    const Icon(SeIcons.edit, size: 14, color: SeColors.red500),
+                    const Icon(SeIcons.edit, size: 14, color: SeColors.brandAction),
                     const SizedBox(width: 4),
                     Text(actionLabel,
-                        style: SeType.label.copyWith(color: SeColors.red500)),
+                        style: SeType.label.copyWith(color: SeColors.brandAction)),
                   ],
                 ),
               ),

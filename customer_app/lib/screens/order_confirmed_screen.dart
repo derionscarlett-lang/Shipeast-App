@@ -123,7 +123,7 @@ class _OrderConfirmedScreenState extends State<OrderConfirmedScreen>
         children: [
           AnimatedBuilder(
             animation: _confettiAnim,
-            builder: (_, __) => CustomPaint(
+            builder: (_, _) => CustomPaint(
               painter: _ConfettiPainter(_confettiAnim.value, _particles),
               size: Size.infinite,
             ),
@@ -396,9 +396,9 @@ class _Particle {
         color = [
           SeColors.red500,
           SeColors.red400,
-          SeColors.gold500,
-          const Color(0xFFFF6A3D),
-          SeColors.ocean500,
+          SeColors.star,
+          SeColors.warning,
+          SeColors.info,
         ][math.Random().nextInt(5)],
         startY = -0.1 - math.Random().nextDouble() * 0.3;
 }

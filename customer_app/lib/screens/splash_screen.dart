@@ -134,7 +134,7 @@ class _SplashScreenState extends State<SplashScreen>
                         borderRadius: BorderRadius.circular(10),
                         child: AnimatedBuilder(
                           animation: _progressAnim,
-                          builder: (_, __) => LinearProgressIndicator(
+                          builder: (_, _) => LinearProgressIndicator(
                             value: _progressAnim.value,
                             backgroundColor:
                                 Colors.white.withValues(alpha: 0.18),

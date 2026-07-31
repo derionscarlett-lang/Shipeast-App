@@ -194,7 +194,7 @@ class _SearchScreenState extends State<SearchScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.fromLTRB(SeSpacing.gutter, 10, SeSpacing.gutter, 0),
               itemCount: _quickCats.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
                 final (label, icon, hue) = _quickCats[i];
                 return SeChip(
@@ -235,7 +235,7 @@ class _SearchScreenState extends State<SearchScreen> {
       ListView.separated(
         padding: const EdgeInsets.all(SeSpacing.gutter),
         itemCount: results.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, i) => _merchantTile(results[i]),
       );
 
@@ -245,7 +245,7 @@ class _SearchScreenState extends State<SearchScreen> {
             SeSpacing.gutter, 12, SeSpacing.gutter, 0),
         sliver: SliverList.separated(
           itemCount: results.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (context, i) => _merchantTile(results[i]),
         ),
       );

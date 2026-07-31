@@ -235,7 +235,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       TextSpan(
                         text: 'Sign In',
                         style: SeType.body.copyWith(
-                            color: SeColors.red500, fontWeight: FontWeight.w700),
+                            color: SeColors.brandAction, fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),

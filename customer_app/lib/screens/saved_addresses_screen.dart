@@ -241,8 +241,8 @@ class _SavedAddressesScreenState extends State<SavedAddressesScreen> {
         child: ListView.separated(
           padding: const EdgeInsets.all(SeSpacing.gutter),
           itemCount: 4,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (_, __) => Row(
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          itemBuilder: (_, _) => Row(
             children: const [
               SeSkeleton(width: 42, height: 42, radius: 11),
               SizedBox(width: 12),

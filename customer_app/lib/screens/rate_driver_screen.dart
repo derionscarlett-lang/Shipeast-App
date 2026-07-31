@@ -220,7 +220,7 @@ class _RateDriverScreenState extends State<RateDriverScreen> {
           if (_driverRating > 0) ...[
             const SizedBox(height: 10),
             Text(_ratingLabel(_driverRating),
-                style: SeType.title.copyWith(color: SeColors.red500)),
+                style: SeType.title.copyWith(color: SeColors.brandAction)),
           ],
         ],
       ),

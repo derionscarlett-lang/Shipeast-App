@@ -189,7 +189,7 @@ class _CartScreenState extends State<CartScreen> {
                   child: Text('${item.quantity}',
                       style: SeType.tabular(SeType.title)),
                 ),
-                _qtyBtn(SeIcons.plus, SeColors.red500, Colors.white,
+                _qtyBtn(SeIcons.plus, SeColors.brandAction, Colors.white,
                     () => cart.incrementItem(item.id)),
               ],
             ),
