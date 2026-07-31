@@ -158,12 +158,18 @@
      Two-up at every phone width. An earlier rule set put them back to one-up
      below 400px, so on a real phone (390pt) four cards became four full-width
      rows and pushed the table two screens down. Four now read as a 2×2 block
-     above the fold; three fill the first row and leave the third alone, which
-     is the intended shape on Merchants, Customers and Shop & Deliver. */
+     above the fold. */
   /* The gap matches the page gutter (--sp-4) so the space BETWEEN the two cards
      and the space either SIDE of the pair read as one consistent rhythm rather
      than the cards being pinched together in a wider margin. */
   .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-4);}
+  /* The 3-stat pages (Merchants, Customers, Shop & Deliver) render exactly
+     three cards, so at two-up the third landed alone at half width with a dead
+     column beside it. Span it across the row instead: two cards on top, one
+     full-width plate under them reads as a finished block rather than an orphan
+     with empty space to its right. Guarded on :last-child so it only spans when
+     it genuinely is the trailing odd card. */
+  .sg.g3 .sc:nth-child(3):last-child{grid-column:1 / -1;}
   .sc{padding:var(--sp-4);}
   /* The chip moves ABOVE the number instead of beside it. .sc-top is one flex
      row of [label + value] and [chip], so at half width on a phone the value
@@ -554,11 +560,14 @@
      deliberate header band rather than crammed against the status bar. */
   .lb{padding:var(--sp-7) var(--sp-5) var(--sp-6);}
   .lb-mark{width:min(176px,62%);}
-  /* Centre the form in whatever height is left below the brand band instead of
-     pinning it to the top with a tall empty area beneath — the flex item's
-     auto min-height means it can never shrink below the form, so a short screen
-     simply scrolls the page rather than clipping anything. */
-  .ls{align-items:center;padding:var(--sp-7) var(--sp-5);}
+  /* Anchor the form directly under the brand band rather than vertically
+     centring it in the leftover height. Centred, a tall phone opened a visible
+     void between the band and the first field; sitting the form at the top of
+     the panel keeps the lockup and the heading reading as one continuous
+     column, and any slack falls harmlessly at the bottom of the screen. The
+     flex item's auto min-height still means a short screen scrolls rather than
+     clips. */
+  .ls{align-items:flex-start;padding:var(--sp-7) var(--sp-5);}
   .lc-title{font-size:var(--fs-h2);line-height:var(--lh-h2);}
   /* Tighter lede-to-field gap on a phone — the desktop 32px opened a hole
      between the heading and the first input on a narrow column. */

@@ -203,6 +203,57 @@ const STATS = {
     + STAT('Completion', '94%', 'Delivered / placed', 'success', 'check'),
 };
 
+/* Merchant cards — the merchants page is a GRID OF CARDS, not a table, and the
+   grid is filled by renderMerchants() in app.js, which the harness does not run.
+   Left unseeded, the one page whose mobile layout cannot be derived from a table
+   fold was never actually shot. These mirror renderMerchants()'s markup: a cover
+   band with a state badge, the default body (name, category, phone, the open
+   switch), the revealed half (address, orders, rating, actions) and the expander.
+   One card is pre-expanded (.open) so the revealed half is exercised too. */
+const MERCH_ICO = (id, extra = '') =>
+  `<svg class="ic${extra ? ' ' + extra : ''}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const MERCH_STARS = (v) => `<span class="stars">${
+  [1, 2, 3, 4, 5].map(i => MERCH_ICO(i <= Math.round(v) ? 'star-f' : 'star',
+    i <= Math.round(v) ? '' : 'off')).join('')
+  }</span><span class="rating-val">${v.toFixed(1)}</span>`;
+const MERCH_CARD = (m) => `<article class="mcd ${m.card}${m.open ? ' open' : ''}">
+  <div class="mcd-cover"><div class="mcd-fb ${m.fb}">${MERCH_ICO(m.ico)}</div>
+    <div class="mcd-state"><span class="bdg bg-${m.stOpen ? 'success' : 'neutral'}">${m.stOpen ? 'Open' : 'Closed'}</span></div>
+  </div>
+  <div class="mcd-body">
+    <div class="mcd-id"><h3 class="mcd-name" title="${m.name}">${m.name}</h3>
+      <span class="bdg bg-info plain bdg-cap mcd-cat">${m.cat}</span></div>
+    <div class="mcd-line one">${MERCH_ICO('phone', 'ic-xs')}<span class="num">${m.phone}</span></div>
+    <div class="mcd-stats"><div class="mcd-row"><span class="mcd-k">Accepting orders</span>
+      <label class="tgl" title="Toggle open"><input type="checkbox"${m.stOpen ? ' checked' : ''}><span class="ts"></span></label></div></div>
+  </div>
+  <div class="mcd-more">
+    <div class="mcd-line">${MERCH_ICO('map-pin', 'ic-xs')}<span class="mcd-addr">${m.addr}</span></div>
+    <div class="mcd-row"><span class="mcd-k">Orders Today</span><span class="mcd-v num">${m.today}</span></div>
+    <div class="mcd-row"><span class="mcd-k">Rating</span><span class="mcd-v">${
+      m.ratings ? MERCH_STARS(m.rating) : '<span class="cell-mute sm">No ratings yet</span>'}</span></div>
+    <div class="mcd-acts">
+      <button class="aicon ai-v" title="View" aria-label="View merchant">${MERCH_ICO('view')}</button>
+      <button class="aicon ai-e" title="Edit" aria-label="Edit merchant">${MERCH_ICO('edit')}</button>
+      <button class="aicon ai-d" title="Delete" aria-label="Delete merchant">${MERCH_ICO('delete')}</button>
+    </div>
+  </div>
+  <div class="mcd-foot"><button type="button" class="mcd-exp" aria-expanded="${m.open ? 'true' : 'false'}">
+    <span class="mcd-exp-t">${m.open ? 'Hide details' : 'View details'}</span>
+    <span class="mcd-exp-ic" aria-hidden="true">${MERCH_ICO('caret-down')}</span></button></div>
+</article>`;
+const MERCH = [
+  { name: 'Tastee Patties', cat: 'Food', card: 'mc-food', fb: 'c-food', ico: 'cat-food',
+    phone: '876-555-0111', addr: 'Shop 4, Half Way Tree Plaza, Half Way Tree, St Andrew',
+    today: 12, rating: 4.7, ratings: 1, stOpen: true, open: true },
+  { name: 'Fontana Pharmacy', cat: 'Pharmacy', card: 'mc-pharmacy', fb: 'c-pharmacy', ico: 'cat-pharmacy',
+    phone: '876-555-0777', addr: 'Barbican Centre, Kingston 6', today: 0, rating: 0, ratings: 0, stOpen: false, open: false },
+  { name: 'Hi-Lo Food Stores', cat: 'Grocery', card: 'mc-grocery', fb: 'c-grocery', ico: 'cat-grocery',
+    phone: '876-555-0230', addr: 'Manor Park, Kingston 8', today: 5, rating: 4.6, ratings: 1, stOpen: true, open: false },
+  { name: 'Juici Patties', cat: 'Food', card: 'mc-food', fb: 'c-food', ico: 'cat-food',
+    phone: '876-555-0142', addr: 'Portmore Pines Plaza, Portmore', today: 8, rating: 4.5, ratings: 1, stOpen: true, open: false },
+].map(MERCH_CARD).join('');
+
 const NOTIF_HIST = ['Flash Sale — 20% Off Deliveries!', 'Service update: Portmore now covered']
   .map((t, i) => `<div class="nh-item">
     <div class="nh-ico"><svg class="ic" aria-hidden="true"><use href="#i-notifications-f"/></svg></div>
@@ -271,6 +322,10 @@ async function buildHarness() {
   for (const [id, markup] of Object.entries(STATS)) {
     html = html.replace(new RegExp(`<div class="sg[^"]*" id="${id}">`), m => m + markup);
   }
+  html = html.replace('<div class="mgrid" id="merchants-grid"></div>',
+    `<div class="mgrid" id="merchants-grid">${MERCH}</div>`);
+  html = html.replace('<span class="sec-count num" id="merchants-count"></span>',
+    '<span class="sec-count num" id="merchants-count">4 stores</span>');
   html = html.replace('<div id="notif-hist"></div>', `<div id="notif-hist">${NOTIF_HIST}</div>`);
   html = html.replace('<div id="zone-chart"></div>', `<div id="zone-chart">${ZONES}</div>`);
   html = html.replace('<div id="pay-split"></div>', `<div id="pay-split">${PAY}</div>`);
