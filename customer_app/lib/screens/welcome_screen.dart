@@ -157,12 +157,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   const Spacer(),
                   SeButton(
                     label: 'Get Started',
-                    icon: SeIcons.arrowRight,
                     onPressed: () => Navigator.pushNamed(context, '/register'),
                   ),
                   const SizedBox(height: 10),
                   SeButton(
-                    label: 'I Already Have an Account',
+                    label: 'I already have an account',
                     variant: SeButtonVariant.ghost,
                     onPressed: () => Navigator.pushNamed(context, '/login'),
                   ),
@@ -181,7 +180,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         ),
                         const TextSpan(text: ' & '),
                         TextSpan(
-                          text: 'Privacy Policy',
+                          text: 'Privacy',
                           style: const TextStyle(
                               color: SeColors.brandAction,
                               fontWeight: FontWeight.w600),

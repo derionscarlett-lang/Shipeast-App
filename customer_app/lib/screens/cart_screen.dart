@@ -85,13 +85,18 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                             ),
                           ...items.map((item) => _itemCard(item, cart)),
-                          const SizedBox(height: 4),
-                          SeButton(
-                            label: 'Add More Items',
-                            icon: SeIcons.plus,
-                            variant: SeButtonVariant.ghost,
-                            size: SeButtonSize.medium,
-                            onPressed: () => Navigator.pop(context),
+                          const SizedBox(height: 6),
+                          // Hug-width secondary action — a full-bleed ghost bar
+                          // read as heavy next to the item cards.
+                          Center(
+                            child: SeButton(
+                              label: 'Add more items',
+                              icon: SeIcons.plus,
+                              variant: SeButtonVariant.ghost,
+                              size: SeButtonSize.medium,
+                              expand: false,
+                              onPressed: () => Navigator.pop(context),
+                            ),
                           ),
                           const SizedBox(height: 12),
                           _buildInstructionsCard(),
@@ -286,7 +291,6 @@ class _CartScreenState extends State<CartScreen> {
           int serviceFee, int total) =>
       SeButton(
         label: 'Proceed to Checkout · ${Money.format(total)}',
-        icon: SeIcons.arrowRight,
         onPressed: () => Navigator.pushNamed(context, '/checkout', arguments: {
           'merchantId': cart.merchantId,
           'merchantName': cart.merchantName,

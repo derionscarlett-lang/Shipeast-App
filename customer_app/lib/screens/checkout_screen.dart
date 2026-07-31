@@ -327,7 +327,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _buildChoosePaymentButton() => SeButton(
         label: 'Choose Payment',
-        icon: SeIcons.arrowRight,
         onPressed: () {
           if (_addresses.isEmpty) {
             SeToast.error(context, 'Please add a delivery address first');

@@ -464,9 +464,9 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  gradient: SeColors.emberGradient,
+                  color: SeColors.brandAction,
                   borderRadius: SeRadius.all(SeRadius.sm),
-                  boxShadow: SeElevation.glow,
+                  boxShadow: SeElevation.e1,
                 ),
                 child: const Icon(SeIcons.plus, size: 18, color: Colors.white),
               ),
@@ -547,21 +547,22 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       child: GestureDetector(
         onTap: () => Navigator.pushNamed(context, '/cart'),
         child: Container(
-          height: 58,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          height: 56,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            gradient: SeColors.emberGradient,
-            borderRadius: SeRadius.all(SeRadius.md),
+            color: SeColors.brandAction,
+            borderRadius: SeRadius.pill,
             boxShadow: SeElevation.glow,
           ),
           child: Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: SeRadius.pill,
+                  shape: BoxShape.circle,
                 ),
                 child: Text('${cart.cartCount}',
                     style: SeType.tabular(SeType.title)
@@ -575,8 +576,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
               Text(Money.format(cart.cartTotal),
                   style: SeType.tabular(SeType.jakarta(16, FontWeight.w800,
                       color: Colors.white))),
-              const SizedBox(width: 8),
-              const Icon(SeIcons.caretRight, size: 20, color: Colors.white),
+              const SizedBox(width: 14),
             ],
           ),
         ),
