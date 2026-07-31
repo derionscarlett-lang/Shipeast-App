@@ -79,7 +79,11 @@
     box-shadow:inset 0 -1px 0 rgba(46,5,16,.16);
   }
   .lb-mark{width:min(216px,58%);}
-  .lb-copy{display:none;}
+  /* Stacked, the panel is a compact top banner: the marketing line, the
+     wordmark eyebrow and the host footer are all desktop furniture, so only
+     the lockup rides along. */
+  .lb-copy,.lb-eyebrow,.lb-foot{display:none;}
+  .lb-body{align-items:center;gap:0;}
   /* Top-aligned once stacked: vertically centring a form inside whatever
      height is left over puts it in a different place on every device. */
   .ls{align-items:flex-start;padding:var(--sp-8) var(--sp-6);}

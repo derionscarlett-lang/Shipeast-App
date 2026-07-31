@@ -133,15 +133,23 @@
      has to be flex — these two panels are its flex children. -->
 <div id="login-page">
   <aside class="lb">
+    <!-- Three zones on space-between, so the mass is distributed top-to-bottom
+         instead of pooling in the centre and leaving the upper field bare: a
+         wordmark eyebrow up top, the lockup + line centred, a quiet footer at
+         the base. All three ride the same rail ink as the sidebar. -->
+    <div class="lb-eyebrow">ShipEast Admin</div>
     <!-- The real lockup, and it can finally sit ON the brand. The artwork is
          single-colour #FF0043 on transparency, so `brightness(0) invert(1)`
          knocks it out to white without needing a second asset — the same
          white-on-red the sidebar mark is. It is also SMALLER relative to its
          panel than it was on the card: it now reads as placed rather than as
          the page's subject. -->
-    <img class="lb-mark" src="assets/brand/shipeast-logo.png" width="700" height="328"
-         alt="ShipEast Couriers &amp; Bearer Service"/>
-    <p class="lb-copy">Orders, drivers, merchants and analytics &mdash; the whole operation on one screen.</p>
+    <div class="lb-body">
+      <img class="lb-mark" src="assets/brand/shipeast-logo.png" width="700" height="328"
+           alt="ShipEast Couriers &amp; Bearer Service"/>
+      <p class="lb-copy">Orders, drivers, merchants and analytics &mdash; the whole operation on one screen.</p>
+    </div>
+    <div class="lb-foot">admin.shipeastja.com</div>
   </aside>
   <main class="ls">
     <div class="lc">
@@ -353,7 +361,7 @@
               <col class="tc-ref-type"/><col class="tc-flex"/><col class="tc-flex"/><col class="tc-name"/>
               <col class="tc-money"/><col class="tc-badge"/><col class="tc-act1"/>
             </colgroup>
-            <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th class="right">Amount</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th class="right">Amount</th><th>Status</th><th>View</th></tr></thead>
             <tbody id="dash-tbody"></tbody>
           </table></div>
         </div>
@@ -377,7 +385,7 @@
             <col class="tc-ref-type"/><col class="tc-flex"/><col class="tc-flex"/><col class="tc-flex"/>
             <col class="tc-money"/><col class="tc-chip"/><col class="tc-badge"/><col class="tc-date"/><col class="tc-act1"/>
           </colgroup>
-          <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th class="right">Total</th><th>Payment</th><th>Status</th><th>Time</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th class="right">Total</th><th>Payment</th><th>Status</th><th>Time</th><th>View</th></tr></thead>
           <tbody id="orders-tbody"></tbody>
         </table></div></div>
       </section>
@@ -450,7 +458,7 @@
             <col class="tc-flex"/><col class="tc-flex"/><col class="tc-phone"/><col class="tc-num"/>
             <col class="tc-money"/><col class="tc-badge"/><col class="tc-act1"/>
           </colgroup>
-          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Orders</th><th class="right">Lifetime Value</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Orders</th><th class="right">Lifetime Value</th><th>Status</th><th>View</th></tr></thead>
           <tbody id="customers-tbody"></tbody>
         </table></div></div>
       </section>
@@ -477,7 +485,7 @@
             <col class="tc-ref"/><col class="tc-name"/><col class="tc-name"/><col class="tc-chip"/>
             <col class="tc-flex"/><col class="tc-money"/><col class="tc-badge"/><col class="tc-date"/><col class="tc-act1"/>
           </colgroup>
-          <thead><tr><th>Ref</th><th>Customer</th><th>Deliver to</th><th>Parish</th><th>Shopping list</th><th class="right">Budget</th><th>Status</th><th>Received</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Ref</th><th>Customer</th><th>Deliver to</th><th>Parish</th><th>Shopping list</th><th class="right">Budget</th><th>Status</th><th>Received</th><th>View</th></tr></thead>
           <tbody id="overseas-tbody"></tbody>
         </table></div></div>
       </section>

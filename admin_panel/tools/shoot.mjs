@@ -59,33 +59,42 @@ const VIEWPORTS = [
 /* Rows shaped like the ones app.js emits, so tables, badges, id cells, action
    buttons and the media chips are all exercised rather than left empty. */
 const bdg = (tone, txt) => `<span class="bdg bg-${tone}">${txt}</span>`;
+/* Three-icon action cell — matches the driver roster, the only table whose
+   rows carry view/edit/delete inline (its column is .tc-act3, 144px). */
 const acts = `<div class="cell-actions">
   <button class="aicon ai-v"><svg class="ic" aria-hidden="true"><use href="#i-view"/></svg></button>
   <button class="aicon ai-e"><svg class="ic" aria-hidden="true"><use href="#i-edit"/></svg></button>
   <button class="aicon ai-d"><svg class="ic" aria-hidden="true"><use href="#i-delete"/></svg></button>
 </div>`;
 
+/* Single view-icon action cell — what orders, dashboard, customers and the
+   overseas roster actually emit at runtime (their column is .tc-act1, 96px).
+   Every action for those rows lives in the detail panel, not the table. Using
+   `acts` here would wrap three icons into a 96px column and balloon the row —
+   a harness artifact, not the shipped layout. */
+const actV = `<button class="aicon ai-v"><svg class="ic" aria-hidden="true"><use href="#i-view"/></svg></button>`;
+
 const ROWS = {
   'dash-tbody': [
     `<td class="cell-id">SE-10428</td><td>Devon Campbell</td><td>Tastee Patties</td>
      <td class="cell-mute">Marlon B.</td><td class="right cell-strong">J$2,450</td>
-     <td>${bdg('success', 'Delivered')}</td><td>${acts}</td>`,
+     <td>${bdg('success', 'Delivered')}</td><td>${actV}</td>`,
     `<td class="cell-id">SE-10427</td><td>Alicia Brown</td><td>Juici Patties</td>
      <td class="cell-mute">—</td><td class="right cell-strong">J$980</td>
-     <td>${bdg('warning', 'Pending')}</td><td>${acts}</td>`,
+     <td>${bdg('warning', 'Pending')}</td><td>${actV}</td>`,
     `<td class="cell-id">SE-10426</td><td>Kemar Wright</td><td>Fontana Pharmacy</td>
      <td class="cell-mute">Shanice G.</td><td class="right cell-strong">J$4,120</td>
-     <td>${bdg('danger', 'Cancelled')}</td><td>${acts}</td>`,
+     <td>${bdg('danger', 'Cancelled')}</td><td>${actV}</td>`,
   ],
   'orders-tbody': [
     `<td class="cell-id">SE-10428</td><td>Devon Campbell</td><td>Tastee Patties</td>
      <td class="cell-mute">Marlon B.</td><td class="right cell-strong">J$2,450</td>
      <td>${bdg('info', 'Card')}</td><td>${bdg('success', 'Delivered')}</td>
-     <td class="cell-mute">14:22</td><td>${acts}</td>`,
+     <td class="cell-mute">14:22</td><td>${actV}</td>`,
     `<td class="cell-id">SE-10427</td><td>Alicia Brown</td><td>Juici Patties</td>
      <td class="cell-mute">—</td><td class="right cell-strong">J$980</td>
      <td>${bdg('neutral', 'Cash')}</td><td>${bdg('warning', 'Pending')}</td>
-     <td class="cell-mute">14:05</td><td>${acts}</td>`,
+     <td class="cell-mute">14:05</td><td>${actV}</td>`,
   ],
   'drivers-tbody': [
     `<td>Marlon Bennett</td><td class="cell-mute">876-555-0142</td><td>Motorcycle</td>
@@ -127,18 +136,18 @@ const ROWS = {
     `<td>Devon Campbell</td><td class="cell-mute">devon@example.com</td>
      <td class="cell-mute">876-555-0142</td><td class="right cell-strong">14</td>
      <td class="right cell-strong">J$38,400</td><td>${bdg('success', 'Active')}</td>
-     <td>${acts}</td>`,
+     <td>${actV}</td>`,
     `<td>Alicia Brown</td><td class="cell-mute">alicia@example.com</td>
      <td class="cell-mute">876-555-0198</td><td class="right cell-strong">3</td>
      <td class="right cell-strong">J$5,120</td><td>${bdg('danger', 'Disabled')}</td>
-     <td>${acts}</td>`,
+     <td>${actV}</td>`,
   ],
   'overseas-tbody': [
     `<td class="cell-id">SD-2041</td><td>Marcia Thompson</td><td>Pearl Thompson</td>
      <td class="cell-mute">St Elizabeth</td>
      <td class="cell-mute">Rice, cooking oil, chicken, tinned mackerel</td>
      <td class="right cell-strong">J$12,000</td><td>${bdg('warning', 'New')}</td>
-     <td class="cell-mute">2 hrs ago</td><td>${acts}</td>`,
+     <td class="cell-mute">2 hrs ago</td><td>${actV}</td>`,
   ],
   'promos-tbody': [
     `<td class="cell-id">SUMMER25</td><td>25% off</td>
