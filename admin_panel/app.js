@@ -304,12 +304,16 @@ function ordersTodayFor(merchantId){
 }
 
 // ── Category glyphs (duotone tinted chips, per-category hue) ──
-var CATS={Food:{ic:'cat-food',cls:'c-food'},Grocery:{ic:'cat-grocery',cls:'c-grocery'},
-  Pharmacy:{ic:'cat-pharmacy',cls:'c-pharmacy'},Packages:{ic:'cat-packages',cls:'c-packages'}};
+/* `card` is the whole-card tint class — a very soft, transparent wash of the
+   category's own hue (see .mc-food & friends in pages.css) so the grid reads as
+   a set of merchant TYPES at a glance, without any card leaving the one system. */
+var CATS={Food:{ic:'cat-food',cls:'c-food',card:'mc-food'},Grocery:{ic:'cat-grocery',cls:'c-grocery',card:'mc-grocery'},
+  Pharmacy:{ic:'cat-pharmacy',cls:'c-pharmacy',card:'mc-pharmacy'},Packages:{ic:'cat-packages',cls:'c-packages',card:'mc-packages'}};
 function catIcon(cat,size){
   var c=CATS[cat]||{ic:'merchants',cls:'c-other'};
   return '<div class="cat-ico '+(size==='lg'?'lg ':'')+c.cls+'">'+icon(c.ic)+'</div>';
 }
+function catCard(cat){ return (CATS[cat]||{card:'mc-other'}).card; }
 function merchantMedia(m,size){
   if(m.imageUrl) return '<img class="thumb'+(size==='lg'?' lg':'')+'" src="'+esc(m.imageUrl)+'" alt="" '+
     'onerror="this.outerHTML=this.dataset.fb" data-fb="'+esc(catIcon(m.category,size))+'">';
@@ -2338,7 +2342,7 @@ function renderMerchants(){
   }
   grid.innerHTML=merchants.map(function(m){
     var id=esc(m.id),open=!!m.open,shown=!!expandedMerchants[m.id];
-    return '<article class="mcd'+(shown?' open':'')+'">'+
+    return '<article class="mcd '+catCard(m.category)+(shown?' open':'')+'">'+
       // ── Cover. The state badge rides on the photo rather than sitting in
       //    the body: open/closed is the fact you scan a grid FOR, and up here
       //    it is in the same place on all four cards in a row.
@@ -2385,9 +2389,11 @@ function renderMerchants(){
         '</div>'+
       '</div>'+
       '<div class="mcd-foot">'+
-        '<button type="button" class="btn btn-outline btn-sm mcd-exp" data-action="expand-merchant" data-id="'+id+'" '+
+        '<button type="button" class="mcd-exp" data-action="expand-merchant" data-id="'+id+'" '+
           'aria-expanded="'+(shown?'true':'false')+'" aria-controls="mcd-more-'+id+'">'+
-          (shown?'Hide Details':'View Details')+icon('caret-right')+'</button>'+
+          '<span class="mcd-exp-t">'+(shown?'Hide details':'View details')+'</span>'+
+          '<span class="mcd-exp-ic" aria-hidden="true">'+icon('caret-down')+'</span>'+
+        '</button>'+
       '</div>'+
     '</article>';
   }).join('');

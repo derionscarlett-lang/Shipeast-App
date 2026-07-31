@@ -95,6 +95,26 @@
 }
 .mcd:hover{box-shadow:var(--ring-strong),var(--e3),var(--lip);transform:translateY(-3px);}
 
+/* ── PER-CATEGORY IDENTITY ──
+   Each merchant TYPE gets its own tint so a full grid reads as a set of kinds
+   at a glance — but the tint is a whisper, not a fill: a few percent of the
+   category's own hue mixed into the surface, so every card is unmistakably the
+   same white card, only warmed one way or another. color-mix keeps the shift
+   proportional to whatever --surface is, so it survives the theme flip: the
+   same 6% lands as a soft light wash on white and a faint warm cast on the dark
+   ground. The category badge takes the SOLID tint of the same hue, so it reads
+   as a chip standing on the wash rather than a second, arguing colour. */
+.mc-food{background:color-mix(in srgb,var(--accent) 6%,var(--surface));}
+.mc-grocery{background:color-mix(in srgb,var(--success) 6%,var(--surface));}
+.mc-pharmacy{background:color-mix(in srgb,var(--info) 6%,var(--surface));}
+.mc-packages{background:color-mix(in srgb,var(--warning) 7%,var(--surface));}
+.mc-other{background:var(--surface);}
+.mc-food .mcd-cat{background:var(--accent-wash);color:var(--accent-ink);}
+.mc-grocery .mcd-cat{background:var(--success-tint);color:var(--success-ink);}
+.mc-pharmacy .mcd-cat{background:var(--info-tint);color:var(--info-ink);}
+.mc-packages .mcd-cat{background:var(--warning-tint);color:var(--warning-ink);}
+.mc-other .mcd-cat{background:var(--sunken);color:var(--ink-2);}
+
 /* ONE frame, at ONE ratio, for every card. 2:1 is the shape the uploader
    actually stores (1000×500), so the frame agrees with the pipeline that fills
    it. aspect-ratio fixes the frame's HEIGHT to the card's width, and every card
@@ -210,20 +230,41 @@
 .mcd-acts{display:flex;gap:var(--gap-tight);flex-shrink:0;
   padding-top:var(--sp-3);border-top:1px solid var(--line);}
 
-/* Full width, quiet, and the last thing in the card — it is a disclosure, not a
-   call to action, so it takes the outline button rather than the filled one and
-   never competes with the switch above it. margin-top:auto pins it to the
-   bottom edge in the one case where a card is taller than its own content: a
-   row in which some OTHER card is open. */
-.mcd-foot{
-  display:flex;align-items:center;gap:var(--gap-inline);margin-top:auto;
-  padding:var(--sp-3) var(--sp-4);border-top:1px solid var(--line);
+/* The disclosure, and the last thing in the card. It is not a call to action,
+   so it is not a button-shaped button — it is the whole footer row as the
+   target: a quiet label on the left, and the chevron riding in its own soft
+   chip on the right. That chip is the whole trick. A bare caret reads as
+   decoration; a caret in a tactile disc reads as a control you press, and it is
+   what lets the interaction feel considered rather than generic. margin-top:auto
+   pins the row to the bottom edge when some OTHER card in the row is open. */
+.mcd-foot{margin-top:auto;padding:var(--sp-2) var(--sp-3);border-top:1px solid var(--line);}
+.mcd-exp{
+  display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);
+  width:100%;padding:var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
+  background:transparent;border:0;border-radius:var(--r-md);cursor:pointer;
+  font-size:var(--fs-caption);line-height:1.2;font-weight:600;
+  letter-spacing:var(--tr-body);color:var(--ink-2);
+  transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
+             transform var(--d-instant) var(--ease);
 }
-.mcd-exp{width:100%;justify-content:center;}
-/* The sprite only carries a right-pointing caret, so the glyph is rotated into
-   place — down while there is more to see, up once it is open. */
-.mcd-exp .ic{transform:rotate(90deg);transition:transform var(--d-fast) var(--ease);}
-.mcd.open .mcd-exp .ic{transform:rotate(-90deg);}
+.mcd-exp-t{transition:color var(--d-fast) var(--ease);}
+/* The tactile disc. It carries its own ring and shadow so it lifts a hair off
+   the card even at rest, tints to the brand on hover, and the chevron flips
+   through it — down to open, up once open — on the panel's own easing. */
+.mcd-exp-ic{
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  width:30px;height:30px;border-radius:var(--r-full);
+  background:var(--sunken);color:var(--ink-3);box-shadow:var(--ring),var(--e1);
+  transition:background var(--d-base) var(--ease),color var(--d-base) var(--ease),
+             box-shadow var(--d-base) var(--ease);
+}
+.mcd-exp-ic .ic{width:16px;height:16px;transition:transform var(--d-base) var(--ease);}
+.mcd.open .mcd-exp-ic .ic{transform:rotate(180deg);}
+.mcd-exp:hover{background:var(--sunken);color:var(--ink);}
+.mcd-exp:hover .mcd-exp-ic{
+  background:var(--accent-wash);color:var(--accent);box-shadow:var(--ring),var(--e2);}
+.mcd-exp:active{transform:scale(.99);}
+.mcd-exp:active .mcd-exp-ic{box-shadow:var(--ring);}
 
 /* A skeleton card must not lift, and must not offer a hover target for a
    record that is not there yet. */
