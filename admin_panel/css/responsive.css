@@ -102,13 +102,64 @@
    ═══════════════════════════════════════════════════════════════ */
 @media(max-width:720px){
 
+  /* ── Header: hamburger + page name as one pill ──
+     On a phone the standalone icon-button and the breadcrumb read as two
+     loose objects floating at the top-left. Wrapped in a single surface pill
+     they become one polished header element: the menu control on the left, the
+     live page name set beside it. The pill takes the same ring/lift the other
+     topbar controls wear, so it belongs to the same family. */
+  .tb-l{
+    background:var(--surface);
+    box-shadow:var(--ring),var(--e1),var(--lip);
+    border-radius:var(--r-full);
+    gap:var(--sp-2);
+    padding-right:var(--sp-4);
+    min-height:var(--h-control);
+  }
+  /* The hamburger loses its own surface so it reads as part of the pill rather
+     than a chip inside a chip. Slightly wider than tall for a comfortable thumb
+     target, and its highlight is a soft circle rather than a rounded square so
+     it sits cleanly at the pill's rounded left end. */
+  .tb-l #hamburger{
+    width:var(--h-control-lg);
+    background:transparent;box-shadow:none;border-radius:var(--r-full);
+  }
+  .tb-l #hamburger:hover{background:var(--sunken);color:var(--ink);box-shadow:none;}
+  .tb-l #hamburger:active{box-shadow:none;}
+  /* Just the page name lives in the pill — the "ShipEast Admin ▸" root and its
+     caret go, since the product is not in question while you are inside it. The
+     name drops the crumb's uppercase-micro treatment for a proper title
+     register: sentence case, 13px, bold ink, so it reads as the page heading it
+     is rather than a breadcrumb tail. */
+  .tb-bc-root,.tb-bc .ic{display:none;}
+  .tb-bc{font-size:var(--fs-dense);letter-spacing:var(--tr-body);text-transform:none;}
+  .tb-bc em{color:var(--ink);font-weight:700;}
+
+  /* ── Notifications: a sheet that always opens inside the viewport ──
+     As an absolute panel anchored to the bell — which is NOT the rightmost
+     control up here — a 308px menu ran off the LEFT edge of a phone and clipped
+     its own contents. Pinned to the viewport instead, with an even gutter each
+     side and dropped just below the bar, it always opens fully on screen. The
+     topbar's backdrop-filter is the fixed containing block, but the bar spans
+     the full width from the top-left, so these insets resolve to the viewport
+     either way. */
+  .bell-menu{
+    position:fixed;top:calc(var(--h-topbar) + var(--sp-1));
+    left:var(--sp-4);right:var(--sp-4);
+    width:auto;max-width:none;z-index:120;
+  }
+  .bell-list{max-height:60vh;}
+
   /* ── Stat cards: always two per row ──
      Two-up at every phone width. An earlier rule set put them back to one-up
      below 400px, so on a real phone (390pt) four cards became four full-width
      rows and pushed the table two screens down. Four now read as a 2×2 block
      above the fold; three fill the first row and leave the third alone, which
      is the intended shape on Merchants, Customers and Shop & Deliver. */
-  .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-3);}
+  /* The gap matches the page gutter (--sp-4) so the space BETWEEN the two cards
+     and the space either SIDE of the pair read as one consistent rhythm rather
+     than the cards being pinched together in a wider margin. */
+  .sg,.sg.g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-4);}
   .sc{padding:var(--sp-4);}
   /* The chip moves ABOVE the number instead of beside it. .sc-top is one flex
      row of [label + value] and [chip], so at half width on a phone the value
@@ -157,15 +208,19 @@
   /* A wrapped grid is no longer a single pill track, so it takes the softer
      rectangle radius — --r-full on a two-row grid rounds each end of the
      block and leaves the middle segments looking clipped. */
+  /* An 8px gap (--sp-2) rather than 4px, so the wrapped pills read as separate
+     targets with air between them instead of a single crowded block, and the
+     container's own 4px padding no longer competes with the gaps. */
   .tabs{
     display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));
-    gap:var(--sp-1);width:100%;overflow:visible;border-radius:var(--r-md);
+    gap:var(--sp-2);width:100%;overflow:visible;border-radius:var(--r-md);
+    padding:var(--sp-2);
   }
   .tab{justify-content:space-between;padding:var(--sp-2) var(--sp-3);}
   /* Three fixed periods, so a fixed three-up row rather than auto-fill. */
-  .pbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-1);
-    width:100%;border-radius:var(--r-md);}
-  .pb{padding:var(--sp-2) var(--sp-1);text-align:center;}
+  .pbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-2);
+    width:100%;border-radius:var(--r-md);padding:var(--sp-2);}
+  .pb{padding:var(--sp-2) var(--sp-2);text-align:center;}
 
   /* The period selector is the second half of .pg-hdr on Analytics, and the
      Add buttons are its second half on Drivers and Merchants. Let them take a
@@ -417,10 +472,19 @@
   /* ── Login on a small phone ──
      The 30px title is the one thing that has to give: at 320px "Welcome back"
      breaks across two lines and pushes the fields under the fold. */
-  .lb{padding:var(--sp-6) var(--sp-5);}
+  /* A touch more top room over the mark than under it, so the logo sits as a
+     deliberate header band rather than crammed against the status bar. */
+  .lb{padding:var(--sp-7) var(--sp-5) var(--sp-6);}
   .lb-mark{width:min(176px,62%);}
-  .ls{padding:var(--sp-6) var(--sp-5);}
+  /* Centre the form in whatever height is left below the brand band instead of
+     pinning it to the top with a tall empty area beneath — the flex item's
+     auto min-height means it can never shrink below the form, so a short screen
+     simply scrolls the page rather than clipping anything. */
+  .ls{align-items:center;padding:var(--sp-7) var(--sp-5);}
   .lc-title{font-size:var(--fs-h2);line-height:var(--lh-h2);}
+  /* Tighter lede-to-field gap on a phone — the desktop 32px opened a hole
+     between the heading and the first input on a narrow column. */
+  .lc-lede{margin-bottom:var(--sp-5);}
   /* The registered company line is 48 characters; at 12px it wraps mid-name on
      a 360px phone. 11px keeps it on one line down to 320px. */
   .l-foot{font-size:var(--fs-micro);}
