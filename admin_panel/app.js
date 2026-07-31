@@ -3233,8 +3233,21 @@ function closeSidePanel(){
 }
 
 // ══════════════════════ EVENT DELEGATION ══════════════════════
+/* The mobile filter dropdown lives on .filterbar (the wrapper, which survives
+   the tab re-render). Any click that is not inside an open bar closes it. */
+function closeAllFilterbars(){
+  var list=document.querySelectorAll('.filterbar.open');
+  for(var i=0;i<list.length;i++){
+    list[i].classList.remove('open');
+    var b=list[i].querySelector('.fbtn'); if(b) b.setAttribute('aria-expanded','false');
+  }
+}
 document.addEventListener('click',function(e){
   var t=e.target;
+  /* A click anywhere outside a filter bar dismisses its open dropdown. Clicks on
+     the Filter button or a filter tab are inside .filterbar, so they fall through
+     to their own branches below rather than being closed here first. */
+  if(!t.closest('.filterbar')) closeAllFilterbars();
   /* First, because the chevron sits inside a row's first cell and must not fall
      through to whatever that cell or row is otherwise wired to. */
   var mcx=t.closest('[data-mc-exp]'); if(mcx){ toggleRowExpanded(mcx); return; }
@@ -3266,8 +3279,18 @@ document.addEventListener('click',function(e){
 
   var pb=t.closest('.pb'); if(pb){ setPeriod(pb.getAttribute('data-period')); return; }
   var mtab=t.closest('[data-mtab]'); if(mtab){ switchMerchantTab(mtab.getAttribute('data-mtab')); return; }
-  var tab=t.closest('.tab[data-filter]'); if(tab){ ordersFilter=tab.getAttribute('data-filter'); renderOrders(); return; }
-  var otab=t.closest('.tab[data-otab]'); if(otab){ overseasFilter=otab.getAttribute('data-otab'); renderOverseas(); return; }
+  /* The Filter button toggles its bar's dropdown open/closed. */
+  var fbtn=t.closest('.fbtn');
+  if(fbtn){
+    var fb=fbtn.closest('.filterbar'), wasOpen=fb&&fb.classList.contains('open');
+    closeAllFilterbars();
+    if(fb&&!wasOpen){ fb.classList.add('open'); fbtn.setAttribute('aria-expanded','true'); }
+    return;
+  }
+  /* Choosing a filter closes the dropdown, then re-renders (which rebuilds the
+     tabs, so the newly-active one becomes the single chip shown in the bar). */
+  var tab=t.closest('.tab[data-filter]'); if(tab){ closeAllFilterbars(); ordersFilter=tab.getAttribute('data-filter'); renderOrders(); return; }
+  var otab=t.closest('.tab[data-otab]'); if(otab){ closeAllFilterbars(); overseasFilter=otab.getAttribute('data-otab'); renderOverseas(); return; }
 
   var btn=t.closest('[data-action]'); if(!btn) return;
   var action=btn.getAttribute('data-action'),

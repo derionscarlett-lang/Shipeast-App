@@ -222,12 +222,75 @@
     width:100%;border-radius:var(--r-md);padding:var(--sp-2);}
   .pb{padding:var(--sp-2) var(--sp-2);text-align:center;}
 
-  /* The period selector is the second half of .pg-hdr on Analytics, and the
-     Add buttons are its second half on Drivers and Merchants. Let them take a
-     full row under the title instead of being squeezed beside it. */
-  .pg-hdr{flex-direction:column;align-items:stretch;margin-bottom:var(--sp-4);}
-  .pg-hdr>.pbs,.pg-hdr>.btn{width:100%;}
-  .pg-hdr>.pg-title{align-self:flex-start;max-width:100%;}
+  /* ── Compact filter bar (Orders + Shop & Deliver) ──
+     The wrapping grid above still hands a phone every filter at once, but for
+     the Orders and Shop & Deliver strips that is four to seven pills stacked
+     two-up — a block taller than the rows it filters. Here the .filterbar
+     wrapper (inert on desktop via display:contents) takes over: the track
+     shrinks to a single compact bar showing ONLY the active filter, and a
+     Filter button at the end drops the rest as a panel with their counts.
+     Merchant-modal tabs (Details / Menu) are a bare .tabs with no .filterbar,
+     so they keep the grid untouched. */
+  .filterbar{
+    display:flex;align-items:stretch;gap:var(--sp-2);
+    position:relative;width:100%;margin-bottom:var(--sp-4);
+  }
+  /* Collapsed bar: the track holds just the active chip. flex:1 lets it take
+     the row; the explicit override undoes the mobile grid two rules up, which
+     would otherwise pin the one visible chip to a fixed column. */
+  .filterbar .tabs{
+    display:flex;flex:1;min-width:0;width:auto;
+    padding:var(--sp-1);margin:0;overflow:visible;border-radius:var(--r-full);
+  }
+  .filterbar .tabs .tab{display:none;}
+  .filterbar .tabs .tab.active{display:flex;flex:1;justify-content:space-between;}
+  /* The Filter button mirrors the track — same hairline surface, same height —
+     and sits compact at the end when closed. */
+  .fbtn{
+    display:flex;align-items:center;gap:var(--gap-inline);flex:0 0 auto;
+    padding:var(--sp-2) var(--sp-4);border-radius:var(--r-full);
+    background:var(--surface);border:1px solid var(--line);color:var(--ink-2);
+    font-size:var(--fs-dense);font-weight:600;cursor:pointer;white-space:nowrap;
+    transition:background var(--d-fast) var(--ease),color var(--d-fast) var(--ease),
+               border-color var(--d-fast) var(--ease);
+  }
+  .fbtn .ic{width:16px;height:16px;}
+  .fbtn:hover{color:var(--ink);}
+  /* Open: the track leaves flow and drops as a full-width panel under the bar,
+     every filter on its own row with its count kept to the right. The Filter
+     button grows to fill the bar the track left behind and lights up in the
+     identity red to read as the open, active control. */
+  .filterbar.open .fbtn{flex:1;justify-content:center;
+    color:var(--accent);border-color:var(--accent);}
+  .filterbar.open .tabs{
+    display:flex;flex-direction:column;gap:var(--sp-1);
+    position:absolute;top:calc(100% + var(--sp-2));left:0;right:0;z-index:40;
+    width:auto;padding:var(--sp-2);border-radius:var(--r-lg);
+    background:var(--surface);border:1px solid var(--line);
+    box-shadow:var(--ring),var(--e3),var(--lip);
+  }
+  .filterbar.open .tabs .tab,
+  .filterbar.open .tabs .tab.active{
+    display:flex;flex:none;justify-content:space-between;width:100%;
+    padding:var(--sp-3) var(--sp-3);border-radius:var(--r-md);
+  }
+
+  /* The title and its trailing action share one row. The Add button shrinks to
+     its own label — flex:0 0 auto and width:auto undo the full-width stretch —
+     so it sits compact and right-aligned beside the heading, padded to a real
+     touch target rather than spanning the screen. .pg-hdr already wraps, so a
+     long title flows onto a second line and the button rides along at the end.
+
+     The one exception is the Analytics period selector: a three-up segmented
+     control has to keep the full row, so only a header that CONTAINS a .pbs
+     drops to a stacked column. */
+  .pg-hdr{margin-bottom:var(--sp-4);gap:var(--sp-3);}
+  .pg-hdr>.btn{
+    flex:0 0 auto;width:auto;min-height:var(--h-control);
+    padding:var(--sp-2) var(--sp-4);
+  }
+  .pg-hdr:has(.pbs){flex-direction:column;align-items:stretch;}
+  .pg-hdr>.pbs{width:100%;}
   .srch{width:100%;}
 
   /* A form's trailing action goes full width — a right-aligned button with
@@ -305,6 +368,16 @@
     overflow:visible;max-height:none;margin:0;padding:0;max-width:100%;
     border-radius:0;-webkit-overflow-scrolling:auto;
   }
+  /* THE fix for the "two stacked layers" look. Each row below becomes its own
+     card, but it was sitting inside the section's .card — a surface on a
+     surface, so every record read as a card floating on a second empty card,
+     with the outer padding as a dead frame around it. When a .card holds
+     nothing but a table, strip it back to bare flow: no background, border,
+     shadow or padding. The row cards then sit straight on the page, and each
+     one is the only surface behind its record. */
+  .card:has(>.tbl-wrap){
+    background:none;border:0;box-shadow:none;padding:0;border-radius:0;
+  }
   .tbl-wrap table,
   .tbl-wrap thead,
   .tbl-wrap tbody,
@@ -333,17 +406,18 @@
      the chevron is positioned against — without it the button escapes to the
      nearest positioned ancestor and lands in the wrong row.
 
-     The row card is --surface-raised, NOT --surface: the card it sits inside
-     is --surface now that light carries a rose tint, so a row painted in the
-     same token would be a shadow with nothing in it. Raised is the step ABOVE
-     the card in both themes — white on the light card, a lighter plum on the
-     dark one — which is the only way a stack of row cards reads as a stack. */
+     Now that the outer .card chrome is gone, the row sits on the page itself,
+     so it takes the card treatment exactly — --surface, the --r-lg card radius
+     and the card's own ring+shadow — and IS the card, not a raised inset
+     within one. A hairline --line border finishes the edge on the light theme,
+     where the shadow alone is nearly invisible against the tinted page. */
   .tbl-wrap tbody tr{
     position:relative;
     padding:var(--sp-4) 44px var(--sp-4) var(--sp-4);
     margin-bottom:var(--sp-3);
-    border-radius:var(--r-md);
-    background:var(--surface-raised);box-shadow:var(--ring),var(--e1),var(--lip);
+    border-radius:var(--r-lg);
+    background:var(--surface);border:1px solid var(--line);
+    box-shadow:var(--ring),var(--e2),var(--lip);
   }
   .tbl-wrap tbody tr:last-child{margin-bottom:0;}
   /* The desktop row tints would paint the whole card rather than a row, so both
