@@ -51,6 +51,22 @@ class SeType {
   // ── Scale ──────────────────────────────────────────────────────────────
   static TextStyle get display =>
       _fig(size: 32, height: 38, weight: FontWeight.w800, spacing: -0.7);
+
+  /// The signed-out hero, and only that. One step past [display] in both size
+  /// and weight: Figtree **Black**, the ninth weight, bundled for this line
+  /// alone. It earns the exception because the welcome screen has exactly one
+  /// thing to say and the whole screen is built around it — everywhere else,
+  /// reaching past 800 would flatten the ladder rather than extend it.
+  ///
+  /// Leading is set near 1.05 because a two-line headline at this size wants
+  /// the lines locked together as a single shape; the default 1.19 pulls them
+  /// apart into two separate sentences.
+  static TextStyle hero(double size) => _fig(
+        size: size,
+        height: size * 1.05,
+        weight: FontWeight.w900,
+        spacing: -size * 0.028,
+      );
   static TextStyle get h1 =>
       _fig(size: 26, height: 32, weight: FontWeight.w800, spacing: -0.6);
   static TextStyle get h2 =>

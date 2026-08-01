@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
@@ -39,8 +41,26 @@ class SeAuthScaffold extends StatelessWidget {
     // phone with no keyboard: keep the subtitle, but stop spending 30dp of
     // padding on a screen that has none to spare, or the button at the end of
     // a four-field form ends up flush against the bottom edge.
+    final size = MediaQuery.sizeOf(context);
     final compact = MediaQuery.viewInsetsOf(context).bottom > 120;
-    final tight = !compact && MediaQuery.sizeOf(context).height < 720;
+    final tight = !compact && size.height < 720;
+
+    // The cap is sized against the VIEWPORT, not against its own text.
+    //
+    // Sized by its contents it came out at roughly a fifth of the screen,
+    // which left the sheet running nearly the full height — so the form read
+    // as the page and the brand read as a band stuck on top of it. Holding
+    // the seam near 28% gives the title red to sit in rather than red to sit
+    // on, and gives the sheet a top edge you can see.
+    //
+    // It is a MINIMUM, so nothing is ever clipped: a wrapped title, a large
+    // system text size or a short phone all push straight past it, and on a
+    // 568dp phone the intrinsic height already exceeds it. The status bar
+    // comes out of the budget because the seam is measured from the top of
+    // the screen, which is where the eye measures it from too.
+    final safeTop = MediaQuery.paddingOf(context).top;
+    final capFloor =
+        compact ? 0.0 : math.max(0.0, size.height * 0.285 - safeTop);
 
     return Scaffold(
       backgroundColor: SeColors.shell,
@@ -53,34 +73,52 @@ class SeAuthScaffold extends StatelessWidget {
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
               alignment: Alignment.topCenter,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(SeSpacing.gutter, 8,
-                    SeSpacing.gutter, compact ? 18 : (tight ? 18 : 28)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const _CapBackButton(),
-                    SizedBox(height: compact ? 12 : (tight ? 14 : 22)),
-                    Text(
-                      title,
-                      style: SeType.display.copyWith(
-                        color: SeColors.shellInk,
-                        fontSize: compact ? 22 : (tight ? 26 : 30),
-                        height: 1.15,
-                      ),
-                    ),
-                    if (!compact) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        subtitle,
-                        style: SeType.body.copyWith(
-                          color: SeColors.shellInk.withValues(alpha: 0.78),
-                          height: 1.45,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: capFloor),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(SeSpacing.gutter, 8,
+                      SeSpacing.gutter, compact ? 18 : (tight ? 18 : 28)),
+                  // Two children and `spaceBetween`: the back control stays
+                  // pinned under the status bar and the title block sinks to
+                  // the foot of the cap, so every pixel the cap gains lands
+                  // as air between them instead of below the subtitle.
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const _CapBackButton(),
+                      Padding(
+                        padding: EdgeInsets.only(
+                            top: compact ? 12 : (tight ? 14 : 22)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              title,
+                              style: SeType.display.copyWith(
+                                color: SeColors.shellInk,
+                                fontSize: compact ? 22 : (tight ? 26 : 30),
+                                height: 1.15,
+                              ),
+                            ),
+                            if (!compact) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                subtitle,
+                                style: SeType.body.copyWith(
+                                  color:
+                                      SeColors.shellInk.withValues(alpha: 0.78),
+                                  height: 1.45,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
