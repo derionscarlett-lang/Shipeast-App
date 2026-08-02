@@ -1,11 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shipeast_customer/screens/coming_soon_screen.dart';
 import 'package:shipeast_customer/screens/help_support_screen.dart';
+import 'package:shipeast_customer/screens/login_screen.dart';
 import 'package:shipeast_customer/screens/order_confirmed_screen.dart';
 import 'package:shipeast_customer/screens/order_status_screen.dart';
 import 'package:shipeast_customer/screens/payment_screen.dart';
 import 'package:shipeast_customer/screens/privacy_security_screen.dart';
 import 'package:shipeast_customer/screens/rate_driver_screen.dart';
+import 'package:shipeast_customer/screens/register_screen.dart';
+import 'package:shipeast_customer/screens/splash_screen.dart';
 import 'package:shipeast_customer/screens/welcome_screen.dart';
 
 import 'harness.dart';
@@ -63,4 +66,31 @@ void main() {
   testWidgets('overseas', (t) async => shoot(t, overseasPreview(), 'overseas'));
   testWidgets('overseas-small',
       (t) async => shoot(t, overseasPreview(), 'overseas-small', size: small));
+
+  // The five routes the instrument used to miss. Splash, login and register
+  // only reach Firebase from a BUTTON, and splash's 2200ms hold outlives the
+  // 1300ms of pumps below, so all three photograph for real.
+  testWidgets('splash', (t) async => shoot(t, const SplashScreen(), 'splash'));
+  testWidgets('login', (t) async => shoot(t, const LoginScreen(), 'login'));
+  testWidgets(
+      'register', (t) async => shoot(t, const RegisterScreen(), 'register'));
+  testWidgets('all-merchants',
+      (t) async => shoot(t, allMerchantsPreview(), 'all-merchants'));
+  testWidgets('saved-addresses',
+      (t) async => shoot(t, savedAddressesPreview(), 'saved-addresses'));
+
+  // States. A screen is not designed until its empty, loading and error faces
+  // are designed too.
+  testWidgets('all-merchants-loading',
+      (t) async => shoot(t, allMerchantsLoadingPreview(), 'all-merchants-loading'));
+  testWidgets('all-merchants-empty',
+      (t) async => shoot(t, allMerchantsEmptyPreview(), 'all-merchants-empty'));
+  testWidgets('saved-addresses-empty',
+      (t) async => shoot(t, savedAddressesEmptyPreview(), 'saved-addresses-empty'));
+  testWidgets(
+      'cart-empty', (t) async => shoot(t, cartEmptyPreview(), 'cart-empty'));
+  testWidgets('address-sheet',
+      (t) async => shoot(t, addressSheetPreview(), 'address-sheet'));
+  testWidgets(
+      'toasts', (t) async => shoot(t, toastGalleryPreview(), 'toasts'));
 }

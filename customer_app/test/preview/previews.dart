@@ -7,9 +7,12 @@ import 'package:shipeast_customer/theme/se_icons.dart';
 import 'package:shipeast_customer/theme/se_spacing.dart';
 import 'package:shipeast_customer/theme/se_typography.dart';
 import 'package:shipeast_customer/utils/money.dart';
+import 'package:shipeast_customer/widgets/se_bottom_sheet.dart';
 import 'package:shipeast_customer/widgets/se_chip.dart';
+import 'package:shipeast_customer/widgets/se_empty_state.dart';
 import 'package:shipeast_customer/widgets/se_listing.dart';
 import 'package:shipeast_customer/widgets/se_page.dart';
+import 'package:shipeast_customer/widgets/se_skeleton.dart';
 import 'package:shipeast_customer/widgets/se_text_field.dart';
 
 import 'fake.dart' as fake;
@@ -900,4 +903,348 @@ Widget _pickerPreview(String label, String value, IconData icon) => Column(
           ),
         ),
       ],
+    );
+
+// ─── Gap-fill previews ───────────────────────────────────────────────────────
+// The five screens the instrument never photographed, plus the STATES a design
+// has to survive: a list still loading, a list with nothing in it, a sheet, a
+// toast. A design system built only from happy-path screens has no answer for
+// the empty cart, and the empty cart is where products feel cheap.
+
+/// The "See all" category list — [AllMerchantsScreen], which streams Firestore
+/// in `build`, so its composition is rebuilt here from the same `SeMerchantRow`.
+Widget allMerchantsPreview() => SePageScaffold(
+      title: 'All Food',
+      subtitle: 'Every partner near you',
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(
+            SeSpacing.gutter, 20, SeSpacing.gutter, 28),
+        itemCount: fake.merchants.length + 1,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, i) {
+          if (i == 0) {
+            return SeSectionTitle(title: '${fake.merchants.length} merchants');
+          }
+          final m = fake.merchants[i - 1];
+          return SeMerchantRow(
+            name: m['name'] as String,
+            imageUrl: '',
+            category: 'Food',
+            rating: m['rating'] as String,
+            deliveryTime: m['deliveryTime'] as String,
+            deliveryFee: m['deliveryFee'] as int,
+            isOpen: m['isOpen'] as bool,
+            onTap: () {},
+          );
+        },
+      ),
+    );
+
+/// The same screen while the stream is still cold — the shimmer tier.
+Widget allMerchantsLoadingPreview() => SePageScaffold(
+      title: 'All Food',
+      subtitle: 'Every partner near you',
+      child: SeShimmer(
+        child: ListView.separated(
+          padding: const EdgeInsets.fromLTRB(
+              SeSpacing.gutter, 20, SeSpacing.gutter, 28),
+          itemCount: 6,
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          itemBuilder: (_, _) => Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: SeColors.surface0,
+              borderRadius: SeRadius.all(SeRadius.md),
+              border: Border.all(color: SeColors.ink200),
+            ),
+            child: Row(
+              children: const [
+                SeSkeleton(width: 56, height: 56, radius: 12),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SeSkeleton(width: 150, height: 14, radius: 6),
+                      SizedBox(height: 8),
+                      SeSkeleton(width: 200, height: 11, radius: 5),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+/// A category with no published partners yet.
+Widget allMerchantsEmptyPreview() => SePageScaffold(
+      title: 'All Pharmacy',
+      subtitle: 'Every partner near you',
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(SeSpacing.gutter),
+          child: SeEmptyState(
+            icon: SeIcons.storefront,
+            title: 'No merchants yet',
+            message: 'We are onboarding Pharmacy partners near you — '
+                'check back soon.',
+          ),
+        ),
+      ),
+    );
+
+/// Saved addresses — [SavedAddressesScreen] opens a Firestore subscription in
+/// `initState`, so the list is rebuilt from the same `SeRowGroup` composition.
+Widget savedAddressesPreview() => SePageScaffold(
+      title: 'Saved addresses',
+      subtitle: '3 addresses saved',
+      bottomBar: SeBottomBar(
+        child: SeButton(
+          label: 'Add another address',
+          icon: SeIcons.plus,
+          variant: SeButtonVariant.secondary,
+          onPressed: () {},
+        ),
+      ),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+            SeSpacing.gutter, 20, SeSpacing.gutter, 24),
+        children: [
+          SeRowGroup(
+            children: [
+              _savedAddrRow(
+                  'Home', '14 Yallahs Main Road, St. Thomas', SeIcons.home),
+              _savedAddrRow('Work', 'Shop 3, Morant Bay Plaza, St. Thomas',
+                  SeIcons.box),
+              _savedAddrRow(
+                  'Mom',
+                  'Lot 27 Retreat District, Seaforth P.O., St. Thomas',
+                  SeIcons.location),
+            ],
+          ),
+        ],
+      ),
+    );
+
+/// The same screen before a single address exists — the state a new customer
+/// actually meets first.
+Widget savedAddressesEmptyPreview() => SePageScaffold(
+      title: 'Saved addresses',
+      subtitle: 'Where we bring your orders',
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(SeSpacing.gutter),
+          child: SeEmptyState(
+            icon: SeIcons.addresses,
+            title: 'No saved addresses',
+            message: 'Save a delivery address to check out faster.',
+            ctaLabel: 'Add an address',
+            onCta: () {},
+          ),
+        ),
+      ),
+    );
+
+Widget _savedAddrRow(String label, String text, IconData icon) => Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: SeColors.brandAction.withValues(alpha: 0.10),
+              borderRadius: SeRadius.all(SeRadius.xs),
+            ),
+            child: Icon(icon, size: 18, color: SeColors.brandAction),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: SeType.title.copyWith(fontSize: 15)),
+                const SizedBox(height: 2),
+                Text(text,
+                    style: SeType.bodyS.copyWith(color: SeColors.ink500),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          const SizedBox(
+              width: 40,
+              height: 40,
+              child: Icon(SeIcons.edit, size: 18, color: SeColors.ink500)),
+          const SizedBox(
+              width: 40,
+              height: 40,
+              child: Icon(SeIcons.trash, size: 18, color: SeColors.danger)),
+        ],
+      ),
+    );
+
+/// An empty cart. The screen every food app gets wrong.
+Widget cartEmptyPreview() => SePageScaffold(
+      title: 'Your cart',
+      subtitle: 'Nothing here yet',
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(SeSpacing.gutter),
+          child: SeEmptyState(
+            icon: SeIcons.cart,
+            title: 'Your cart is empty',
+            message: 'Browse merchants near you and add a few things — '
+                'we will bring them over.',
+            ctaLabel: 'Browse merchants',
+            onCta: () {},
+          ),
+        ),
+      ),
+    );
+
+/// The add/edit address bottom sheet, docked over its page so the scrim and the
+/// sheet's top radius are both visible.
+Widget addressSheetPreview() => Stack(
+      children: [
+        savedAddressesPreview(),
+        const Positioned.fill(child: ColoredBox(color: Color(0x8C140F12))),
+        // `showSeBottomSheet` puts the sheet on a modal route, and a modal route
+        // brings its own Material. Standing one up by hand does not, and every
+        // TextField inside asserts without a Material ancestor.
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Material(
+            color: SeColors.surface0,
+            borderRadius: SeRadius.sheetTop,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  SeSpacing.gutter, 4, SeSpacing.gutter, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SeSheetHandle(),
+                  const SizedBox(height: 14),
+                  Text('Add an address', style: SeType.h2),
+                  const SizedBox(height: 18),
+                  const SeFieldLabel('LABEL'),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final (ql, sel) in const [
+                        ('Home', true),
+                        ('Work', false),
+                        ('Mom', false),
+                        ('Dad', false),
+                        ('School', false),
+                        ('Other', false),
+                      ])
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color:
+                                sel ? SeColors.brandSoft : SeColors.surface50,
+                            borderRadius: SeRadius.pill,
+                            border: Border.all(
+                                color: sel
+                                    ? SeColors.brandAction
+                                    : SeColors.ink200),
+                          ),
+                          child: Text(ql,
+                              style: SeType.label.copyWith(
+                                  color: sel
+                                      ? SeColors.brandInk
+                                      : SeColors.ink500)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const SeTextField(
+                      hint: 'Or type your own label…', icon: SeIcons.tag),
+                  const SizedBox(height: 16),
+                  const SeTextField(
+                    label: 'ADDRESS',
+                    hint: 'e.g. 14 Yallahs Main Road, St. Thomas',
+                    icon: SeIcons.location,
+                    minLines: 2,
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 20),
+                  SeButton(label: 'Add address', onPressed: () {}),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+/// All four toast kinds at once. They are an overlay in the app, so they can
+/// never appear in a screen shot — but they are the app's entire feedback
+/// vocabulary, and a design system that omits them leaves every error state to
+/// be invented twice.
+Widget toastGalleryPreview() => ColoredBox(
+      color: SeColors.surface50,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+            SeSpacing.gutter, 48, SeSpacing.gutter, 24),
+        children: [
+          Text('Toasts', style: SeType.h1),
+          const SizedBox(height: 4),
+          Text('Docked under the status bar, tap to dismiss.',
+              style: SeType.bodyS),
+          const SizedBox(height: 20),
+          _toast(SeColors.success, SeColors.successTint, SeIcons.checkCircle,
+              'Address saved'),
+          const SizedBox(height: 12),
+          _toast(SeColors.danger, SeColors.dangerTint, SeIcons.warningCircle,
+              'Please fill in both fields'),
+          const SizedBox(height: 12),
+          _toast(SeColors.info, SeColors.infoTint, SeIcons.info,
+              'Your driver is 5 minutes away'),
+          const SizedBox(height: 12),
+          _toast(SeColors.brand, SeColors.brandSoft, SeIcons.info,
+              'Promo code ISLAND20 applied'),
+        ],
+      ),
+    );
+
+Widget _toast(Color color, Color tint, IconData icon, String message) =>
+    Container(
+      decoration: BoxDecoration(
+        color: SeColors.surface0,
+        borderRadius: SeRadius.all(SeRadius.md),
+        boxShadow: SeElevation.e3,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Container(width: 5, color: color),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+                child: Icon(icon, size: 19, color: color),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, 12, 14, 12),
+                child: Text(message,
+                    style: SeType.body.copyWith(
+                        color: SeColors.ink900, fontWeight: FontWeight.w500)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );

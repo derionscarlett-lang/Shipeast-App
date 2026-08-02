@@ -38,6 +38,10 @@ final _sdkFonts =
 const phone = Size(412, 892);
 const small = Size(320, 568);
 
+/// The pixel ratio every shot is taken at. Named, because `physicalSize` and
+/// `padding` both have to agree with it.
+const double _dpr = 2.0;
+
 bool _fontsReady = false;
 
 Future<void> _loadIconFont() async {
@@ -66,9 +70,16 @@ Future<void> shoot(
 }) async {
   final key = GlobalKey();
 
-  tester.view.devicePixelRatio = 2.0;
-  tester.view.physicalSize = size * 2.0;
-  tester.view.padding = const FakeViewPadding(top: 38, bottom: 24);
+  tester.view.devicePixelRatio = _dpr;
+  tester.view.physicalSize = size * _dpr;
+  // `ViewPadding` is in PHYSICAL pixels, so these have to be scaled by the
+  // device pixel ratio the way `physicalSize` is. Passing the logical values
+  // straight through gave every shot a 19dp status bar instead of 38 — which
+  // is not a size any phone has, and it quietly moved every cap up by 19dp.
+  tester.view.padding = FakeViewPadding(
+    top: 38 * _dpr,
+    bottom: 24 * _dpr,
+  );
   addTearDown(tester.view.reset);
 
   await tester.runAsync(_loadIconFont);
@@ -114,7 +125,7 @@ Future<void> shoot(
   final boundary =
       key.currentContext!.findRenderObject() as RenderRepaintBoundary;
   await tester.runAsync(() async {
-    final img = await boundary.toImage(pixelRatio: 2.0);
+    final img = await boundary.toImage(pixelRatio: _dpr);
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
     Directory(shotDir).createSync(recursive: true);
     File('$shotDir/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
