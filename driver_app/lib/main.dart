@@ -199,13 +199,13 @@ class _DriverShellState extends State<DriverShell> {
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: SeColors.surface0,
-          border: Border(top: BorderSide(color: SeColors.ink200, width: 1)),
+          border: Border(top: BorderSide(color: SeColors.ink200)),
           boxShadow: SeElevation.e2,
         ),
         child: SafeArea(
           top: false,
           child: SizedBox(
-            height: 64,
+            height: 62,
             child: Row(
               children: List.generate(_navItems.length, (i) {
                 final active = _selectedIndex == i;
@@ -230,14 +230,19 @@ class _DriverShellState extends State<DriverShell> {
                                 ? _navItems[i]['active']
                                 : _navItems[i]['icon']) as IconData,
                             size: 24,
-                            color: active ? SeColors.red500 : SeColors.ink400,
+                            // The action red, not the identity red: this is a
+                            // control, and the two tones are not
+                            // interchangeable (see SeColors).
+                            color:
+                                active ? SeColors.brandAction : SeColors.ink400,
                           ),
                         ),
                         const SizedBox(height: SeSpacing.x1),
                         Text(
                           _navItems[i]['label'] as String,
                           style: SeType.eyebrow.copyWith(
-                            color: active ? SeColors.red500 : SeColors.ink400,
+                            color:
+                                active ? SeColors.brandAction : SeColors.ink400,
                             letterSpacing: 0.3,
                           ),
                         ),
