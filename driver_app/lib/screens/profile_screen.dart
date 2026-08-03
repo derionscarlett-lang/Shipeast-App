@@ -18,7 +18,7 @@ import '../widgets/se_card.dart';
 import '../widgets/se_empty_state.dart';
 import '../widgets/se_text_field.dart';
 import '../widgets/se_toast.dart';
-import 'login_screen.dart';
+import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final ValueNotifier<String> driverNameNotifier;
@@ -216,7 +216,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        // Out to the welcome screen, not straight to the form. Signing out
+        // returns you to where a signed-out driver starts, which is the same
+        // place a cold launch would put you.
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
         (route) => false,
       );
     }

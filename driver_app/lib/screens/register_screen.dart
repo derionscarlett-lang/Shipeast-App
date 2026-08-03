@@ -38,8 +38,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   static const List<Map<String, dynamic>> _vehicleTypes = [
     {'label': 'Motorcycle', 'icon': SeIcons.bike},
     {'label': 'Car', 'icon': SeIcons.car},
-    {'label': 'Van', 'icon': Icons.airport_shuttle_rounded},
-    {'label': 'Truck', 'icon': Icons.local_shipping_rounded},
+    {'label': 'Van', 'icon': SeIcons.van},
+    {'label': 'Truck', 'icon': SeIcons.truck},
   ];
 
   @override

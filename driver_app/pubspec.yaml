@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.2.0+9
+version: 1.2.1+10
 
 environment:
   sdk: ^3.11.5
@@ -76,6 +76,9 @@ flutter:
 
   assets:
     - assets/logo.png
+    # The courier silhouette from the ShipEast mark, used at the foot of the
+    # welcome screen. Same file the customer app ships — one brand, one rider.
+    - assets/brand/
     # Figtree, bundled. Without this, `google_fonts` fetches the family over
     # HTTP on first launch: a driver signing on at the depot with no data sees
     # the fallback face, and the app never renders as designed offline.

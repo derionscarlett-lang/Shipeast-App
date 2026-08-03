@@ -7,7 +7,6 @@ import 'package:shipeast_driver/theme/se_spacing.dart';
 import 'package:shipeast_driver/theme/se_typography.dart';
 import 'package:shipeast_driver/widgets/se_button.dart';
 import 'package:shipeast_driver/widgets/se_card.dart';
-import 'package:shipeast_driver/widgets/se_chip.dart';
 import 'package:shipeast_driver/widgets/se_earnings_chart.dart';
 import 'package:shipeast_driver/widgets/se_empty_state.dart';
 import 'package:shipeast_driver/widgets/se_online_toggle.dart';
@@ -665,65 +664,68 @@ Widget profilePreview() => SePageScaffold(
 
 // ── Pending approval ────────────────────────────────────────────────────────
 
-Widget pendingApprovalPreview() => Scaffold(
-      backgroundColor: SeColors.surface50,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: SeSpacing.x6),
-          child: Column(
-            children: [
-              const SizedBox(height: SeSpacing.x10),
-              Container(
-                width: 108,
-                height: 108,
-                decoration: const BoxDecoration(
-                    color: SeColors.warningTint, shape: BoxShape.circle),
-                child: Center(
-                  child: Container(
-                    width: 78,
-                    height: 78,
-                    decoration: const BoxDecoration(
-                      color: SeColors.surface0,
-                      shape: BoxShape.circle,
-                      boxShadow: SeElevation.e2,
-                    ),
-                    child: const Icon(SeIcons.hourglass,
-                        size: 34, color: SeColors.warning),
-                  ),
-                ),
+/// Mirrors [PendingApprovalScreen] in its default `pending` state.
+///
+/// The old mirror here had drifted badly — a different medallion, different
+/// copy, different tracker steps. Per the rule at the top of this file, the
+/// mirror was the thing that was wrong.
+Widget pendingApprovalPreview() => SePageScaffold(
+      showBack: false,
+      title: 'Application submitted',
+      subtitle: 'This screen updates the moment a decision is made — there is '
+          'no need to reopen the app.',
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+            SeSpacing.gutter, SeSpacing.x6, SeSpacing.gutter, SeSpacing.x8),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: SeSpacing.x4, vertical: SeSpacing.x2),
+              decoration: BoxDecoration(
+                color: SeColors.warningSoft,
+                borderRadius: SeRadius.pill,
+                border: Border.all(
+                    color: SeColors.warningInk.withValues(alpha: 0.28)),
               ),
-              const SizedBox(height: SeSpacing.x8),
-              SeChip(
-                label: 'AWAITING REVIEW',
-                icon: SeIcons.hourglass,
-                fg: SeColors.warningInk,
-                bg: SeColors.warningTint,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(SeIcons.hourglass,
+                      color: SeColors.warningInk, size: 16),
+                  const SizedBox(width: SeSpacing.x2),
+                  Text('Under review',
+                      style: SeType.label.copyWith(color: SeColors.warningInk)),
+                ],
               ),
-              const SizedBox(height: SeSpacing.x6),
-              Text('Application received', style: SeType.h1),
-              const SizedBox(height: SeSpacing.x3),
-              Text(
-                'Dispatch reviews every application before a first shift. We '
-                'will let you know the moment yours is approved.',
-                textAlign: TextAlign.center,
-                style: SeType.body.copyWith(color: SeColors.ink500),
-              ),
-              const SizedBox(height: SeSpacing.x8),
-              SeCard(
-                padding: const EdgeInsets.all(SeSpacing.x5),
-                child: const SeStepTracker(
-                  steps: [
-                    SeStep('Application submitted',
-                        caption: 'We have your details'),
-                    SeStep('Under review', caption: 'Usually within 24 hours'),
-                    SeStep('Approved', caption: 'Start taking jobs'),
-                  ],
-                  current: 1,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: SeSpacing.x5),
+          const SeSectionTitle(title: 'Where you are'),
+          const SeCard(
+            padding: EdgeInsets.all(SeSpacing.x5),
+            child: SeStepTracker(
+              current: 1,
+              steps: [
+                SeStep('Application received',
+                    caption: 'We have your registration details'),
+                SeStep('Background check',
+                    caption: 'Dispatch is reviewing your documents'),
+                SeStep('Account activated',
+                    caption: 'Start accepting deliveries'),
+              ],
+            ),
+          ),
+          const SizedBox(height: SeSpacing.x5),
+          SeNotice.info('Most applications are reviewed within 24–48 hours.'),
+          const SizedBox(height: SeSpacing.x8),
+          SeButton(
+            label: 'Sign out',
+            variant: SeButtonVariant.ghost,
+            onPressed: () {},
+          ),
+        ],
       ),
     );
 

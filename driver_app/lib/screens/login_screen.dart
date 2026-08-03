@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../theme/se_brand.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
@@ -127,7 +126,6 @@ class _LoginScreenState extends State<LoginScreen> {
     return SeAuthScaffold(
       title: 'Welcome back',
       subtitle: 'Sign in to start your shift.',
-      leading: const _DriverLockup(),
       children: [
         SeTextField(
           controller: _emailController,
@@ -185,57 +183,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
     );
   }
-}
-
-/// The wordmark, the edition and the legal name, set in the cap of the one
-/// screen that has no back button to put there.
-///
-/// The edition badge is not decoration: the driver and customer apps ship the
-/// same wordmark, the same icon and the same red, so a driver opening the wrong
-/// one has nothing else to go on.
-class _DriverLockup extends StatelessWidget {
-  const _DriverLockup();
-
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SeWordmark(size: 25, onDark: true),
-              const SizedBox(width: 9),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: SeRadius.pill,
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.20)),
-                ),
-                child: Text(
-                  SeBrand.edition.toUpperCase(),
-                  style: SeType.eyebrow.copyWith(
-                    color: SeColors.shellMark,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 3),
-          Text(
-            SeBrand.legalName,
-            style: SeType.label.copyWith(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.1,
-              color: SeColors.shellInk.withValues(alpha: 0.72),
-            ),
-          ),
-        ],
-      );
 }

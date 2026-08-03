@@ -132,6 +132,11 @@ class SeIcons {
   static const IconData chartBar = Icons.bar_chart_rounded;
   static const IconData badge = Icons.badge_outlined;
   static const IconData car = Icons.directions_car_rounded;
+  // The other two things a driver can sign up on. They were being written as
+  // raw `Icons.*` inline in the registration form, which is how an icon set
+  // stops being a set.
+  static const IconData van = Icons.airport_shuttle_rounded;
+  static const IconData truck = Icons.local_shipping_rounded;
   static const IconData handshake = Icons.volunteer_activism_rounded;
   static const IconData image = Icons.image_outlined;
   static const IconData retake = Icons.replay_rounded;

@@ -27,20 +27,11 @@ class SeAuthScaffold extends StatelessWidget {
   /// Sheet contents, laid out in a stretched column.
   final List<Widget> children;
 
-  /// Shown at the top of the cap when there is nothing to pop back to.
-  ///
-  /// The driver app opens straight onto sign-in rather than onto a welcome
-  /// screen, so its root auth screen has no back button and would otherwise
-  /// spend 40dp of red on an empty box. The brand lockup goes there instead:
-  /// the one place in this app that says whose software this is.
-  final Widget? leading;
-
   const SeAuthScaffold({
     super.key,
     required this.title,
     required this.subtitle,
     required this.children,
-    this.leading,
   });
 
   @override
@@ -96,7 +87,7 @@ class SeAuthScaffold extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _CapBackButton(fallback: leading),
+                      const _CapBackButton(),
                       Padding(
                         padding: EdgeInsets.only(
                             top: compact ? 12 : (tight ? 14 : 22)),
@@ -169,16 +160,11 @@ class SeAuthScaffold extends StatelessWidget {
 /// Back control for the brand cap — a translucent well rather than a bare
 /// glyph, so it stays legible on the red without punching a white hole in it.
 class _CapBackButton extends StatelessWidget {
-  /// Occupies the slot on a root screen, where there is nothing to pop.
-  final Widget? fallback;
-
-  const _CapBackButton({this.fallback});
+  const _CapBackButton();
 
   @override
   Widget build(BuildContext context) {
-    if (!Navigator.of(context).canPop()) {
-      return fallback ?? const SizedBox(height: 40);
-    }
+    if (!Navigator.of(context).canPop()) return const SizedBox(height: 40);
     return Align(
       alignment: Alignment.centerLeft,
       child: GestureDetector(

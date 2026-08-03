@@ -4,6 +4,8 @@ import 'package:shipeast_driver/screens/login_screen.dart';
 import 'package:shipeast_driver/screens/new_order_screen.dart';
 import 'package:shipeast_driver/screens/pickup_confirmation_screen.dart';
 import 'package:shipeast_driver/screens/register_screen.dart';
+import 'package:shipeast_driver/screens/splash_screen.dart';
+import 'package:shipeast_driver/screens/welcome_screen.dart';
 
 import 'harness.dart';
 import 'previews.dart';
@@ -32,11 +34,23 @@ const _order = {
 
 void main() {
   // ── Photographed for real ─────────────────────────────────────────────────
-  // These four reach Firebase only from a BUTTON, so they render truthfully.
-  // Sign-in is where the app OPENS, so it is shot at the root: no back button,
-  // and the brand lockup in its place.
-  testWidgets('login',
-      (t) async => shoot(t, const LoginScreen(), 'login', root: true));
+  // These reach Firebase only from a BUTTON, or guard the call, so they render
+  // truthfully. The first two are what a driver actually opens the app onto,
+  // so both are shot at the root: no back button in the cap.
+  //
+  // The splash arms a 2.2s timer and then routes; `drain` lets it fire after
+  // the shot is taken, because a test that ends with a pending timer fails.
+  testWidgets(
+      'splash',
+      (t) async => shoot(t, const SplashScreen(), 'splash',
+          root: true, drain: const Duration(seconds: 3)));
+  testWidgets('welcome',
+      (t) async => shoot(t, const WelcomeScreen(), 'welcome', root: true));
+  testWidgets(
+      'welcome-small',
+      (t) async => shoot(t, const WelcomeScreen(), 'welcome-small',
+          root: true, size: small));
+  testWidgets('login', (t) async => shoot(t, const LoginScreen(), 'login'));
   testWidgets('register',
       (t) async => shoot(t, const RegisterScreen(), 'register'));
   testWidgets(

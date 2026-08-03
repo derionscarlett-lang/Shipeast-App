@@ -65,9 +65,10 @@ Future<void> shoot(
   Widget screen,
   String name, {
   Size size = phone,
-  List<String> assets = const ['assets/logo.png'],
+  List<String> assets = const ['assets/logo.png', 'assets/brand/rider.png'],
   Object? args,
   bool root = false,
+  Duration? drain,
 }) async {
   final key = GlobalKey();
 
@@ -98,7 +99,7 @@ Future<void> shoot(
         //
         // `root: true` drops the route underneath, so `canPop()` is false and
         // the screen photographs the way it looks when the app OPENS on it —
-        // which for sign-in means the brand lockup rather than a back button.
+        // no back button in the cap.
         initialRoute: '/shot',
         routes: root ? const {} : {'/': (_) => const SizedBox.shrink()},
         onGenerateRoute: (settings) => settings.name == '/shot'
@@ -135,6 +136,12 @@ Future<void> shoot(
     Directory(shotDir).createSync(recursive: true);
     File('$shotDir/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
   });
+
+  // Some screens arm a Timer that outlives the capture — the splash holds for
+  // 2.2s and then routes. `flutter_test` fails a test that ends with one still
+  // pending, so those pass a [drain] long enough for it to fire. It runs AFTER
+  // the shot, so whatever the screen does next cannot get into the picture.
+  if (drain != null) await tester.pump(drain);
 
   // Unmount, so any AnimationController the screen started is disposed. A live
   // ticker at the end of a test is an error, and half these screens animate.
