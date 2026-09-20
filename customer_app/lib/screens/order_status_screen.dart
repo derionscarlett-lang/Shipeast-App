@@ -10,6 +10,7 @@ import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../models/order_status.dart';
+import '../utils/phone.dart';
 import '../widgets/se_card.dart';
 import '../widgets/se_button.dart';
 import '../widgets/se_bottom_sheet.dart';
@@ -820,7 +821,9 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       if (mounted) SeToast.info(context, 'Driver contact not available yet');
       return;
     }
-    final uri = Uri(scheme: 'tel', path: phone);
+    // DR-25: dial the normalised number; keep the raw string as a fallback.
+    final dial = SePhone.dial(phone);
+    final uri = Uri(scheme: 'tel', path: dial.isEmpty ? phone : dial);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (mounted) {

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../driver_constants.dart';
 import '../services/driver_firestore_service.dart';
 import '../theme/se_brand.dart';
 import '../theme/se_colors.dart';
@@ -117,7 +118,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .doc(user.uid)
             .update({
           'name': _nameCtrl.text.trim(),
-          'phone': _phoneCtrl.text.trim(),
+          // DR-25: store the number in the one app-wide format.
+          'phone': SePhone.format(_phoneCtrl.text),
           'email': _emailCtrl.text.trim(),
           'vehicleType': _editVehicle,
           'licencePlate': _licenceCtrl.text.trim(),
@@ -133,7 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     setState(() {
       _name = _nameCtrl.text.trim();
-      _phone = _phoneCtrl.text.trim();
+      _phone = SePhone.format(_phoneCtrl.text);
       _email = _emailCtrl.text.trim();
       _vehicle = _editVehicle;
       _licence = _licenceCtrl.text.trim();
@@ -475,8 +477,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: SeSpacing.x2),
                       Text(
                         _totalTrips == 0
-                            ? 'No completed trips yet'
-                            : 'Across $_totalTrips completed trip${_totalTrips == 1 ? '' : 's'}',
+                            ? 'No completed deliveries yet'
+                            : 'Across $_totalTrips completed deliver${_totalTrips == 1 ? 'y' : 'ies'}',
                         style: SeType.bodyS.copyWith(color: SeColors.ink500),
                       ),
                     ],
@@ -492,7 +494,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                _infoRow(SeIcons.phone, 'Phone', _phone),
+                _infoRow(SeIcons.phone, 'Phone', SePhone.format(_phone)),
                 _rowDivider(),
                 _infoRow(SeIcons.envelope, 'Email', _email),
                 _rowDivider(),
@@ -549,6 +551,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SeTextField(
               controller: _phoneCtrl,
               label: 'Phone Number',
+              hint: '1-876-000-0000',
               icon: SeIcons.phone,
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,

@@ -104,6 +104,17 @@ A field that is "not set yet" is **`null`**, not `''`, not `'—'`, not `0`. The
 `'—'` as a placeholder into several driver and merchant fields (`app.js:672-677`, `838-840`); those
 are display fallbacks that leaked into storage. Readers must render the fallback, not writers.
 
+### g) Phone numbers — one Jamaican format
+
+Every phone field (`users.phone`, `drivers.phone`, `merchants.phone`, `orders.customerPhone` /
+`driverPhone`, `overseasInquiries.recipientPhone`) is stored and displayed as **`1-876-000-0000`**
+(client checklist DR-25). Every writer normalises on save through the shared helper — `SePhone.format`
+in `driver_app/lib/driver_constants.dart` and `customer_app/lib/utils/phone.dart`, `phoneFmt()` in
+`admin_panel/app.js` — and every reader renders through it too, so a legacy number in another shape
+still displays consistently. `tel:` links use `SePhone.dial` / `phoneDial` (E.164, e.g. `+18760000000`).
+A number that is not a recognisable 7- or 10-digit local number is left as typed rather than mangled
+(`overseasInquiries.contactPhone` is often an international number and is expected to pass through).
+
 ---
 
 ## `orders/{orderId}`
@@ -278,8 +289,9 @@ P4-05 (`createDriverAccount` Cloud Function); mitigated in the interim by removi
 | `vehicleModel` | string | ✅ | driver @ register, admin | customer | Make and model, e.g. `'Toyota Corolla'`. **Driver registration does not collect this today** — admin does. P1-08 adds it and makes it required: an unidentifiable vehicle is a safety issue. |
 | `licencePlate` | string | ✅ | driver @ register, admin | customer, admin | British spelling (§c). Uppercased. |
 | ~~`licenceNumber`~~ | — | — | — | — | **Moved to `drivers/{uid}/private/identity` (P4-05).** `drivers/{uid}` is readable by every signed-in user — it has to be, because the customer's tracking card shows the driver's name and vehicle — so a licence number here was readable by every customer who ever placed an order. The admin panel now writes the private copy and reads it back when editing. Legacy documents still carrying it on the parent are covered by the P2-05 migration. |
-| `status` | string | ✅ | driver @ register (`pending`), **admin only** thereafter | all, rules | `'pending'` \| `'approved'` \| `'rejected'` \| `'suspended'`. **Rules must forbid a driver writing this to their own document** — today nothing stops self-approval (audit §7.1). |
+| `status` | string | ✅ | driver @ register (`pending`), **admin only** thereafter | all, rules | `'pending'` \| `'approved'` \| `'rejected'` \| `'paused'` \| `'suspended'`. Only `'approved'` lets the driver into the app; every other value routes them to the pending/blocked screen and the dashboard listener ejects them if it changes mid-session. **`paused`** (client checklist DV-2) is a soft, reversible stop — a driver on leave, or one the admin wants offline for a shift — cleared straight back to `approved`. **`suspended`** is a hard stop for a conduct or safety issue; reinstating is still just a write back to `approved` but the admin UI treats it as a deliberate decision. Pausing or suspending also forces `isOnline: false`. **Rules forbid a driver writing this field** (self-approval, audit §7.1) — enforced by the `untouched(['status', …])` clause. |
 | `isOnline` | bool | ✅ | driver | admin, functions | Availability toggle. |
+| `onlineSince` | Timestamp \| null | — | driver | driver, admin | `serverTimestamp()` when the driver toggles online; `FieldValue.delete()` on toggle-off. Drives the driver dashboard's "Online since 2:45 PM" line and the admin driver card's session age. Absent = not currently online (or a legacy session that predates this field). |
 | `onDelivery` | bool | — | driver | admin | Derived-ish; admin reads it (`app.js:308`). |
 | `fcmToken` | string \| null | — | driver | functions | Written by the driver app. Read by the fan-out functions (P4-04), which **delete it** when FCM reports the token unregistered — an uninstalled app otherwise leaves a corpse that fails every future send. |
 | `avatarUrl` | string \| null | — | driver | customer, admin | |
@@ -366,21 +378,40 @@ today: every code validates, applies **J$0**, never expires, and ignores its usa
 | `discountAmount` | int | ✅ | admin | customer, functions | Percent points, or JMD. **The customer reads `discount`** today — always `null → 0`, which is the J$0 discount. |
 | `minOrderTotal` | int | ✅ | admin | customer, functions | `0` for no minimum. Not enforced today. |
 | `maxDiscount` | int \| null | — | admin | customer, functions | **Caps percentage discounts.** A 100% code with no cap is an unbounded liability and nothing prevents an admin creating one by typo. |
+| `startsAt` | Timestamp \| null | — | admin | customer, functions | Client checklist PR-6. Scheduled activation: a code with a future `startsAt` is live in the collection but `evaluatePromo` rejects it as `not_yet_started` and the admin table shows it as **Scheduled**. `null` = live immediately. |
 | `expiresAt` | Timestamp \| null | ✅ | admin | customer, functions | §b. **The admin writes `validUntil` as a string** today; the customer reads `expiresAt` as a Timestamp — so expiry is never enforced. `null` = never expires. |
 | `maxUses` | int | ✅ | admin | customer, functions | |
 | `usedCount` | int | ✅ | **server only** (`redeemPromo`) | customer, admin | Incremented transactionally at order placement, so two customers cannot both take the last use of a `maxUses: 1` code. |
 | `lastRedeemedAt` | Timestamp \| null | — | **server only** | admin | |
-| `active` | bool | ✅ | admin | customer, functions | The one field that already lines up. |
+| `active` | bool | ✅ | admin | customer, functions | The one field that already lines up. **Pause** (checklist PR-10) sets this `false` and is reversible with **Resume**. |
+| `endedAt` | Timestamp \| null | — | admin | admin | Set by **End Promo** (checklist PR-10) alongside `active: false`. A terminal stop — the admin UI only offers Duplicate / Delete once it is set, never Resume. Distinguishes an ended code from a merely paused one. |
 | `createdAt` | Timestamp | ✅ | admin | admin | |
+| `eligibility` | map \| absent | — | admin | customer, functions | Client checklist PR-5, "who can get the discount." Every key optional and additive — an absent `eligibility` (every promo created before PR-5) or an absent key within it imposes no restriction, so old codes keep behaving exactly as before. See below for keys. |
+
+**`eligibility` map** (see `functions/src/eligibility.ts` — the schema of record for the shape;
+`admin_panel/promo-eligibility.js` and `customer_app/lib/models/promo_eligibility.dart` are
+byte-for-byte mirrors of its logic, not just its field names):
+
+| Key | Type | Notes |
+|---|---|---|
+| `customerScope` | `'new'` \| `'existing'` \| `'selected'` \| absent | Absent = any customer. `'new'`/`'existing'` read against the customer's *entire* order history (any status, any kind), not just this transaction — see `firstOrderOnly` below for the narrower condition. |
+| `customerIds` | array\<string\> | Consulted only when `customerScope === 'selected'`. **Empty or absent then admits nobody** — a deliberate fail-closed choice so an admin who picks "Selected customers" but forgets to pick any doesn't accidentally ship an open code. |
+| `merchantIds` | array\<string\> | Empty/absent = any merchant. A package order (no merchant) fails a merchant-scoped code. |
+| `categories` | array\<string\> | Empty/absent = any category. Matched against the merchant's category. |
+| `deliveryAreas` | array\<string\> | Empty/absent = any area. Matched against the delivery address by case-insensitive substring (same "does the address mention it" match the admin Orders filter uses) — an empty address fails an area-scoped code rather than matching by accident. |
+| `firstOrderOnly` | bool | Default `false`. Distinct from `customerScope: 'new'`: an admin can run a "new customers" promo for a month, but `firstOrderOnly` stops applying the moment the customer's very first order/request (even a cancelled one) has been placed — both can be set at once. |
+| `discountBase` | `'subtotal'` \| `'deliveryFee'` | Default `'subtotal'`. What the discount is computed against. The **minimum-order check always runs against the real subtotal**, regardless of this setting — "spend at least J$2,000" means the order, not whichever part gets discounted. |
+| `orderKinds` | array of `'food'` \| `'package'` \| `'shop_deliver'` | Empty/absent = any kind. `'shop_deliver'` lets a code apply to a Shop & Deliver quote (`overseasInquiries`), not just an order. |
 
 **Deprecated / do not write:** `validUntil` (string → `expiresAt`), `discount` (→ `discountAmount`).
 
 **Validation order** (both client-side for instant feedback and server-side for authority):
-`active` → `expiresAt` → `usedCount < maxUses` → `subtotal >= minOrderTotal` → compute, capped by
-`maxDiscount`.
+`active` → `startsAt` → `expiresAt` → `usedCount < maxUses` → `eligibility` (PR-5) →
+`subtotal >= minOrderTotal` → compute against `discountBaseAmount`, capped by `maxDiscount`.
 
 Client validation is **never trusted**. Redemption increments `usedCount` transactionally in a
-callable function (P3-03).
+callable function (P3-03), and — as of PR-5 — the eligibility check re-runs server-side inside
+that same transaction against freshly read state; the client's preview is advisory only.
 
 ---
 
@@ -399,6 +430,9 @@ callable function (P3-03).
 | `fcmTokenUpdatedAt` | Timestamp \| null | — | customer | — | When the token was last refreshed. Diagnostic only. |
 | `notificationsReadAt` | Timestamp \| null | — | customer | customer | Drives the unread badge. |
 | `disabled` | bool | — | **server** (`setUserDisabled`) | admin | Account suspension (P5-05). Rules permit an admin to write it directly as a backstop, but the panel does not: **this flag is not consulted by rules**, so on its own it stops nobody. The callable disables the Auth account and revokes refresh tokens, then records the flag — the two move together or the flag lies. |
+| `tags` | array\<string\> | — | admin | admin, functions | Client checklist CU-4. Operator-assigned segmentation from a fixed catalogue (`CUSTOMER_TAGS` in `admin_panel/app.js`): `diaspora`, `st_thomas`, `business`, `vip`, `frequent_buyer`, `new_customer`. Drives the Customers page badges/stats and (once built) notification audience targeting (NT-2). Admin-writable directly; a customer cannot tag themselves. Absent = untagged. |
+| `tagsUpdatedAt` | Timestamp \| null | — | admin | admin | When the tags were last changed. |
+| `tagsUpdatedBy` | string \| null | — | admin | admin | Admin uid who last changed the tags. |
 | `disabledReason` | string \| null | — | **server** | admin | Required when disabling; **cleared** on re-enable, so a cleared account does not keep carrying an accusation. |
 | `disabledAt` | Timestamp \| null | — | **server** | admin | Nulled on re-enable. |
 | `disabledBy` | string \| null | — | **server** | admin | Admin UID. Audit trail. |
@@ -427,10 +461,16 @@ selecting "All Drivers" delivered to nobody (audit §9).
 |---|---|---|---|---|---|
 | `title` | string | ✅ | admin | customer, functions | |
 | `message` | string | ✅ | admin | customer, functions | |
-| `target` | string | ✅ | admin | customer, functions | `'all'` \| `'customers'` \| `'drivers'` \| a specific UID. |
+| `target` | string | ✅ | admin | customer, functions | Client checklist NT-2. `'all'` \| `'customers'` \| `'drivers'` \| a specific UID \| **`'tag:<slug>'`** (a CU-4 customer tag) \| **`'ordered'`** \| **`'never_ordered'`** \| **`'inactive'`** (segments derived from order history server-side). Resolved by `parseTarget` / `recipientsForTarget` in `functions/notifications.ts`. |
+| `destType` | string \| null | — | admin | customer, functions | Client checklist NT-4. Where a tap on the push lands: `'order'` (→ `destValue` is an order id) \| `'search'` (→ a search term) \| `'screen'` (→ an allow-listed route) \| `'url'` (→ an external http(s) link). Absent = opens the app. Travels in the FCM `data` payload; the customer app's `_openTarget` routes on it. |
+| `destValue` | string \| null | — | admin | customer, functions | The value for `destType`. |
+| `scheduledFor` | Timestamp \| null | — | admin | functions | Client checklist NT-3. When set to a future time, `onNotificationCreated` does **not** send — `dispatchScheduledNotifications` (runs every 5 min) picks it up once due. `null` = send immediately. |
+| `dispatchedAt` | Timestamp \| null | — | functions | admin | Set by the fan-out the moment it sends. Also the scheduler's "already done" marker, so a scheduled push is never sent twice. |
 | `sentBy` | string | ✅ | admin | admin | Admin email, audit trail. |
 | `createdAt` | Timestamp | ✅ | admin | all | |
 | `deliveredCount` | int \| null | — | functions | admin | How many devices actually received it. Closes the loop between "logged" and "sent". Written back by the fan-out. |
+| `failedCount` | int \| null | — | functions | admin | Sends FCM rejected (invalid/unregistered tokens). Written back by the fan-out alongside `deliveredCount`. Client checklist NT-6. |
+| `openedCount` | int \| null | — | functions | admin | How many recipients tapped the push. Requires the client apps to report an open (via a callable or an analytics event the function aggregates) — **not yet wired**; the admin "Recent Notifications" row renders it only when present. Client checklist NT-6. |
 
 ---
 
@@ -461,6 +501,7 @@ PII kept off the parent document, which **every signed-in user can read** (P4-05
 | Field | Type | Required | Written by | Read by | Notes |
 |---|---|---|---|---|---|
 | `licenceNumber` | string | ✅ | driver, admin | driver, admin | British spelling (§c). Was on `drivers/{uid}` until P4-05, where every customer who had placed an order could read it. |
+| `documents` | map \| null | — | driver @ register | driver, admin | Client checklist DV-5. Storage download URLs for the credential photos a driver uploads at registration: `{licence: url, vehicle: url}` (more keys may be added). Kept here, **not on the parent**, for the same reason as `licenceNumber` — the parent is world-readable to signed-in users and a licence photo is not. The admin document-review flow reads this doc when opening a pending driver. `null` / absent for a driver who registered before this existed; the review UI says so rather than showing a broken image. Storage path `drivers/{uid}/documents/{key}.jpg` (read: admin or self). |
 | `updatedAt` | Timestamp | — | driver, admin | — | |
 
 ---
@@ -497,13 +538,22 @@ name, phone number and street address.
 | `recipientAddress` | string | ✅ | customer @ create | Max 400. A parish alone is not somewhere a courier can knock, so the form requires 8+ characters. |
 | `recipientParish` | string | ✅ | customer @ create | One of the 14 parishes (`JamaicaParish.all`). A dropdown, not free text: the panel groups the queue by this, and "St Thomas" / "st. thomas" as separate destinations is how an operator misses one. |
 | `itemCategory` | string | ✅ | customer @ create | From `OverseasItemCategory.all`. |
-| `itemDescription` | string | ✅ | customer @ create | Max 1000. What customs is told is in the box. |
+| `itemDescription` | string | ✅ | customer @ create | Max 1000. The shopping list, one item per line. The admin panel derives a rough item count from it (`overseas-status.js` → `itemCount`) — an estimate for the operator's glance, not a structured quantity. |
+| `requestedStore` | string \| null | — | customer @ create | Client checklist SD-5. Free-text store preference — "PriceSmart", "any supermarket". Max 120. **Omitted entirely when blank** (not written as `null`) so the rules' `get('requestedStore','').size()` check holds; the panel shows "Any store". |
 | `estimatedWeightKg` | double\|null | — | customer @ create | Optional — a customer who does not know what the box weighs can still ask. `null`, never `0`: zero is a weight, and would read as an empty box. |
 | `notes` | string | — | customer @ create | Max 1000. |
-| `status` | string | ✅ | customer @ create, admin @ update | `'new'` \| `'contacted'` \| `'quoted'` \| `'closed'` \| `'declined'`. Always `'new'` at create — rules refuse anything else, so a modified client cannot file a request that skips the queue. |
+| `status` | string | ✅ | customer @ create, admin @ update | Client checklist SD-4. The nine-stage pipeline `'new'` → `'reviewing'` → `'quote_sent'` → `'awaiting_customer'` → `'approved'` → `'shopping'` → `'ready_for_delivery'` → `'out_for_delivery'` → `'completed'`, plus the outcomes `'declined'` \| `'cancelled'` \| `'expired'`. Always `'new'` at create — rules refuse anything else. SD-1: the panel's "Closed" bucket is every terminal state (`completed`/`declined`/`cancelled`/`expired`), not just declined. Mirrored in `admin_panel/overseas-status.js`, `customer_app/lib/models/overseas_inquiry.dart` (`OverseasStatus`), and `firestore.rules` `overseasStatus()`. The pre-SD-4 slugs (`contacted`/`quoted`/`closed`) are migrated by `tools/migrate` and refused by the rules on a fresh write. |
 | `adminNote` | string | — | **admin only** | Internal. Never shown to the customer; the panel says so on the label. Rules refuse it at create. |
 | `handledBy` | string | — | **admin only** | Admin uid. |
 | `handledAt` | Timestamp | — | **admin only** | |
+| `quoteItemsCost` | int \| null | — | **admin only** | Client checklist SD-7. Estimated cost of the goods, integer JMD. |
+| `quoteServiceFee` | int \| null | — | **admin only** | Shopping / service fee, integer JMD. |
+| `quoteDeliveryFee` | int \| null | — | **admin only** | Delivery fee, integer JMD. |
+| `quoteTotal` | int \| null | — | **admin only** | `quoteItemsCost + quoteServiceFee + quoteDeliveryFee`, **derived on save** so the stored total cannot disagree with its parts. |
+| `quoteExpiresAt` | Timestamp \| null | — | **admin only** | When the quote lapses. `null` = no expiry set. |
+| `quotePaymentStatus` | string | — | **admin only** | `'' \| 'pending' \| 'paid' \| 'refunded' \| 'waived'`. Free-form enough that this is a display slug, not enforced. |
+| `quotedBy` | string \| null | — | **admin only** | Admin uid who saved the quote. |
+| `quotedAt` | Timestamp \| null | — | **admin only** | When the quote was last saved. |
 | `createdAt` | Timestamp | ✅ | customer @ create | `serverTimestamp()`, so it is briefly `null` on the client. Both the app and the panel sort an unresolved enquiry **first** — it is the newest thing there is, and the one most needing attention. |
 | `updatedAt` | Timestamp | ✅ | customer @ create, admin @ update | |
 
@@ -576,6 +626,9 @@ would break clients in the field.
 | `drivers` | `rating` | `averageRating` | Seed. |
 | `drivers` | `todayEarnings` | *(derived)* | Delete the field. |
 | `drivers` | *(random-ID docs)* | UID-keyed | **Do not auto-delete.** Export to CSV for manual reconciliation — some correspond to real people needing an account (P4-05). |
+| `overseasInquiries` | `status: 'contacted'` | `'reviewing'` | Rewrite value (SD-4). |
+| `overseasInquiries` | `status: 'quoted'` | `'quote_sent'` | Rewrite value. |
+| `overseasInquiries` | `status: 'closed'` | `'completed'` | Rewrite value — a bare `closed` most likely means fulfilled; an actual decline was already `declined`. |
 
 ---
 

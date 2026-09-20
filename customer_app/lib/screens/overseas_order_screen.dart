@@ -61,6 +61,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
   final _recipientPhone = TextEditingController();
   final _recipientAddress = TextEditingController();
   final _description = TextEditingController();
+  final _store = TextEditingController();
   final _budget = TextEditingController();
   final _notes = TextEditingController();
 
@@ -108,6 +109,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
       _recipientPhone,
       _recipientAddress,
       _description,
+      _store,
       _budget,
       _notes,
     ]) {
@@ -126,6 +128,7 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
         recipientParish: _parish,
         itemCategory: _category,
         itemDescription: _description.text,
+        requestedStore: _store.text,
         budgetRaw: _budget.text,
         notes: _notes.text,
       );
@@ -339,11 +342,19 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
             SeTextField(
               controller: _description,
               label: 'Shopping list',
-              hint: 'e.g. 3 tins of ackee, 2 packs of rice, 1 box of milk',
+              hint: 'One item per line, e.g.\n3 tins of ackee\n2 packs of rice\n1 box of milk',
               icon: SeIcons.note,
-              minLines: 2,
-              maxLines: 4,
+              minLines: 3,
+              maxLines: 6,
               errorText: _errors['itemDescription'],
+            ),
+            const SizedBox(height: 14),
+            SeTextField(
+              controller: _store,
+              label: 'Preferred store (optional)',
+              hint: 'e.g. PriceSmart, or “any supermarket”',
+              icon: SeIcons.storefront,
+              errorText: _errors['requestedStore'],
             ),
             const SizedBox(height: 14),
             SeTextField(
@@ -469,11 +480,13 @@ class _OverseasOrderScreenState extends State<OverseasOrderScreen> {
 
   Widget _inquiryRow(OverseasInquiry inquiry) {
     final open = OverseasStatus.isOpen(inquiry.status);
-    final declined = inquiry.status == OverseasStatus.declined;
-    final tint = declined
+    // SD-4: declined / cancelled / expired all read as "did not happen";
+    // `completed` is the one terminal state that is good news.
+    final failed = OverseasStatus.isUnsuccessful(inquiry.status);
+    final tint = failed
         ? SeColors.dangerTint
         : (open ? SeColors.oceanTint : SeColors.successTint);
-    final ink = declined
+    final ink = failed
         ? SeColors.danger
         : (open ? SeColors.ocean500 : SeColors.success);
 

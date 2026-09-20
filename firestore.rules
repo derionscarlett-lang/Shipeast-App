@@ -82,17 +82,25 @@ service cloud.firestore {
                     && incoming().keys().hasAll(['name', 'email'])
                     && !incoming().keys().hasAny(['disabled', 'fcmToken2']);
 
-      /* A customer may not disable or re-enable their own account.
+      /* A customer may not disable or re-enable their own account, nor set
+         their own segment tags.
 
-         The admin clause is a backstop, NOT the path the panel uses. On its
-         own this flag is decoration: Firestore rules never consult it, so a
+         The disabled clause is a backstop, NOT the path the panel uses. On its
+         own that flag is decoration: Firestore rules never consult it, so a
          customer marked `disabled` keeps their session and keeps ordering.
          Only disabling the Auth account stops them, and that is privileged —
          so the panel calls `setUserDisabled` (P5-05), which changes the
          account and the flag together. Writing the flag from a client leaves
-         it lying about an account that still works. */
-      allow update: if (uid() == userId && untouched(['disabled']))
-                    || (isAdmin() && changed().hasOnly(['disabled']));
+         it lying about an account that still works.
+
+         `tags` (client checklist CU-4) is operator-assigned segmentation —
+         Diaspora, VIP, Business… — used by the Customers page and by
+         notification audience targeting. Admin-writable directly; a customer
+         cannot tag themselves. */
+      allow update: if (uid() == userId
+                        && untouched(['disabled', 'tags', 'tagsUpdatedAt', 'tagsUpdatedBy']))
+                    || (isAdmin()
+                        && changed().hasOnly(['disabled', 'tags', 'tagsUpdatedAt', 'tagsUpdatedBy']));
 
       // The owner may delete their own account. Admin delete exists solely for
       // the Settings → Danger Zone "Erase all data" wipe (a deliberate,
@@ -359,8 +367,14 @@ service cloud.firestore {
     // owns the request, the admin owns the handling. Neither can write the
     // other's half.
 
+    // Client checklist SD-4: the nine-stage pipeline plus three outcomes.
+    // Mirrors PIPELINE + OUTCOMES in admin_panel/overseas-status.js and the
+    // Dart OverseasStatus. A migration rewrites the pre-SD-4 slugs
+    // (contacted/quoted/closed) — an admin write of one is refused here.
     function overseasStatus() {
-      return ['new', 'contacted', 'quoted', 'closed', 'declined'];
+      return ['new', 'reviewing', 'quote_sent', 'awaiting_customer', 'approved',
+              'shopping', 'ready_for_delivery', 'out_for_delivery', 'completed',
+              'declined', 'cancelled', 'expired'];
     }
 
     match /overseasInquiries/{inquiryId} {
@@ -389,15 +403,25 @@ service cloud.firestore {
                     && incoming().recipientAddress.size() <= 400
                     && incoming().itemDescription is string
                     && incoming().itemDescription.size() <= 1000
-                    && incoming().get('notes', '').size() <= 1000;
+                    && incoming().get('notes', '').size() <= 1000
+                    // SD-5: an optional free-text store preference.
+                    && incoming().get('requestedStore', '').size() <= 120;
 
       // Handling is admin-only, and confined to the handling fields. The
       // customer's own shopping list is what we buy against, so nobody edits it
       // after the fact — not even an admin. A wrong list is a new request.
+      //
+      // SD-7 adds the quote sub-fields: an estimate of the item cost, the
+      // service and delivery fees, the total, an expiry, and the payment
+      // status. Still admin-only, still additive — the customer's request body
+      // remains untouchable.
       allow update: if isAdmin()
                     && changed().hasOnly(
-                         ['status', 'adminNote', 'handledBy',
-                          'handledAt', 'updatedAt'])
+                         ['status', 'adminNote', 'handledBy', 'handledAt',
+                          'updatedAt',
+                          'quoteItemsCost', 'quoteServiceFee', 'quoteDeliveryFee',
+                          'quoteTotal', 'quoteExpiresAt', 'quotePaymentStatus',
+                          'quotedAt', 'quotedBy'])
                     && incoming().status in overseasStatus();
 
       // Kept, never deleted in normal operation — an enquiry is the only

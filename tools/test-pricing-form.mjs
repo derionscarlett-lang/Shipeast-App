@@ -148,9 +148,9 @@ describe('describeBands', () => {
   test('names each range from the previous bound', () => {
     const { bands } = parseBands('2 = 600\n5 = 900\n+ = 2200');
     assert.deepEqual(describeBands(bands, 100), [
-      '0–2 kg: $600',
-      '2–5 kg: $900',
-      'Over 5 kg: $2200 plus $100 per extra kg'
+      '0–2 kg: J$600',
+      '2–5 kg: J$900',
+      'Over 5 kg: J$2200 plus J$100 per extra kg'
     ]);
   });
 
@@ -172,6 +172,7 @@ describe('parseAmount', () => {
 
   test('strips currency formatting', () => {
     assert.equal(parseAmount(' $1,250 '), 1250);
+    assert.equal(parseAmount('J$1,250'), 1250);
   });
 
   test('distinguishes a cleared field from a typed zero', () => {

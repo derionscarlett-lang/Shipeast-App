@@ -78,6 +78,10 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
 
   bool get _approved => _status == 'approved';
   bool get _rejected => _status == 'rejected';
+  // DV-2: an approved driver the admin has temporarily stopped, vs. a hard
+  // conduct/safety suspension. Both land here; the copy differs.
+  bool get _paused => _status == 'paused';
+  bool get _suspended => _status == 'suspended';
 
   ({Color hue, Color tint, IconData icon, String label}) get _badge {
     if (_approved) {
@@ -86,6 +90,22 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
         tint: SeColors.successTint,
         icon: SeIcons.checkCircle,
         label: 'Approved — opening your dashboard'
+      );
+    }
+    if (_suspended) {
+      return (
+        hue: SeColors.danger,
+        tint: SeColors.dangerTint,
+        icon: SeIcons.warningCircle,
+        label: 'Account suspended'
+      );
+    }
+    if (_paused) {
+      return (
+        hue: SeColors.warning,
+        tint: SeColors.warningTint,
+        icon: SeIcons.pause,
+        label: 'Account paused'
       );
     }
     if (_rejected) {
@@ -180,9 +200,13 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
               Text(
                 _approved
                     ? 'You\'re approved!'
-                    : _rejected
-                        ? 'Application declined'
-                        : 'Application submitted',
+                    : _suspended
+                        ? 'Account suspended'
+                        : _paused
+                            ? 'Account paused'
+                            : _rejected
+                                ? 'Application declined'
+                                : 'Application submitted',
                 textAlign: TextAlign.center,
                 style: SeType.display,
               ),
@@ -190,36 +214,43 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
               Text(
                 _approved
                     ? 'Everything checks out. Taking you to your dashboard…'
-                    : _rejected
-                        ? 'Our team could not approve this application. Contact ShipEast support for the details.'
-                        : 'Your driver application is with our team. This screen updates the moment a decision is made — no need to reopen the app.',
+                    : _suspended
+                        ? 'Your ShipEast driver account has been suspended and you cannot accept deliveries. Contact ShipEast support to find out more.'
+                        : _paused
+                            ? 'Your account is paused, so you are not receiving delivery requests right now. This screen updates the moment it is reactivated — no need to reopen the app.'
+                            : _rejected
+                                ? 'Our team could not approve this application. Contact ShipEast support for the details.'
+                                : 'Your driver application is with our team. This screen updates the moment a decision is made — no need to reopen the app.',
                 textAlign: TextAlign.center,
                 style: SeType.body.copyWith(color: SeColors.ink500),
               ),
               const SizedBox(height: SeSpacing.x8),
 
               // ── Live tracker ────────────────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(SeSpacing.x5),
-                decoration: BoxDecoration(
-                  color: SeColors.surface0,
-                  borderRadius: SeRadius.all(SeRadius.lg),
-                  boxShadow: SeElevation.e1,
+              // The application tracker only makes sense for a new applicant.
+              // A paused or suspended driver already cleared it.
+              if (!_paused && !_suspended && !_rejected)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(SeSpacing.x5),
+                  decoration: BoxDecoration(
+                    color: SeColors.surface0,
+                    borderRadius: SeRadius.all(SeRadius.lg),
+                    boxShadow: SeElevation.e1,
+                  ),
+                  child: SeStepTracker(
+                    current: _approved ? 2 : 1,
+                    allComplete: _approved,
+                    steps: const [
+                      SeStep('Application received',
+                          caption: 'We have your registration details'),
+                      SeStep('Background check',
+                          caption: 'Our team is reviewing your documents'),
+                      SeStep('Account activated',
+                          caption: 'Start accepting deliveries'),
+                    ],
+                  ),
                 ),
-                child: SeStepTracker(
-                  current: _approved ? 2 : 1,
-                  allComplete: _approved,
-                  steps: const [
-                    SeStep('Application received',
-                        caption: 'We have your registration details'),
-                    SeStep('Background check',
-                        caption: 'Our team is reviewing your documents'),
-                    SeStep('Account activated',
-                        caption: 'Start accepting deliveries'),
-                  ],
-                ),
-              ),
               const SizedBox(height: SeSpacing.x8),
 
               SeButton(
@@ -235,7 +266,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
               ),
               const SizedBox(height: SeSpacing.x3),
               Text(
-                'Most applications are reviewed within 24–48 hours.',
+                'Applications are reviewed by our team before drivers are approved to begin accepting deliveries',
                 textAlign: TextAlign.center,
                 style: SeType.bodyS.copyWith(color: SeColors.ink400),
               ),

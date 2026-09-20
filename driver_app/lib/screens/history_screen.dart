@@ -150,7 +150,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   children: [
                     Text('Delivery History',
                         style: SeType.h2.copyWith(color: Colors.white)),
-                    Text('Every job you have run',
+                    Text('Your past deliveries',
                         style: SeType.bodyS.copyWith(
                             color: Colors.white.withValues(alpha: 0.82))),
                   ],
@@ -216,7 +216,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           horizontal: SeSpacing.x4, vertical: SeSpacing.x4),
       child: Row(
         children: [
-          _summaryItem('$total', 'Total trips', SeColors.ink900),
+          _summaryItem('$total', 'Total Deliveries', SeColors.ink900),
           _vDivider(),
           _summaryItem('$completed', 'Completed', SeColors.success),
           _vDivider(),
@@ -262,7 +262,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           title: cancelledTab ? 'No cancellations' : 'No deliveries yet',
           message: cancelledTab
               ? 'You have not had a delivery cancelled. Keep it up.'
-              : 'Jobs you accept will show up here once they are done.',
+              : 'Your completed and cancelled deliveries will appear here',
           hue: cancelledTab ? SeColors.success : SeColors.red500,
           tint: cancelledTab ? SeColors.successTint : SeColors.red50,
         ),

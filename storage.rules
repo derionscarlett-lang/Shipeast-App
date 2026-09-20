@@ -38,6 +38,18 @@ service firebase.storage {
                    && isImageUnder(5);
     }
 
+    // ── Driver credential documents (DV-5) ──────────────────────────────
+    // uploadDriverDocument → drivers/{uid}/documents/{key}.jpg
+    // A licence photo is NOT public. Read is the driver themselves or an admin;
+    // the admin's document-review flow shows it while approving.
+    match /drivers/{driverId}/documents/{fileName} {
+      allow read: if isAdmin()
+                  || (signedIn() && request.auth.uid == driverId);
+      allow write: if signedIn()
+                   && request.auth.uid == driverId
+                   && isImageUnder(5);
+    }
+
     // ── Driver avatars ──────────────────────────────────────────────────
     // uploadProfilePhoto → drivers/{uid}/avatar.jpg
     match /drivers/{driverId}/{fileName} {

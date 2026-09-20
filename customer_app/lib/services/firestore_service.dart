@@ -8,6 +8,7 @@ import '../models/order_type.dart';
 import '../models/overseas_inquiry.dart';
 import '../models/package_pricing.dart';
 import '../models/promo_code.dart';
+import '../models/promo_eligibility.dart';
 
 class FirestoreService {
   static final _db = FirebaseFirestore.instance;
@@ -428,15 +429,62 @@ class FirestoreService {
   /// [redeemPromo]. This exists so the customer sees the saving immediately
   /// instead of waiting on a function cold start, and it enforces the full rule
   /// set (expiry, usage cap, minimum) rather than the two checks it used to.
-  static Future<PromoResult> previewPromoCode(String code, int subtotal) async {
+  ///
+  /// The PR-5 context ([merchantId], [merchantCategory], [deliveryArea],
+  /// [orderKind], [deliveryFee]) is optional and additive: a caller that
+  /// passes none of it still gets a correct preview for any code with no
+  /// `eligibility` rules — every code created before PR-5. When it *is*
+  /// passed, an ineligible code previews as rejected with the reason the
+  /// customer would actually hit at redemption, not a generic "invalid code".
+  static Future<PromoResult> previewPromoCode(
+    String code,
+    int subtotal, {
+    String? merchantId,
+    String? merchantCategory,
+    String? deliveryArea,
+    OrderKind orderKind = OrderKind.food,
+    int deliveryFee = 0,
+  }) async {
     try {
       final doc =
           await _db.collection('promoCodes').doc(code.trim().toUpperCase()).get();
-      return PromoCodes.evaluate(
-        doc.exists ? doc.data() : null,
-        subtotal,
-        DateTime.now(),
-      );
+      final data = doc.exists ? doc.data() : null;
+      if (data != null) {
+        final elig = PromoEligibility.fromMap(
+          data['eligibility'] as Map<String, dynamic>?,
+        );
+        final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+        final check = checkEligibility(
+          elig,
+          EligibilityContext(
+            customerId: uid,
+            // Best-effort preview: an exact prior-order count needs a query
+            // this preview intentionally skips (see redeemPromo's own
+            // priorOrderCount, which IS authoritative). `0` under-restricts a
+            // "new customer" code here in the rare case the preview is wrong,
+            // which only means the customer finds out at redemption instead
+            // of at code entry — never the reverse.
+            priorOrderCount: 0,
+            merchantId: merchantId,
+            merchantCategory: merchantCategory,
+            deliveryArea: deliveryArea,
+            orderKind: orderKind,
+          ),
+        );
+        if (!check.eligible) {
+          return PromoResult.rejected(
+            PromoRejection.ineligible,
+            check.displayMessage ?? 'That promo code does not apply here.',
+          );
+        }
+        return PromoCodes.evaluate(
+          data,
+          subtotal,
+          DateTime.now(),
+          discountBaseAmount(elig, subtotal, deliveryFee),
+        );
+      }
+      return PromoCodes.evaluate(null, subtotal, DateTime.now());
     } catch (_) {
       // A read failure is not the same as a bad code, and must not be reported
       // as one.
@@ -449,14 +497,38 @@ class FirestoreService {
   /// Called at order placement, not at code entry — a customer who types a code
   /// and abandons checkout must not burn a use. Throws when the code is
   /// rejected; the message is safe to show.
-  static Future<int> redeemPromo(String code, int subtotal) async {
+  ///
+  /// The PR-5 context fields mirror [previewPromoCode]'s — all optional, all
+  /// re-checked server-side against freshly read state regardless of what is
+  /// sent here (redeemPromo.ts). Sending none of it is safe for a code with
+  /// no `eligibility` rules; it is not a way to bypass one that has them.
+  static Future<int> redeemPromo(
+    String code,
+    int subtotal, {
+    String? merchantId,
+    String? merchantCategory,
+    String? deliveryAddress,
+    OrderKind orderKind = OrderKind.food,
+    int deliveryFee = 0,
+  }) async {
     final callable = FirebaseFunctions.instance.httpsCallable('redeemPromo');
     final result = await callable.call<Map<String, dynamic>>({
       'code': code.trim().toUpperCase(),
       'subtotal': subtotal,
+      if (merchantId != null) 'merchantId': merchantId,
+      if (merchantCategory != null) 'merchantCategory': merchantCategory,
+      if (deliveryAddress != null) 'deliveryAddress': deliveryAddress,
+      'orderKind': _orderKindWire(orderKind),
+      'deliveryFee': deliveryFee,
     });
     return (result.data['discount'] as num?)?.toInt() ?? 0;
   }
+
+  static String _orderKindWire(OrderKind k) => switch (k) {
+        OrderKind.food => 'food',
+        OrderKind.package => 'package',
+        OrderKind.shopDeliver => 'shop_deliver',
+      };
 
   /// Submits a rating for a delivered order.
   ///

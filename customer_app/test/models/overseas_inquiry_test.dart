@@ -26,6 +26,7 @@ OverseasInquiryDraft valid({
   String recipientParish = 'St. Thomas',
   String itemCategory = 'Groceries & food',
   String itemDescription = '3 tins of ackee, 2 packs of rice',
+  String requestedStore = '',
   String budgetRaw = '',
   String notes = '',
 }) =>
@@ -39,6 +40,7 @@ OverseasInquiryDraft valid({
       recipientParish: recipientParish,
       itemCategory: itemCategory,
       itemDescription: itemDescription,
+      requestedStore: requestedStore,
       budgetRaw: budgetRaw,
       notes: notes,
     );
@@ -65,11 +67,44 @@ void main() {
       );
     });
 
-    test('a closed or declined enquiry is not still open', () {
+    test('a finished request is not still open', () {
       expect(OverseasStatus.isOpen(OverseasStatus.submitted), isTrue);
-      expect(OverseasStatus.isOpen(OverseasStatus.quoted), isTrue);
-      expect(OverseasStatus.isOpen(OverseasStatus.closed), isFalse);
+      expect(OverseasStatus.isOpen(OverseasStatus.quoteSent), isTrue);
+      expect(OverseasStatus.isOpen(OverseasStatus.shopping), isTrue);
+      expect(OverseasStatus.isOpen(OverseasStatus.completed), isFalse);
       expect(OverseasStatus.isOpen(OverseasStatus.declined), isFalse);
+      expect(OverseasStatus.isOpen(OverseasStatus.cancelled), isFalse);
+      expect(OverseasStatus.isOpen(OverseasStatus.expired), isFalse);
+    });
+
+    test('SD-4: the nine-stage pipeline plus three outcomes', () {
+      expect(OverseasStatus.pipeline, [
+        OverseasStatus.submitted,
+        OverseasStatus.reviewing,
+        OverseasStatus.quoteSent,
+        OverseasStatus.awaitingCustomer,
+        OverseasStatus.approved,
+        OverseasStatus.shopping,
+        OverseasStatus.readyForDelivery,
+        OverseasStatus.outForDelivery,
+        OverseasStatus.completed,
+      ]);
+      expect(OverseasStatus.outcomes,
+          [OverseasStatus.declined, OverseasStatus.cancelled, OverseasStatus.expired]);
+      expect(OverseasStatus.all.length, 12);
+    });
+
+    test('the pre-SD-4 slugs map onto the nearest new state', () {
+      expect(OverseasStatus.of('contacted'), OverseasStatus.reviewing);
+      expect(OverseasStatus.of('quoted'), OverseasStatus.quoteSent);
+      expect(OverseasStatus.of('closed'), OverseasStatus.completed);
+    });
+
+    test('declined / cancelled / expired read as unsuccessful; completed does not', () {
+      expect(OverseasStatus.isUnsuccessful(OverseasStatus.declined), isTrue);
+      expect(OverseasStatus.isUnsuccessful(OverseasStatus.cancelled), isTrue);
+      expect(OverseasStatus.isUnsuccessful(OverseasStatus.expired), isTrue);
+      expect(OverseasStatus.isUnsuccessful(OverseasStatus.completed), isFalse);
     });
 
     test('every status has a customer label and an explanation', () {
@@ -226,6 +261,21 @@ void main() {
       // takes", which is what leaving it empty means.
       final map = valid().toFirestore(customerId: 'uid-1', customerName: 'M');
       expect(map['budget'], isNull);
+    });
+
+    test('SD-5: requestedStore is omitted when blank, present when given', () {
+      // Omitted rather than null so firestore.rules' get(..., "").size() holds.
+      final blank = valid().toFirestore(customerId: 'u', customerName: 'M');
+      expect(blank.containsKey('requestedStore'), isFalse);
+
+      final withStore = valid(requestedStore: '  PriceSmart  ')
+          .toFirestore(customerId: 'u', customerName: 'M');
+      expect(withStore['requestedStore'], 'PriceSmart');
+    });
+
+    test('SD-5: an over-long store preference is rejected', () {
+      expect(valid(requestedStore: 'x' * 121).errors(),
+          contains('requestedStore'));
     });
   });
 

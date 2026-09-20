@@ -82,7 +82,7 @@ class _SeOnlineToggleState extends State<SeOnlineToggle>
       switch (widget.presence) {
         DriverPresence.offline => (
             word: 'OFFLINE',
-            hint: 'Go online to start receiving orders',
+            hint: 'Go online to start receiving delivery requests',
             ground: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

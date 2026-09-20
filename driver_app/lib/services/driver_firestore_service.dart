@@ -11,7 +11,14 @@ class DriverFirestoreService {
 
   static Future<void> setDriverOnline(String uid, bool isOnline) =>
       _db.collection('drivers').doc(uid).set(
-        {'isOnline': isOnline},
+        {
+          'isOnline': isOnline,
+          // `onlineSince` marks when the current online session began, so the
+          // dashboard can show "Online since 2:45 PM" (client request). Set on
+          // toggle-on; cleared on toggle-off so a stale value never shows.
+          'onlineSince':
+              isOnline ? FieldValue.serverTimestamp() : FieldValue.delete(),
+        },
         SetOptions(merge: true),
       );
 
@@ -189,6 +196,16 @@ class DriverFirestoreService {
 
   static Future<String> uploadProfilePhoto(String uid, File file) async {
     final ref = FirebaseStorage.instance.ref('drivers/$uid/avatar.jpg');
+    await ref.putFile(file);
+    return ref.getDownloadURL();
+  }
+
+  /// Uploads one credential photo for the admin document-review flow (DV-5).
+  /// [key] is `licence`, `vehicle`, … and becomes the field name under
+  /// `drivers/{uid}.documents`.
+  static Future<String> uploadDriverDocument(
+      String uid, String key, File file) async {
+    final ref = FirebaseStorage.instance.ref('drivers/$uid/documents/$key.jpg');
     await ref.putFile(file);
     return ref.getDownloadURL();
   }

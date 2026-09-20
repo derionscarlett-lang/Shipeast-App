@@ -15,6 +15,7 @@ function promo(overrides: Partial<PromoDoc> = {}): PromoDoc {
     discountAmount: 200,
     minOrderTotal: 0,
     maxDiscount: null,
+    startsAtMillis: null,
     expiresAtMillis: null,
     maxUses: 100,
     usedCount: 0,
@@ -91,6 +92,20 @@ describe('rejections', () => {
     assert.equal(evaluatePromo(promo({ expiresAtMillis: null }), 1500, NOW).ok, true);
   });
 
+  test('a code with a future start date is not redeemable yet (PR-6)', () => {
+    const r = evaluatePromo(promo({ startsAtMillis: NOW + DAY }), 1500, NOW);
+    assert.equal(r.reason, 'not_yet_started');
+    assert.equal(r.discount, 0);
+  });
+
+  test('a code whose start has passed works', () => {
+    assert.equal(evaluatePromo(promo({ startsAtMillis: NOW - DAY }), 1500, NOW).ok, true);
+  });
+
+  test('a null start means it is live immediately', () => {
+    assert.equal(evaluatePromo(promo({ startsAtMillis: null }), 1500, NOW).ok, true);
+  });
+
   test('an exhausted code is rejected', () => {
     const r = evaluatePromo(promo({ maxUses: 5, usedCount: 5 }), 1500, NOW);
     assert.equal(r.reason, 'exhausted');
@@ -117,6 +132,30 @@ describe('rejections', () => {
 
   test('a negative discount amount is rejected', () => {
     assert.equal(evaluatePromo(promo({ discountAmount: -100 }), 1500, NOW).reason, 'malformed');
+  });
+
+  test('PR-5: a delivery-fee-only code discounts the delivery fee, not the subtotal', () => {
+    // 20% off a J$300 delivery fee, on a J$5,000 order — the discount must be
+    // J$60, not J$1,000.
+    const p = promo({ discountType: 'percent', discountAmount: 20, maxDiscount: 10000 });
+    const r = evaluatePromo(p, 5000, NOW, 300);
+    assert.equal(r.ok, true);
+    assert.equal(r.discount, 60);
+  });
+
+  test('PR-5: the minimum-order check still runs against the real subtotal', () => {
+    // Even though the discount comes off the delivery fee, "spend at least
+    // J$2,000" means the order total, not the fee.
+    const p = promo({ minOrderTotal: 2000 });
+    const r = evaluatePromo(p, 1500, NOW, 300);
+    assert.equal(r.reason, 'below_minimum');
+  });
+
+  test('PR-5: a delivery-fee discount cannot exceed the delivery fee itself', () => {
+    const p = promo({ discountType: 'fixed', discountAmount: 9999 });
+    const r = evaluatePromo(p, 5000, NOW, 300);
+    assert.equal(r.ok, true);
+    assert.equal(r.discount, 300);
   });
 
   test('every rejection returns a zero discount', () => {

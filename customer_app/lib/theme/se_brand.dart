@@ -8,7 +8,7 @@ class SeBrand {
 
   /// Keep in lockstep with pubspec `version:` (before the `+build`).
   static const String version = '1.0.2';
-  static const String tagline = 'Couriers & Bearer Services · Jamaica';
+  static const String tagline = 'Couriers & Bearer Service · Jamaica';
 }
 
 /// ShipEast wordmark — `Ship` in ink + `East` in brand red, one weight.

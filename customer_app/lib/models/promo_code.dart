@@ -20,10 +20,17 @@ library;
 enum PromoRejection {
   notFound,
   inactive,
+  notYetStarted,
   expired,
   exhausted,
   belowMinimum,
   malformed,
+  /// PR-5: the code exists and is otherwise valid, but `eligibility` rules
+  /// exclude this customer/merchant/area/order. Never returned by
+  /// [PromoCodes.evaluate] itself — that stays eligibility-agnostic, same as
+  /// `evaluatePromo` in `functions/src/promo.ts` — only by a caller
+  /// ([FirestoreService.previewPromoCode]) that runs `checkEligibility` first.
+  ineligible,
 }
 
 class PromoResult {
@@ -45,12 +52,14 @@ abstract final class PromoCodes {
   static const messages = <PromoRejection, String>{
     PromoRejection.notFound: 'That promo code does not exist.',
     PromoRejection.inactive: 'That promo code is no longer available.',
+    PromoRejection.notYetStarted: 'That promo code is not active yet.',
     PromoRejection.expired: 'That promo code has expired.',
     PromoRejection.exhausted: 'That promo code has reached its usage limit.',
     PromoRejection.belowMinimum:
         'Your order is below the minimum for that promo code.',
     PromoRejection.malformed:
         'That promo code is misconfigured. Please contact support.',
+    PromoRejection.ineligible: 'That promo code does not apply here.',
   };
 
   static PromoResult _reject(PromoRejection reason) =>
@@ -62,19 +71,28 @@ abstract final class PromoCodes {
   /// exists. [expiresAt] is read as a `Timestamp`-like value via [now]
   /// comparison; pass [now] explicitly in tests.
   ///
-  /// The discount applies to the **subtotal**, not the grand total. Discounting
-  /// the delivery and service fees too was never the intent, and would make the
-  /// driver's commission depend on the customer's coupon.
+  /// [subtotal] is always what the minimum-order check runs against — "spend
+  /// at least J$2,000" means the real order, never whichever part the
+  /// discount comes off. The optional positional `discountBaseAmount`
+  /// (checklist PR-5, "Delivery fee only") is what the discount is actually
+  /// computed against and clamped to; it defaults to [subtotal], which is
+  /// every promo's behaviour before PR-5 and every promo with no
+  /// `eligibility` rules today. Derive it from the promo's
+  /// `eligibility.discountBase` with the `discountBaseAmount` function in
+  /// `promo_eligibility.dart`.
   ///
   /// Validation order matches SCHEMA.md:
-  /// active → expiresAt → usedCount < maxUses → subtotal >= minOrderTotal
+  /// active → startsAt → expiresAt → usedCount < maxUses → subtotal >= minOrderTotal
   static PromoResult evaluate(
     Map<String, dynamic>? promo,
     int subtotal,
-    DateTime now,
-  ) {
+    DateTime now, [
+    int? discountBaseAmount,
+  ]) {
     if (promo == null) return _reject(PromoRejection.notFound);
     if (subtotal < 0) return _reject(PromoRejection.malformed);
+    final base = discountBaseAmount ?? subtotal;
+    if (base < 0) return _reject(PromoRejection.malformed);
 
     final amount = (promo['discountAmount'] as num?)?.toDouble();
     if (amount == null || amount < 0) return _reject(PromoRejection.malformed);
@@ -85,6 +103,18 @@ abstract final class PromoCodes {
     }
 
     if (promo['active'] != true) return _reject(PromoRejection.inactive);
+
+    // Client checklist PR-6: a code scheduled to start later is not redeemable
+    // yet, even though it is already stored and `active`.
+    final startsAtRaw = promo['startsAt'];
+    final startsAt = startsAtRaw is DateTime
+        ? startsAtRaw
+        : (startsAtRaw == null
+            ? null
+            : (startsAtRaw as dynamic).toDate() as DateTime);
+    if (startsAt != null && startsAt.isAfter(now)) {
+      return _reject(PromoRejection.notYetStarted);
+    }
 
     final expiresAt = promo['expiresAt'];
     final expiry = expiresAt is DateTime
@@ -109,7 +139,7 @@ abstract final class PromoCodes {
       // the customer for an admin's typo, and a >100% discount would otherwise
       // produce a negative total.
       final pct = amount > 100 ? 100.0 : amount;
-      discount = (subtotal * pct / 100).round();
+      discount = (base * pct / 100).round();
 
       // The cap is the whole point of maxDiscount: a 100% code with no cap is
       // an unbounded liability, and one extra zero creates it.
@@ -122,7 +152,7 @@ abstract final class PromoCodes {
       discount = amount.round();
     }
 
-    if (discount > subtotal) discount = subtotal;
+    if (discount > base) discount = base;
     if (discount < 0) discount = 0;
 
     return PromoResult.ok(discount);

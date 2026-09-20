@@ -92,9 +92,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
     setState(() => _validatingPromo = true);
     try {
       // A preview only. The discount that reaches the order is whatever
-      // redeemPromo returns at placement (P3-03).
-      final result =
-          await FirestoreService.previewPromoCode(code, _subtotal);
+      // redeemPromo returns at placement (P3-03). PR-5: pass along what this
+      // checkout already knows — merchant and delivery area — so a code
+      // scoped to a specific merchant or area previews as ineligible here
+      // rather than only failing at Place Order.
+      final result = await FirestoreService.previewPromoCode(
+        code,
+        _subtotal,
+        merchantId: _merchantId.isEmpty ? null : _merchantId,
+        deliveryArea: _deliveryAddress.isEmpty ? null : _deliveryAddress,
+        deliveryFee: _deliveryFee,
+      );
       if (!mounted) return;
       if (!result.isValid) {
         setState(() {
@@ -581,7 +589,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
     var promoCode = _appliedCode;
     if (promoCode != null) {
       try {
-        discount = await FirestoreService.redeemPromo(promoCode, _subtotal);
+        discount = await FirestoreService.redeemPromo(
+          promoCode,
+          _subtotal,
+          merchantId: _merchantId.isEmpty ? null : _merchantId,
+          deliveryAddress: _deliveryAddress.isEmpty ? null : _deliveryAddress,
+          deliveryFee: _deliveryFee,
+        );
       } catch (e) {
         if (!mounted) return;
         // The order still goes through at full price — refusing to sell

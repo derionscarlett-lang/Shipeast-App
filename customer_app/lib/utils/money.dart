@@ -17,9 +17,11 @@ class Money {
 
   /// The single place the currency glyph is defined for this app. Changing it
   /// here changes every price, fee, total and earnings figure on every screen.
-  static const String symbol = '\$';
+  /// Must match `Money.symbol` in `driver_app/lib/driver_constants.dart` and
+  /// `money()` in `admin_panel/app.js` — the three apps show the same order.
+  static const String symbol = 'J\$';
 
-  /// `12345.6` → `$12,346`
+  /// `12345.6` → `J$12,346`
   static String format(num? value) => '$symbol${plain(value)}';
 
   /// `12345.6` → `12,346` (no symbol, for when the unit is shown separately).
@@ -35,6 +37,6 @@ class Money {
   }
 
   /// Delivery fee for display: free deliveries say so rather than showing
-  /// "$0", which reads like a missing value.
+  /// "J$0", which reads like a missing value.
   static String deliveryFee(int fee) => fee == 0 ? 'Free' : format(fee);
 }

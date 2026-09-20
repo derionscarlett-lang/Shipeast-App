@@ -26,59 +26,133 @@ library;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Where a request is in the handling process. Only an admin moves it.
+///
+/// Client checklist SD-1 / SD-4 / SD-5: the nine-stage pipeline the client
+/// specified, plus three outcomes. Mirrors `admin_panel/overseas-status.js` —
+/// the slugs and the sets must match; only the *wording* differs (this side is
+/// customer-facing, that side is operator-facing).
 class OverseasStatus {
   OverseasStatus._();
 
-  /// Submitted, nobody has looked at it.
-  static const String submitted = 'new';
-
-  /// An admin has reached out to the customer.
-  static const String contacted = 'contacted';
-
-  /// A total has been given and we are waiting on the customer.
-  static const String quoted = 'quoted';
-
-  /// Handled and finished — shopped and delivered, or the customer stepped away.
-  static const String closed = 'closed';
-
-  /// We cannot do it: item we won't buy, or somewhere we don't deliver.
+  static const String submitted = 'new'; // kept as the name the draft writes
+  static const String reviewing = 'reviewing';
+  static const String quoteSent = 'quote_sent';
+  static const String awaitingCustomer = 'awaiting_customer';
+  static const String approved = 'approved';
+  static const String shopping = 'shopping';
+  static const String readyForDelivery = 'ready_for_delivery';
+  static const String outForDelivery = 'out_for_delivery';
+  static const String completed = 'completed';
   static const String declined = 'declined';
+  static const String cancelled = 'cancelled';
+  static const String expired = 'expired';
+
+  /// The linear handling pipeline, in order. `completed` is its successful end.
+  static const List<String> pipeline = <String>[
+    submitted,
+    reviewing,
+    quoteSent,
+    awaitingCustomer,
+    approved,
+    shopping,
+    readyForDelivery,
+    outForDelivery,
+    completed,
+  ];
+
+  static const List<String> outcomes = <String>[declined, cancelled, expired];
 
   static const List<String> all = <String>[
     submitted,
-    contacted,
-    quoted,
-    closed,
+    reviewing,
+    quoteSent,
+    awaitingCustomer,
+    approved,
+    shopping,
+    readyForDelivery,
+    outForDelivery,
+    completed,
     declined,
+    cancelled,
+    expired,
   ];
 
   /// Still somebody's responsibility.
-  static const List<String> open = <String>[submitted, contacted, quoted];
+  static const List<String> open = <String>[
+    submitted,
+    reviewing,
+    quoteSent,
+    awaitingCustomer,
+    approved,
+    shopping,
+    readyForDelivery,
+    outForDelivery,
+  ];
 
-  static const List<String> terminal = <String>[closed, declined];
+  /// SD-1: every terminal state, not just `declined`.
+  static const List<String> terminal = <String>[
+    completed,
+    declined,
+    cancelled,
+    expired,
+  ];
+
+  /// The pre-SD-4 vocabulary. Un-migrated documents map onto the nearest new
+  /// state so a customer's request still reads sensibly before the migration.
+  static const Map<String, String> _legacy = <String, String>{
+    'contacted': reviewing,
+    'quoted': quoteSent,
+    'closed': completed,
+  };
 
   /// Never lets an unrecognised value through to the UI as a raw slug.
   /// A request with no status is one that was just written — `new`.
   static String of(Object? raw) {
-    if (raw is String && all.contains(raw)) return raw;
+    if (raw is String) {
+      if (all.contains(raw)) return raw;
+      final mapped = _legacy[raw];
+      if (mapped != null) return mapped;
+    }
     return submitted;
   }
 
   static bool isOpen(Object? raw) => open.contains(of(raw));
+  static bool isTerminal(Object? raw) => terminal.contains(of(raw));
+
+  /// True for a terminal state that is NOT a successful completion — the
+  /// customer's list tints these as "did not happen".
+  static bool isUnsuccessful(Object? raw) {
+    final s = of(raw);
+    return s == declined || s == cancelled || s == expired;
+  }
 
   /// Customer-facing wording. Deliberately different from the admin panel's
   /// labels: an operator wants the state name, a customer wants to know what
   /// is happening to their request.
   static String label(Object? raw) {
     switch (of(raw)) {
-      case contacted:
-        return 'We’ve been in touch';
-      case quoted:
-        return 'Total sent';
-      case closed:
-        return 'Closed';
+      case reviewing:
+        return 'Under review';
+      case quoteSent:
+        return 'Quote sent';
+      case awaitingCustomer:
+        return 'Waiting for your reply';
+      case approved:
+        return 'Approved';
+      case shopping:
+        return 'Shopping now';
+      case readyForDelivery:
+        return 'Ready for delivery';
+      case outForDelivery:
+        return 'Out for delivery';
+      case completed:
+        return 'Delivered';
       case declined:
         return 'Not possible';
+      case cancelled:
+        return 'Cancelled';
+      case expired:
+        return 'Expired';
       default:
         return 'Received';
     }
@@ -88,14 +162,28 @@ class OverseasStatus {
   /// leaves them guessing whether they are waiting on us or we on them.
   static String explain(Object? raw) {
     switch (of(raw)) {
-      case contacted:
-        return 'Someone from ShipEast has reached out about this request.';
-      case quoted:
-        return 'We’ve sent you the total. Reply to that message to go ahead.';
-      case closed:
-        return 'This request has been handled and closed.';
+      case reviewing:
+        return 'Someone from ShipEast is looking at your request.';
+      case quoteSent:
+        return 'We’ve emailed you the total. Reply to that message to go ahead.';
+      case awaitingCustomer:
+        return 'We’re holding your request until you confirm the total by email.';
+      case approved:
+        return 'You’ve confirmed the total — we’ll start shopping shortly.';
+      case shopping:
+        return 'We’re picking up your items now.';
+      case readyForDelivery:
+        return 'Your items are packed and waiting for a driver.';
+      case outForDelivery:
+        return 'A driver is on the way to your family.';
+      case completed:
+        return 'Delivered. Thank you for using ShipEast.';
       case declined:
         return 'We couldn’t take this one on. Check your email for the reason.';
+      case cancelled:
+        return 'This request was cancelled.';
+      case expired:
+        return 'This request expired before it was confirmed. Start a new one if you still need it.';
       default:
         return 'We have your request and will get back to you with the total.';
     }
@@ -187,6 +275,11 @@ class OverseasInquiryDraft {
   final String itemCategory;
   final String itemDescription;
 
+  /// Where the customer would like us to shop — "PriceSmart", "any supermarket",
+  /// "the pharmacy on Constant Spring Road". Optional and free text (SD-5): it
+  /// is a preference for the shopper, not a routing key.
+  final String requestedStore;
+
   /// What the customer is happy to spend, in their own words — "J$10,000",
   /// "US$70", "up to 15k". Free text on purpose: the number is only a
   /// guideline for the shopper, and forcing a single currency on a customer
@@ -204,6 +297,7 @@ class OverseasInquiryDraft {
     this.recipientParish = '',
     this.itemCategory = '',
     this.itemDescription = '',
+    this.requestedStore = '',
     this.budgetRaw = '',
     this.notes = '',
   });
@@ -253,6 +347,9 @@ class OverseasInquiryDraft {
     if (itemDescription.trim().length > OverseasLimits.description) {
       e['itemDescription'] = 'Please shorten this a little';
     }
+    if (requestedStore.trim().length > OverseasLimits.shortField) {
+      e['requestedStore'] = 'Please shorten this a little';
+    }
     if (budgetRaw.trim().length > OverseasLimits.shortField) {
       e['budgetRaw'] = 'Please shorten this a little';
     }
@@ -274,6 +371,7 @@ class OverseasInquiryDraft {
     required String customerName,
   }) {
     final budget = budgetRaw.trim();
+    final store = requestedStore.trim();
     return <String, dynamic>{
       'customerId': customerId,
       'customerName': customerName,
@@ -286,6 +384,9 @@ class OverseasInquiryDraft {
       'recipientParish': recipientParish,
       'itemCategory': itemCategory,
       'itemDescription': itemDescription.trim(),
+      // Omitted entirely when the customer has no preference — the panel then
+      // shows "Any store". firestore.rules size-checks it via get(..., '').
+      if (store.isNotEmpty) 'requestedStore': store,
       // Null, not '' — an omitted budget is "spend what it takes", which the
       // panel shows as "—" rather than an empty string that reads as a blank.
       'budget': budget.isEmpty ? null : budget,

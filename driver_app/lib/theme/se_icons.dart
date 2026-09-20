@@ -132,4 +132,5 @@ class SeIcons {
   static const IconData timer = Icons.timer_outlined;
   static const IconData pin = Icons.push_pin_rounded;
   static const IconData receipt = Icons.receipt_long_rounded;
+  static const IconData pause = Icons.pause_circle_filled_rounded;
 }

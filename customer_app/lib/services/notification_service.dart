@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../firebase_options.dart';
 import '../widgets/se_toast.dart';
@@ -172,17 +173,49 @@ class NotificationService {
     SeToast.info(context, body);
   }
 
-  /// Deep-link to the order the message is about.
+  /// Deep-link where the message points.
   ///
-  /// The `orderId` comes from the message's data payload — the server puts it
-  /// there (functions/src/notifications.ts) precisely so this works.
+  /// Order status pushes carry an `orderId` (functions/src/notifications.ts).
+  /// Broadcasts may carry a `destType` / `destValue` pair (checklist NT-4):
+  ///   order  → the order-status screen for that id
+  ///   search → the search screen, pre-filled
+  ///   screen → a named route, from a short allow-list
+  ///   url    → an external browser
+  /// Anything unrecognised is ignored — a stale or malformed link must never
+  /// throw or land the customer somewhere confusing.
   static void _openTarget(RemoteMessage message) {
-    final orderId = message.data['orderId'] as String?;
-    if (orderId == null || orderId.isEmpty) return;
     final nav = navigatorKey?.currentState;
     if (nav == null) return;
-    nav.pushNamed('/order-status', arguments: <String, dynamic>{
-      'orderId': orderId,
-    });
+    final data = message.data;
+
+    final orderId = data['orderId'] as String?;
+    if (orderId != null && orderId.isNotEmpty) {
+      nav.pushNamed('/order-status',
+          arguments: <String, dynamic>{'orderId': orderId});
+      return;
+    }
+
+    final destType = data['destType'] as String?;
+    final destValue = (data['destValue'] as String?)?.trim() ?? '';
+    if (destType == null || destValue.isEmpty) return;
+
+    switch (destType) {
+      case 'search':
+        nav.pushNamed('/search', arguments: <String, dynamic>{'query': destValue});
+        break;
+      case 'screen':
+        const allowed = {
+          '/home', '/order-history', '/overseas-order', '/search',
+          '/profile', '/notifications', '/saved-addresses',
+        };
+        if (allowed.contains(destValue)) nav.pushNamed(destValue);
+        break;
+      case 'url':
+        final uri = Uri.tryParse(destValue);
+        if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+          launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+        break;
+    }
   }
 }

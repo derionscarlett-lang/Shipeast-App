@@ -291,7 +291,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       const TextSpan(
                                           text: "Don't have an account? "),
                                       TextSpan(
-                                        text: 'Register',
+                                        text: 'Become a Shipeast driver',
                                         style: SeType.bodyS.copyWith(
                                           color: SeColors.red700,
                                           fontWeight: FontWeight.w700,

@@ -18,6 +18,7 @@ import*as OrderStatus from'./order-status.js';
 import{createUploader}from'./image-upload.js';
 import{parseBands,formatBands,describeBands,parseAmount}from'./pricing-form.js';
 import*as Overseas from'./overseas-status.js';
+import*as PromoEligibility from'./promo-eligibility.js';
 import{parseLatLng,isValidLatLng,roundCoord,formatLatLng}from'./location-input.js';
 
 const app=initializeApp(firebaseConfig);
@@ -49,12 +50,16 @@ if(USE_EMULATORS){
 // ══════════════════════ LOCAL DATA MIRRORS ══════════════════════
 var orders=[],drivers=[],merchants=[],promoCodes=[],notifHistory=[],customers=[],inquiries=[];
 var analyticsStats={
-  'Today':    [{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
-  'This Week':[{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
-  'This Month':[{lbl:'Revenue',val:'$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'$0'}],
+  'Today':    [{lbl:'Revenue',val:'J$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'J$0'}],
+  'This Week':[{lbl:'Revenue',val:'J$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'J$0'}],
+  'This Month':[{lbl:'Revenue',val:'J$0'},{lbl:'Orders',val:'0'},{lbl:'Customers',val:'0'},{lbl:'Avg Order Value',val:'J$0'}],
 };
 var currentPeriod='Today',ordersFilter='All',driverMode='add',driverEditId=null,merchantMode='add',merchantEditId=null,unsubscribers=[];
+// Checklist OR-3 / OR-4 — advanced order filters + sort, applied on top of the
+// status tabs and the free-text search.
+var ordersAdv={status:'',date:'',merchant:'',driver:'',payment:'',area:'',type:'',sort:'newest'};
 var panelMerchantId=null,menuItemsUnsub=null,menuItemEditId=null,panelMenuItems=[],menuItemUploader=null;
+var promoEditId=null;  // PR-10: set while the create form is in "edit" mode.
 var loadedOnce={orders:false,drivers:false,merchants:false,promos:false,notifs:false,customers:false,overseas:false};
 var customerSearch='',panelCustomerId=null;
 // The live customers listener mirrors at most this many docs (see startListeners).
@@ -73,8 +78,26 @@ function icon(name,cls){ return '<svg class="ic '+(cls||'')+'" aria-hidden="true
    the panel — it must match Money.symbol in both Flutter apps, or the admin
    and the customer read the same order differently. The 'en-JM' locale is kept
    for thousands grouping only; it is not what chooses the symbol. */
-function money(n){ return '$'+Math.round(Number(n)||0).toLocaleString('en-JM'); }
+function money(n){ return 'J$'+Math.round(Number(n)||0).toLocaleString('en-JM'); }
 function parseAmt(a){ var n=parseFloat(String(a==null?'0':a).replace(/[^0-9.]/g,'')); return isNaN(n)?0:n; }
+/* DR-25: one Jamaican phone format app-wide — display "1-876-000-0000", dial
+   "+18760000000". Mirrors SePhone in both Flutter apps. An unrecognisable
+   number is returned trimmed, never mangled. */
+function phoneFmt(raw){
+  if(raw==null) return '';
+  var d=String(raw).replace(/\D/g,'');
+  if(d.length===11&&d.charAt(0)==='1') d=d.slice(1);
+  if(d.length===10) return '1-'+d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6);
+  if(d.length===7) return '1-876-'+d.slice(0,3)+'-'+d.slice(3);
+  return String(raw).trim();
+}
+function phoneDial(raw){
+  if(raw==null||!String(raw).trim()) return '';
+  var d=String(raw).replace(/\D/g,'');
+  if(d.length===7) d='876'+d;
+  if(d.length===10) d='1'+d;
+  return d?'+'+d:String(raw).trim();
+}
 // The customer and driver apps show orders as #ABCD1234 — the first 8
 // characters of the Firestore id, upper-cased (order_history_screen.dart:347,
 // history_screen.dart:288). The console was printing the full 20-char id, which
@@ -229,11 +252,14 @@ function emptyRow(cols,art,title,copy){
 // ── Status badges ──
 var STATUS_TONE={
   delivered:'success',approved:'success',Active:'success',Online:'success',Open:'success',
-  pending:'info',Pending:'info',
+  Available:'success',
+  pending:'info',Pending:'info','Pending Approval':'info',
   confirmed:'warning',in_transit:'warning',picked_up:'warning',
   'On the Way':'warning','On Delivery':'warning','Picked Up':'warning',
-  cancelled:'danger',rejected:'danger',Cancelled:'danger',Closed:'danger',
-  Expired:'neutral',Offline:'neutral',Inactive:'neutral'
+  cancelled:'danger',rejected:'danger',Cancelled:'danger',Closed:'danger',Suspended:'danger',
+  Rejected:'danger',
+  Expired:'neutral',Offline:'neutral',Inactive:'neutral','Used up':'neutral',
+  Scheduled:'info',Paused:'warning',Ended:'neutral'
 };
 var STATUS_LABEL={in_transit:'In Transit',picked_up:'Picked Up',
   confirmed:'Confirmed',delivered:'Delivered',pending:'Pending',cancelled:'Cancelled',
@@ -386,6 +412,7 @@ function navTo(page){
   // an admin who navigates here quickly sees an empty table and reads it as
   // "no customers".
   if(page==='customers'){ renderCustomers(); }
+  if(page==='drivers'){ renderDrivers(); }
   if(page==='overseas'){ renderOverseas(); }
   // Loaded on first visit rather than streamed: pricing changes a few times a
   // year, and a live listener would fight the admin's own typing.
@@ -563,6 +590,7 @@ function startListeners(){
         });
         loadedOnce.orders=true;
         trackSection('orders');
+        syncOrderFilterOptions();
         renderDashboard();renderOrders();renderAnalytics();renderTopMerch();
       },
       function(e){ loadedOnce.orders=true; console.warn('orders:',e.message); toast('error','Could not load orders: '+e.message); renderOrders(); }
@@ -578,7 +606,18 @@ function startListeners(){
           var o=d.data();
           var rawStatus=o.status||'pending';
           var approved=rawStatus==='approved';
-          var statusLbl=approved?(o.onDelivery?'On Delivery':(o.isOnline?'Online':'Offline')):rawStatus;
+          // DV-2: the state the admin sees is derived — the six the client
+          // listed plus Rejected. Presence (online/on delivery/available) only
+          // means anything once the account itself is approved.
+          var statusLbl;
+          if(rawStatus==='suspended') statusLbl='Suspended';
+          else if(rawStatus==='paused') statusLbl='Paused';
+          else if(rawStatus==='pending') statusLbl='Pending Approval';
+          else if(rawStatus==='rejected') statusLbl='Rejected';
+          else if(o.onDelivery) statusLbl='On Delivery';
+          else if(o.isOnline) statusLbl='Online';
+          else statusLbl='Offline';
+          var onlineSince=o.onlineSince&&o.onlineSince.toDate?o.onlineSince.toDate():null;
           return {id:d.id,name:o.name||'—',phone:o.phone||'—',email:o.email||'—',
             vtype:o.vehicleType||o.vtype||'Car',vehicle:o.vehicleModel||o.vehicle||'—',
             plate:o.licencePlate||o.plate||'—',dlicence:o.licenceNumber||o.dlicence||'—',
@@ -588,7 +627,10 @@ function startListeners(){
             rating:o.averageRating||o.rating||0,trips:o.totalTrips||o.trips||0,
             ratingCounts:o.ratingCounts||o.ratingBreakdown||null,
             ratingTotal:o.ratingCount!=null?o.ratingCount:null,
+            avatarUrl:o.avatarUrl||'',onlineSince:onlineSince,
             status:statusLbl,rawStatus:rawStatus,approved:approved,
+            // Available = approved, online, and not currently on a delivery.
+            available:approved&&o.isOnline&&!o.onDelivery,
             isOnline:o.isOnline||false,onDelivery:o.onDelivery||false,_docId:d.id};
         });
         loadedOnce.drivers=true;
@@ -629,6 +671,7 @@ function startListeners(){
         });
         loadedOnce.merchants=true;
         renderMerchants();renderTopMerch();
+        populateEligPickers(); // PR-5: merchant/category options for the promo form
       },
       function(e){ loadedOnce.merchants=true; console.warn('merchants:',e.message); toast('error','Could not load merchants: '+e.message); renderMerchants(); }
     ));
@@ -660,6 +703,8 @@ function startListeners(){
             phone:o.phone||'—',avatarUrl:o.avatarUrl||'',
             disabled:o.disabled===true,
             disabledReason:o.disabledReason||'',
+            // CU-4: operator-assigned segment tags.
+            tags:Array.isArray(o.tags)?o.tags:[],
             joined:joined,
             // Presence of a token is the only honest answer available here:
             // whether the device still accepts pushes is known to FCM, not to
@@ -670,6 +715,7 @@ function startListeners(){
         loadedOnce.customers=true;
         trackSection('customers');
         renderCustomers();
+        populateEligPickers(); // PR-5: "selected customers" options for the promo form
       },
       function(e){ loadedOnce.customers=true; console.warn('users:',e.message); toast('error','Could not load customers: '+e.message); renderCustomers(); }
     ));
@@ -700,11 +746,20 @@ function startListeners(){
             recipientParish:o.recipientParish||'—',
             itemCategory:o.itemCategory||'—',
             itemDescription:o.itemDescription||'—',
+            requestedStore:o.requestedStore||'',
             budget:o.budget||'',
             notes:o.notes||'',
             status:Overseas.normalise(o.status),
             adminNote:o.adminNote||'',
             handledBy:o.handledBy||'',handledAt:o.handledAt||null,
+            // SD-7 quote sub-fields.
+            quoteItemsCost:o.quoteItemsCost!=null?Number(o.quoteItemsCost):null,
+            quoteServiceFee:o.quoteServiceFee!=null?Number(o.quoteServiceFee):null,
+            quoteDeliveryFee:o.quoteDeliveryFee!=null?Number(o.quoteDeliveryFee):null,
+            quoteTotal:o.quoteTotal!=null?Number(o.quoteTotal):null,
+            quoteExpiresAt:o.quoteExpiresAt&&o.quoteExpiresAt.toDate?o.quoteExpiresAt.toDate():null,
+            quotePaymentStatus:o.quotePaymentStatus||'',
+            quotedAt:o.quotedAt&&o.quotedAt.toDate?o.quotedAt.toDate():null,
             createdAt:o.createdAt&&o.createdAt.toDate?o.createdAt.toDate():null,
             updatedAt:o.updatedAt&&o.updatedAt.toDate?o.updatedAt.toDate():null,
             _docId:d.id};
@@ -731,21 +786,37 @@ function startListeners(){
             :(o.validUntil&&o.validUntil!=='—'?new Date(o.validUntil):null);
           if(expiry&&isNaN(expiry.getTime())) expiry=null;
           var expired=expiry!=null&&expiry<=now;
+          // PR-6: a code with a future startsAt is live in the collection but
+          // not yet redeemable — evaluatePromo rejects it as 'not_yet_started'.
+          var startsAt=o.startsAt&&o.startsAt.toDate?o.startsAt.toDate():null;
+          if(startsAt&&isNaN(startsAt.getTime())) startsAt=null;
+          var scheduled=startsAt!=null&&startsAt>now;
           var usedCount=Number(o.usedCount!=null?o.usedCount:(o.used!=null?o.used:0))||0;
           var maxUses=Number(o.maxUses!=null?o.maxUses:(o.max!=null?o.max:0))||0;
           var exhausted=maxUses>0&&usedCount>=maxUses;
-          var active=o.active!==false&&!expired&&!exhausted;
+          // PR-10: "Ended" is a deliberate terminal stop (endedAt set), distinct
+          // from "Paused" (active:false, resumable) and "Expired" (date passed).
+          var ended=!!o.endedAt;
+          var paused=o.active===false&&!ended;
+          var active=o.active!==false&&!expired&&!exhausted&&!scheduled;
           var discAmt=o.discountAmount!=null?o.discountAmount:(o.discount!=null?o.discount:null);
           var discType=o.discountType==='percentage'?'percent':(o.discountType||o.type||'percent');
           var discStr=discAmt!=null?(discType==='percent'?discAmt+'% Off':money(discAmt)+' Off'):'—';
+          var lastRedeemed=o.lastRedeemedAt&&o.lastRedeemedAt.toDate?o.lastRedeemedAt.toDate():null;
           return {id:d.id,code:o.code||d.id,discount:discStr,discountType:discType,discountAmount:discAmt,
             usedCount:usedCount,maxUses:maxUses,
             minOrderTotal:Number(o.minOrderTotal)||0,
             maxDiscount:o.maxDiscount!=null?Number(o.maxDiscount):null,
-            expiresAt:expiry,
-            // Distinguish the three ways a code stops working — "Expired" on an
-            // exhausted code sends the admin looking at the wrong field.
-            status:active?'Active':(expired?'Expired':(exhausted?'Used up':'Inactive')),
+            expiresAt:expiry,startsAt:startsAt,lastRedeemedAt:lastRedeemed,
+            paused:paused,ended:ended,
+            // PR-5: who the code is scoped to. Read-only pass-through — the
+            // form is the only writer; malformed/legacy values just describe
+            // as "open to everyone" (PromoEligibility.describeEligibility).
+            eligibility:(o.eligibility&&typeof o.eligibility==='object')?o.eligibility:null,
+            // Distinguish the ways a code is not currently redeemable — "Expired"
+            // on an exhausted or not-yet-started code sends the admin looking at
+            // the wrong field.
+            status:ended?'Ended':(paused?'Paused':(active?'Active':(scheduled?'Scheduled':(expired?'Expired':(exhausted?'Used up':'Inactive'))))),
             _docId:d.id};
         });
         loadedOnce.promos=true;
@@ -767,8 +838,16 @@ function startListeners(){
             :'—';
           var TARGETS={customers:'All Customers',drivers:'All Drivers',all:'Everyone'};
           var t=o.target||'all';
-          return {id:d.id,title:o.title||'—',msg:o.message||'—',target:TARGETS[t]||t,time:ts,
-            delivered:typeof o.deliveredCount==='number'?o.deliveredCount:null,_docId:d.id};
+          var targetLbl=TARGETS[t]||(t&&t.indexOf('tag:')===0?tagLabel(t.slice(4))+' customers':t);
+          var sched=o.scheduledFor&&o.scheduledFor.toDate?o.scheduledFor.toDate():null;
+          var dispatched=o.dispatchedAt&&o.dispatchedAt.toDate?o.dispatchedAt.toDate():null;
+          return {id:d.id,title:o.title||'—',msg:o.message||'—',target:targetLbl,time:ts,
+            sentBy:o.sentBy||null,
+            scheduledFor:sched,dispatched:dispatched,
+            destType:o.destType||'',destValue:o.destValue||'',
+            delivered:typeof o.deliveredCount==='number'?o.deliveredCount:null,
+            opened:typeof o.openedCount==='number'?o.openedCount:null,
+            failed:typeof o.failedCount==='number'?o.failedCount:null,_docId:d.id};
         });
         loadedOnce.notifs=true;
         renderNotifHist();
@@ -815,29 +894,49 @@ function renderDashboard(){
   var deliveredToday=todayOrders.filter(function(o){ return isDeliveredStatus(o.status); });
   var pendingOrders=orders.filter(function(o){ return o.status==='pending'||o.status==='Pending'; }).length;
   var revenueToday=deliveredToday.reduce(function(s,o){ return s+(o.rawTotal!=null?o.rawTotal:parseAmt(o.amount)); },0);
-  var onlineDrv=drivers.filter(function(d){ return d.isOnline&&d.approved; }).length;
+  // DB-3: Online = approved and toggled on; On Delivery = a subset of those
+  // currently carrying an order; Available = online and free right now.
+  var onlineDrv=drivers.filter(function(d){ return d.isOnline&&d.approved; });
+  var onDelivery=onlineDrv.filter(function(d){ return d.onDelivery; }).length;
 
   countUp($('stat-orders'),todayOrders.length);
   countUp($('stat-revenue'),revenueToday,money);
   countUp($('stat-pending'),pendingOrders);
-  countUp($('stat-drivers'),onlineDrv);
+  countUp($('drv-online'),onlineDrv.length);
+  countUp($('drv-ondel'),onDelivery);
+  countUp($('drv-avail'),onlineDrv.length-onDelivery);
 
   var sp1=$('spark-orders'); if(sp1) sp1.innerHTML=sparkline(hourlyCounts(todayOrders),'#C8102E');
   var sp2=$('spark-revenue'); if(sp2) sp2.innerHTML=sparkline(hourlyCounts(deliveredToday),'#F5A524');
 
   var tbody=$('dash-tbody');
-  if(!loadedOnce.orders){ tbody.innerHTML=skeletonRows(7,5); return; }
+  if(!loadedOnce.orders){ tbody.innerHTML=skeletonRows(8,5); return; }
   if(!orders.length){
-    tbody.innerHTML=emptyRow(7,'box','No orders yet','New customer orders will appear here the moment they are placed.');
+    tbody.innerHTML=emptyRow(8,'box','No orders yet','New customer orders will appear here the moment they are placed.');
     return;
   }
-  tbody.innerHTML=orders.slice(0,10).map(function(o){
-    return '<tr>'+
-      // Beside the id, not in its own column: a package job needs to be
-      // obvious at a glance, and the orders table is already nine columns wide.
+  // DB-9: when the dashboard search has a term, show matches from ALL orders
+  // (up to 15); otherwise the ten most recent.
+  var dq=(($('dash-search')||{}).value||'').trim().toLowerCase();
+  var dqBare=dq.replace(/^#/,'');
+  var dashRows=dq
+    ? orders.filter(function(o){
+        return o.id.toLowerCase().includes(dqBare)||shortId(o.id).toLowerCase().includes(dq)||
+          o.customer.toLowerCase().includes(dq)||o.merchant.toLowerCase().includes(dq);
+      }).slice(0,15)
+    : orders.slice(0,10);
+  if(dq&&!dashRows.length){
+    tbody.innerHTML=emptyRow(8,'search','No matching orders','Nothing matched “'+esc(dq)+'”. Open the Orders tab for the full history and filters.');
+    return;
+  }
+  tbody.innerHTML=dashRows.map(function(o){
+    var dest=(o.address&&o.address!=='—')?o.address:'—';
+    // DB-5: recent orders now show the destination and open on a row click.
+    return '<tr class="row-click" data-action="view-order" data-oid="'+esc(o._docId||o.id)+'">'+
       '<td><span class="cell-id">'+esc(shortId(o.id))+'</span>'+typeBadge(o.type)+'</td>'+
       '<td>'+esc(o.customer)+'</td>'+
       '<td>'+esc(o.merchant)+'</td>'+
+      '<td class="cell-mute cell-clip" title="'+esc(dest)+'">'+esc(dest)+'</td>'+
       '<td class="cell-mute">'+esc(o.driver)+'</td>'+
       '<td class="right cell-strong">'+esc(o.amount)+'</td>'+
       '<td>'+badge(o.status)+'</td>'+
@@ -864,11 +963,76 @@ function updateOrdersTabs(){
       k+' <b class="num">'+counts[k]+'</b></div>';
   }).join('');
 }
+/* OR-3: fills the Merchant / Driver / Payment dropdowns from whatever the loaded
+   orders actually reference, so the list never offers a filter that matches
+   nothing. Preserves the current selection across refreshes. */
+function syncOrderFilterOptions(){
+  var defs=[
+    ['of-merchant','merchant','Any merchant'],
+    ['of-driver','driver','Any driver'],
+    ['of-payment','payment','Any payment']
+  ];
+  defs.forEach(function(d){
+    var sel=$(d[0]); if(!sel) return;
+    var seen={},vals=[];
+    orders.forEach(function(o){
+      var v=(o[d[1]]||'').trim();
+      if(v&&v!=='—'&&!seen[v]){ seen[v]=1; vals.push(v); }
+    });
+    vals.sort();
+    var cur=sel.value;
+    sel.innerHTML='<option value="">'+d[2]+'</option>'+
+      vals.map(function(v){ return '<option value="'+esc(v)+'">'+esc(v)+'</option>'; }).join('');
+    sel.value=vals.indexOf(cur)>-1?cur:'';
+  });
+}
+
+/* OR-3: date-range presets. Keeps this out of renderOrders so the boundary
+   maths is in one place. */
+function orderInDateRange(o,pref){
+  if(!pref||!o._ts) return true;
+  var now=new Date(), t=o._ts.getTime();
+  if(pref==='today'){
+    var start=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+    return t>=start;
+  }
+  var days=parseInt(pref,10);
+  return isFinite(days)?t>=now.getTime()-days*86400000:true;
+}
+
+/* OR-3 / OR-4: pull every filter control into `ordersAdv`, mark the ones that
+   are set, show the Clear button only when there is something to clear, and
+   re-render. One function so the table and the control state cannot drift. */
+function readOrderFilters(){
+  var map={'of-status':'status','of-date':'date','of-merchant':'merchant',
+    'of-driver':'driver','of-payment':'payment','of-area':'area','of-type':'type','of-sort':'sort'};
+  var anySet=false;
+  Object.keys(map).forEach(function(id){
+    var el=$(id); if(!el) return;
+    var v=el.value||'';
+    ordersAdv[map[id]]=v;
+    var isFilter=id!=='of-sort';
+    var on=isFilter&&v!=='';
+    el.classList.toggle('on',on);
+    if(on) anySet=true;
+  });
+  var clr=$('of-clear'); if(clr) clr.hidden=!anySet;
+  renderOrders();
+}
+function clearOrderFilters(){
+  ['of-status','of-date','of-merchant','of-driver','of-payment','of-area','of-type'].forEach(function(id){
+    var el=$(id); if(el) el.value='';
+  });
+  readOrderFilters();
+}
+
 function renderOrders(){
   updateOrdersTabs();
   var tbody=$('orders-tbody'); if(!tbody) return;
   if(!loadedOnce.orders){ tbody.innerHTML=skeletonRows(9,7); return; }
   var search=(($('orders-search')||{}).value||'').toLowerCase();
+  var f=ordersAdv, area=f.area.toLowerCase();
+  var advActive=f.status||f.date||f.merchant||f.driver||f.payment||f.area||f.type;
   var rows=orders.filter(function(o){
     var tm=ordersFilter==='All'||
       (ordersFilter==='Active'&&isActiveStatus(o.status))||
@@ -878,16 +1042,33 @@ function renderOrders(){
     // #ABCD1234 form the tables now show, with or without the leading '#'.
     var q=search.replace(/^#/,'');
     var sm=!search||o.id.toLowerCase().includes(q)||shortId(o.id).toLowerCase().includes(search)||o.customer.toLowerCase().includes(search)||o.merchant.toLowerCase().includes(search);
-    return tm&&sm;
+    // OR-3 advanced filters.
+    var am=(!f.status||o.status===f.status)&&
+      orderInDateRange(o,f.date)&&
+      (!f.merchant||o.merchant===f.merchant)&&
+      (!f.driver||o.driver===f.driver)&&
+      (!f.payment||o.payment===f.payment)&&
+      (!f.type||o.type===f.type)&&
+      (!area||(o.address||'').toLowerCase().includes(area));
+    return tm&&sm&&am;
+  });
+  // OR-4 quick sort. The listener already returns newest-first, so "oldest"
+  // is a reverse and "newest" is a no-op — but sort explicitly off _ts so a
+  // missing timestamp cannot scramble the order.
+  rows.sort(function(a,b){
+    var at=a._ts?a._ts.getTime():0, bt=b._ts?b._ts.getTime():0;
+    return f.sort==='oldest'?at-bt:bt-at;
   });
   if(!rows.length){
-    tbody.innerHTML=search
-      ? emptyRow(9,'search','No matching orders','Nothing matched “'+search+'”. Try an order ID, customer, or merchant name.')
+    tbody.innerHTML=(search||advActive)
+      ? emptyRow(9,'search','No matching orders','Nothing matched the current search and filters. Clear a filter to widen the list.')
       : emptyRow(9,'box','Nothing in “'+ordersFilter+'”','No orders currently sit in this state.');
     return;
   }
   tbody.innerHTML=rows.map(function(o){
-    return '<tr>'+
+    // DB-5: the whole row opens the order, not just the icon button. The button
+    // stays for keyboard users and as an affordance.
+    return '<tr class="row-click" data-action="view-order" data-oid="'+esc(o._docId||o.id)+'">'+
       // Beside the id, not in its own column: a package job needs to be
       // obvious at a glance, and the orders table is already nine columns wide.
       '<td><span class="cell-id">'+esc(shortId(o.id))+'</span>'+typeBadge(o.type)+'</td>'+
@@ -1004,7 +1185,7 @@ function openOrderPanel(oid){
     '<div class="sp-sec"><div class="sp-sec-title">Status Flow</div>'+flow+'</div>'+
     cancelHtml+
     '<div class="sp-sec"><div class="sp-sec-title">Customer</div>'+
-      row('Name',esc(o.customer))+row('Phone',esc(o.custPhone))+
+      row('Name',esc(o.customer))+row('Phone',esc(phoneFmt(o.custPhone)))+
       row('Delivery Address','<span class="sp-val sm">'+esc(o.address)+'</span>',true)+
       row('Payment',esc(o.payment))+
     '</div>'+
@@ -1016,7 +1197,7 @@ function openOrderPanel(oid){
         row('Address','<span class="sp-val sm">'+esc(o.merchantAddr)+'</span>',true)+
       '</div>')+
     '<div class="sp-sec"><div class="sp-sec-title">Driver</div>'+
-      row('Name',esc(o.driver))+row('Phone',esc(dp))+
+      row('Name',esc(o.driver))+row('Phone',esc(phoneFmt(dp)))+
     '</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Order Total</div>'+
       /* P3-02: the breakdown, not just the charged amount. Without the discount
@@ -1188,55 +1369,128 @@ function saveOrderChanges(docId){
   apply();
 }
 
-// ══════════════════════ DRIVERS ══════════════════════
+// ══════════════════════ DRIVERS (DV-1 … DV-8) ══════════════════════
+var driverFilter='',driverSearch='';
+
+/* Which filter bucket a driver falls in — matches the #drv-filter options. */
+function driverInBucket(d,b){
+  if(!b) return true;
+  if(b==='online') return d.status==='Online';
+  if(b==='ondelivery') return d.status==='On Delivery';
+  if(b==='available') return d.available;
+  if(b==='offline') return d.status==='Offline';
+  if(b==='pending') return d.rawStatus==='pending';
+  if(b==='paused') return d.rawStatus==='paused';
+  if(b==='suspended') return d.rawStatus==='suspended';
+  if(b==='rejected') return d.rawStatus==='rejected';
+  return true;
+}
+function driverMatchesSearch(d,q){
+  if(!q) return true;
+  return [d.name,d.plate,d.phone,phoneFmt(d.phone),d.vtype,d.email]
+    .join(' ').toLowerCase().indexOf(q)>-1;
+}
+
+/* The order this driver is holding right now, if any (DV-6). */
+function driverActiveOrder(d){
+  return orders.find(function(o){
+    return (o.driverId===d.id||o.driver===d.name)&&OrderStatus.isDriverHeld(o.status);
+  })||null;
+}
+
 function renderDrivers(){
   var el=$('drivers-stats');
   if(el){
-    var onlineC=drivers.filter(function(d){ return d.isOnline&&d.approved; }).length;
-    var delC=drivers.filter(function(d){ return d.onDelivery; }).length;
+    var onlineC=drivers.filter(function(d){ return d.status==='Online'||d.status==='On Delivery'; }).length;
+    var delC=drivers.filter(function(d){ return d.status==='On Delivery'; }).length;
     var pendC=drivers.filter(function(d){ return d.rawStatus==='pending'; }).length;
     el.innerHTML=
       statCard('drivers','Total Drivers',drivers.length,'','')+
-      statCard('bolt','Online',onlineC,'Available now','success')+
-      statCard('orders','On Delivery',delC,'Currently delivering','ocean')+
+      statCard('bolt','Online',onlineC,delC+' on a delivery','success')+
+      statCard('orders','Available',drivers.filter(function(d){ return d.available; }).length,'Online and free','ocean')+
       statCard('clock','Pending Approval',pendC,'Awaiting review','gold');
   }
-  var tbody=$('drivers-tbody'); if(!tbody) return;
-  if(!loadedOnce.drivers){ tbody.innerHTML=skeletonRows(9,5); return; }
-  if(!drivers.length){
-    tbody.innerHTML=emptyRow(9,'users','No drivers yet','Add your first driver, or wait for a rider to sign up in the driver app.');
+  var grid=$('drivers-grid'); if(!grid) return;
+  if(!loadedOnce.drivers){
+    grid.innerHTML=Array.from({length:6}).map(function(){
+      return '<div class="dcard"><div class="sk sk-line" style="width:55%"></div>'+
+        '<div class="sk sk-line" style="width:75%;margin-top:10px"></div>'+
+        '<div class="sk sk-line" style="width:40%;margin-top:10px"></div></div>';
+    }).join('');
     return;
   }
-  tbody.innerHTML=drivers.map(function(d){
-    var activeCol;
-    if(d.rawStatus==='pending'){
-      activeCol='<div class="cell-actions">'+
-        '<button class="btn btn-sm btn-success" data-action="approve-driver" data-id="'+esc(d.id)+'">'+icon('check')+'Approve</button>'+
-        '<button class="btn btn-sm btn-danger" data-action="reject-driver" data-id="'+esc(d.id)+'">'+icon('close')+'Reject</button>'+
-      '</div>';
-    }else if(d.rawStatus==='rejected'){
-      activeCol='<button class="btn btn-sm btn-outline" data-action="approve-driver" data-id="'+esc(d.id)+'" title="Re-approve this driver">'+
-        icon('undo')+'Re-approve</button>';
-    }else{
-      activeCol='<label class="tgl" title="Toggle online"><input type="checkbox"'+(d.isOnline?' checked':'')+
-        ' class="tgl-driver-online" data-id="'+esc(d.id)+'" aria-label="Driver online"><span class="ts"></span></label>';
-    }
-    return '<tr>'+
-      '<td><div class="cell-media"><span class="dot'+(d.isOnline&&d.approved?' on':'')+'"></span><b>'+esc(d.name)+'</b></div></td>'+
-      '<td class="cell-mute num">'+esc(d.phone)+'</td>'+
-      '<td>'+esc(d.vtype)+'</td>'+
-      '<td><span class="bdg bg-neutral plain num">'+esc(d.plate)+'</span></td>'+
-      '<td>'+driverStars(d)+'</td>'+
-      '<td class="right num">'+d.trips+'</td>'+
-      '<td>'+badge(d.rawStatus)+'</td>'+
-      '<td>'+activeCol+'</td>'+
-      '<td><div class="cell-actions">'+
-        '<button class="aicon ai-v" data-action="view-driver" data-id="'+esc(d.id)+'" title="View" aria-label="View driver">'+icon('view')+'</button>'+
-        '<button class="aicon ai-e" data-action="edit-driver" data-id="'+esc(d.id)+'" title="Edit" aria-label="Edit driver">'+icon('edit')+'</button>'+
-        '<button class="aicon ai-d" data-action="del-driver" data-id="'+esc(d.id)+'" title="Delete" aria-label="Delete driver">'+icon('delete')+'</button>'+
-      '</div></td>'+
-    '</tr>';
-  }).join('');
+  if(!drivers.length){
+    grid.innerHTML='<div class="dcard-empty">'+emptyState('users','No drivers yet','Add your first driver, or wait for a rider to sign up in the driver app.')+'</div>';
+    return;
+  }
+  var rows=drivers.filter(function(d){ return driverInBucket(d,driverFilter)&&driverMatchesSearch(d,driverSearch); });
+  if(!rows.length){
+    grid.innerHTML='<div class="dcard-empty">'+emptyState('search','No matching drivers','Nothing matched the current filter and search.')+'</div>';
+    return;
+  }
+  grid.innerHTML=rows.map(driverCard).join('');
+}
+
+/* One driver card, per the client's exact layout (DV-8):
+     🟢 Touseef Zahid                     [status]
+     Motorcycle • Plate HKD2728
+     ⭐ 4.9 • 42 deliveries
+     Available / View Active Delivery
+     View | Assign  (+ state actions)                             */
+function driverCard(d){
+  var dotCls=d.status==='Online'?'on':(d.status==='On Delivery'?'busy':(d.rawStatus==='paused'||d.rawStatus==='pending'?'warn':(d.rawStatus==='suspended'||d.rawStatus==='rejected'?'off':'')));
+  var rate=(Number(d.rating)||0).toFixed(1);
+  var stats=d.ratingTotal
+    ? '<svg class="ic dc-star" aria-hidden="true"><use href="#i-star-f"/></svg>'+rate+' • '+d.trips+' deliver'+(d.trips===1?'y':'ies')
+    : 'No ratings yet • '+d.trips+' deliver'+(d.trips===1?'y':'ies');
+
+  var active=driverActiveOrder(d);
+  var availLine;
+  if(active) availLine='<button class="pa-btn" data-action="driver-active-delivery" data-id="'+esc(d.id)+'">'+icon('orders')+' View active delivery — '+esc(shortId(active.id))+'</button>';
+  else if(d.available) availLine='<span class="dc-avail">Available</span>';
+  else if(d.status==='Online') availLine='<span class="dc-avail">Online</span>';
+  else availLine='<span class="dc-avail muted">'+esc(d.status)+'</span>';
+
+  // Primary actions — "View | Assign" as the client asked, always present.
+  var acts='<button class="pa-btn" data-action="view-driver" data-id="'+esc(d.id)+'">View</button>';
+  if(d.rawStatus==='approved') acts+='<button class="pa-btn" data-action="driver-assign" data-id="'+esc(d.id)+'">Assign</button>';
+
+  // State actions depend on where the driver is in their lifecycle.
+  if(d.rawStatus==='pending'){
+    acts+='<button class="pa-btn" data-action="driver-review" data-id="'+esc(d.id)+'">Review documents</button>'+
+      '<button class="pa-btn pa-ok" data-action="approve-driver" data-id="'+esc(d.id)+'">Approve</button>'+
+      '<button class="pa-btn pa-del" data-action="reject-driver" data-id="'+esc(d.id)+'">Reject</button>';
+  }else if(d.rawStatus==='rejected'){
+    acts+='<button class="pa-btn pa-ok" data-action="approve-driver" data-id="'+esc(d.id)+'">Re-approve</button>';
+  }else if(d.rawStatus==='paused'){
+    acts+='<button class="pa-btn pa-ok" data-action="driver-resume" data-id="'+esc(d.id)+'">Resume</button>'+
+      '<button class="pa-btn pa-del" data-action="driver-suspend" data-id="'+esc(d.id)+'">Suspend</button>';
+  }else if(d.rawStatus==='suspended'){
+    acts+='<button class="pa-btn pa-ok" data-action="driver-reinstate" data-id="'+esc(d.id)+'">Reinstate</button>';
+  }else{ // approved
+    acts+='<button class="pa-btn" data-action="driver-pause" data-id="'+esc(d.id)+'">Pause</button>'+
+      '<button class="pa-btn pa-del" data-action="driver-suspend" data-id="'+esc(d.id)+'">Suspend</button>';
+  }
+  acts+='<button class="pa-btn" data-action="edit-driver" data-id="'+esc(d.id)+'">Edit</button>'+
+    '<button class="pa-btn pa-del" data-action="del-driver" data-id="'+esc(d.id)+'">Delete</button>';
+
+  // DV-1: online toggle sits by the status for an approved driver.
+  var toggle=d.rawStatus==='approved'
+    ? '<label class="tgl" title="Toggle online"><input type="checkbox"'+(d.isOnline?' checked':'')+
+        ' class="tgl-driver-online" data-id="'+esc(d.id)+'" aria-label="Driver online"><span class="ts"></span></label>'
+    : '';
+
+  return '<div class="dcard">'+
+    '<div class="dc-head">'+
+      '<span class="dot '+dotCls+'"></span>'+
+      '<b class="dc-name">'+esc(d.name)+'</b>'+
+      '<span class="dc-badges">'+badge(d.status)+toggle+'</span>'+
+    '</div>'+
+    '<div class="dc-line">'+esc(d.vtype)+' • Plate '+esc(d.plate)+'</div>'+
+    '<div class="dc-line dc-stats">'+stats+'</div>'+
+    '<div class="dc-line">'+availLine+'</div>'+
+    '<div class="dc-acts">'+acts+'</div>'+
+  '</div>';
 }
 function statCard(ic,label,value,sub,accent){
   var a=accent?' ac-'+accent:'';
@@ -1486,7 +1740,7 @@ function saveDriver(){
 
     provisionDriver({
       email:email,password:pass,name:name,
-      phone:$('d-phone').value.trim(),
+      phone:phoneFmt($('d-phone').value),
       vehicleType:$('d-vtype').value,
       vehicleModel:$('d-vehicle').value.trim(),
       licencePlate:$('d-plate').value.trim().toUpperCase(),
@@ -1529,7 +1783,7 @@ function saveDriver(){
      driver's phone number forced them online whether their app was running or
      not. It is only ever forced FALSE now, and only when the status being saved
      means they must not be working. */
-  var obj={name:name,phone:$('d-phone').value.trim()||'—',
+  var obj={name:name,phone:phoneFmt($('d-phone').value)||'—',
     vehicleType:$('d-vtype').value,vehicleModel:$('d-vehicle').value.trim()||'—',
     licencePlate:$('d-plate').value.trim().toUpperCase()||'—',
     status:status,
@@ -1606,7 +1860,7 @@ function deleteDriver(id){
 }
 function approveDriver(id){
   updateDoc(doc(db,'drivers',id),{status:'approved',updatedAt:serverTimestamp()})
-    .then(function(){ toast('success','Driver approved.'); })
+    .then(function(){ closeSidePanel(); toast('success','Driver approved.'); })
     .catch(function(e){ toast('error',e.message,'Approval failed'); });
 }
 function rejectDriver(id){
@@ -1615,7 +1869,7 @@ function rejectDriver(id){
     .then(function(ok){
       if(!ok) return;
       updateDoc(doc(db,'drivers',id),{status:'rejected',isOnline:false,updatedAt:serverTimestamp()})
-        .then(function(){ toast('info','Driver rejected.'); })
+        .then(function(){ closeSidePanel(); toast('info','Driver rejected.'); })
         .catch(function(e){ toast('error',e.message,'Could not reject'); });
     });
 }
@@ -1623,6 +1877,145 @@ function toggleDriverOnline(id){
   var d=drivers.find(function(x){ return x.id===id; }); if(!d) return;
   updateDoc(doc(db,'drivers',id),{isOnline:!d.isOnline,updatedAt:serverTimestamp()})
     .catch(function(e){ toast('error',e.message,'Could not change status'); });
+}
+
+// ── DV-2: pause / suspend / resume / reinstate ─────────────────────────
+/* Pause is the soft, reversible stop. It forces the driver offline (the app
+   ejects them to the waiting screen) and can be undone with Resume. */
+function pauseDriver(id){
+  var d=drivers.find(function(x){ return x.id===id; }); if(!d) return;
+  var active=driverActiveOrder(d);
+  confirmDialog({title:'Pause '+d.name+'?',tone:'warning',
+    body:(active?'They are currently on order '+shortId(active.id)+'. ':'')+
+      'They will stop receiving new requests and be signed out of the app until you resume them.',
+    confirmLabel:'Pause driver'})
+    .then(function(ok){
+      if(!ok) return;
+      updateDoc(doc(db,'drivers',id),{status:'paused',isOnline:false,updatedAt:serverTimestamp()})
+        .then(function(){ toast('success',d.name+' paused.'); })
+        .catch(function(e){ toast('error',e.message,'Could not pause'); });
+    });
+}
+/* Suspend is the hard stop — a conduct or safety matter. Same mechanics as
+   pause, but the confirm spells out the consequence and the app shows the
+   driver a suspension message, not a "paused" one. */
+function suspendDriver(id){
+  var d=drivers.find(function(x){ return x.id===id; }); if(!d) return;
+  var active=driverActiveOrder(d);
+  confirmDialog({title:'Suspend '+d.name+'?',tone:'warning',
+    body:(active?'⚠️ They are currently delivering order '+shortId(active.id)+' and will be told to return the goods and contact support. ':'')+
+      'The account is blocked from working until you reinstate it.',
+    confirmLabel:'Suspend driver'})
+    .then(function(ok){
+      if(!ok) return;
+      updateDoc(doc(db,'drivers',id),{status:'suspended',isOnline:false,updatedAt:serverTimestamp()})
+        .then(function(){ toast('info',d.name+' suspended.'); })
+        .catch(function(e){ toast('error',e.message,'Could not suspend'); });
+    });
+}
+function resumeDriver(id){
+  var d=drivers.find(function(x){ return x.id===id; }); if(!d) return;
+  updateDoc(doc(db,'drivers',id),{status:'approved',updatedAt:serverTimestamp()})
+    .then(function(){ toast('success',d.name+' is active again.'); })
+    .catch(function(e){ toast('error',e.message,'Could not resume'); });
+}
+function reinstateDriver(id){
+  var d=drivers.find(function(x){ return x.id===id; }); if(!d) return;
+  confirmDialog({title:'Reinstate '+d.name+'?',
+    body:'The account can sign in and accept deliveries again. They still need to toggle themselves online.',
+    confirmLabel:'Reinstate',tone:'warning'})
+    .then(function(ok){
+      if(!ok) return;
+      updateDoc(doc(db,'drivers',id),{status:'approved',updatedAt:serverTimestamp()})
+        .then(function(){ toast('success',d.name+' reinstated.'); })
+        .catch(function(e){ toast('error',e.message,'Could not reinstate'); });
+    });
+}
+
+// ── DV-6: jump straight to the order a driver is holding ───────────────
+function driverActiveDelivery(id){
+  var d=drivers.find(function(x){ return x.id===id; }); if(!d) return;
+  var o=driverActiveOrder(d);
+  if(!o){ toast('info',d.name+' is not on a delivery right now.'); return; }
+  openOrderPanel(o._docId||o.id);
+}
+
+// ── DV-7: assign this driver to a waiting order from their card ────────
+function assignFromDriver(id){
+  var d=drivers.find(function(x){ return x.id===id; }); if(!d) return;
+  if(d.rawStatus!=='approved'){ toast('warning','Only an approved driver can be assigned.'); return; }
+  // Unclaimed orders still waiting for a driver.
+  var pool=orders.filter(function(o){ return o.status==='pending'&&!o.driverId; });
+  if(!pool.length){ toast('info','No unassigned orders are waiting right now.'); return; }
+  $('cf-ico').className='m-ico'; $('cf-ico').innerHTML=icon('drivers','ic-lg');
+  $('cf-title').textContent='Assign '+d.name+' to an order';
+  $('cf-body').innerHTML='<select id="cf-assign-order" style="width:100%;margin-top:8px">'+
+    pool.slice(0,50).map(function(o){
+      return '<option value="'+esc(o._docId||o.id)+'">'+esc(shortId(o.id))+' — '+esc(o.merchant)+' → '+esc(o.customer)+' ('+esc(o.amount)+')</option>';
+    }).join('')+'</select>';
+  var ok=$('cf-ok'); ok.textContent='Assign order'; ok.className='btn btn-primary';
+  confirmResolve=function(confirmed){
+    var oid=(($('cf-assign-order')||{}).value)||'';
+    $('cf-body').innerHTML='';
+    if(!confirmed||!oid) return;
+    var o=orders.find(function(x){ return (x._docId||x.id)===oid; }); if(!o) return;
+    // Mirror saveOrderChanges' assignment write: set the driver AND move the
+    // order to 'confirmed' so it enters the driver's active-order query.
+    runTransaction(db,function(tx){
+      var ref=doc(db,'orders',o._docId||o.id);
+      return tx.get(ref).then(function(s){
+        if(!s.exists()) throw new Error('That order no longer exists.');
+        var cur=s.data();
+        if(cur.driverId) throw new Error('Another driver already has that order.');
+        tx.update(ref,{
+          driverId:d.id,driverName:d.name,driverPhone:d.phone,
+          status:OrderStatus.PENDING===cur.status?OrderStatus.CONFIRMED:cur.status,
+          assignedBy:auth.currentUser?auth.currentUser.email:'admin',
+          assignedAt:serverTimestamp(),acceptedAt:serverTimestamp(),updatedAt:serverTimestamp()
+        });
+      });
+    }).then(function(){ toast('success',d.name+' assigned to '+shortId(o.id)+'.'); })
+      .catch(function(e){ toast('error',e.message,'Could not assign'); });
+  };
+  openModal('modal-confirm');
+}
+
+// ── DV-5: review a pending driver's uploaded credentials ──────────────
+var DRIVER_DOC_LABELS={licence:'Driver\'s licence',vehicle:'Vehicle photo',insurance:'Insurance',registration:'Vehicle registration'};
+function reviewDriverDocs(id){
+  var d=drivers.find(function(x){ return x.id===id; }); if(!d) return;
+  $('sp-sub').textContent='Document review';
+  $('sp-title').textContent=d.name;
+  var head='<div class="sp-sec"><div class="sp-sec-title">Applicant</div>'+
+    row('Vehicle',esc(d.vtype)+' • '+esc(d.plate))+
+    row('Phone','<span class="num">'+esc(phoneFmt(d.phone))+'</span>')+
+    row('Licence No.','<span class="num">'+esc(d.dlicence)+'</span>')+'</div>';
+  var decision='<div class="sp-sec"><div class="sp-sec-title">Decision</div>'+
+    '<div class="m-actions" style="justify-content:flex-start">'+
+      '<button class="btn btn-success" data-action="approve-driver" data-id="'+esc(d.id)+'">'+icon('check')+'Approve driver</button>'+
+      '<button class="btn btn-danger" data-action="reject-driver" data-id="'+esc(d.id)+'">'+icon('close')+'Reject</button>'+
+    '</div></div>';
+  $('sp-body').innerHTML=head+
+    '<div class="sp-sec"><div class="sp-sec-title">Uploaded documents</div>'+
+    '<div class="empty-copy" id="doc-review-slot">Loading documents…</div></div>'+decision;
+  openSidePanel();
+  // Documents live in the private subdoc (drivers/{uid}/private/identity), not
+  // on the world-readable parent — same rule as the licence number.
+  getDoc(doc(db,'drivers',id,'private','identity')).then(function(s){
+    var slot=$('doc-review-slot'); if(!slot) return;
+    var docs=s.exists()?(s.data().documents||null):null;
+    if(docs&&typeof docs==='object'&&Object.keys(docs).length){
+      slot.outerHTML=Object.keys(docs).map(function(k){
+        var url=docs[k]; if(!url) return '';
+        return '<div class="doc-view"><div class="doc-view-lbl">'+esc(DRIVER_DOC_LABELS[k]||k)+'</div>'+
+          '<a href="'+esc(url)+'" target="_blank" rel="noopener"><img src="'+esc(url)+'" alt="'+esc(DRIVER_DOC_LABELS[k]||k)+'" loading="lazy"/></a></div>';
+      }).join('');
+    }else{
+      slot.textContent='This driver registered before in-app document upload existed, so there is nothing to view here. Verify the licence number against a physical or emailed copy before approving.';
+    }
+  }).catch(function(){
+    var slot=$('doc-review-slot'); if(slot) slot.textContent='Could not load the documents for this driver.';
+  });
 }
 function openDriverPanel(id){
   var d=drivers.find(function(x){ return x.id===id; }); if(!d) return;
@@ -1656,7 +2049,7 @@ function openDriverPanel(id){
     '<div class="sp-hero"><div class="sp-avatar">'+esc((d.name[0]||'?').toUpperCase())+'</div>'+
       '<div><div class="sp-hero-name">'+esc(d.name)+'</div><div style="margin-top:5px">'+badge(d.status)+'</div></div></div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Contact</div>'+
-      row('Phone','<span class="num">'+esc(d.phone)+'</span>')+
+      row('Phone','<span class="num">'+esc(phoneFmt(d.phone))+'</span>')+
       row('Email','<span class="sp-val sm">'+esc(d.email)+'</span>',true)+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Vehicle</div>'+
       row('Type',esc(d.vtype))+row('Model',esc(d.vehicle))+
@@ -1691,6 +2084,40 @@ function animateBars(){
 function customerOrders(uid){
   return orders.filter(function(o){ return o.customerId===uid; });
 }
+
+/* CU-4: the fixed tag catalogue. Slugs are stored; labels + tones are display.
+   Kept small and operator-assigned — deriving "VIP" from spend is a different
+   feature (and a judgement call the operator should keep). */
+var CUSTOMER_TAGS=[
+  {slug:'diaspora',      label:'Diaspora',      tone:'info'},
+  {slug:'st_thomas',     label:'St. Thomas',    tone:'info'},
+  {slug:'business',      label:'Business',      tone:'brand'},
+  {slug:'vip',           label:'VIP',           tone:'warning'},
+  {slug:'frequent_buyer',label:'Frequent Buyer',tone:'success'},
+  {slug:'new_customer',  label:'New Customer',  tone:'neutral'}
+];
+function tagLabel(slug){ var t=CUSTOMER_TAGS.find(function(x){ return x.slug===slug; }); return t?t.label:slug; }
+function tagTone(slug){ var t=CUSTOMER_TAGS.find(function(x){ return x.slug===slug; }); return t?t.tone:'neutral'; }
+function customerTagBadges(tags){
+  if(!tags||!tags.length) return '';
+  return tags.map(function(s){
+    return '<span class="bdg bg-'+tagTone(s)+' plain sm">'+esc(tagLabel(s))+'</span>';
+  }).join(' ');
+}
+
+/* CU-3: the most recent order date for a customer, or null. */
+function customerLastOrder(uid){
+  var d=null;
+  customerOrders(uid).forEach(function(o){
+    if(o._ts&&(!d||o._ts>d)) d=o._ts;
+  });
+  return d;
+}
+
+// CU-2: business-rule thresholds. Documented defaults — confirm with the client.
+var REPEAT_ORDER_THRESHOLD=2;      // delivered orders to count as a repeat customer
+var INACTIVE_DAYS_THRESHOLD=60;    // days without an order to count as inactive
+
 function customerValue(uid){
   // Delivered only. Counting pending or cancelled orders as "lifetime value"
   // inflates it with money that was never collected — and cancellation is now
@@ -1701,7 +2128,7 @@ function customerValue(uid){
 }
 function renderCustomers(){
   var tbody=$('customers-tbody'); if(!tbody) return;
-  if(!loadedOnce.customers){ tbody.innerHTML=skeletonRows(7,6); return; }
+  if(!loadedOnce.customers){ tbody.innerHTML=skeletonRows(9,6); return; }
   var q=customerSearch.toLowerCase();
   var rows=customers.filter(function(c){
     return !q||c.name.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||
@@ -1717,12 +2144,29 @@ function renderCustomers(){
 
   var stats=$('customers-stats');
   if(stats){
+    var now=new Date();
+    var monthStart=new Date(now.getFullYear(),now.getMonth(),1).getTime();
+    var inactiveCutoff=now.getTime()-INACTIVE_DAYS_THRESHOLD*86400000;
     var disabledCount=customers.filter(function(c){ return c.disabled; }).length;
     var ordering=customers.filter(function(c){ return customerOrders(c.id).length>0; }).length;
+    // CU-2: new this month / repeat / inactive / total spend.
+    var newThisMonth=customers.filter(function(c){ return c.joined&&c.joined.getTime()>=monthStart; }).length;
+    var repeat=customers.filter(function(c){
+      return customerOrders(c.id).filter(function(o){ return isDeliveredStatus(o.status); }).length>=REPEAT_ORDER_THRESHOLD;
+    }).length;
+    var inactive=customers.filter(function(c){
+      var last=customerLastOrder(c.id);
+      return customerOrders(c.id).length>0&&(!last||last.getTime()<inactiveCutoff);
+    }).length;
+    var totalSpend=customers.reduce(function(s,c){ return s+customerValue(c.id); },0);
     stats.innerHTML=
       statCard('users','Total Customers',customers.length,'','')+
-      statCard('orders','Have Ordered',ordering,customers.length?Math.round((ordering/customers.length)*100)+'% of accounts':'','ocean')+
-      statCard('close','Disabled',disabledCount,disabledCount?'blocked from signing in':'','gold');
+      statCard('orders','Customers Who Ordered',ordering,customers.length?Math.round((ordering/customers.length)*100)+'% of accounts':'','ocean')+
+      statCard('bolt','New This Month',newThisMonth,'joined since the 1st','success')+
+      statCard('star','Repeat Customers',repeat,REPEAT_ORDER_THRESHOLD+'+ delivered orders','gold')+
+      statCard('clock','Inactive Customers',inactive,'no order in '+INACTIVE_DAYS_THRESHOLD+' days','')+
+      statCard('revenue','Total Customer Spend',money(totalSpend),'lifetime delivered','gold')+
+      statCard('close','Disabled',disabledCount,disabledCount?'blocked from signing in':'','');
   }
 
   // Honest cap notice: the listener mirrors at most CUSTOMERS_LIMIT accounts, so
@@ -1738,20 +2182,23 @@ function renderCustomers(){
 
   if(!rows.length){
     tbody.innerHTML=customerSearch
-      ? emptyRow(7,'search','No matching customers','Nothing matched “'+esc(customerSearch)+'”. Try a name, email or phone number.')
-      : emptyRow(7,'users','No customers yet','Accounts appear here as soon as somebody registers in the app.');
+      ? emptyRow(9,'search','No matching customers','Nothing matched “'+esc(customerSearch)+'”. Try a name, email or phone number.')
+      : emptyRow(9,'users','No customers yet','Accounts appear here as soon as somebody registers in the app.');
     return;
   }
   tbody.innerHTML=rows.map(function(c){
     var count=customerOrders(c.id).length;
-    return '<tr'+(c.disabled?' class="row-muted"':'')+'>'+
+    var last=customerLastOrder(c.id);   // CU-3
+    return '<tr class="row-click'+(c.disabled?' row-muted':'')+'" data-action="view-customer" data-cid="'+esc(c.id)+'">'+
       '<td><b>'+esc(c.name)+'</b></td>'+
       '<td class="cell-mute">'+esc(c.email)+'</td>'+
-      '<td class="cell-mute num">'+esc(c.phone)+'</td>'+
+      '<td class="cell-mute num">'+esc(phoneFmt(c.phone))+'</td>'+
       '<td class="right cell-id">'+count+'</td>'+
+      '<td class="cell-mute num">'+(last?esc(last.toLocaleDateString('en-JM',{month:'short',day:'numeric',year:'numeric'})):'—')+'</td>'+
       '<td class="right cell-strong">'+money(customerValue(c.id))+'</td>'+
+      '<td>'+(customerTagBadges(c.tags)||'<span class="cell-mute sm">—</span>')+'</td>'+
       '<td>'+(c.disabled
-        ?'<span class="bdg bg-danger plain">Disabled</span>'
+        ?'<span class="bdg bg-danger plain">Disabled'+(c.disabledReason?' — '+esc(c.disabledReason):'')+'</span>'
         :'<span class="bdg bg-success plain">Active</span>')+'</td>'+
       '<td><button class="aicon ai-v" data-action="view-customer" data-cid="'+esc(c.id)+'" title="View customer" aria-label="View customer">'+icon('view')+'</button></td>'+
     '</tr>';
@@ -1771,19 +2218,35 @@ function openCustomerPanel(uid){
 
   var delivered=customerOrders(uid).filter(function(o){ return isDeliveredStatus(o.status); }).length;
   var cancelled=customerOrders(uid).filter(function(o){ return isCancelledStatus(o.status); }).length;
+  var last=customerLastOrder(uid);      // CU-3
+  var waDigits=phoneDial(c.phone).replace(/\D/g,'');
 
   $('sp-body').innerHTML=
     '<div class="sp-hero"><div class="sp-avatar">'+esc((c.name[0]||'?').toUpperCase())+'</div>'+
       '<div><div class="sp-hero-name">'+esc(c.name)+'</div><div style="margin-top:5px">'+
-      (c.disabled?'<span class="bdg bg-danger plain">Disabled</span>':'<span class="bdg bg-success plain">Active</span>')+
+      (c.disabled
+        ?'<span class="bdg bg-danger plain">Disabled'+(c.disabledReason?' — '+esc(c.disabledReason):'')+'</span>'
+        :'<span class="bdg bg-success plain">Active</span>')+
       '</div></div></div>'+
+    // CU-5: quick actions.
+    '<div class="promo-acts" style="margin-bottom:14px">'+
+      (c.phone&&c.phone!=='—'?'<a class="pa-btn" href="tel:'+esc(phoneDial(c.phone))+'">Call</a>':'')+
+      (waDigits?'<a class="pa-btn" href="https://wa.me/'+esc(waDigits)+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+      '<button class="pa-btn" data-action="customer-orders" data-cid="'+esc(c.id)+'">View orders</button>'+
+      '<button class="pa-btn" data-action="customer-notify" data-cid="'+esc(c.id)+'">Send notification</button>'+
+    '</div>'+
     (c.disabled&&c.disabledReason
       ?'<div class="sp-sec"><div class="sp-sec-title">Why this account is disabled</div>'+
         '<div class="empty-copy">'+esc(c.disabledReason)+'</div></div>':'')+
+    // CU-4: segment tags.
+    '<div class="sp-sec"><div class="sp-sec-title">Tags '+
+      '<button class="pa-btn" data-action="customer-tags" data-cid="'+esc(c.id)+'" style="float:right;font-weight:600">Edit</button></div>'+
+      '<div>'+(customerTagBadges(c.tags)||'<span class="empty-copy">No tags. Use Edit to add Diaspora, VIP, Business…</span>')+'</div></div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Contact</div>'+
       row('Email','<span class="sp-val sm">'+esc(c.email)+'</span>',true)+
-      row('Phone','<span class="num">'+esc(c.phone)+'</span>')+
+      row('Phone','<span class="num">'+esc(phoneFmt(c.phone))+'</span>')+
       row('Joined',esc(c.joined?c.joined.toLocaleDateString('en-JM',{year:'numeric',month:'short',day:'numeric'}):'Before records began'))+
+      row('Last order',esc(last?last.toLocaleDateString('en-JM',{year:'numeric',month:'short',day:'numeric'}):'Never'))+
       row('Push',c.hasPush?'Registered':'No device registered')+
       row('User ID','<span class="sp-val sm num">'+esc(c.id)+'</span>',true)+
     '</div>'+
@@ -1824,6 +2287,53 @@ function loadCustomerAddresses(uid){
     el.innerHTML='<div class="empty-copy">Could not load addresses: '+esc(e.message)+'</div>';
   });
 }
+// ── CU-4: tag assignment ──────────────────────────────────────────────
+function editCustomerTags(uid){
+  var c=customers.find(function(x){ return x.id===uid; }); if(!c) return;
+  var have={}; (c.tags||[]).forEach(function(s){ have[s]=1; });
+  $('cf-ico').className='m-ico'; $('cf-ico').innerHTML=icon('users','ic-lg');
+  $('cf-title').textContent='Tags for '+c.name;
+  $('cf-body').innerHTML='<div class="tag-picker">'+CUSTOMER_TAGS.map(function(t){
+    return '<label class="tag-opt"><input type="checkbox" value="'+esc(t.slug)+'"'+(have[t.slug]?' checked':'')+'>'+
+      '<span class="bdg bg-'+t.tone+' plain sm">'+esc(t.label)+'</span></label>';
+  }).join('')+'</div>';
+  var ok=$('cf-ok'); ok.textContent='Save tags'; ok.className='btn btn-primary';
+  confirmResolve=function(confirmed){
+    var picked=Array.prototype.slice.call(document.querySelectorAll('.tag-picker input:checked'))
+      .map(function(i){ return i.value; });
+    $('cf-body').innerHTML='';
+    if(!confirmed) return;
+    updateDoc(doc(db,'users',uid),{
+      tags:picked,
+      tagsUpdatedAt:serverTimestamp(),
+      tagsUpdatedBy:auth.currentUser?auth.currentUser.uid:''
+    }).then(function(){
+      toast('success','Tags updated for '+c.name+'.');
+      if(panelCustomerId===uid) setTimeout(function(){ openCustomerPanel(uid); },250);
+    }).catch(function(e){ toast('error',e.message,'Could not save tags'); });
+  };
+  openModal('modal-confirm');
+}
+// ── CU-5: jump to this customer's orders / notify them ────────────────
+function viewCustomerOrders(uid){
+  var c=customers.find(function(x){ return x.id===uid; }); if(!c) return;
+  closeSidePanel();
+  navTo('orders');
+  clearOrderFilters();
+  ordersFilter='All'; updateOrdersTabs();
+  var s=$('orders-search'); if(s){ s.value=c.name; }
+  renderOrders();
+  toast('info','Showing orders matching “'+c.name+'”.');
+}
+function notifyCustomer(uid){
+  var c=customers.find(function(x){ return x.id===uid; }); if(!c) return;
+  closeSidePanel();
+  navTo('notifications');
+  // Per-customer targeting is NT-2 (audience segments). Until then the operator
+  // composes a message and picks the audience by hand; drop a hint.
+  toast('info','Compose the message, then choose the audience. Per-customer sending arrives with audience targeting (NT-2).');
+}
+
 var setUserDisabled=httpsCallable(fns,'setUserDisabled');
 /* Goes through a callable, not a document write.
    `users/{uid}.disabled` is a flag Firestore rules never consult, so setting it
@@ -1843,24 +2353,30 @@ function toggleCustomerDisabled(uid){
 
   // A reason is required when taking access away. An audit trail that says
   // only "an admin did this" answers none of the questions asked later.
+  // CU-6: a fixed set of reasons, not free text — so the badge can read
+  // "Disabled — Payment issue" and the reasons stay consistent across accounts.
   $('cf-ico').className='m-ico danger';
   $('cf-ico').innerHTML=icon('close','ic-lg');
   $('cf-title').textContent='Disable '+c.name+'?';
   $('cf-body').innerHTML='They will be signed out immediately and cannot sign in again '+
     'until re-enabled. Their past orders are kept.'+
     '<label for="cf-reason" style="display:block;margin-top:12px;font-size:13px">Reason (required)</label>'+
-    '<input id="cf-reason" type="text" maxlength="500" placeholder="e.g. repeated fraudulent orders" '+
-    'style="width:100%;margin-top:6px"/>';
+    '<select id="cf-reason" style="width:100%;margin-top:6px">'+
+      '<option value="">Select a reason…</option>'+
+      DISABLE_REASONS.map(function(r){ return '<option value="'+esc(r)+'">'+esc(r)+'</option>'; }).join('')+
+    '</select>';
   var ok=$('cf-ok'); ok.textContent='Disable account'; ok.className='btn btn-danger';
   confirmResolve=function(confirmed){
     var reason=(($('cf-reason')||{}).value||'').trim();
     $('cf-body').innerHTML='';
     if(!confirmed) return;
-    if(!reason){ toast('warning','Give a reason — it is recorded against the account.'); return; }
+    if(!reason){ toast('warning','Choose a reason — it is recorded against the account.'); return; }
     applyCustomerDisabled(uid,true,reason);
   };
   openModal('modal-confirm');
 }
+/* CU-6: canned disable reasons. The badge shows "Disabled — <reason>". */
+var DISABLE_REASONS=['Fraud review','Customer request','Payment issue'];
 function applyCustomerDisabled(uid,disabled,reason){
   setUserDisabled({uid:uid,disabled:disabled,reason:reason})
     .then(function(){
@@ -1904,10 +2420,17 @@ function inquiryRef(id){ return String(id||'').slice(0,6).toUpperCase(); }
 function renderOverseasTabs(){
   var tabs=$('overseas-tabs'); if(!tabs) return;
   var s=Overseas.summarise(inquiries);
-  var defs=[{k:'open',lbl:'Open',n:s.open},{k:'all',lbl:'All',n:s.total}]
-    .concat(Overseas.ALL.map(function(st){
-      return {k:st,lbl:Overseas.LABEL[st],n:s.counts[st]};
-    }));
+  // SD-4: twelve statuses is too many tabs. Group into the buckets an operator
+  // actually works from, plus a jump to each awaiting/in-progress stage.
+  var defs=[
+    {k:'open',lbl:'Open',n:s.open},
+    {k:Overseas.NEW,lbl:'New',n:s.counts[Overseas.NEW]},
+    {k:Overseas.AWAITING_CUSTOMER,lbl:'Awaiting Customer',n:s.counts[Overseas.AWAITING_CUSTOMER]},
+    {k:Overseas.SHOPPING,lbl:'Shopping',n:s.counts[Overseas.SHOPPING]},
+    {k:Overseas.OUT_FOR_DELIVERY,lbl:'Out for Delivery',n:s.counts[Overseas.OUT_FOR_DELIVERY]},
+    {k:'closed',lbl:'Closed',n:s.closed},
+    {k:'all',lbl:'All',n:s.total}
+  ];
   tabs.innerHTML=defs.map(function(d){
     return '<div class="tab'+(overseasFilter===d.k?' active':'')+'" data-otab="'+d.k+'" role="tab" tabindex="0">'+
       esc(d.lbl)+' <b class="num">'+d.n+'</b></div>';
@@ -1921,33 +2444,51 @@ function renderOverseas(){
   var stats=$('overseas-stats');
   if(stats){
     var s=Overseas.summarise(inquiries);
+    // Client checklist SD-2 / SD-3 / SD-3b. With the SD-4 vocabulary the
+    // figures are now exact: New = genuinely new (awaiting first review),
+    // Awaiting Customer = a quote is out and we are waiting on them, Closed =
+    // every terminal state (completed / declined / cancelled / expired).
     stats.innerHTML=
-      statCard('send','Open Enquiries',s.open,s.counts[Overseas.NEW]+' not yet touched','')+
-      statCard('clock','Awaiting Reply',s.counts[Overseas.QUOTED],'quoted, customer deciding','gold')+
-      statCard('success','Closed',s.counts[Overseas.CLOSED],s.counts[Overseas.DECLINED]+' declined','success');
+      statCard('send','New Requests',s.newCount,'awaiting review','')+
+      statCard('clock','Awaiting Customer',s.awaitingCustomer,'quote sent, waiting for response','gold')+
+      statCard('success','Closed',s.closed,s.counts[Overseas.COMPLETED]+' completed · '+s.counts[Overseas.DECLINED]+' declined','success');
   }
 
   var rows=Overseas.filterInquiries(inquiries,{status:overseasFilter,q:overseasSearch});
   if(!rows.length){
     tbody.innerHTML=overseasSearch
       ? emptyRow(9,'search','No matching enquiries','Nothing matched “'+esc(overseasSearch)+'”. Try a name, parish or phone number.')
-      : emptyRow(9,'box','Nothing here','Shop-and-deliver requests from the customer app land in this queue.');
+      : emptyRow(9,'box','No open requests','New Shop & Deliver requests will appear here.');
     return;
   }
   tbody.innerHTML=rows.map(function(i){
-    var contents=i.itemDescription.length>44?i.itemDescription.slice(0,44)+'…':i.itemDescription;
+    // SD-5: item count + requested store, at a glance.
+    var n=Overseas.itemCount(i.itemDescription);
+    var listCell=esc(i.itemCategory)+' · '+n+' item'+(n===1?'':'s')+
+      (i.requestedStore?' · <span class="cell-mute">'+esc(i.requestedStore)+'</span>':'');
+    var st=Overseas.normalise(i.status);
+    // SD-6: Review | Quote Customer | Call | WhatsApp, right on the row.
+    var acts='<div class="promo-acts">'+
+      '<button class="pa-btn" data-action="view-inquiry" data-iid="'+esc(i.id)+'">Review</button>';
+    if(st===Overseas.NEW||st===Overseas.REVIEWING)
+      acts+='<button class="pa-btn" data-action="inq-quote" data-iid="'+esc(i.id)+'">Quote customer</button>';
+    if(i.contactPhone){
+      acts+='<a class="pa-btn" href="tel:'+esc(phoneDial(i.contactPhone))+'">Call</a>'+
+        '<a class="pa-btn" href="https://wa.me/'+esc(phoneDial(i.contactPhone).replace(/\D/g,''))+'" target="_blank" rel="noopener">WhatsApp</a>';
+    }
+    acts+='</div>';
     return '<tr>'+
       '<td><span class="cell-id">'+esc(inquiryRef(i.id))+'</span></td>'+
       '<td><b>'+esc(i.customerName)+'</b><div class="cell-mute">'+esc(i.originCountry)+'</div></td>'+
       '<td>'+esc(i.recipientName)+'</td>'+
       '<td class="cell-mute">'+esc(i.recipientParish)+'</td>'+
-      '<td class="cell-mute">'+esc(i.itemCategory)+' · '+esc(contents)+'</td>'+
+      '<td class="cell-mute">'+listCell+'</td>'+
       '<td class="right num">'+esc(inquiryBudget(i.budget))+'</td>'+
       '<td>'+inquiryBadge(i.status)+'</td>'+
       // A brand-new enquiry has no resolved timestamp yet, and "—" would read
       // as missing data rather than "seconds ago".
       '<td class="cell-mute num">'+esc(i.createdAt?fmtStamp(i.createdAt):'Just now')+'</td>'+
-      '<td><button class="aicon ai-v" data-action="view-inquiry" data-iid="'+esc(i.id)+'" title="View enquiry" aria-label="View enquiry">'+icon('view')+'</button></td>'+
+      '<td>'+acts+'</td>'+
     '</tr>';
   }).join('');
 }
@@ -1968,23 +2509,25 @@ function openInquiryPanel(id){
       ?'<a class="sp-val sm" href="mailto:'+esc(i.contactEmail)+'?subject='+subject+'">'+esc(i.contactEmail)+'</a>'
       :'—',true)+
     row('Phone',i.contactPhone
-      ?'<a class="sp-val num" href="tel:'+esc(i.contactPhone.replace(/[^0-9+]/g,''))+'">'+esc(i.contactPhone)+'</a>'
+      ?'<a class="sp-val num" href="tel:'+esc(phoneDial(i.contactPhone))+'">'+esc(phoneFmt(i.contactPhone))+'</a>'
       :'—')+
     row('Based in',esc(i.originCountry));
 
   var recipientHtml=
     row('Recipient',esc(i.recipientName))+
     row('Phone',i.recipientPhone
-      ?'<a class="sp-val num" href="tel:'+esc(i.recipientPhone.replace(/[^0-9+]/g,''))+'">'+esc(i.recipientPhone)+'</a>'
+      ?'<a class="sp-val num" href="tel:'+esc(phoneDial(i.recipientPhone))+'">'+esc(phoneFmt(i.recipientPhone))+'</a>'
       :'—')+
     row('Address','<span class="sp-val sm">'+esc(i.recipientAddress)+'</span>',true)+
     row('Parish',esc(i.recipientParish));
 
+  var itemN=Overseas.itemCount(i.itemDescription);
   var shoppingHtml=
     row('Category',esc(i.itemCategory))+
+    row('Requested store',esc(i.requestedStore||'Any store'))+
     row('Budget','<span class="num">'+esc(inquiryBudget(i.budget))+'</span>')+
-    '<div class="sp-row"><span class="sp-lbl">Shopping list</span></div>'+
-    '<div class="empty-copy" style="max-width:none">'+esc(i.itemDescription)+'</div>'+
+    '<div class="sp-row"><span class="sp-lbl">Shopping list — '+itemN+' item'+(itemN===1?'':'s')+'</span></div>'+
+    '<div class="empty-copy" style="max-width:none;white-space:pre-wrap">'+esc(i.itemDescription)+'</div>'+
     (i.notes?'<div class="sp-row"><span class="sp-lbl">Customer notes</span></div>'+
       '<div class="empty-copy" style="max-width:none">'+esc(i.notes)+'</div>':'');
 
@@ -1997,6 +2540,26 @@ function openInquiryPanel(id){
     return '<option value="'+st+'"'+(st===i.status?' selected':'')+'>'+esc(Overseas.LABEL[st])+'</option>';
   }).join('');
 
+  // SD-7: the quote. `quoteTotal` is derived from the three parts on save, so
+  // there is nothing to keep in sync.
+  var payOpts=['','pending','paid','refunded','waived'].map(function(p){
+    return '<option value="'+p+'"'+(p===i.quotePaymentStatus?' selected':'')+'>'+
+      (p?esc(p.charAt(0).toUpperCase()+p.slice(1)):'Not set')+'</option>';
+  }).join('');
+  var quoteExpVal=i.quoteExpiresAt?isoDate(i.quoteExpiresAt):'';
+  var quoteSummary=i.quoteTotal!=null
+    ? '<div class="sp-row"><span class="sp-lbl">Current quote</span><span class="sp-val money">'+money(i.quoteTotal)+
+      (i.quoteExpiresAt?' <span class="cell-mute sm">exp. '+esc(i.quoteExpiresAt.toLocaleDateString('en-JM',{month:'short',day:'numeric'}))+'</span>':'')+'</span></div>'
+    : '<div class="empty-copy">No quote sent yet.</div>';
+  var quoteHtml=quoteSummary+
+    '<div class="fr"><label for="q-items">Estimated item cost (J$)</label><input id="q-items" type="number" min="0" step="1" value="'+(i.quoteItemsCost!=null?i.quoteItemsCost:'')+'"/></div>'+
+    '<div class="fr"><label for="q-service">Shopping / service fee (J$)</label><input id="q-service" type="number" min="0" step="1" value="'+(i.quoteServiceFee!=null?i.quoteServiceFee:'')+'"/></div>'+
+    '<div class="fr"><label for="q-delivery">Delivery fee (J$)</label><input id="q-delivery" type="number" min="0" step="1" value="'+(i.quoteDeliveryFee!=null?i.quoteDeliveryFee:'')+'"/></div>'+
+    '<div class="sp-row"><span class="sp-lbl">Total quote</span><span class="sp-val money num" id="q-total">'+money(i.quoteTotal||0)+'</span></div>'+
+    '<div class="fr"><label for="q-expiry">Quote expires</label><input id="q-expiry" type="date" value="'+quoteExpVal+'"/></div>'+
+    '<div class="fr"><label for="q-pay">Payment status</label><select id="q-pay">'+payOpts+'</select></div>'+
+    '<button class="btn btn-outline btn-block" data-action="save-quote" data-iid="'+esc(i.id)+'">'+icon('receipt')+'Save quote</button>';
+
   $('sp-body').innerHTML=
     '<div class="sp-sec"><div class="sp-sec-title">Status</div>'+
       '<div class="sp-row"><span class="sp-lbl">Now</span><span class="sp-val">'+inquiryBadge(i.status)+'</span></div>'+
@@ -2004,6 +2567,7 @@ function openInquiryPanel(id){
     '<div class="sp-sec"><div class="sp-sec-title">Customer</div>'+contactHtml+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Delivering To</div>'+recipientHtml+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Shopping</div>'+shoppingHtml+'</div>'+
+    '<div class="sp-sec"><div class="sp-sec-title">Quote</div>'+quoteHtml+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Handling</div>'+handledHtml+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Update</div>'+
       '<div class="fr"><label for="sp-inq-status">Status</label>'+
@@ -2022,6 +2586,46 @@ function openInquiryPanel(id){
   openSidePanel();
 }
 
+/* SD-7: recompute the quote total from its three parts as the operator types. */
+function syncQuoteTotal(){
+  var t=$('q-total'); if(!t) return;
+  var n=function(id){ return Math.max(0,Math.round(Number(($(id)||{}).value)||0)); };
+  t.textContent=money(n('q-items')+n('q-service')+n('q-delivery'));
+}
+/* SD-7: save the quote sub-fields. `quoteTotal` is derived here so the stored
+   total can never disagree with its parts. */
+function saveQuote(id){
+  var i=inquiries.find(function(x){ return x.id===id; }); if(!i) return;
+  var n=function(el){ var v=($(el)||{}).value; return v===''?null:Math.max(0,Math.round(Number(v)||0)); };
+  var items=n('q-items'),service=n('q-service'),delivery=n('q-delivery');
+  var total=(items||0)+(service||0)+(delivery||0);
+  var expRaw=($('q-expiry')||{}).value||'';
+  var expiresAt=null;
+  if(expRaw){ var d=new Date(expRaw+'T23:59:59'); if(!isNaN(d.getTime())) expiresAt=Timestamp.fromDate(d); }
+  updateDoc(doc(db,'overseasInquiries',id),{
+    quoteItemsCost:items,quoteServiceFee:service,quoteDeliveryFee:delivery,
+    quoteTotal:total,quoteExpiresAt:expiresAt,
+    quotePaymentStatus:($('q-pay')||{}).value||'',
+    quotedBy:auth.currentUser?auth.currentUser.uid:'',
+    quotedAt:serverTimestamp(),updatedAt:serverTimestamp()
+  }).then(function(){
+    toast('success','Quote saved — J$'+total+'. Email it to '+i.customerName+'.');
+    if(panelInquiryId===id) setTimeout(function(){ openInquiryPanel(id); },250);
+  }).catch(function(e){ toast('error',e.message,'Could not save quote'); });
+}
+
+/* SD-6 one-click "Quote customer" — advances the request to Quote Sent. The
+   actual quote goes to the customer by email (this page sends nothing), so the
+   toast says so. */
+function quoteInquiry(id){
+  var i=inquiries.find(function(x){ return x.id===id; }); if(!i) return;
+  updateDoc(doc(db,'overseasInquiries',id),{
+    status:Overseas.QUOTE_SENT,
+    handledBy:auth.currentUser?auth.currentUser.uid:'',
+    handledAt:serverTimestamp(),updatedAt:serverTimestamp()
+  }).then(function(){ toast('success','Marked Quote Sent. Email the total to '+i.customerName+'.'); })
+    .catch(function(e){ toast('error',e.message,'Could not update'); });
+}
 function saveInquiry(id){
   var i=inquiries.find(function(x){ return x.id===id; }); if(!i) return;
   var status=(($('sp-inq-status')||{}).value||i.status);
@@ -2275,7 +2879,7 @@ function renderMerchants(){
     return '<tr>'+
       '<td><div class="cell-media">'+merchantMedia(m)+'<b>'+esc(m.name)+'</b></div></td>'+
       '<td><span class="bdg bg-info plain">'+esc(m.category)+'</span></td>'+
-      '<td class="cell-mute num">'+esc(m.phone)+'</td>'+
+      '<td class="cell-mute num">'+esc(phoneFmt(m.phone))+'</td>'+
       '<td class="cell-mute" style="max-width:180px;font-size:12px">'+esc(m.address)+'</td>'+
       '<td class="right cell-id">'+ordersTodayFor(m.id)+'</td>'+
       '<td>'+starsOrNone(m.rating,m.ratingCount)+'</td>'+
@@ -2477,7 +3081,7 @@ function saveMerchant(){
   }
 
   var obj={name:name,category:$('m-cat').value,owner:$('m-owner').value.trim()||'—',
-    phone:$('m-phone').value.trim()||'—',email:$('m-email').value.trim()||'—',
+    phone:phoneFmt($('m-phone').value)||'—',email:$('m-email').value.trim()||'—',
     address:$('m-address').value.trim()||'—',
     // Business hours and delivery ETA are separate fields (SCHEMA.md).
     openingHours:$('m-hours').value.trim()||'—',
@@ -2583,7 +3187,7 @@ function openMerchantPanel(id){
         ?'<span class="sp-val sm num">'+esc(formatLatLng(m.lat,m.lng))+'</span>'
         :'<span class="sp-val sm" style="color:var(--gold)">Not set — no distance ranking</span>',true)+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Contact</div>'+
-      row('Phone','<span class="num">'+esc(m.phone)+'</span>')+
+      row('Phone','<span class="num">'+esc(phoneFmt(m.phone))+'</span>')+
       row('Email','<span class="sp-val sm">'+esc(m.email)+'</span>',true)+'</div>'+
     '<div class="sp-sec"><div class="sp-sec-title">Stats</div>'+
       '<div class="sp-row"><span class="sp-lbl">Orders Today</span><span class="sp-val money">'+ordersTodayFor(m.id)+'</span></div>'+
@@ -2747,8 +3351,19 @@ function deleteMenuItemFn(id){
 
 // ══════════════════════ NOTIFICATIONS ══════════════════════
 function updPhonePreview(){
-  $('pv-title').textContent=$('n-title').value||'Notification Title';
-  $('pv-msg').textContent=$('n-msg').value||'Your message will appear here.';
+  var title=$('n-title').value, msg=$('n-msg').value;
+  $('pv-title').textContent=title||'Notification Title';
+  $('pv-msg').textContent=msg||'Your message will appear here.';
+  // NT-5: live character counters. `maxlength` on the inputs is the hard stop;
+  // this shows how close the admin is and turns amber in the last ~15%.
+  setCharCount('n-title-count',title.length,65);
+  setCharCount('n-msg-count',msg.length,178);
+}
+function setCharCount(id,len,max){
+  var el=$(id); if(!el) return;
+  el.textContent=len+' / '+max;
+  el.classList.toggle('char-count-warn',len>=max*0.85);
+  el.classList.toggle('char-count-full',len>=max);
 }
 function renderNotifHist(){
   var el=$('notif-hist'); if(!el) return;
@@ -2763,19 +3378,35 @@ function renderNotifHist(){
     return;
   }
   el.innerHTML=notifHistory.map(function(n){
-    // deliveredCount is written back by onNotificationCreated after the send;
-    // it is briefly null on a just-sent push, so it is only shown once present.
-    var delivered=n.delivered!=null
-      ? '<span style="font-size:11px;color:var(--text-mute)" class="num">Delivered to '+n.delivered+' device'+(n.delivered===1?'':'s')+'</span>'
-      : '';
+    // deliveredCount / openedCount / failedCount are written back by
+    // onNotificationCreated after the send; each is briefly null on a
+    // just-sent push, so each is only shown once present.
+    var mute='font-size:11px;color:var(--text-mute)';
+    var stat=function(txt){ return '<span style="'+mute+'" class="num">'+txt+'</span>'; };
+    var chips=[];
+    if(n.delivered!=null) chips.push(stat('Delivered to '+n.delivered+' device'+(n.delivered===1?'':'s')));
+    if(n.opened!=null){
+      chips.push(stat(n.opened+' opened'));
+      if(n.delivered) chips.push(stat('Tap rate '+Math.round((n.opened/n.delivered)*100)+'%'));
+    }
+    if(n.failed) chips.push('<span style="font-size:11px;color:var(--danger)" class="num">'+n.failed+' failed</span>');
+    // NT-3: a scheduled push that has not gone out yet.
+    var schedChip='';
+    if(n.scheduledFor&&!n.dispatched){
+      schedChip='<span class="bdg bg-warning plain sm">⏱ '+esc(n.scheduledFor.toLocaleString('en-JM',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}))+'</span>';
+    }
+    // NT-4: the tap destination.
+    var destChip=n.destType?'<span class="bdg bg-neutral plain sm">→ '+esc(n.destType)+(n.destValue?': '+esc(n.destValue):'')+'</span>':'';
     return '<div class="nh-item"><div class="nh-ico">'+icon('notifications')+'</div>'+
       '<div style="min-width:0">'+
         '<div class="nh-title">'+esc(n.title)+'</div>'+
         '<div class="nh-meta">'+esc(n.msg)+'</div>'+
         '<div style="display:flex;gap:8px;align-items:center;margin-top:7px;flex-wrap:wrap">'+
           '<span class="bdg bg-info plain">'+esc(n.target)+'</span>'+
-          '<span style="font-size:11px;color:var(--text-mute)" class="num">'+esc(n.time)+'</span>'+
-          delivered+
+          schedChip+destChip+
+          stat(esc(n.time))+
+          (n.sentBy?stat('by '+esc(n.sentBy)):'')+
+          chips.join('')+
         '</div>'+
       '</div></div>';
   }).join('');
@@ -2783,45 +3414,123 @@ function renderNotifHist(){
 /* Writing this document triggers the onNotificationCreated function, which sends
    a REAL FCM push to every device in the target audience (functions/notifications.ts).
    It is not a log. The confirm below exists because there is no undo on a push. */
-var NOTIF_AUDIENCE={customers:'all customers',drivers:'all drivers',all:'everyone (customers and drivers)'};
-function sendNotif(){
+var NOTIF_AUDIENCE={
+  all:'everyone (customers and drivers)',customers:'all customers',drivers:'all drivers',
+  ordered:'customers who have ordered',never_ordered:'customers who never ordered',
+  inactive:'inactive customers'
+};
+function notifAudienceLabel(target){
+  if(NOTIF_AUDIENCE[target]) return NOTIF_AUDIENCE[target];
+  if(target&&target.indexOf('tag:')===0) return tagLabel(target.slice(4))+' customers';
+  return target;
+}
+/* NT-2: the customer-segment options come from the CU-4 tag catalogue, so the
+   two lists cannot drift. */
+function fillNotifTagOptions(){
+  var g=$('n-target-tags'); if(!g||g.children.length) return;
+  g.innerHTML=CUSTOMER_TAGS.map(function(t){
+    return '<option value="tag:'+esc(t.slug)+'">'+esc(t.label)+' customers</option>';
+  }).join('');
+}
+/* NT-4: reveal the right value control for the chosen destination. */
+function syncNotifDest(){
+  var dest=($('n-dest')||{}).value||'';
+  var row=$('n-dest-value-row'); if(!row) return;
+  row.hidden=!dest||dest==='';
+  var isScreen=dest==='screen';
+  $('n-dest-value').hidden=isScreen;
+  $('n-dest-screen').hidden=!isScreen;
+  var lbl=$('n-dest-value-label');
+  if(dest==='search'){ lbl.textContent='Search term'; $('n-dest-value').placeholder='grocery'; }
+  else if(dest==='url'){ lbl.textContent='Web address'; $('n-dest-value').placeholder='https://…'; }
+  else if(isScreen){ lbl.textContent='Screen'; }
+}
+/* NT-3: the Schedule button appears once a date is picked; Send is disabled
+   then, so the two are never ambiguous. */
+function syncNotifSchedule(){
+  var when=($('n-schedule')||{}).value||'';
+  var sched=$('notif-schedule-btn'), send=$('notif-send-btn');
+  if(sched) sched.hidden=!when;
+  if(send) send.disabled=!!when;
+}
+function notifDestFields(){
+  var dest=($('n-dest')||{}).value||'';
+  if(!dest) return {};
+  var val=dest==='screen'?($('n-dest-screen')||{}).value:($('n-dest-value')||{}).value;
+  val=(val||'').trim();
+  if(!val) return {};
+  return {destType:dest,destValue:val};
+}
+function sendNotif(scheduled){
   var title=$('n-title').value.trim();
   var msg=$('n-msg').value.trim();
   var target=$('n-target').value;
   if(!title||!msg){ toast('warning','Enter both a title and a message.'); return; }
-  var audience=NOTIF_AUDIENCE[target]||target;
+  var audience=notifAudienceLabel(target);
+  var dest=notifDestFields();
+
+  var whenRaw=($('n-schedule')||{}).value||'';
+  var scheduledFor=null;
+  if(scheduled){
+    if(!whenRaw){ toast('warning','Pick a date and time to schedule for.'); $('n-schedule').focus(); return; }
+    var sd=new Date(whenRaw);
+    if(isNaN(sd.getTime())||sd.getTime()<=Date.now()){ toast('warning','Choose a time in the future.'); $('n-schedule').focus(); return; }
+    scheduledFor=Timestamp.fromDate(sd);
+  }
+
   confirmDialog({
     tone:'warning',
-    title:'Send this push?',
-    body:'This sends a real push notification to '+audience+'. It cannot be recalled once sent.',
-    confirmLabel:'Send Notification'
+    title:scheduled?'Schedule this push?':'Send this push?',
+    body:(scheduled
+      ? 'This will send to '+audience+' at '+new Date(whenRaw).toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'})+'.'
+      : 'This sends a real push notification to '+audience+'. It cannot be recalled once sent.')+
+      (dest.destType?' Tapping it opens: '+dest.destType+' → '+dest.destValue+'.':''),
+    confirmLabel:scheduled?'Schedule it':'Send Notification'
   }).then(function(ok){
     if(!ok) return;
-    var btn=$('notif-send-btn');
-    btn.disabled=true; btn.innerHTML='<span class="spin"></span>Sending…';
-    addDoc(collection(db,'notifications'),{
+    var btnId=scheduled?'notif-schedule-btn':'notif-send-btn';
+    var btn=$(btnId), orig=btn.innerHTML;
+    btn.disabled=true; btn.innerHTML='<span class="spin"></span>'+(scheduled?'Scheduling…':'Sending…');
+    var payload={
       title:title,message:msg,target:target,
       sentBy:auth.currentUser?auth.currentUser.email:'admin',
       createdAt:serverTimestamp()
-    }).then(function(){
-      $('n-title').value=''; $('n-msg').value='';
+    };
+    if(dest.destType){ payload.destType=dest.destType; payload.destValue=dest.destValue; }
+    if(scheduledFor) payload.scheduledFor=scheduledFor;
+    addDoc(collection(db,'notifications'),payload).then(function(){
+      ['n-title','n-msg','n-schedule','n-dest-value'].forEach(function(f){ var el=$(f); if(el) el.value=''; });
+      $('n-dest').value=''; syncNotifDest(); syncNotifSchedule();
       updPhonePreview();
-      btn.disabled=false; btn.innerHTML=icon('send')+'Send Notification';
-      toast('success','Push sent to '+audience+'.','Sent');
+      btn.disabled=false; btn.innerHTML=orig;
+      toast('success',scheduled?'Scheduled for '+audience+'.':'Push sent to '+audience+'.',scheduled?'Scheduled':'Sent');
     }).catch(function(e){
-      toast('error',e.message,'Could not send notification');
-      btn.disabled=false; btn.innerHTML=icon('send')+'Send Notification';
+      toast('error',e.message,scheduled?'Could not schedule':'Could not send notification');
+      btn.disabled=false; btn.innerHTML=orig;
     });
   });
 }
 
 // ══════════════════════ PROMO CODES ══════════════════════
+/* "2026-08-18" -> "August 18, 2026" for the live preview (checklist PR-8).
+   Parsed as a local date, not UTC, so the day never slips by a timezone. */
+function fmtDateLong(iso){
+  if(!iso) return '';
+  var p=String(iso).split('-');
+  if(p.length!==3) return iso;
+  var d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));
+  if(isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-JM',{year:'numeric',month:'long',day:'numeric'});
+}
 function updPromoPreview(){
   var code=($('pc-code').value||'PROMO').toUpperCase();
   var disc=$('pc-disc').value, type=$('pc-type').value, valid=$('pc-valid').value;
+  var maxDisc=$('pc-maxdisc').value;
   $('pcp-code').textContent=code;
-  $('pcp-disc').textContent=disc?(type==='percent'?disc+'% Off':money(disc)+' Off'):'Discount';
-  $('pcp-valid').textContent=valid?('Valid until '+valid):'Never expires';
+  $('pcp-disc').textContent=disc?(type==='percent'?disc+'% OFF':money(disc)+' OFF'):'—';
+  // PR-9: surface the max-discount cap the form already captures.
+  $('pcp-max').textContent=(disc&&type==='percent'&&maxDisc)?('Up to '+money(maxDisc)):'';
+  $('pcp-valid').textContent=valid?('Valid until '+fmtDateLong(valid)):'Never expires';
 }
 /* Live usage against the cap (P3-03). `usedCount` was never incremented before
    redemption moved server-side, so this column read 0 forever. */
@@ -2837,21 +3546,115 @@ function renderPromos(){
   var tbody=$('promos-tbody'); if(!tbody) return;
   if(!loadedOnce.promos){ tbody.innerHTML=skeletonRows(7,4); return; }
   if(!promoCodes.length){
-    tbody.innerHTML=emptyRow(7,'ticket','No promo codes yet','Create one on the left — it becomes redeemable at checkout immediately.');
+    tbody.innerHTML=emptyRow(7,'ticket','No promo codes yet','Create a promo code on the left to make it available at checkout.');
     return;
   }
   tbody.innerHTML=promoCodes.map(function(p){
+    // PR-10: Edit · Pause/Resume · Duplicate · End · Usage · Delete. A code that
+    // has ended can only be duplicated or deleted — everything else is moot.
+    var a=[];
+    if(!p.ended){
+      a.push(pa('edit-promo',p.id,'Edit'));
+      a.push(p.paused?pa('resume-promo',p.id,'Resume'):pa('pause-promo',p.id,'Pause'));
+    }
+    a.push(pa('dup-promo',p.id,'Duplicate'));
+    if(!p.ended) a.push(pa('end-promo',p.id,'End'));
+    a.push(pa('usage-promo',p.id,'Usage'));
+    a.push(pa('del-promo',p.id,'Delete','pa-del'));
+    // PR-5: a small line under the code naming what it's restricted to, if
+    // anything — so "why didn't this apply?" has an answer right in the table.
+    var eligNote=PromoEligibility.describeEligibility(p.eligibility);
     return '<tr>'+
-      '<td><b class="cell-id" style="letter-spacing:1.2px">'+esc(p.code)+'</b></td>'+
+      '<td><b class="cell-id" style="letter-spacing:1.2px">'+esc(p.code)+'</b>'+
+        (eligNote?'<div class="cell-mute" style="font-size:10.5px;font-weight:500;margin-top:2px">'+esc(eligNote)+'</div>':'')+
+      '</td>'+
       '<td class="cell-strong">'+esc(p.discount)+'</td>'+
       '<td class="right num">'+usageBar(p.usedCount,p.maxUses)+'</td>'+
       '<td class="right num">'+(p.maxUses||'∞')+'</td>'+
       '<td class="cell-mute num">'+esc(p.expiresAt?p.expiresAt.toLocaleDateString('en-JM',{year:'numeric',month:'short',day:'numeric'}):'Never')+'</td>'+
       '<td>'+badge(p.status)+'</td>'+
-      '<td><button class="aicon ai-d" data-action="del-promo" data-id="'+esc(p.id)+'" title="Delete" aria-label="Delete promo code">'+icon('delete')+'</button></td>'+
+      '<td><div class="promo-acts">'+a.join('')+'</div></td>'+
     '</tr>';
   }).join('');
 }
+/* One small text button in the promo actions cell. */
+function pa(action,id,label,cls){
+  return '<button class="pa-btn'+(cls?' '+cls:'')+'" data-action="'+action+'" data-id="'+esc(id)+'">'+esc(label)+'</button>';
+}
+// ── PR-5: eligibility form helpers ──────────────────────────────────────
+/* The merchant/customer pickers are rebuilt from whatever `merchants` /
+   `customers` already hold in memory — both are live-synced elsewhere, so
+   this just needs calling again whenever either list changes or the promo
+   page is opened. Selections already made survive a rebuild by id. */
+function populateEligPickers(){
+  var mSel=$('pc-elig-merchants'), cSel=$('pc-elig-customers');
+  if(mSel){
+    var mPrev=selVals(mSel);
+    var cats={};
+    merchants.forEach(function(m){ if(m.category) cats[m.category]=true; });
+    mSel.innerHTML=merchants.slice().sort(function(a,b){ return a.name.localeCompare(b.name); })
+      .map(function(m){ return '<option value="'+esc(m.id)+'"'+(mPrev.indexOf(m.id)>-1?' selected':'')+'>'+esc(m.name)+'</option>'; }).join('');
+    var catSel=$('pc-elig-categories');
+    if(catSel){
+      var catPrev=selVals(catSel);
+      catSel.innerHTML=Object.keys(cats).sort().map(function(c){
+        return '<option value="'+esc(c)+'"'+(catPrev.indexOf(c)>-1?' selected':'')+'>'+esc(c)+'</option>';
+      }).join('');
+    }
+  }
+  if(cSel){
+    var cPrev=selVals(cSel);
+    cSel.innerHTML=customers.slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); })
+      .map(function(c){
+        var label=c.name+(c.phone&&c.phone!=='—'?' · '+c.phone:'');
+        return '<option value="'+esc(c.id)+'"'+(cPrev.indexOf(c.id)>-1?' selected':'')+'>'+esc(label)+'</option>';
+      }).join('');
+  }
+}
+function selVals(sel){ return Array.prototype.slice.call(sel.selectedOptions||[]).map(function(o){ return o.value; }); }
+/* Toggles the "Selected customers" picker's visibility to match the scope
+   dropdown — kept hidden (and its selections irrelevant) for every other
+   scope, same rule PromoEligibility.buildEligibility applies when reading it. */
+function syncEligScope(){
+  var wrap=$('pc-elig-customers-wrap');
+  if(wrap) wrap.hidden=$('pc-elig-scope').value!=='selected';
+}
+function readEligForm(){
+  return {
+    customerScope:$('pc-elig-scope').value||'',
+    customerIds:selVals($('pc-elig-customers')),
+    merchantIds:selVals($('pc-elig-merchants')),
+    categories:selVals($('pc-elig-categories')),
+    deliveryAreas:PromoEligibility.parseAreas($('pc-elig-areas').value),
+    firstOrderOnly:$('pc-elig-first').checked,
+    discountBase:$('pc-elig-base').value||'subtotal',
+    orderKinds:['food','package','shop_deliver'].filter(function(k){
+      return $('pc-elig-kind-'+(k==='shop_deliver'?'shop':k)).checked;
+    })
+  };
+}
+function fillEligForm(elig){
+  elig=elig||{};
+  $('pc-elig-scope').value=elig.customerScope||'';
+  $('pc-elig-base').value=elig.discountBase==='deliveryFee'?'deliveryFee':'subtotal';
+  $('pc-elig-areas').value=(elig.deliveryAreas||[]).join(', ');
+  $('pc-elig-first').checked=!!elig.firstOrderOnly;
+  var kinds=elig.orderKinds&&elig.orderKinds.length?elig.orderKinds:['food','package','shop_deliver'];
+  $('pc-elig-kind-food').checked=kinds.indexOf('food')>-1;
+  $('pc-elig-kind-package').checked=kinds.indexOf('package')>-1;
+  $('pc-elig-kind-shop').checked=kinds.indexOf('shop_deliver')>-1;
+  populateEligPickers();
+  selectOptionsById($('pc-elig-merchants'),elig.merchantIds||[]);
+  selectOptionsById($('pc-elig-categories'),elig.categories||[]);
+  selectOptionsById($('pc-elig-customers'),elig.customerIds||[]);
+  syncEligScope();
+}
+function selectOptionsById(sel,ids){
+  if(!sel) return;
+  Array.prototype.forEach.call(sel.options,function(o){ o.selected=ids.indexOf(o.value)>-1; });
+}
+function resetEligForm(){ fillEligForm(null); }
+
 function createPromo(){
   var code=$('pc-code').value.trim().toUpperCase();
   var discAmt=parseFloat($('pc-disc').value.trim())||0;
@@ -2886,22 +3689,51 @@ function createPromo(){
     if(!isNaN(d.getTime())) expiresAt=Timestamp.fromDate(d);
   }
 
-  var btn=$('promo-create-btn');
-  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Creating…';
-  setDoc(doc(db,'promoCodes',code),{
+  // PR-6: an optional scheduled start. `datetime-local` gives a local
+  // "YYYY-MM-DDTHH:mm" string; `new Date` reads it in the admin's own zone.
+  var startRaw=$('pc-start').value||'';
+  var startsAt=null;
+  if(startRaw){
+    var sd=new Date(startRaw);
+    if(!isNaN(sd.getTime())) startsAt=Timestamp.fromDate(sd);
+  }
+  if(startsAt&&expiresAt&&startsAt.toMillis()>=expiresAt.toMillis()){
+    toast('warning','The start date must be before the end date.');
+    $('pc-start').focus(); return;
+  }
+
+  var editing=!!promoEditId;
+  // PR-10: editing overwrites the same document (its id is the code). Usage and
+  // the original creation time are carried over from the loaded row, not reset.
+  var existing=editing?promoCodes.find(function(x){ return x.id===promoEditId; }):null;
+  var fields={
     code:code,discountType:discType,discountAmount:Math.round(discAmt),
     minOrderTotal:minOrderTotal,maxDiscount:maxDiscount,
-    maxUses:maxUses,usedCount:0,expiresAt:expiresAt,
-    active:true,createdAt:serverTimestamp()
-  }).then(function(){
-    ['pc-code','pc-disc','pc-max','pc-valid','pc-min','pc-maxdisc'].forEach(function(i){ $(i).value=''; });
-    $('pc-type').value='percent';
-    updPromoPreview();
-    btn.disabled=false; btn.innerHTML=icon('plus')+'Create Promo Code';
-    toast('success','Promo code '+code+' is live.');
+    maxUses:maxUses,startsAt:startsAt,expiresAt:expiresAt,active:true
+  };
+  fields.usedCount=editing&&existing?existing.usedCount:0;
+  fields.createdAt=serverTimestamp();
+  // PR-5. Written as `null`, not omitted, so editing an already-restricted
+  // code back down to "everyone" actually clears the old rules rather than
+  // leaving them stranded under merge:true.
+  fields.eligibility=PromoEligibility.buildEligibility(readEligForm());
+
+  var btn=$('promo-create-btn');
+  var restore=editing?icon('edit')+'Save changes':icon('plus')+'Create Promo Code';
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>'+(editing?'Saving…':'Creating…');
+  setDoc(doc(db,'promoCodes',code),fields,editing?{merge:true}:undefined).then(function(){
+    btn.disabled=false; btn.innerHTML=restore;
+    if(editing){ cancelPromoEdit(); toast('success','“'+code+'” updated.'); }
+    else{
+      ['pc-code','pc-disc','pc-max','pc-start','pc-valid','pc-min','pc-maxdisc'].forEach(function(i){ $(i).value=''; });
+      $('pc-type').value='percent';
+      resetEligForm();
+      updPromoPreview();
+      toast('success','Promo code '+code+' is live.');
+    }
   }).catch(function(e){
-    toast('error',e.message,'Could not create promo code');
-    btn.disabled=false; btn.innerHTML=icon('plus')+'Create Promo Code';
+    toast('error',e.message,editing?'Could not save changes':'Could not create promo code');
+    btn.disabled=false; btn.innerHTML=restore;
   });
 }
 function deletePromo(id){
@@ -2913,6 +3745,104 @@ function deletePromo(id){
         .catch(function(e){ toast('error',e.message,'Delete failed'); });
     });
 }
+
+// ── PR-10: promo actions ────────────────────────────────────────────────
+/* Pause / Resume just flip `active`. The customer-side check reads it, so a
+   paused code stops applying at checkout within a snapshot. */
+function pausePromo(id){
+  updateDoc(doc(db,'promoCodes',id),{active:false})
+    .then(function(){ toast('success','“'+id+'” paused. Resume it any time.'); })
+    .catch(function(e){ toast('error',e.message,'Could not pause'); });
+}
+function resumePromo(id){
+  updateDoc(doc(db,'promoCodes',id),{active:true})
+    .then(function(){ toast('success','“'+id+'” is live again.'); })
+    .catch(function(e){ toast('error',e.message,'Could not resume'); });
+}
+/* End is terminal: a paused code can come back, an ended one cannot (the UI
+   only offers Duplicate / Delete afterwards). `endedAt` is the marker. */
+function endPromo(id){
+  confirmDialog({title:'End “'+id+'”?',
+    body:'It stops working at checkout and cannot be resumed. Duplicate it first if you want to run it again later.',
+    confirmLabel:'End promo'})
+    .then(function(ok){
+      if(!ok) return;
+      updateDoc(doc(db,'promoCodes',id),{active:false,endedAt:serverTimestamp()})
+        .then(function(){ toast('success','“'+id+'” ended.'); })
+        .catch(function(e){ toast('error',e.message,'Could not end promo'); });
+    });
+}
+/* Duplicate clones every rule onto a new code, with usage reset to zero. */
+function duplicatePromo(id){
+  var p=promoCodes.find(function(x){ return x.id===id; }); if(!p) return;
+  $('cf-ico').className='m-ico'; $('cf-ico').innerHTML=icon('plus','ic-lg');
+  $('cf-title').textContent='Duplicate “'+p.code+'”';
+  $('cf-body').innerHTML='Every rule is copied. Give the new code a name.'+
+    '<input id="cf-dupcode" type="text" maxlength="40" placeholder="e.g. '+esc(p.code)+'2" '+
+    'style="width:100%;margin-top:10px;text-transform:uppercase"/>';
+  var ok=$('cf-ok'); ok.textContent='Create copy'; ok.className='btn btn-primary';
+  confirmResolve=function(confirmed){
+    var code=(($('cf-dupcode')||{}).value||'').trim().toUpperCase();
+    $('cf-body').innerHTML='';
+    if(!confirmed) return;
+    if(!code){ toast('warning','Give the new code a name.'); return; }
+    if(promoCodes.some(function(x){ return x.id===code; })){ toast('warning','“'+code+'” already exists.'); return; }
+    setDoc(doc(db,'promoCodes',code),{
+      code:code,discountType:p.discountType,discountAmount:Math.round(p.discountAmount||0),
+      minOrderTotal:p.minOrderTotal||0,maxDiscount:p.maxDiscount,
+      maxUses:p.maxUses||100,usedCount:0,
+      startsAt:p.startsAt?Timestamp.fromDate(p.startsAt):null,
+      expiresAt:p.expiresAt?Timestamp.fromDate(p.expiresAt):null,
+      // PR-5: eligibility rules are part of "every rule" the duplicate copies.
+      eligibility:p.eligibility||null,
+      active:true,createdAt:serverTimestamp()
+    }).then(function(){ toast('success','“'+code+'” created from “'+p.code+'”.'); })
+      .catch(function(e){ toast('error',e.message,'Could not duplicate'); });
+  };
+  openModal('modal-confirm');
+}
+/* View Usage: a read-only summary. PR-11 (revenue, AOV, …) is a separate,
+   bigger piece; this is the redemption count the admin can act on today. */
+function viewPromoUsage(id){
+  var p=promoCodes.find(function(x){ return x.id===id; }); if(!p) return;
+  var cap=p.maxUses?(' of '+p.maxUses):' (no cap)';
+  var pct=p.maxUses?' · '+Math.round((p.usedCount/p.maxUses)*100)+'% used':'';
+  var last=p.lastRedeemedAt?p.lastRedeemedAt.toLocaleString('en-JM',{dateStyle:'medium',timeStyle:'short'}):'never redeemed';
+  toast('info',
+    p.usedCount+' redemption'+(p.usedCount===1?'':'s')+cap+pct+'. Last redeemed: '+last+'.',
+    '“'+p.code+'” usage');
+}
+/* Edit prefills the create form. The doc id IS the code, so saving overwrites
+   the same document; usedCount and createdAt are preserved (see createPromo). */
+function editPromo(id){
+  var p=promoCodes.find(function(x){ return x.id===id; }); if(!p) return;
+  promoEditId=id;
+  $('pc-code').value=p.code; $('pc-code').disabled=true;
+  $('pc-type').value=p.discountType||'percent';
+  $('pc-disc').value=p.discountAmount!=null?p.discountAmount:'';
+  $('pc-max').value=p.maxUses||'';
+  $('pc-min').value=p.minOrderTotal||'';
+  $('pc-maxdisc').value=p.maxDiscount!=null?p.maxDiscount:'';
+  $('pc-valid').value=p.expiresAt?isoDate(p.expiresAt):'';
+  $('pc-start').value=p.startsAt?isoLocal(p.startsAt):'';
+  fillEligForm(p.eligibility);
+  var btn=$('promo-create-btn'); btn.innerHTML=icon('edit')+'Save changes';
+  var cancel=$('promo-cancel-btn'); if(cancel) cancel.hidden=false;
+  updPromoPreview();
+  $('pc-code').scrollIntoView({behavior:reduceMotion()?'auto':'smooth',block:'nearest'});
+}
+function cancelPromoEdit(){
+  promoEditId=null;
+  ['pc-code','pc-disc','pc-max','pc-start','pc-valid','pc-min','pc-maxdisc'].forEach(function(i){ var el=$(i); if(el) el.value=''; });
+  $('pc-code').disabled=false;
+  $('pc-type').value='percent';
+  resetEligForm();
+  var btn=$('promo-create-btn'); btn.innerHTML=icon('plus')+'Create Promo Code';
+  var cancel=$('promo-cancel-btn'); if(cancel) cancel.hidden=true;
+  updPromoPreview();
+}
+function isoDate(dt){ var d=new Date(dt); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function isoLocal(dt){ return isoDate(dt)+'T'+String(new Date(dt).getHours()).padStart(2,'0')+':'+String(new Date(dt).getMinutes()).padStart(2,'0'); }
 
 // ══════════════════════ ANALYTICS ══════════════════════
 function periodStart(p){
@@ -3146,6 +4076,11 @@ document.addEventListener('click',function(e){
 
   if(t.closest('#add-driver-btn')){ openDriverModal('add'); return; }
   if(t.closest('#add-merchant-btn')){ openMerchantModal('add'); return; }
+  if(t.closest('#of-clear')){ clearOrderFilters(); return; }
+  // DB-7 dashboard quick actions.
+  if(t.closest('[data-action="qa-add-merchant"]')){ openMerchantModal('add'); return; }
+  if(t.closest('[data-action="qa-assign-driver"]')){ navTo('orders'); toast('info','Open an order to assign a driver.'); return; }
+  if(t.closest('[data-action="qa-send-notif"]')){ navTo('notifications'); return; }
 
   var pb=t.closest('.pb'); if(pb){ setPeriod(pb.getAttribute('data-period')); return; }
   var mtab=t.closest('[data-mtab]'); if(mtab){ switchMerchantTab(mtab.getAttribute('data-mtab')); return; }
@@ -3162,18 +4097,37 @@ document.addEventListener('click',function(e){
     case 'view-order':      openOrderPanel(oid); break;
     case 'view-customer':   openCustomerPanel(cid); break;
     case 'toggle-customer': toggleCustomerDisabled(cid); break;
+    case 'customer-tags':   editCustomerTags(cid); break;
+    case 'customer-orders': viewCustomerOrders(cid); break;
+    case 'customer-notify': notifyCustomer(cid); break;
     case 'view-inquiry':    openInquiryPanel(iid); break;
     case 'save-inquiry':    saveInquiry(iid); break;
+    case 'save-quote':      saveQuote(iid); break;
+    case 'inq-quote':       quoteInquiry(iid); break;
     case 'save-order':      saveOrderChanges(oid); break;
     case 'view-driver':     openDriverPanel(id); break;
     case 'edit-driver':     openDriverModal('edit',id); break;
     case 'del-driver':      deleteDriver(id); break;
     case 'approve-driver':  approveDriver(id); break;
     case 'reject-driver':   rejectDriver(id); break;
+    case 'driver-pause':    pauseDriver(id); break;
+    case 'driver-suspend':  suspendDriver(id); break;
+    case 'driver-resume':   resumeDriver(id); break;
+    case 'driver-reinstate':reinstateDriver(id); break;
+    case 'driver-assign':   assignFromDriver(id); break;
+    case 'driver-active-delivery': driverActiveDelivery(id); break;
+    case 'driver-review':   reviewDriverDocs(id); break;
     case 'view-merchant':   openMerchantPanel(id); break;
     case 'edit-merchant':   openMerchantModal('edit',id); break;
     case 'del-merchant':    deleteMerchant(id); break;
     case 'del-promo':       deletePromo(id); break;
+    case 'edit-promo':      editPromo(id); break;
+    case 'pause-promo':     pausePromo(id); break;
+    case 'resume-promo':    resumePromo(id); break;
+    case 'dup-promo':       duplicatePromo(id); break;
+    case 'end-promo':       endPromo(id); break;
+    case 'usage-promo':     viewPromoUsage(id); break;
+    case 'cancel-promo-edit': cancelPromoEdit(); break;
     case 'edit-menu-item':  editMenuItemFn(id); break;
     case 'del-menu-item':   deleteMenuItemFn(id); break;
     case 'save-menu-item':  saveMenuItem(); break;
@@ -3186,25 +4140,37 @@ document.addEventListener('click',function(e){
     case 'save-pricing':    savePricing(); break;
     case 'erase-open':      openWipeFlow(); break;
     case 'erase-all':       eraseAllData(); break;
-    case 'send-notif':      sendNotif(); break;
+    case 'send-notif':      sendNotif(false); break;
+    case 'schedule-notif':  sendNotif(true); break;
     case 'create-promo':    createPromo(); break;
   }
 });
 document.addEventListener('change',function(e){
   if(e.target.classList.contains('tgl-driver-online')) toggleDriverOnline(e.target.getAttribute('data-id'));
   if(e.target.classList.contains('tgl-merchant')) toggleMerchant(e.target.getAttribute('data-id'));
+  // OR-3 / OR-4 order filter + sort dropdowns.
+  if(e.target.id&&e.target.id.indexOf('of-')===0) readOrderFilters();
+  // DV: driver roster filter.
+  if(e.target.id==='drv-filter'){ driverFilter=e.target.value; renderDrivers(); }
   if(e.target.id==='pc-type'||e.target.id==='pc-valid') updPromoPreview();
+  if(e.target.id==='pc-elig-scope') syncEligScope();
+  if(e.target.id==='n-dest') syncNotifDest();
   // The note under the Status dropdown says what the chosen value does to the
   // driver's app, so it has to follow the dropdown.
   if(e.target.id==='d-status') syncDriverStatusNote();
 });
 document.addEventListener('input',function(e){
   if(e.target.id==='orders-search') renderOrders();
+  if(e.target.id==='dash-search') renderDashboard();
+  if(e.target.id==='of-area') readOrderFilters();
+  if(e.target.id==='drv-search'){ driverSearch=e.target.value.trim().toLowerCase(); renderDrivers(); }
+  if(['q-items','q-service','q-delivery'].indexOf(e.target.id)>-1) syncQuoteTotal();
   if(e.target.id==='customers-search'){ customerSearch=e.target.value.trim(); renderCustomers(); }
   if(e.target.id==='overseas-search'){ overseasSearch=e.target.value.trim(); renderOverseas(); }
   if(['pr-bands','pr-overage','pr-packing'].indexOf(e.target.id)>-1) renderPricingPreview();
   if(e.target.id==='wipe-phrase'){ var g=$('wipe-go'); if(g) g.disabled=e.target.value.trim()!==WIPE_PHRASE; }
   if(e.target.id==='n-title'||e.target.id==='n-msg') updPhonePreview();
+  if(e.target.id==='n-schedule') syncNotifSchedule();
   // (image URL paste removed — both photo fields are upload-only hidden inputs
   //  the dropzone writes to; nothing to sync on user input any more.)
   if(e.target.id==='m-emoji') syncEmojiSelection();
@@ -3212,7 +4178,7 @@ document.addEventListener('input',function(e){
   // directly in the number fields just refreshes the "location set" hint.
   if(e.target.id==='m-location') applyLocationPaste();
   if(e.target.id==='m-lat'||e.target.id==='m-lng') syncLocationHint();
-  if(['pc-code','pc-disc','pc-valid','pc-min','pc-maxdisc'].indexOf(e.target.id)>-1) updPromoPreview();
+  if(['pc-code','pc-disc','pc-valid','pc-start','pc-min','pc-maxdisc'].indexOf(e.target.id)>-1) updPromoPreview();
 });
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&(e.target.id==='l-email'||e.target.id==='l-pass')){ doLogin(); return; }
@@ -3267,10 +4233,10 @@ window.addEventListener('resize',function(){
    visible. */
 var MOBILE_PRIMARY={
   'orders-tbody':    [0,1,4,6],  // Order ID · Customer · Total · Status
-  'dash-tbody':      [0,1,4,5],  // Order ID · Customer · Amount · Status
-  'drivers-tbody':   [0,1,6],    // Name · Phone · Status
+  'dash-tbody':      [0,1,5,6],  // Order ID · Customer · Amount · Status
+  // drivers-tbody removed — the Drivers roster is a card grid now (DV-1…DV-8).
   'merchants-tbody': [0,1,6],    // Merchant · Category · Status
-  'customers-tbody': [0,1,5],    // Name · Email · Status
+  'customers-tbody': [0,1,7],    // Name · Email · Status
   'overseas-tbody':  [0,1,6],    // Ref · Customer · Status
   'promos-tbody':    [0,1,5]     // Code · Discount · Status
 };
@@ -3348,6 +4314,7 @@ function initApp(){
   renderDashboard(); renderOrders(); renderDrivers(); renderMerchants();
   renderPromos(); renderNotifHist(); renderAnalytics(); renderOverseas();
   updPromoPreview(); updPhonePreview(); renderEmojiPicker();
+  fillNotifTagOptions(); syncNotifDest(); syncNotifSchedule();
   renderActivity();
   setupTableLabels();
   startListeners();

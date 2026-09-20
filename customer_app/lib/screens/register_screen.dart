@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/notification_service.dart';
+import '../utils/phone.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
@@ -46,7 +47,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleRegister() async {
     final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
+    // DR-25: store the number in the one app-wide format.
+    final phone = SePhone.format(_phoneController.text);
     final email = _emailController.text.trim();
     final pass = _passwordController.text.trim();
 
@@ -168,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               SeTextField(
                 controller: _phoneController,
                 label: 'PHONE NUMBER',
-                hint: '+1 876 000 0000',
+                hint: '1-876-000-0000',
                 icon: SeIcons.phone,
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,

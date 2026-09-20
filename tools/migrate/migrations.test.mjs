@@ -1,7 +1,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ALL, DELETE, orders, merchants, promoCodes, drivers, parseMoney, parseDate
+  ALL, DELETE, orders, merchants, promoCodes, drivers, overseasInquiries,
+  parseMoney, parseDate
 } from './migrations.mjs';
 
 /* Migration logic (P2-05).
@@ -63,7 +64,8 @@ describe('idempotence — every migration must settle in one pass', () => {
           expiresAt: new Date('2026-08-01'), discountAmount: 20, discountType: 'percent',
           minOrderTotal: 0, maxDiscount: 500, maxUses: 100, usedCount: 0
         },
-        drivers: { licencePlate: 'ABC123', averageRating: 4.8, vehicleModel: 'Toyota Corolla' }
+        drivers: { licencePlate: 'ABC123', averageRating: 4.8, vehicleModel: 'Toyota Corolla' },
+        overseasInquiries: { status: 'reviewing' }
       }[migration.collection];
       assert.equal(migration.migrate(canonical), null,
         `${migration.collection} rewrites an already-correct document`);
@@ -266,6 +268,26 @@ describe('drivers', () => {
     // No updates at all — the migration returns null rather than an empty
     // object, which is what stops the runner writing a no-op batch.
     assert.equal(r, null);
+  });
+});
+
+describe('overseasInquiries (SD-4)', () => {
+  test('the pre-SD-4 slugs map onto the new pipeline', () => {
+    assert.equal(overseasInquiries.migrate({ status: 'contacted' }).status, 'reviewing');
+    assert.equal(overseasInquiries.migrate({ status: 'quoted' }).status, 'quote_sent');
+    assert.equal(overseasInquiries.migrate({ status: 'closed' }).status, 'completed');
+  });
+
+  test('a request already on the new vocabulary is left alone', () => {
+    assert.equal(overseasInquiries.migrate({ status: 'shopping' }), null);
+    assert.equal(overseasInquiries.migrate({ status: 'new' }), null);
+    assert.equal(overseasInquiries.migrate({ status: 'declined' }), null);
+  });
+
+  test('a missing document body does not throw', () => {
+    assert.equal(overseasInquiries.migrate(null), null);
+    assert.equal(overseasInquiries.migrate(undefined), null);
+    assert.equal(overseasInquiries.migrate({}), null);
   });
 });
 

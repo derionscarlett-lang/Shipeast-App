@@ -105,6 +105,20 @@ void main() {
       expect(PromoCodes.evaluate(promo(), 1500, now).isValid, isTrue);
     });
 
+    test('a code with a future start date is not redeemable yet (PR-6)', () {
+      final r = PromoCodes.evaluate(
+          promo({'startsAt': now.add(day)}), 1500, now);
+      expect(r.reason, PromoRejection.notYetStarted);
+      expect(r.discount, 0);
+    });
+
+    test('a code whose start has passed works', () {
+      expect(
+          PromoCodes.evaluate(promo({'startsAt': now.subtract(day)}), 1500, now)
+              .isValid,
+          isTrue);
+    });
+
     test('an exhausted code is rejected', () {
       final r = PromoCodes.evaluate(
           promo({'maxUses': 5, 'usedCount': 5}), 1500, now);
@@ -141,6 +155,42 @@ void main() {
       final r =
           PromoCodes.evaluate(promo({'discountType': 'percentage'}), 1500, now);
       expect(r.reason, PromoRejection.malformed);
+    });
+
+    test('PR-5: a delivery-fee-only code discounts the delivery fee, not the subtotal', () {
+      // 20% off a J$300 delivery fee, on a J$5,000 order — the discount must
+      // be J$60, not J$1,000.
+      final r = PromoCodes.evaluate(
+        promo({'discountType': 'percent', 'discountAmount': 20, 'maxDiscount': 10000}),
+        5000,
+        now,
+        300,
+      );
+      expect(r.isValid, isTrue);
+      expect(r.discount, 60);
+    });
+
+    test('PR-5: the minimum-order check still runs against the real subtotal', () {
+      // Even though the discount comes off the delivery fee, "spend at least
+      // J$2,000" means the order total, not the fee.
+      final r = PromoCodes.evaluate(
+        promo({'minOrderTotal': 2000}),
+        1500,
+        now,
+        300,
+      );
+      expect(r.reason, PromoRejection.belowMinimum);
+    });
+
+    test('PR-5: a delivery-fee discount cannot exceed the delivery fee itself', () {
+      final r = PromoCodes.evaluate(
+        promo({'discountType': 'fixed', 'discountAmount': 9999}),
+        5000,
+        now,
+        300,
+      );
+      expect(r.isValid, isTrue);
+      expect(r.discount, 300);
     });
 
     test('every rejection carries a zero discount and a readable message', () {

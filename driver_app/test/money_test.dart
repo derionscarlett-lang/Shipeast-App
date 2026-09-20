@@ -35,15 +35,55 @@ void main() {
 
   group('Money.format', () {
     test('prefixes the currency symbol', () {
-      expect(Money.format(250), r'$250');
-      expect(Money.format(1234567), r'$1,234,567');
+      expect(Money.format(250), r'J$250');
+      expect(Money.format(1234567), r'J$1,234,567');
     });
 
-    test('carries no currency prefix beyond the symbol', () {
-      // The 'J$' prefix was removed deliberately. Pinning its absence in both
-      // apps means a revert in either one fails here rather than shipping.
-      expect(Money.format(250).startsWith(r'J$'), isFalse);
-      expect(Money.symbol, r'$');
+    test('uses the J\$ prefix, spelled out for Jamaican dollars', () {
+      // Client request (checklist DR-13 / DB-1): every money value reads "J$".
+      // Pinned in both Flutter apps and the admin panel so a revert to a bare
+      // "$" in any one of them fails here rather than shipping.
+      expect(Money.format(250).startsWith(r'J$'), isTrue);
+      expect(Money.symbol, r'J$');
+    });
+  });
+
+  // DR-25: one Jamaican phone format everywhere. Mirrored in
+  // customer_app/test/utils/phone_test.dart — keep the two in step.
+  group('SePhone.format', () {
+    test('formats a 10-digit local number as 1-876-000-0000', () {
+      expect(SePhone.format('8765551234'), '1-876-555-1234');
+      expect(SePhone.format('876 555 1234'), '1-876-555-1234');
+      expect(SePhone.format('(876) 555-1234'), '1-876-555-1234');
+    });
+
+    test('drops a leading country code before formatting', () {
+      expect(SePhone.format('18765551234'), '1-876-555-1234');
+      expect(SePhone.format('+1 876 555 1234'), '1-876-555-1234');
+    });
+
+    test('assumes 876 for a bare 7-digit number', () {
+      expect(SePhone.format('5551234'), '1-876-555-1234');
+    });
+
+    test('leaves an unrecognisable number as typed rather than mangling it', () {
+      expect(SePhone.format('+44 20 7946 0958'), '+44 20 7946 0958');
+      expect(SePhone.format('call me'), 'call me');
+      expect(SePhone.format(''), '');
+      expect(SePhone.format(null), '');
+    });
+  });
+
+  group('SePhone.dial', () {
+    test('produces an E.164 tel: target', () {
+      expect(SePhone.dial('876-555-1234'), '+18765551234');
+      expect(SePhone.dial('5551234'), '+18765551234');
+      expect(SePhone.dial('1-876-555-1234'), '+18765551234');
+    });
+
+    test('empty in, empty out', () {
+      expect(SePhone.dial(''), '');
+      expect(SePhone.dial(null), '');
     });
   });
 }

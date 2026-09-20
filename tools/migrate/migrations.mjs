@@ -250,4 +250,26 @@ export const drivers = {
   }
 };
 
-export const ALL = [orders, merchants, promoCodes, drivers];
+// ── overseasInquiries ──────────────────────────────────────────────────────
+
+export const overseasInquiries = {
+  collection: 'overseasInquiries',
+  describe: 'SD-4: 5-state vocabulary → the 9-stage pipeline + 3 outcomes.',
+
+  migrate(data) {
+    if (!data) return null;
+    // The pre-SD-4 slugs map onto the nearest new state. `closed` was the
+    // catch-all end; it becomes `completed` (SD-1 folds declined/cancelled/
+    // expired into the "Closed" bucket, but a document that only says `closed`
+    // most likely means it was fulfilled — a decline was written as `declined`).
+    const map = {
+      contacted: 'reviewing',
+      quoted: 'quote_sent',
+      closed: 'completed',
+    };
+    const next = map[data.status];
+    return next ? { status: next } : null;
+  },
+};
+
+export const ALL = [orders, merchants, promoCodes, drivers, overseasInquiries];

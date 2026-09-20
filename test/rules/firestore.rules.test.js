@@ -97,7 +97,9 @@ describe('drivers — self-approval is the hole this closes', () => {
     await seed(`drivers/${DRIVER}`, { name: 'D', status: 'approved', totalTrips: 0 });
     await assertSucceeds(
       updateDoc(doc(asDriver(), `drivers/${DRIVER}`), {
-        name: 'New Name', phone: '876-555-0000', isOnline: true
+        name: 'New Name', phone: '876-555-0000', isOnline: true,
+        // onlineSince rides along on the presence toggle (SCHEMA.md §drivers).
+        onlineSince: new Date()
       })
     );
   });
@@ -542,6 +544,24 @@ describe('users — profile and address isolation', () => {
     );
   });
 
+  test('CU-4: an admin CAN set segment tags; a customer cannot tag themselves', async () => {
+    await seed(`users/${CUSTOMER}`, { name: 'C', email: 'c@x.com' });
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), `users/${CUSTOMER}`), {
+        tags: ['vip', 'diaspora'],
+        tagsUpdatedAt: new Date(),
+        tagsUpdatedBy: ADMIN
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asCustomer(), `users/${CUSTOMER}`), { tags: ['vip'] })
+    );
+    // Still can't smuggle a profile edit alongside the tags.
+    await assertFails(
+      updateDoc(doc(asAdmin(), `users/${CUSTOMER}`), { tags: ['vip'], email: 'x@y.com' })
+    );
+  });
+
   test('an admin CAN read a customer profile (Customers page)', async () => {
     await seed(`users/${CUSTOMER}`, { name: 'C', email: 'c@x.com' });
     await assertSucceeds(getDoc(doc(asAdmin(), `users/${CUSTOMER}`)));
@@ -863,7 +883,7 @@ describe('Phase 5 — order types, cancellation and overseas enquiries', () => {
     // enters the queue it exists to enter.
     await assertFails(
       addDoc(collection(asCustomer(), 'overseasInquiries'),
-        inquiry({ status: 'closed' }))
+        inquiry({ status: 'completed' }))
     );
     await assertFails(
       addDoc(collection(asCustomer(), 'overseasInquiries'),
@@ -893,14 +913,33 @@ describe('Phase 5 — order types, cancellation and overseas enquiries', () => {
 
   test('an admin CAN work the enquiry through its statuses', async () => {
     await seed('overseasInquiries/i2', inquiry());
+    // SD-4 vocabulary: New → Reviewing → Quote Sent → … → Completed.
     await assertSucceeds(
       updateDoc(doc(asAdmin(), 'overseasInquiries/i2'), {
-        status: 'contacted',
+        status: 'reviewing',
         adminNote: 'Called, quoting for a 5kg box',
         handledBy: ADMIN,
         handledAt: new Date(),
         updatedAt: new Date()
       })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), 'overseasInquiries/i2'), {
+        status: 'out_for_delivery',
+        updatedAt: new Date()
+      })
+    );
+    // SD-7: the quote sub-fields are additive and admin-only.
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), 'overseasInquiries/i2'), {
+        quoteItemsCost: 8000, quoteServiceFee: 1500, quoteDeliveryFee: 900,
+        quoteTotal: 10400, quotePaymentStatus: 'pending',
+        quotedBy: ADMIN, quotedAt: new Date(), updatedAt: new Date()
+      })
+    );
+    // A customer still cannot touch them.
+    await assertFails(
+      updateDoc(doc(asCustomer(), 'overseasInquiries/i2'), { quoteTotal: 0 })
     );
   });
 
@@ -910,7 +949,7 @@ describe('Phase 5 — order types, cancellation and overseas enquiries', () => {
     await seed('overseasInquiries/i3', inquiry());
     await assertFails(
       updateDoc(doc(asAdmin(), 'overseasInquiries/i3'), {
-        status: 'quoted',
+        status: 'quote_sent',
         itemDescription: 'one envelope'
       })
     );
@@ -933,7 +972,7 @@ describe('Phase 5 — order types, cancellation and overseas enquiries', () => {
     // could set it themselves.
     await seed('overseasInquiries/i5', inquiry());
     await assertFails(
-      updateDoc(doc(asCustomer(), 'overseasInquiries/i5'), { status: 'quoted' })
+      updateDoc(doc(asCustomer(), 'overseasInquiries/i5'), { status: 'quote_sent' })
     );
     await assertFails(
       updateDoc(doc(asCustomer(), 'overseasInquiries/i5'), { adminNote: 'ship it free' })

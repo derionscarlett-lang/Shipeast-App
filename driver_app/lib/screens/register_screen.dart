@@ -1,13 +1,19 @@
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../driver_constants.dart';
+import '../services/driver_firestore_service.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_motion.dart';
 import '../theme/se_spacing.dart';
 import '../theme/se_typography.dart';
 import '../widgets/se_app_bar.dart';
+import '../widgets/se_bottom_sheet.dart';
 import '../widgets/se_button.dart';
+import '../widgets/se_photo_tile.dart';
 import '../widgets/se_text_field.dart';
 import '../widgets/se_toast.dart';
 import 'pending_approval_screen.dart';
@@ -31,6 +37,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _isLoading = false;
   String _selectedVehicle = 'Motorcycle';
+
+  // DV-5: credential photos the admin reviews before approving.
+  File? _licenceDoc;
+  File? _vehicleDoc;
 
   // Per-field inline errors — replaces the old stack of blocking snackbars.
   final Map<String, String?> _errors = {};
@@ -68,6 +78,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  void _pickDoc(String which) {
+    void set(File f) => setState(() {
+          if (which == 'licence') {
+            _licenceDoc = f;
+            _errors['licenceDoc'] = null;
+          } else {
+            _vehicleDoc = f;
+            _errors['vehicleDoc'] = null;
+          }
+        });
+    showSeBottomSheet(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: SeSpacing.gutter,
+          right: SeSpacing.gutter,
+          bottom: MediaQuery.of(ctx).padding.bottom + SeSpacing.x5,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SeSheetHandle(),
+            const SizedBox(height: SeSpacing.x3),
+            Text(
+              which == 'licence'
+                  ? 'Photo of your driver\'s licence'
+                  : 'Photo of your vehicle and plate',
+              style: SeType.h3,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: SeSpacing.x5),
+            SeButton(
+              label: 'Take Photo',
+              icon: SeIcons.camera,
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final x = await ImagePicker().pickImage(
+                    source: ImageSource.camera,
+                    imageQuality: 82,
+                    maxWidth: 1600);
+                if (x != null && mounted) set(File(x.path));
+              },
+            ),
+            const SizedBox(height: SeSpacing.x3),
+            SeButton(
+              label: 'Choose from Gallery',
+              icon: SeIcons.image,
+              variant: SeButtonVariant.ghost,
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final x = await ImagePicker().pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 82,
+                    maxWidth: 1600);
+                if (x != null && mounted) set(File(x.path));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   bool _validate() {
     setState(() {
       _errors['name'] =
@@ -91,6 +165,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _errors['licencePlate'] = _licencePlateController.text.trim().isEmpty
           ? 'Enter your licence plate'
           : null;
+      // DV-5: the admin approves against these, so they are required.
+      _errors['licenceDoc'] =
+          _licenceDoc == null ? 'Add a photo of your driver\'s licence' : null;
+      _errors['vehicleDoc'] =
+          _vehicleDoc == null ? 'Add a photo of your vehicle and plate' : null;
     });
     return _errors.values.every((e) => e == null);
   }
@@ -108,7 +187,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final uid = credential.user!.uid;
       await FirebaseFirestore.instance.collection('drivers').doc(uid).set({
         'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
+        'phone': SePhone.format(_phoneController.text),
         'email': _emailController.text.trim(),
         'vehicleType': _selectedVehicle,
         'vehicleModel': _vehicleModelController.text.trim(),
@@ -126,18 +205,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // shows the driver's name and vehicle — so a licence number there was
       // readable by every customer who had ever placed an order.
       final licence = _licenceNumberController.text.trim();
-      if (licence.isNotEmpty) {
+      // DV-5: credential photos go to the same private subdoc as the licence
+      // number — the parent document is readable by every signed-in user.
+      final docs = <String, String>{};
+      if (_licenceDoc != null) {
+        docs['licence'] = await DriverFirestoreService.uploadDriverDocument(
+            uid, 'licence', _licenceDoc!);
+      }
+      if (_vehicleDoc != null) {
+        docs['vehicle'] = await DriverFirestoreService.uploadDriverDocument(
+            uid, 'vehicle', _vehicleDoc!);
+      }
+      if (licence.isNotEmpty || docs.isNotEmpty) {
         await FirebaseFirestore.instance
             .collection('drivers')
             .doc(uid)
             .collection('private')
             .doc('identity')
             .set({
-          'licenceNumber': licence,
+          if (licence.isNotEmpty) 'licenceNumber': licence,
+          if (docs.isNotEmpty) 'documents': docs,
           'updatedAt': FieldValue.serverTimestamp(),
         });
       }
       if (mounted) {
+        // Client request: confirm the submission explicitly before the driver
+        // lands on the pending-approval screen.
+        SeToast.success(
+          context,
+          'Application submitted successfully. Our team will review your '
+          'information and contact you once a decision is made.',
+        );
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
@@ -197,11 +295,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('New Driver Registration',
+                        Text('Earn while driving with Shipeast',
                             style: SeType.h3.copyWith(color: Colors.white)),
                         const SizedBox(height: SeSpacing.x1),
                         Text(
-                          'Join the ShipEast delivery network',
+                          'Complete deliveries across St. Thomas and Kingston using your own motorcycle or car.',
                           style: SeType.bodyS.copyWith(
                               color: Colors.white.withValues(alpha: 0.82)),
                         ),
@@ -226,7 +324,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             SeTextField(
               controller: _phoneController,
               label: 'Phone Number',
-              hint: '876 000 0000',
+              hint: '1-876-000-0000',
               icon: SeIcons.phone,
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
@@ -347,6 +445,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hint: 'DL-XXXXXXXX',
               icon: SeIcons.badge,
               textInputAction: TextInputAction.done,
+            ),
+
+            // ── DV-5: credential photos the ShipEast team reviews ──────────
+            const SizedBox(height: SeSpacing.x6),
+            Text('Documents', style: SeType.label.copyWith(color: SeColors.ink700)),
+            const SizedBox(height: SeSpacing.x1),
+            Text(
+              'Our team checks these before approving your account.',
+              style: SeType.bodyS.copyWith(color: SeColors.ink500),
+            ),
+            const SizedBox(height: SeSpacing.x3),
+            SePhotoTile(
+              photo: _licenceDoc,
+              onCapture: () => _pickDoc('licence'),
+              emptyLabel: 'Driver\'s licence',
+              emptyHint: _errors['licenceDoc'] ?? 'A clear photo of the front',
+              height: 150,
+              errored: _errors['licenceDoc'] != null,
+            ),
+            const SizedBox(height: SeSpacing.x4),
+            SePhotoTile(
+              photo: _vehicleDoc,
+              onCapture: () => _pickDoc('vehicle'),
+              emptyLabel: 'Vehicle & plate',
+              emptyHint: _errors['vehicleDoc'] ??
+                  'Show the whole vehicle with the plate readable',
+              height: 150,
+              errored: _errors['vehicleDoc'] != null,
             ),
 
             const SizedBox(height: SeSpacing.x6),

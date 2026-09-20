@@ -42,6 +42,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _todayDeliveries = 0;
   Map<String, dynamic>? _activeOrder;
 
+  /// When the current online session began (client request: show "Online since
+  /// 2:45 PM" on the ready card). Null while offline or before the server
+  /// timestamp resolves.
+  DateTime? _onlineSince;
+
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -135,7 +140,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
         final newOnline = data['isOnline'] as bool? ?? false;
         final wasOnline = isOnline;
-        setState(() => isOnline = newOnline);
+        final since = data['onlineSince'];
+        setState(() {
+          isOnline = newOnline;
+          _onlineSince =
+              (newOnline && since is Timestamp) ? since.toDate() : null;
+        });
         if (newOnline && !wasOnline) {
           if (_activeOrder == null) _startListening();
         } else if (!newOnline && wasOnline) {
@@ -197,9 +207,13 @@ class _DashboardScreenState extends State<DashboardScreen>
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: Text(
-          status == 'rejected'
-              ? 'Your account has been deactivated'
-              : 'Your account is under review',
+          status == 'suspended'
+              ? 'Your account has been suspended'
+              : status == 'paused'
+                  ? 'Your account has been paused'
+                  : status == 'rejected'
+                      ? 'Your account has been deactivated'
+                      : 'Your account is under review',
           style: SeType.h3,
         ),
         content: Column(
@@ -207,7 +221,9 @@ class _DashboardScreenState extends State<DashboardScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'You can no longer accept deliveries.',
+              status == 'paused'
+                  ? 'You will not receive new delivery requests until it is reactivated.'
+                  : 'You can no longer accept deliveries.',
               style: SeType.body,
             ),
             const SizedBox(height: SeSpacing.x3),
@@ -308,7 +324,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         });
       },
       onError: (_) {
-        if (mounted) SeToast.error(context, 'Could not load today\'s trips.');
+        if (mounted) SeToast.error(context, 'Could not load today\'s deliveries.');
       },
     );
   }
@@ -589,11 +605,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                   Text('QUICK ACTIONS', style: SeType.eyebrow),
                   const SizedBox(height: SeSpacing.x3),
                   _quickAction(SeIcons.wallet, 'View Earnings',
-                      'Trips, commission and payouts', SeColors.red500,
+                      'Deliveries, earnings & payouts', SeColors.red500,
                       SeColors.red50, () => widget.onTabSwitch(2)),
                   const SizedBox(height: SeSpacing.x3),
                   _quickAction(SeIcons.history, 'Delivery History',
-                      'Every job you have run', SeColors.success,
+                      'View your completed deliveries', SeColors.success,
                       SeColors.successTint, () => widget.onTabSwitch(1)),
                   const SizedBox(height: SeSpacing.x3),
                   _quickAction(SeIcons.user, 'My Profile',
@@ -644,7 +660,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ValueListenableBuilder<String>(
                         valueListenable: widget.driverNameNotifier,
                         builder: (_, name, _) => Text(
-                          name,
+                          // Greeting uses the first name only (client request):
+                          // "Good afternoon Touseef", not the full name.
+                          name.trim().split(RegExp(r'\s+')).first,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: SeType.h2.copyWith(color: Colors.white),
@@ -683,10 +701,10 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('You are offline', style: SeType.title),
+                  Text("You're Offline", style: SeType.title),
                   const SizedBox(height: 2),
                   Text(
-                    'Flip the switch above to start receiving orders.',
+                    'Go online to start receiving delivery requests',
                     style: SeType.bodyS.copyWith(color: SeColors.ink500),
                   ),
                 ],
@@ -695,6 +713,18 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         ),
       );
+
+  /// Local wall-clock time as "2:45 PM" — no `intl` dependency needed for a
+  /// single 12-hour format.
+  static String _formatClock(DateTime dt) {
+    final local = dt.toLocal();
+    final h = local.hour == 0
+        ? 12
+        : (local.hour > 12 ? local.hour - 12 : local.hour);
+    final mm = local.minute.toString().padLeft(2, '0');
+    final ampm = local.hour < 12 ? 'AM' : 'PM';
+    return '$h:$mm $ampm';
+  }
 
   Widget _readyCard() => SeCard(
         key: const ValueKey('ready'),
@@ -722,7 +752,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       Text('Ready for orders', style: SeType.title),
                       const SizedBox(height: 2),
                       Text(
-                        'You are visible to dispatch right now.',
+                        _onlineSince != null
+                            ? 'Online since ${_formatClock(_onlineSince!)}'
+                            : 'You are visible to dispatch right now.',
                         style: SeType.bodyS.copyWith(color: SeColors.ink500),
                       ),
                     ],

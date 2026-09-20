@@ -163,7 +163,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       ),
                       const SizedBox(height: SeSpacing.x5),
 
-                      Text('RECENT TRIPS', style: SeType.eyebrow),
+                      Text('RECENT DELIVERIES', style: SeType.eyebrow),
                       const SizedBox(height: SeSpacing.x3),
                       _recentTrips(periodOrders),
                       const SizedBox(height: SeSpacing.x5),
@@ -205,7 +205,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   children: [
                     Text('Earnings',
                         style: SeType.h2.copyWith(color: Colors.white)),
-                    Text('Your commission, trip by trip',
+                    Text('Your earnings, delivery by delivery',
                         style: SeType.bodyS.copyWith(
                             color: Colors.white.withValues(alpha: 0.82))),
                   ],
@@ -293,7 +293,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         padding: const EdgeInsets.symmetric(vertical: SeSpacing.x5),
         child: SeEmptyState(
           icon: SeIcons.bike,
-          title: 'No trips yet',
+          title: 'No deliveries yet',
           message: 'Deliveries you complete in this period will appear here.',
           padding: const EdgeInsets.symmetric(horizontal: SeSpacing.x5),
         ),
@@ -404,7 +404,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('COMMISSION ACCRUED',
+                      Text('EARNINGS DUE',
                           style: SeType.eyebrow.copyWith(
                               color:
                                   Colors.white.withValues(alpha: 0.82))),

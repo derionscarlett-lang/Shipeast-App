@@ -81,6 +81,83 @@ export function targetCollections(target: unknown): string[] {
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// NT-2 / NT-3 / NT-4 — audience segments, scheduling, deep links
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Customer segments the admin can target that are DERIVED from order history
+ *  rather than a stored field. */
+export const DERIVED_SEGMENTS = ['ordered', 'never_ordered', 'inactive'] as const;
+export type DerivedSegment = (typeof DERIVED_SEGMENTS)[number];
+
+/** No order in this many days makes a customer "inactive" (matches the admin
+ *  panel's INACTIVE_DAYS_THRESHOLD). */
+export const INACTIVE_DAYS = 60;
+
+export type ParsedTarget =
+  | { kind: 'collections'; collections: string[] }
+  | { kind: 'tag'; tag: string }
+  | { kind: 'segment'; segment: DerivedSegment }
+  | { kind: 'uid'; uid: string };
+
+/**
+ * Turns the `target` string on a notification document into what it means.
+ *
+ * Pure and tested because this is the line between "message the whole user
+ * base" and "message one person", and a wrong branch here is invisible until
+ * the wrong people get a push.
+ *
+ *   'all' | 'customers' | 'drivers'  → a set of collections
+ *   'tag:vip'                        → customers carrying that tag (CU-4)
+ *   'ordered' | 'never_ordered' | 'inactive' → a derived customer segment
+ *   anything else                    → a single uid
+ */
+export function parseTarget(target: unknown): ParsedTarget {
+  const t = String(target ?? 'all').trim();
+  const lower = t.toLowerCase();
+  const cols = targetCollections(lower);
+  if (cols.length > 0) return { kind: 'collections', collections: cols };
+  if (lower.startsWith('tag:')) {
+    return { kind: 'tag', tag: lower.slice(4) };
+  }
+  if ((DERIVED_SEGMENTS as readonly string[]).includes(lower)) {
+    return { kind: 'segment', segment: lower as DerivedSegment };
+  }
+  // A raw document id keeps its original case — Firestore ids are case
+  // sensitive and lowercasing one would look it up as a different document.
+  return { kind: 'uid', uid: t };
+}
+
+/** The FCM `data` payload for a broadcast, including any NT-4 deep link.
+ *  Every value must be a string — FCM rejects non-string data. */
+export function broadcastData(
+  notificationId: string,
+  destType?: unknown,
+  destValue?: unknown
+): Record<string, string> {
+  const out: Record<string, string> = {
+    type: 'broadcast',
+    notificationId: String(notificationId),
+  };
+  const dt = typeof destType === 'string' ? destType.trim() : '';
+  const dv = typeof destValue === 'string' ? destValue.trim() : '';
+  // 'order' | 'screen' | 'search' | 'url' — a value is required for all of them.
+  if (dt && dv && ['order', 'screen', 'search', 'url'].includes(dt)) {
+    out.destType = dt;
+    out.destValue = dv;
+    // An order deep link reuses the existing orderId routing on the client.
+    if (dt === 'order') out.orderId = dv;
+  }
+  return out;
+}
+
+/** Whether a scheduled notification is due to go out now. `null`/absent means
+ *  "send immediately" (an ordinary, unscheduled broadcast). */
+export function isDue(scheduledForMillis: number | null | undefined, nowMillis: number): boolean {
+  if (scheduledForMillis == null) return true;
+  return scheduledForMillis <= nowMillis;
+}
+
 /**
  * What a driver sees when a new order lands.
  *
@@ -97,7 +174,7 @@ export function orderCreatedContent(
     ? order.merchantName
     : 'A merchant';
   const amount = Number.isFinite(total) && total > 0
-    ? ` · $${Math.round(total).toLocaleString('en-US')}`
+    ? ` · J$${Math.round(total).toLocaleString('en-US')}`
     : '';
   return {
     title: 'New order available',
@@ -123,7 +200,7 @@ export function orderReofferContent(
     ? order.merchantName
     : 'A merchant';
   const amount = Number.isFinite(total) && total > 0
-    ? ` · $${Math.round(total).toLocaleString('en-US')}`
+    ? ` · J$${Math.round(total).toLocaleString('en-US')}`
     : '';
   return {
     title: 'Order still needs a driver',
@@ -278,6 +355,78 @@ async function tokenForUid(uid: string) {
   return out;
 }
 
+type Recipient = { token: string; ref: FirebaseFirestore.DocumentReference };
+
+/** Recipients from a `users` query snapshot. */
+function usersToRecipients(snap: FirebaseFirestore.QuerySnapshot): Recipient[] {
+  const out: Recipient[] = [];
+  snap.docs.forEach((doc) => {
+    const token = doc.data().fcmToken;
+    if (typeof token === 'string' && token.trim() !== '') {
+      out.push({ token, ref: doc.ref });
+    }
+  });
+  return out;
+}
+
+/**
+ * NT-2: resolves a notification's `target` to the devices it should reach.
+ *
+ * Tag segments are a single indexed query. The derived segments
+ * (ordered / never_ordered / inactive) read the whole `orders` collection
+ * once — fine for a manual admin broadcast on a small roster, and the
+ * alternative (a maintained per-user counter) is a bigger surface to keep
+ * correct.
+ */
+async function recipientsForTarget(target: unknown): Promise<Recipient[]> {
+  const parsed = parseTarget(target);
+  switch (parsed.kind) {
+    case 'collections':
+      return tokensFrom(parsed.collections);
+    case 'tag': {
+      const snap = await db().collection('users')
+        .where('tags', 'array-contains', parsed.tag).get();
+      return usersToRecipients(snap);
+    }
+    case 'segment':
+      return derivedCustomerSegment(parsed.segment);
+    case 'uid':
+      return tokenForUid(parsed.uid);
+  }
+}
+
+/** ordered / never_ordered / inactive, computed from the orders collection. */
+async function derivedCustomerSegment(segment: DerivedSegment): Promise<Recipient[]> {
+  const orderSnap = await db().collection('orders').get();
+  const lastOrderAt = new Map<string, number>();
+  orderSnap.docs.forEach((d) => {
+    const o = d.data();
+    const uid = o.customerId;
+    if (typeof uid !== 'string' || !uid) return;
+    const ts = o.createdAt as FirebaseFirestore.Timestamp | undefined;
+    const at = ts?.toMillis?.() ?? 0;
+    if (!lastOrderAt.has(uid) || at > (lastOrderAt.get(uid) ?? 0)) {
+      lastOrderAt.set(uid, at);
+    }
+  });
+
+  const usersSnap = await db().collection('users').get();
+  const cutoff = Date.now() - INACTIVE_DAYS * 24 * 60 * 60 * 1000;
+  const out: Recipient[] = [];
+  usersSnap.docs.forEach((doc) => {
+    const token = doc.data().fcmToken;
+    if (typeof token !== 'string' || token.trim() === '') return;
+    const last = lastOrderAt.get(doc.id);
+    const hasOrdered = last !== undefined;
+    const include =
+      segment === 'ordered' ? hasOrdered
+      : segment === 'never_ordered' ? !hasOrdered
+      : /* inactive */ hasOrdered && (last as number) < cutoff;
+    if (include) out.push({ token, ref: doc.ref });
+  });
+  return out;
+}
+
 /** Online, approved drivers only — the people who can actually take the job. */
 async function onlineDriverTokens() {
   const snap = await db().collection('drivers')
@@ -300,13 +449,14 @@ async function onlineDriverTokens() {
 async function sendTo(
   recipients: { token: string; ref: FirebaseFirestore.DocumentReference }[],
   content: PushContent
-): Promise<number> {
+): Promise<{ delivered: number; failed: number }> {
   const owner = new Map<string, FirebaseFirestore.DocumentReference>();
   for (const r of recipients) if (!owner.has(r.token)) owner.set(r.token, r.ref);
   const tokens = dedupeTokens([...owner.keys()]);
-  if (tokens.length === 0) return 0;
+  if (tokens.length === 0) return { delivered: 0, failed: 0 };
 
   let delivered = 0;
+  let failed = 0;
   const dead: FirebaseFirestore.DocumentReference[] = [];
 
   for (const batch of chunk(tokens)) {
@@ -318,6 +468,7 @@ async function sendTo(
       apns: { payload: { aps: { sound: 'default' } } }
     });
     delivered += res.successCount;
+    failed += res.failureCount;
     res.responses.forEach((r, i) => {
       if (!r.success && isDeadToken(r.error?.code)) {
         const ref = owner.get(batch[i]);
@@ -338,9 +489,10 @@ async function sendTo(
     title: content.title,
     targets: tokens.length,
     delivered,
+    failed,
     pruned: dead.length
   });
-  return delivered;
+  return { delivered, failed };
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -348,39 +500,90 @@ async function sendTo(
 // ──────────────────────────────────────────────────────────────────────────
 
 /**
+ * Sends one broadcast document and records the outcome on it.
+ *
+ * Shared by the create trigger (immediate sends) and the scheduler (NT-3).
+ * The `pushLog` claim keyed on the document id makes it safe to call twice —
+ * a trigger retry, or the scheduler racing a late trigger.
+ */
+async function dispatchBroadcast(
+  id: string,
+  data: FirebaseFirestore.DocumentData,
+  ref: FirebaseFirestore.DocumentReference
+): Promise<void> {
+  if (!(await claim(`notification_${id}`))) return;
+
+  const recipients = await recipientsForTarget(data.target);
+  if (recipients.length === 0) {
+    logger.warn('notification reached nobody', { target: data.target });
+  }
+
+  const { delivered, failed } = await sendTo(recipients, {
+    title: String(data.title ?? 'ShipEast'),
+    body: String(data.message ?? ''),
+    // NT-4: the deep-link destination travels in the data payload.
+    data: broadcastData(id, data.destType, data.destValue),
+  });
+
+  // Closes the loop between "logged" and "sent". `dispatchedAt` also tells the
+  // scheduler this one is done (NT-3).
+  await ref.set(
+    {
+      deliveredCount: delivered,
+      failedCount: failed,
+      dispatchedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+/**
  * Admin broadcast. This is the fix for the "All Drivers" dead end: the panel
  * writes the same document it always did, and it now actually goes somewhere.
+ *
+ * NT-3: a document with a future `scheduledFor` is left alone here — the
+ * scheduler picks it up when it comes due.
  */
 export const onNotificationCreated = onDocumentCreated(
   'notifications/{notificationId}',
   async (event) => {
     const data = event.data?.data();
     if (!data) return;
-    if (!(await claim(`notification_${event.params.notificationId}`))) return;
 
-    const collections = targetCollections(data.target);
-    const recipients = collections.length > 0
-      ? await tokensFrom(collections)
-      // SCHEMA.md §notifications permits a single uid as the target. Look it
-      // up in both collections — the same uid space serves customers and
-      // drivers, and the admin knows which it meant.
-      : await tokenForUid(String(data.target ?? ''));
-
-    if (recipients.length === 0) {
-      logger.warn('notification reached nobody', { target: data.target });
+    const scheduledFor = data.scheduledFor as FirebaseFirestore.Timestamp | undefined;
+    if (!isDue(scheduledFor?.toMillis?.() ?? null, Date.now())) {
+      logger.info('notification scheduled for later', {
+        id: event.params.notificationId,
+        scheduledFor: scheduledFor?.toDate?.()?.toISOString(),
+      });
+      return;
     }
 
-    const delivered = await sendTo(recipients, {
-      title: String(data.title ?? 'ShipEast'),
-      body: String(data.message ?? ''),
-      data: { type: 'broadcast' }
-    });
-
-    // Closes the loop between "logged" and "sent" — the panel's history has
-    // always claimed success for messages that reached nobody.
-    await event.data!.ref.set({ deliveredCount: delivered }, { merge: true });
+    await dispatchBroadcast(event.params.notificationId, data, event.data!.ref);
   }
 );
+
+/**
+ * NT-3: dispatches scheduled broadcasts that have come due.
+ *
+ * Runs every five minutes. A composite index on (scheduledFor asc) is enough;
+ * the "not yet dispatched" filter is applied in memory because `dispatchedAt`
+ * being absent is not a value Firestore can query on directly.
+ */
+export const dispatchScheduledNotifications = onSchedule('every 5 minutes', async () => {
+  const now = admin.firestore.Timestamp.now();
+  const snap = await db().collection('notifications')
+    .where('scheduledFor', '<=', now)
+    .get();
+
+  const due = snap.docs.filter((d) => d.data().dispatchedAt == null);
+  if (due.length === 0) return;
+
+  logger.info('dispatching scheduled notifications', { count: due.length });
+  for (const doc of due) {
+    await dispatchBroadcast(doc.id, doc.data(), doc.ref);
+  }
+});
 
 /** The one that matters most — see the file header. */
 export const onOrderCreated = onDocumentCreated('orders/{orderId}', async (event) => {

@@ -4,6 +4,10 @@ import {
   chunk,
   dedupeTokens,
   targetCollections,
+  parseTarget,
+  broadcastData,
+  isDue,
+  DERIVED_SEGMENTS,
   orderCreatedContent,
   orderReofferContent,
   shouldReoffer,
@@ -90,21 +94,87 @@ describe('targetCollections', () => {
   });
 });
 
+describe('parseTarget (NT-2)', () => {
+  test('the broadcast keywords resolve to collections', () => {
+    assert.deepEqual(parseTarget('all'), { kind: 'collections', collections: ['users', 'drivers'] });
+    assert.deepEqual(parseTarget('customers'), { kind: 'collections', collections: ['users'] });
+    assert.deepEqual(parseTarget('drivers'), { kind: 'collections', collections: ['drivers'] });
+    assert.deepEqual(parseTarget(undefined), { kind: 'collections', collections: ['users', 'drivers'] });
+  });
+
+  test('a "tag:" prefix targets a customer segment (CU-4)', () => {
+    assert.deepEqual(parseTarget('tag:vip'), { kind: 'tag', tag: 'vip' });
+    assert.deepEqual(parseTarget('TAG:Diaspora'), { kind: 'tag', tag: 'diaspora' });
+  });
+
+  test('the derived segments are recognised', () => {
+    for (const s of DERIVED_SEGMENTS) {
+      assert.deepEqual(parseTarget(s), { kind: 'segment', segment: s });
+    }
+  });
+
+  test('anything else is a single uid, with its case preserved', () => {
+    // Firestore ids are case sensitive — lowercasing one would address a
+    // different document, or none.
+    assert.deepEqual(parseTarget('aB12Cd34'), { kind: 'uid', uid: 'aB12Cd34' });
+    assert.deepEqual(parseTarget('  spaced  '), { kind: 'uid', uid: 'spaced' });
+  });
+});
+
+describe('broadcastData (NT-4)', () => {
+  test('always carries the type and the notification id', () => {
+    const d = broadcastData('n1');
+    assert.equal(d.type, 'broadcast');
+    assert.equal(d.notificationId, 'n1');
+    assert.equal(d.destType, undefined);
+  });
+
+  test('a valid destination is passed through as strings', () => {
+    const d = broadcastData('n1', 'search', 'grocery');
+    assert.equal(d.destType, 'search');
+    assert.equal(d.destValue, 'grocery');
+  });
+
+  test('an order destination also fills orderId, reusing the existing routing', () => {
+    const d = broadcastData('n1', 'order', 'order-9');
+    assert.equal(d.orderId, 'order-9');
+  });
+
+  test('an unknown or half-filled destination is dropped, not forwarded', () => {
+    assert.equal(broadcastData('n1', 'weird', 'x').destType, undefined);
+    assert.equal(broadcastData('n1', 'search', '').destType, undefined);
+    assert.equal(broadcastData('n1', '', 'grocery').destType, undefined);
+  });
+});
+
+describe('isDue (NT-3)', () => {
+  const NOW = Date.UTC(2026, 8, 11, 12, 0, 0);
+  test('an unscheduled broadcast is always due', () => {
+    assert.equal(isDue(null, NOW), true);
+    assert.equal(isDue(undefined, NOW), true);
+  });
+  test('a future schedule is not due yet; a past one is', () => {
+    assert.equal(isDue(NOW + 60_000, NOW), false);
+    assert.equal(isDue(NOW - 1, NOW), true);
+    assert.equal(isDue(NOW, NOW), true);
+  });
+});
+
 describe('orderCreatedContent', () => {
   test('names the merchant and the money', () => {
     const c = orderCreatedContent('o1', { merchantName: 'Island Grill', total: 2450 });
-    assert.equal(c.body, 'Island Grill · $2,450');
+    assert.equal(c.body, 'Island Grill · J$2,450');
     assert.equal(c.data?.orderId, 'o1');
   });
 
   test('shows the order\'s stored total, never a recomputed one', () => {
     // A driver deciding whether to take a job must see the same figure the
     // customer was charged.
-    assert.match(orderCreatedContent('o1', { total: 1500 }).body, /\$1,500/);
+    assert.match(orderCreatedContent('o1', { total: 1500 }).body, /J\$1,500/);
   });
 
   test('rounds to whole units — money is stored as integers', () => {
-    assert.match(orderCreatedContent('o1', { total: 1500.6 }).body, /\$1,501/);
+    assert.match(orderCreatedContent('o1', { total: 1500.6 }).body, /J\$1,501/);
   });
 
   test('a missing total is omitted rather than shown as $0 or NaN', () => {
@@ -127,7 +197,7 @@ describe('orderReofferContent', () => {
   test('reads as a re-offer, not a second brand-new order', () => {
     const c = orderReofferContent('o1', { merchantName: 'Juici', total: 1440 });
     assert.equal(c.title, 'Order still needs a driver');
-    assert.equal(c.body, 'Juici · $1,440');
+    assert.equal(c.body, 'Juici · J$1,440');
   });
 
   test('is distinguishable from the first alert by its data type', () => {

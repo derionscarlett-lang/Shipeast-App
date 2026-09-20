@@ -55,7 +55,7 @@ export function parseBands(text) {
     }
 
     var left = parts[0].trim();
-    var right = parts[1].trim().replace(/[$,]/g, '');
+    var right = parts[1].trim().replace(/[J$,]/g, '');
     var price = Number(right);
 
     if (right === '' || !isFinite(price) || price < 0) {
@@ -132,10 +132,10 @@ export function describeBands(bands, overagePerKg) {
     var b = bands[i];
     if (b.maxKg == null) {
       var over = Number(overagePerKg) || 0;
-      out.push('Over ' + lower + ' kg: $' + b.price +
-        (over > 0 ? ' plus $' + over + ' per extra kg' : ' flat'));
+      out.push('Over ' + lower + ' kg: J$' + b.price +
+        (over > 0 ? ' plus J$' + over + ' per extra kg' : ' flat'));
     } else {
-      out.push(lower + '–' + b.maxKg + ' kg: $' + b.price);
+      out.push(lower + '–' + b.maxKg + ' kg: J$' + b.price);
       lower = b.maxKg;
     }
   }
@@ -149,7 +149,7 @@ export function describeBands(bands, overagePerKg) {
  * this" from "the admin typed 0", which mean different things for a surcharge.
  */
 export function parseAmount(value) {
-  var text = String(value == null ? '' : value).trim().replace(/[$,]/g, '');
+  var text = String(value == null ? '' : value).trim().replace(/[J$,]/g, '');
   if (text === '') return null;
   var n = Number(text);
   if (!isFinite(n) || n < 0) return null;

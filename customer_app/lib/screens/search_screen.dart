@@ -26,12 +26,30 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Map<String, dynamic>> _allMerchants = [];
   StreamSubscription<List<Map<String, dynamic>>>? _sub;
 
+  bool _argsApplied = false;
+
   @override
   void initState() {
     super.initState();
     _sub = FirestoreService.allMerchantsStream().listen((merchants) {
       if (mounted) setState(() => _allMerchants = merchants);
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A notification can deep-link here with a term pre-filled (checklist NT-4).
+    if (_argsApplied) return;
+    _argsApplied = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['query'] is String) {
+      final q = (args['query'] as String).trim();
+      if (q.isNotEmpty) {
+        _ctrl.text = q;
+        _query = q;
+      }
+    }
   }
 
   @override

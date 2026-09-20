@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
+import '../utils/phone.dart';
 import '../theme/se_colors.dart';
 import '../theme/se_icons.dart';
 import '../theme/se_spacing.dart';
@@ -178,6 +179,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SeTextField(
                 controller: phoneCtrl,
                 label: 'Phone Number',
+                hint: '1-876-000-0000',
                 icon: SeIcons.phone,
                 keyboardType: TextInputType.phone),
             const SizedBox(height: 14),
@@ -192,7 +194,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: SeIcons.check,
               onPressed: () {
                 final name = nameCtrl.text.trim();
-                final phone = phoneCtrl.text.trim();
+                // DR-25: normalise to the one app-wide format on save.
+                final phone = SePhone.format(phoneCtrl.text);
                 final email = emailCtrl.text.trim();
                 if (name.isEmpty) {
                   SeToast.error(ctx, 'Name can\'t be empty');
@@ -321,7 +324,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 3),
                   if (_phone.isNotEmpty)
-                    Text(_phone,
+                    Text(SePhone.format(_phone),
                         style: SeType.bodyS.copyWith(
                             color: Colors.white.withValues(alpha: 0.85))),
                   if (_email.isNotEmpty)

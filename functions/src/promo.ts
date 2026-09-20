@@ -22,6 +22,8 @@ export interface PromoDoc {
   minOrderTotal: number;
   /** Caps a percentage discount. `null` means uncapped. */
   maxDiscount: number | null;
+  /** Milliseconds since epoch, or `null` for "starts immediately" (checklist PR-6). */
+  startsAtMillis: number | null;
   /** Milliseconds since epoch, or `null` for "never expires". */
   expiresAtMillis: number | null;
   maxUses: number;
@@ -32,6 +34,7 @@ export interface PromoDoc {
 export type PromoRejection =
   | 'not_found'
   | 'inactive'
+  | 'not_yet_started'
   | 'expired'
   | 'exhausted'
   | 'below_minimum'
@@ -50,6 +53,7 @@ export interface PromoResult {
 export const REJECTION_MESSAGE: Record<PromoRejection, string> = {
   not_found: 'That promo code does not exist.',
   inactive: 'That promo code is no longer available.',
+  not_yet_started: 'That promo code is not active yet.',
   expired: 'That promo code has expired.',
   exhausted: 'That promo code has reached its usage limit.',
   below_minimum: 'Your order is below the minimum for that promo code.',
@@ -63,22 +67,31 @@ function reject(reason: PromoRejection): PromoResult {
 /**
  * Validates a promo against an order and returns the discount to apply.
  *
- * `subtotal` is the pre-discount goods total in integer JMD. The discount is
- * computed against the subtotal, not the grand total — discounting the
- * delivery fee and service fee as well was never the intent, and doing so
- * makes the driver's commission depend on the customer's coupon.
+ * `subtotal` is the pre-discount goods total in integer JMD, and is always
+ * what the minimum-order check runs against — "spend at least J$2,000" means
+ * the order, not whichever part of it the discount happens to come off.
+ *
+ * `discountBaseAmount` (checklist PR-5 "Delivery fee only" / "Order subtotal")
+ * is what the discount is actually computed against and cannot exceed. Most
+ * promos discount the subtotal, so it defaults to `subtotal` — pass the
+ * delivery fee instead for a delivery-only code. Discounting the service fee
+ * was never the intent either way, and doing so would make the driver's
+ * commission depend on the customer's coupon.
  *
  * Validation order matches SCHEMA.md:
- *   active → expiresAt → usedCount < maxUses → subtotal >= minOrderTotal
+ *   active → startsAt → expiresAt → usedCount < maxUses → subtotal >= minOrderTotal
  */
 export function evaluatePromo(
   promo: PromoDoc | null,
   subtotal: number,
-  nowMillis: number
+  nowMillis: number,
+  discountBaseAmount?: number
 ): PromoResult {
   if (!promo) return reject('not_found');
 
   if (!Number.isFinite(subtotal) || subtotal < 0) return reject('malformed');
+  const base = discountBaseAmount ?? subtotal;
+  if (!Number.isFinite(base) || base < 0) return reject('malformed');
 
   const amount = Number(promo.discountAmount);
   if (!Number.isFinite(amount) || amount < 0) return reject('malformed');
@@ -87,6 +100,12 @@ export function evaluatePromo(
   }
 
   if (promo.active !== true) return reject('inactive');
+
+  // Checklist PR-6. A code with a future start is live in the collection but
+  // not yet redeemable — the admin scheduled it ahead of a campaign.
+  if (promo.startsAtMillis != null && promo.startsAtMillis > nowMillis) {
+    return reject('not_yet_started');
+  }
 
   if (promo.expiresAtMillis != null && promo.expiresAtMillis <= nowMillis) {
     return reject('expired');
@@ -107,7 +126,7 @@ export function evaluatePromo(
     // reject: the admin's intent for '150% off' is unambiguous, and refusing a
     // live code at checkout punishes the customer for the admin's typo.
     const pct = Math.min(amount, 100);
-    discount = Math.round((subtotal * pct) / 100);
+    discount = Math.round((base * pct) / 100);
 
     /* The cap is the whole point of `maxDiscount`. A 100% code with no cap is
        an unbounded liability, and nothing prevents an admin creating one by
@@ -120,7 +139,7 @@ export function evaluatePromo(
   }
 
   // A discount can never exceed what is being discounted.
-  discount = Math.max(0, Math.min(discount, subtotal));
+  discount = Math.max(0, Math.min(discount, base));
 
   return { ok: true, discount };
 }

@@ -560,6 +560,16 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 }
 .card-note{font-size:11px;font-weight:600;color:var(--text-mute);
   display:inline-flex;align-items:center;gap:5px;}
+/* Explanatory line under a page heading (e.g. Merchants). Sits between the
+   .pg-hdr and the first content block; pulled up so it reads as part of the
+   header group rather than floating above the stats. */
+.pg-note{font-size:13px;line-height:1.45;color:var(--text-mute);
+  margin:calc(var(--s4) * -1) 0 var(--s5);max-width:60ch;}
+/* NT-5 notification character counter. Sits inline in the field label. */
+.char-count{float:right;font-size:11px;font-weight:600;color:var(--text-mute);
+  font-variant-numeric:tabular-nums;}
+.char-count-warn{color:var(--warning);}
+.char-count-full{color:var(--danger);}
 /* Danger Zone keeps the banded header but tints it red, so the one card in the
    panel that can destroy data does not share a neutral header with the pricing
    form beside it. */
@@ -605,6 +615,14 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
 .sc-val.sm{font-size:23px;}
 .sc-sub{font-size:12px;color:var(--text-mute);margin-top:6px;}
+/* DB-7: dashboard quick-action shortcut row. */
+.qa-row{display:flex;flex-wrap:wrap;gap:var(--s2);margin-bottom:var(--s4);}
+
+/* DB-3: a stat card that carries three named counts rather than one number. */
+.sc-triple{display:flex;flex-direction:column;gap:3px;margin-top:2px;}
+.sc-triple span{display:flex;align-items:baseline;gap:6px;font-size:12px;color:var(--text-mute);}
+.sc-triple b{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;
+  letter-spacing:-.3px;color:var(--text-hi);min-width:1.4ch;}
 .spark{display:block;width:100%;height:26px;margin-top:var(--s3);overflow:visible;}
 
 /* ─────────────── TABLES ─────────────── */
@@ -628,7 +646,7 @@ table{width:100%;border-collapse:collapse;}
    whispering against it. Sticky, so it must stay fully opaque. */
 thead th{
   position:sticky;top:0;z-index:2;background:var(--band);
-  text-align:left;padding:11px var(--s3);font-size:11px;font-weight:800;
+  text-align:left;padding:8px var(--s3);font-size:11px;font-weight:800;
   color:var(--text-lo);text-transform:uppercase;letter-spacing:.7px;
   border-bottom:1px solid var(--border);white-space:nowrap;
 }
@@ -648,7 +666,10 @@ thead th:last-child{border-radius:0 calc(var(--r-md) - 1px) 0 0;}
 .card-title + .tbl-wrap{margin-top:calc(var(--card-pad) * -1);}
 thead th:first-child,tbody td:first-child{padding-left:var(--card-pad);}
 thead th:last-child,tbody td:last-child{padding-right:var(--card-pad);}
-td{padding:13px var(--s3);font-size:13px;color:var(--text-hi);
+/* Client checklist OR-2 / DB-8: tighter rows so long order and request lists
+   scroll in fewer screens. Was 13px; 8px keeps text clear of the divider
+   without the list feeling cramped. */
+td{padding:8px var(--s3);font-size:13px;color:var(--text-hi);
   border-bottom:1px solid var(--border);vertical-align:middle;}
 tbody tr{transition:background var(--d-fast) var(--ease);scroll-margin-top:56px;}
 tbody tr:last-child td{border-bottom:none;}
@@ -657,6 +678,9 @@ td.right,th.right{text-align:right;font-variant-numeric:tabular-nums;}
 .cell-id{font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums;}
 .cell-mute{color:var(--text-lo);}
 .cell-strong{font-weight:600;font-variant-numeric:tabular-nums;}
+/* DB-5: a destination address can be long; clip it to one line with the full
+   value on hover (title attribute). */
+.cell-clip{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .cell-actions{display:flex;gap:6px;flex-wrap:nowrap;}
 /* A disabled customer's row (P5-05). Dimmed rather than hidden — an admin
    looking for the account they just disabled must still be able to find it.
@@ -801,6 +825,91 @@ select:disabled{cursor:not-allowed;opacity:.6;background-color:var(--hover);}
 }
 .srch:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--red-50);}
 .srch input{border:none;outline:none;font-size:14px;width:100%;background:transparent;color:var(--text-hi);}
+
+/* ── Filter bar (Orders OR-3 / OR-4) ──────────────────────────────────
+   A wrapping row of compact dropdowns above a table. Each control is small
+   enough that 3–4 sit per row on a laptop and the whole set stays visible
+   without a horizontal scroll. */
+.fbar{
+  display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;margin-bottom:var(--s4);
+}
+.fbar select,.fbar .fbar-txt{
+  padding:7px 12px;font-size:12.5px;font-weight:600;
+  background:var(--field);color:var(--text-hi);
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  outline:none;max-width:190px;
+  transition:border-color var(--d-fast) var(--ease),box-shadow var(--d-fast) var(--ease);
+}
+.fbar select{padding-right:34px;background-position:right 10px center;background-size:15px 15px;}
+.fbar .fbar-txt{font-weight:500;width:150px;}
+.fbar select:focus,.fbar .fbar-txt:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--red-50);}
+.fbar select:hover,.fbar .fbar-txt:hover{border-color:var(--ink-300);}
+/* An active (non-default) filter reads at a glance so nobody wonders why the
+   table is short. */
+.fbar select.on,.fbar .fbar-txt.on{border-color:var(--brand);color:var(--brand);background:var(--red-50);}
+.fbar .btn-sm{margin-left:auto;}
+
+/* DB-5: a table row that opens a detail panel on click. The icon button in the
+   last cell stays as the keyboard-accessible affordance. */
+tr.row-click{cursor:pointer;}
+tr.row-click:hover td{background:var(--hover);}
+
+/* PR-10: the promo row's action set — small text buttons that wrap. */
+.promo-acts{display:flex;flex-wrap:wrap;gap:4px;}
+.pa-btn{
+  display:inline-block;padding:4px 9px;font-size:11.5px;font-weight:600;line-height:1.3;
+  background:var(--field);color:var(--text-lo);text-decoration:none;
+  border:1px solid var(--border);border-radius:var(--r-xs);cursor:pointer;
+  transition:border-color var(--d-fast) var(--ease),color var(--d-fast) var(--ease),background var(--d-fast) var(--ease);
+}
+.pa-btn:hover{border-color:var(--brand);color:var(--brand);background:var(--red-50);}
+.pa-btn.pa-del{color:var(--danger);}
+.pa-btn.pa-del:hover{border-color:var(--danger);background:var(--danger-tint);color:var(--danger);}
+.pa-btn.pa-ok{color:var(--success);}
+.pa-btn.pa-ok:hover{border-color:var(--success);background:var(--success-tint);color:var(--success);}
+
+/* CU-4 tag picker (in the confirm modal) */
+.tag-picker{display:flex;flex-direction:column;gap:8px;margin-top:8px;text-align:left;}
+.tag-opt{display:flex;align-items:center;gap:9px;cursor:pointer;padding:6px 8px;
+  border:1px solid var(--border);border-radius:var(--r-xs);background:var(--field);}
+.tag-opt:hover{border-color:var(--ink-300);}
+.tag-opt input{width:16px;height:16px;accent-color:var(--brand);flex-shrink:0;}
+.bdg.sm{font-size:10.5px;padding:1px 6px;}
+.pa-btn .ic{width:13px;height:13px;vertical-align:-2px;margin-right:3px;}
+
+/* ── Driver roster cards (DV-1 … DV-8) ────────────────────────────────
+   A grid of status cards. Each one answers "what state is this driver in,
+   and what are their numbers" without a click. */
+.dcard-grid{display:grid;gap:var(--s4);grid-template-columns:repeat(auto-fill,minmax(290px,1fr));}
+.dcard-empty{grid-column:1/-1;}
+.dcard{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);
+  padding:var(--s4) var(--s5);box-shadow:var(--e1);
+  display:flex;flex-direction:column;gap:7px;min-width:0;
+}
+.dc-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.dc-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;
+  letter-spacing:-.2px;color:var(--text-hi);flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dc-badges{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.dc-line{font-size:13px;color:var(--text-lo);min-width:0;}
+.dc-stats{display:flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums;}
+.dc-star{width:15px;height:15px;color:var(--gold-500,#F5A524);}
+.dc-avail{font-weight:600;color:var(--success);}
+.dc-avail.muted{color:var(--text-mute);font-weight:500;}
+.dc-acts{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+/* the online toggle sitting next to the status badge on a card */
+.dc-badges .tgl{transform:scale(.85);transform-origin:right center;}
+/* status dot variants */
+.dot.busy{background:var(--warning);}
+.dot.warn{background:var(--gold-500,#F5A524);}
+.dot.off{background:var(--text-mute);}
+
+/* DV-5 document review — image thumbnails in the side panel */
+.doc-view{margin-top:10px;}
+.doc-view-lbl{font-size:12px;font-weight:600;color:var(--text-mute);margin-bottom:4px;}
+.doc-view img{width:100%;max-height:220px;object-fit:contain;border:1px solid var(--border);
+  border-radius:var(--r-sm);background:var(--band);}
 
 /* ─────────────── TABS / SEGMENTED (filter bars) ───────────────
    The track used to be painted with --bg, the *same* colour as the page behind
@@ -1074,6 +1183,8 @@ td .empty{padding:var(--s6) var(--s5);}
 .pc-code{font-family:'Plus Jakarta Sans',sans-serif;font-size:30px;font-weight:800;
   letter-spacing:4px;margin:10px 0 6px;overflow-wrap:anywhere;}
 .pc-disc{font-size:15px;font-weight:600;opacity:.95;}
+.pc-max{font-size:12px;opacity:.9;margin-top:2px;font-variant-numeric:tabular-nums;}
+.pc-max:empty{display:none;}
 .pc-valid{font-size:11px;opacity:.72;margin-top:var(--s3);font-variant-numeric:tabular-nums;}
 .pc-foot{margin-top:var(--s4);font-size:10px;opacity:.5;letter-spacing:1.4px;}
 .helper{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);

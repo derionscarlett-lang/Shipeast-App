@@ -145,7 +145,7 @@
       <div class="sb-mark" aria-hidden="true">SE</div>
       <div class="sb-word">
         <div class="slt">Ship<span>East</span></div>
-        <div class="sls">Couriers &amp; Bearer Services</div>
+        <div class="sls">Couriers &amp; Bearer Service</div>
       </div>
     </div>
     <nav class="sb-nav" aria-label="Main">
@@ -283,10 +283,10 @@
           </div>
           <div class="sc ac-gold">
             <div class="sc-top">
-              <div><div class="sc-lbl">Revenue Today</div><div class="sc-val sm num" id="stat-revenue">$0</div></div>
+              <div><div class="sc-lbl">Revenue Today</div><div class="sc-val sm num" id="stat-revenue">J$0</div></div>
               <div class="sc-chip c-gold"><svg class="ic" aria-hidden="true"><use href="#i-revenue"/></svg></div>
             </div>
-            <div class="sc-sub">Delivered orders</div>
+            <div class="sc-sub">From Completed Orders</div>
             <div id="spark-revenue"></div>
           </div>
           <div class="sc ac-ocean">
@@ -296,18 +296,46 @@
             </div>
             <div class="sc-sub">Awaiting a driver</div>
           </div>
+          <!-- Checklist DB-3: three named states instead of one "Active Drivers"
+               figure. Available = online and not on a delivery. -->
           <div class="sc ac-success">
             <div class="sc-top">
-              <div><div class="sc-lbl">Active Drivers</div><div class="sc-val num" id="stat-drivers">0</div></div>
+              <div>
+                <div class="sc-lbl">Drivers</div>
+                <div class="sc-triple">
+                  <span><b class="num" id="drv-online">0</b>Online</span>
+                  <span><b class="num" id="drv-ondel">0</b>On Delivery</span>
+                  <span><b class="num" id="drv-avail">0</b>Available</span>
+                </div>
+              </div>
               <div class="sc-chip c-success"><svg class="ic" aria-hidden="true"><use href="#i-drivers"/></svg></div>
             </div>
-            <div class="sc-sub">Online now</div>
           </div>
+        </div>
+        <!-- Checklist DB-7: quick-action shortcuts to the flows that otherwise
+             live one or two clicks deep. "Create Order" is a net-new admin form
+             and is tracked separately. -->
+        <div class="qa-row">
+          <button class="btn btn-outline btn-sm" data-action="qa-add-merchant">
+            <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Add Merchant
+          </button>
+          <button class="btn btn-outline btn-sm" data-action="qa-assign-driver">
+            <svg class="ic" aria-hidden="true"><use href="#i-drivers"/></svg>Assign Driver
+          </button>
+          <button class="btn btn-outline btn-sm" data-action="qa-send-notif">
+            <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Send Notification
+          </button>
+        </div>
+        <!-- Checklist DB-9: a search box on the main screen. Matches across
+             every order (id, customer, merchant), not just the recent ten. -->
+        <div class="srch">
+          <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
+          <input id="dash-search" placeholder="Search all orders — ID, customer, merchant…" aria-label="Search orders from the dashboard"/>
         </div>
         <div class="card">
           <div class="card-title">Recent Orders</div>
           <div class="tbl-wrap"><table>
-            <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th class="right">Amount</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Destination</th><th>Driver</th><th class="right">Amount</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="dash-tbody"></tbody>
           </table></div>
         </div>
@@ -320,6 +348,39 @@
         <div class="srch">
           <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
           <input id="orders-search" placeholder="Search order ID, customer, merchant…" aria-label="Search orders"/>
+        </div>
+        <!-- Checklist OR-3 / OR-4: filter + sort controls. Merchant, Driver and
+             Payment options are filled from live data in syncOrderFilterOptions. -->
+        <div class="fbar" id="orders-filters">
+          <select id="of-status" aria-label="Filter by status">
+            <option value="">Any status</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="picked_up">Picked Up</option>
+            <option value="in_transit">In Transit</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <select id="of-date" aria-label="Filter by date">
+            <option value="">Any date</option>
+            <option value="today">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+          <select id="of-merchant" aria-label="Filter by merchant"><option value="">Any merchant</option></select>
+          <select id="of-driver" aria-label="Filter by driver"><option value="">Any driver</option></select>
+          <select id="of-payment" aria-label="Filter by payment method"><option value="">Any payment</option></select>
+          <input id="of-area" class="fbar-txt" placeholder="Delivery area…" aria-label="Filter by delivery area"/>
+          <select id="of-type" aria-label="Filter by order type">
+            <option value="">Any type</option>
+            <option value="food">Food</option>
+            <option value="package">Package</option>
+          </select>
+          <select id="of-sort" aria-label="Sort orders">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="of-clear" type="button" hidden>Clear filters</button>
         </div>
         <div class="card"><div class="tbl-wrap"><table>
           <thead><tr><th>Order ID</th><th>Customer</th><th>Merchant</th><th>Driver</th><th class="right">Total</th><th>Payment</th><th>Status</th><th>Time</th><th>Actions</th></tr></thead>
@@ -336,10 +397,24 @@
           </button>
         </div>
         <div class="sg" id="drivers-stats"></div>
-        <div class="card"><div class="tbl-wrap"><table>
-          <thead><tr><th>Name</th><th>Phone</th><th>Vehicle</th><th>Plate</th><th>Rating</th><th class="right">Trips</th><th>Status</th><th>Active</th><th>Actions</th></tr></thead>
-          <tbody id="drivers-tbody"></tbody>
-        </table></div></div>
+        <!-- Checklist DV-1 … DV-8: the roster is a grid of status cards, not a
+             9-column table — the point is to read a driver's state and stats
+             without opening anything. -->
+        <div class="fbar" id="drivers-filter">
+          <select id="drv-filter" aria-label="Filter drivers by status">
+            <option value="">All drivers</option>
+            <option value="online">Online</option>
+            <option value="ondelivery">On Delivery</option>
+            <option value="available">Available</option>
+            <option value="offline">Offline</option>
+            <option value="pending">Pending Approval</option>
+            <option value="paused">Paused</option>
+            <option value="suspended">Suspended</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <input id="drv-search" class="fbar-txt" placeholder="Search name, plate, phone…" aria-label="Search drivers"/>
+        </div>
+        <div class="dcard-grid" id="drivers-grid"></div>
       </section>
 
       <!-- ── MERCHANTS ── -->
@@ -350,6 +425,7 @@
             <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Add Merchant
           </button>
         </div>
+        <p class="pg-note">Turn a merchant off to temporarily remove it from the app.</p>
         <div class="sg g3" id="merchants-stats"></div>
         <div class="card"><div class="tbl-wrap"><table>
           <thead><tr><th>Merchant</th><th>Category</th><th>Phone</th><th>Address</th><th class="right">Orders Today</th><th>Rating</th><th>Status</th><th>Open</th><th>Actions</th></tr></thead>
@@ -360,14 +436,14 @@
       <!-- ── CUSTOMERS (P5-05) ── -->
       <section class="page" id="page-customers">
         <div class="pg-hdr"><h1 class="pg-title">Customers</h1></div>
-        <div class="sg g3" id="customers-stats"></div>
+        <div class="sg" id="customers-stats"></div>
         <div class="srch">
           <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
           <input id="customers-search" placeholder="Search name, email, phone or user ID…" aria-label="Search customers"/>
         </div>
         <div id="customers-cap"></div>
         <div class="card"><div class="tbl-wrap"><table>
-          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Orders</th><th class="right">Lifetime Value</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th class="right">Orders</th><th>Last order</th><th class="right">Lifetime Value</th><th>Tags</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="customers-tbody"></tbody>
         </table></div></div>
       </section>
@@ -398,15 +474,58 @@
                 <svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg>
                 <div>This sends a <b>real push notification</b> to every device in the selected audience. You will be asked to confirm before it goes out.</div>
               </div>
+              <!-- Checklist NT-2: audience segments. Tag options are filled
+                   from CUSTOMER_TAGS; the derived ones are computed server-side
+                   from order history. -->
               <div class="fr"><label for="n-target">Target Audience</label>
                 <select id="n-target">
-                  <option value="customers">All Customers</option>
-                  <option value="drivers">All Drivers</option>
-                  <option value="all" selected>Everyone</option>
+                  <optgroup label="Broadcast">
+                    <option value="all" selected>Everyone</option>
+                    <option value="customers">All Customers</option>
+                    <option value="drivers">All Drivers</option>
+                  </optgroup>
+                  <optgroup label="Customer segments" id="n-target-tags"></optgroup>
+                  <optgroup label="By order history">
+                    <option value="ordered">Customers who have ordered</option>
+                    <option value="never_ordered">Customers who never ordered</option>
+                    <option value="inactive">Inactive customers (60+ days)</option>
+                  </optgroup>
                 </select>
               </div>
-              <div class="fr"><label for="n-title">Title</label><input id="n-title" placeholder="e.g. Flash Sale — 20% Off Deliveries!"/></div>
-              <div class="fr"><label for="n-msg">Message</label><textarea id="n-msg" rows="4" placeholder="Write your notification message here…"></textarea></div>
+              <!-- Checklist NT-4: where a tap on the notification lands. -->
+              <div class="fr"><label for="n-dest">On tap, open</label>
+                <select id="n-dest">
+                  <option value="">Nothing (open the app)</option>
+                  <option value="search">A search (e.g. groceries)</option>
+                  <option value="screen">A screen</option>
+                  <option value="url">A web link</option>
+                </select>
+              </div>
+              <div class="fr" id="n-dest-value-row" hidden>
+                <label for="n-dest-value" id="n-dest-value-label">Search term</label>
+                <input id="n-dest-value" placeholder="grocery"/>
+                <select id="n-dest-screen" hidden>
+                  <option value="/order-history">Order history</option>
+                  <option value="/overseas-order">Shop &amp; Deliver</option>
+                  <option value="/search">Search</option>
+                  <option value="/profile">Profile</option>
+                </select>
+              </div>
+              <!-- Checklist NT-3: schedule instead of sending now. -->
+              <div class="fr"><label for="n-schedule">Schedule for <small>(blank = send now)</small></label>
+                <input id="n-schedule" type="datetime-local"/>
+              </div>
+              <!-- Checklist NT-5: hard caps so nothing is cut off on the lock
+                   screen, plus a live counter that warns as it fills. 65 / 178
+                   are the practical limits before Android and iOS truncate. -->
+              <div class="fr">
+                <label for="n-title">Title <span class="char-count" id="n-title-count">0 / 65</span></label>
+                <input id="n-title" maxlength="65" placeholder="e.g. Flash Sale — 20% Off Deliveries!"/>
+              </div>
+              <div class="fr">
+                <label for="n-msg">Message <span class="char-count" id="n-msg-count">0 / 178</span></label>
+                <textarea id="n-msg" rows="4" maxlength="178" placeholder="Write your notification message here…"></textarea>
+              </div>
               <!-- Was a full-width 15px btn-block: a single crimson slab most of
                    the card wide, for an action that fires an irreversible push.
                    Size is not how that gets its weight — the confirm dialog is.
@@ -414,6 +533,9 @@
                    form instead of as a banner. It goes full-width on phones,
                    where a right-aligned button next to nothing looks stranded. -->
               <div class="form-actions">
+                <button class="btn btn-outline" id="notif-schedule-btn" data-action="schedule-notif" type="button" hidden>
+                  <svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Schedule Notification
+                </button>
                 <button class="btn btn-primary" id="notif-send-btn" data-action="send-notif">
                   <svg class="ic" aria-hidden="true"><use href="#i-send"/></svg>Send Notification
                 </button>
@@ -458,17 +580,70 @@
               <div class="mg">
                 <div class="fr"><label for="pc-code">Code</label><input id="pc-code" placeholder="SUMMER25" style="text-transform:uppercase"/></div>
                 <div class="fr"><label for="pc-type">Type</label>
-                  <select id="pc-type"><option value="percent">Percentage (%)</option><option value="fixed">Fixed Amount ($)</option></select>
+                  <select id="pc-type"><option value="percent">Percentage (%)</option><option value="fixed">Fixed Amount (J$)</option></select>
                 </div>
                 <div class="fr"><label for="pc-disc">Discount Amount</label><input id="pc-disc" type="number" min="0" placeholder="25"/></div>
                 <div class="fr"><label for="pc-max">Max Uses</label><input id="pc-max" type="number" min="1" placeholder="100"/></div>
                 <!-- P3-03: neither of these existed, so no code could carry a
                      minimum and no percentage code could be capped. -->
-                <div class="fr"><label for="pc-min">Minimum Order ($) <small>(0 for none)</small></label><input id="pc-min" type="number" min="0" step="1" placeholder="0"/></div>
-                <div class="fr"><label for="pc-maxdisc">Max Discount ($) <small>(required for %)</small></label><input id="pc-maxdisc" type="number" min="0" step="1" placeholder="500"/></div>
+                <div class="fr"><label for="pc-min">Minimum Order (J$) <small>(0 for none)</small></label><input id="pc-min" type="number" min="0" step="1" placeholder="0"/></div>
+                <div class="fr"><label for="pc-maxdisc">Max Discount (J$) <small>(required for %)</small></label><input id="pc-maxdisc" type="number" min="0" step="1" placeholder="500"/></div>
               </div>
-              <div class="fr"><label for="pc-valid">Valid Until <small>(blank = never expires)</small></label><input id="pc-valid" type="date"/></div>
+              <div class="fr"><label for="pc-start">Start date/time <small>(blank = starts now)</small></label><input id="pc-start" type="datetime-local"/></div>
+              <div class="fr"><label for="pc-valid">Valid until (End Date) <small>(blank = never expires)</small></label><input id="pc-valid" type="date"/></div>
+
+              <!-- PR-5: who can get the discount. Every control here is
+                   optional — leaving a picker empty imposes no restriction on
+                   that axis, same as leaving the code with no eligibility at
+                   all (SCHEMA.md `promoCodes.eligibility`). -->
+              <div class="fset">
+                <div class="fset-title">Who can use this? <small style="text-transform:none;letter-spacing:0;font-weight:500">(optional — leave blank for everyone)</small></div>
+                <div class="mg">
+                  <div class="fr"><label for="pc-elig-scope">Customers</label>
+                    <select id="pc-elig-scope">
+                      <option value="">All customers</option>
+                      <option value="new">New customers only</option>
+                      <option value="existing">Existing customers only</option>
+                      <option value="selected">Selected customers only</option>
+                    </select>
+                  </div>
+                  <div class="fr"><label for="pc-elig-base">Discount applies to</label>
+                    <select id="pc-elig-base">
+                      <option value="subtotal">Order subtotal</option>
+                      <option value="deliveryFee">Delivery fee only</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="fr" id="pc-elig-customers-wrap" hidden>
+                  <label for="pc-elig-customers">Selected customers <small>(ctrl/cmd-click for more than one)</small></label>
+                  <select id="pc-elig-customers" multiple size="5"></select>
+                </div>
+                <div class="mg">
+                  <div class="fr"><label for="pc-elig-merchants">Merchants <small>(blank = any)</small></label>
+                    <select id="pc-elig-merchants" multiple size="5"></select>
+                  </div>
+                  <div class="fr"><label for="pc-elig-categories">Categories <small>(blank = any)</small></label>
+                    <select id="pc-elig-categories" multiple size="5"></select>
+                  </div>
+                </div>
+                <div class="fr"><label for="pc-elig-areas">Delivery areas <small>(comma-separated, e.g. "St. Thomas, Portland"; blank = any)</small></label>
+                  <input id="pc-elig-areas" placeholder="St. Thomas, Kingston"/>
+                </div>
+                <div class="fr">
+                  <label>Applies to</label>
+                  <div class="tag-picker" style="flex-direction:row;flex-wrap:wrap;gap:8px">
+                    <label class="tag-opt" style="width:auto"><input type="checkbox" id="pc-elig-kind-food" checked/> Food orders</label>
+                    <label class="tag-opt" style="width:auto"><input type="checkbox" id="pc-elig-kind-package" checked/> Package orders</label>
+                    <label class="tag-opt" style="width:auto"><input type="checkbox" id="pc-elig-kind-shop" checked/> Shop &amp; Deliver</label>
+                  </div>
+                </div>
+                <div class="fr">
+                  <label class="tag-opt" style="width:auto;display:inline-flex"><input type="checkbox" id="pc-elig-first"/> First order only</label>
+                </div>
+              </div>
+
               <div class="form-actions">
+                <button class="btn btn-ghost" id="promo-cancel-btn" data-action="cancel-promo-edit" type="button" hidden>Cancel</button>
                 <button class="btn btn-primary" id="promo-create-btn" data-action="create-promo">
                   <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Create Promo Code
                 </button>
@@ -477,7 +652,7 @@
             <div class="card">
               <div class="card-title">Active Promo Codes</div>
               <div class="tbl-wrap"><table>
-                <thead><tr><th>Code</th><th>Discount</th><th class="right">Used</th><th class="right">Max</th><th>Valid Until</th><th>Status</th><th>Delete</th></tr></thead>
+                <thead><tr><th>Code</th><th>Discount</th><th class="right">Used</th><th class="right">Max</th><th>Valid Until</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody id="promos-tbody"></tbody>
               </table></div>
             </div>
@@ -488,7 +663,8 @@
               <div class="pc-prev">
                 <div class="pc-brand">ShipEast</div>
                 <div class="pc-code" id="pcp-code">PROMO</div>
-                <div class="pc-disc" id="pcp-disc">Discount</div>
+                <div class="pc-disc" id="pcp-disc">—</div>
+                <div class="pc-max" id="pcp-max"></div>
                 <div class="pc-valid" id="pcp-valid">Valid until —</div>
                 <div class="pc-foot">COURIERS &amp; BEARER SERVICES LTD</div>
               </div>
@@ -673,7 +849,7 @@
       <div class="fset-title">Driver details</div>
       <div class="mg">
         <div class="fr"><label for="d-name">Full Name *</label><input id="d-name" placeholder="Devon Campbell"/></div>
-        <div class="fr"><label for="d-phone">Phone Number</label><input id="d-phone" placeholder="876-xxx-xxxx"/></div>
+        <div class="fr"><label for="d-phone">Phone Number</label><input id="d-phone" placeholder="1-876-000-0000"/></div>
         <div class="fr"><label for="d-vtype">Vehicle Type</label>
           <select id="d-vtype"><option>Car</option><option>Motorcycle</option><option>Van</option><option>Truck</option></select>
         </div>
@@ -749,9 +925,9 @@
           <select id="m-cat"><option>Food</option><option>Grocery</option><option>Pharmacy</option><option>Packages</option></select>
         </div>
         <div class="fr"><label for="m-owner">Owner Name</label><input id="m-owner" placeholder="Owner Full Name"/></div>
-        <div class="fr"><label for="m-phone">Phone Number</label><input id="m-phone" placeholder="876-xxx-xxxx"/></div>
+        <div class="fr"><label for="m-phone">Phone Number</label><input id="m-phone" placeholder="1-876-000-0000"/></div>
         <div class="fr"><label for="m-email">Email Address</label><input id="m-email" type="email" placeholder="business@email.com"/></div>
-        <div class="fr"><label for="m-fee">Delivery Fee ($) <small>(0 shows as “Free delivery”)</small></label><input id="m-fee" type="number" min="0" step="1" inputmode="numeric" placeholder="200"/></div>
+        <div class="fr"><label for="m-fee">Delivery Fee (J$) <small>(0 shows as “Free delivery”)</small></label><input id="m-fee" type="number" min="0" step="1" inputmode="numeric" placeholder="200"/></div>
         <div class="fr"><label for="m-hours">Opening Hours <small>(business hours)</small></label><input id="m-hours" placeholder="8:00 AM – 10:00 PM"/></div>
         <!-- P3-01: there was no input for this at all, which is why every merchant
              showed the customer app's hardcoded "25–35 min" fallback. -->

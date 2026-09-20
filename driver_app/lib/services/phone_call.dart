@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../driver_constants.dart';
 import '../widgets/se_toast.dart';
 
 /// Places a phone call to [phone] through the device dialer.
@@ -23,7 +24,10 @@ Future<void> callPhone(
     SeToast.info(context, '$label number not available for this order');
     return;
   }
-  final uri = Uri(scheme: 'tel', path: trimmed);
+  // Dial the normalised E.164 form; fall back to the raw string if it did not
+  // parse (an unusual number should still be callable).
+  final dial = SePhone.dial(trimmed);
+  final uri = Uri(scheme: 'tel', path: dial.isEmpty ? trimmed : dial);
   if (await canLaunchUrl(uri)) {
     await launchUrl(uri);
   } else if (context.mounted) {
